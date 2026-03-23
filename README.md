@@ -18,3 +18,14 @@ springboot
 # 中间件
 redis
 mysql
+
+# git 使用命令
+```bash
+#本地保存
+git add .
+git commit -m "我是备注"
+#远程拉取（在push前要pull下）
+git pull https://github.com/NOOB-P/wechat_mini_program.git master
+#上传
+git push https://github.com/NOOB-P/wechat_mini_program.git master
+```
