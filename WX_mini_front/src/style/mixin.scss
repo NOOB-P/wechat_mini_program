@@ -1,0 +1,9 @@
+/**
+ * @Description: 
+ * @parma $Color 文字颜色
+ * @parma $BgColor 背景颜色
+ */
+@mixin NotifyColor($Color,$BgColor){
+    background-color: $BgColor;
+    color: $Color;
+}
