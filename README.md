@@ -29,3 +29,8 @@ git pull https://github.com/NOOB-P/wechat_mini_program.git master
 #上传
 git push https://github.com/NOOB-P/wechat_mini_program.git master
 ```
+
+# 文件夹目录说明
+**Backend_front:** 后台的前端
+**WX_mini_front:** 小程序前端
+**JavaSB_back:** 后端
