@@ -8,6 +8,13 @@
 			}
 		},
 		{
+			"path": "pages/login/index",
+			"type": "page",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
 			"path": "pages/mine/index",
 			"type": "page",
 			"style": {
