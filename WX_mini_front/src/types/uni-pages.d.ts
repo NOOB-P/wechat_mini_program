@@ -5,6 +5,7 @@
 
 interface NavigateToOptions {
   url: "/pages/index/index" |
+       "/pages/login/index" |
        "/pages/mine/index";
 }
 interface RedirectToOptions extends NavigateToOptions {}

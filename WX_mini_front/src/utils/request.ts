@@ -10,8 +10,9 @@ const requestInterceptor = (options: requestOptions) => {
     // 拼接请求地址
     options.url = __VITE_SERVER_BASEURL__ + options.url
     // 设置请求头
+    const token = uni.getStorageSync('token')
     options.header = {
-        Authorization: `Bearer `, // token
+        Authorization: token ? `Bearer ${token}` : '',
         'Content-Type': 'application/json;charset=utf-8',
         ...options.header
     }
