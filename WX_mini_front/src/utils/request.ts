@@ -35,7 +35,7 @@ export default (options:requestOptions): Promise<any> => {
                     if(res.data.code === 200) {
                         resolve(res.data)
                         Notify.show({
-                            content: res.data.message,
+                            content: res.data.msg,
                             duration: 500,
                             type: 'success',
                             icon: 'check-outline'
@@ -43,7 +43,7 @@ export default (options:requestOptions): Promise<any> => {
                     } else {
                         reject(res.data)
                         Notify.show({
-                            content: `Error ${res.data.code}:${res.data.message}`,
+                            content: `Error ${res.data.code}:${res.data.msg}`,
                             duration: 2000,
                             type: 'danger',
                             icon: 'close-outline'

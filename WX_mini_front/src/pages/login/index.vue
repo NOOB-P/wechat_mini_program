@@ -60,9 +60,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useToast } from 'wot-design-uni'
+import { sendSmsCode, loginByPhone, loginByPassword } from '@/api/login'
 
 const toast = useToast()
 
@@ -74,31 +74,34 @@ const countdown = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
-  // 暂时注释掉自动跳转逻辑，确保能看到登录页
-  /*
   const token = uni.getStorageSync('token')
   if (token) {
     uni.switchTab({ url: '/pages/index/index' })
   }
-  */
 })
 
-const sendCode = () => {
+const sendCode = async () => {
   if (!phone.value || phone.value.length !== 11) {
     toast.show('请输入正确的手机号')
     return
   }
-  toast.success('验证码已发送')
-  countdown.value = 60
-  timer = setInterval(() => {
-    countdown.value--
-    if (countdown.value <= 0) {
-      clearInterval(timer!)
-    }
-  }, 1000)
+  
+  try {
+    await sendSmsCode(phone.value)
+    toast.success('验证码已发送')
+    countdown.value = 60
+    timer = setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0) {
+        clearInterval(timer!)
+      }
+    }, 1000)
+  } catch (error) {
+    console.error('发送验证码失败', error)
+  }
 }
 
-const handleLogin = () => {
+const handleLogin = async () => {
   if (!phone.value) {
     toast.show('请输入手机号')
     return
@@ -112,13 +115,29 @@ const handleLogin = () => {
     return
   }
   
-  // 模拟登录成功，存储 token
-  uni.setStorageSync('token', 'mock_token_123456')
-  
-  toast.success('登录成功')
-  setTimeout(() => {
-    uni.switchTab({ url: '/pages/index/index' })
-  }, 1500)
+  try {
+    let res
+    if (loginType.value === 'phone') {
+      res = await loginByPhone(phone.value, code.value)
+    } else {
+      res = await loginByPassword(phone.value, password.value)
+    }
+
+    // 存储 token (假设返回结构中有 data.token)
+    if (res.data && res.data.token) {
+      uni.setStorageSync('token', res.data.token)
+    } else {
+      // 兼容模拟数据的 token 存储
+      uni.setStorageSync('token', 'mock_token_123456')
+    }
+    
+    toast.success('登录成功')
+    setTimeout(() => {
+      uni.switchTab({ url: '/pages/index/index' })
+    }, 1500)
+  } catch (error) {
+    console.error('登录失败', error)
+  }
 }
 
 const goToRegister = () => {
