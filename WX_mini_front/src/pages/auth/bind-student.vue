@@ -46,11 +46,17 @@
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
+<<<<<<< HEAD
 import { sendBindStudentCode, bindStudentAccount } from '@/api/auth/bind-student'
 
 const toast = useToast()
 const countdown = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
+=======
+
+const toast = useToast()
+const countdown = ref(0)
+>>>>>>> 6b2f62dac9451053cd09d1eae0fd6f31d7995d35
 
 const form = reactive({
   studentName: '',
@@ -83,6 +89,7 @@ const skipBinding = () => {
   uni.switchTab({ url: '/pages/home/index' })
 }
 
+<<<<<<< HEAD
 const sendCode = async () => {
   if (!form.phone) return toast.show('手机号不能为空')
   
@@ -106,10 +113,30 @@ const sendCode = async () => {
 
 const handleBind = async () => {
   const { studentName, studentId, password, code, phone } = form
+=======
+const sendCode = () => {
+  if (!form.phone) return toast.show('手机号不能为空')
+  
+  toast.loading('发送中...')
+  // MOCK: 模拟发送验证码逻辑
+  setTimeout(() => {
+    toast.success('验证码已发送')
+    countdown.value = 60
+    const timer = setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0) clearInterval(timer)
+    }, 1000)
+  }, 1000)
+}
+
+const handleBind = () => {
+  const { studentName, studentId, password, code } = form
+>>>>>>> 6b2f62dac9451053cd09d1eae0fd6f31d7995d35
   if (!studentName || !studentId || !password || !code) {
     return toast.show('请填写完整信息')
   }
   
+<<<<<<< HEAD
   try {
     toast.loading('绑定中...')
     const res = await bindStudentAccount({
@@ -132,6 +159,17 @@ const handleBind = async () => {
   } catch (error: any) {
     toast.error(error.msg || '绑定失败')
   }
+=======
+  toast.loading('绑定中...')
+  // MOCK: 模拟异步绑定请求
+  setTimeout(() => {
+    toast.success('绑定成功')
+    // 绑定成功后，销毁当前页进入首页
+    setTimeout(() => {
+      uni.switchTab({ url: '/pages/home/index' })
+    }, 1500)
+  }, 1000)
+>>>>>>> 6b2f62dac9451053cd09d1eae0fd6f31d7995d35
 }
 
 const gotoForgotAccount = () => {
