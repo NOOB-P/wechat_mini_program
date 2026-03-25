@@ -96,25 +96,24 @@ onMounted(() => {
 
 // 菜单组一
 const menuGroup1 = [
-  { label: '绑定公众号', icon: 'check-outline', path: '/pages/bind/wechat' },
-  { label: '绑定学生账号', icon: 'link', path: '/pages/bind/student' },
-  { label: '收货地址', icon: 'location', path: '/pages/address/index' }
+  { label: '绑定公众号', icon: 'check-outline', path: '/pages/mine/bind/wechat' },
+  { label: '绑定学生账号', icon: 'link', path: '/pages/mine/bind/student' },
+  { label: '收货地址', icon: 'location', path: '/pages/mine/address/index' }
 ]
 
 // 菜单组二
 const menuGroup2 = [
-  { label: '客服中心', icon: 'chat', path: '/pages/support/index' },
-  { label: '关于我们', icon: 'info-circle', path: '/pages/about/index' },
-  { label: '意见反馈', icon: 'edit', path: '/pages/feedback/index' },
-  { label: '设置', icon: 'setting', path: '/pages/settings/index' }
+  { label: '客服中心', icon: 'chat', path: '/pages/mine/support/index' },
+  { label: '关于我们', icon: 'info-circle', path: '/pages/mine/about/index' },
+  { label: '意见反馈', icon: 'edit', path: '/pages/mine/feedback/index' },
+  { label: '设置', icon: 'setting', path: '/pages/mine/settings/index' }
 ]
 
 // 处理菜单点击
 const handleMenuClick = (item: any) => {
   console.log('点击了菜单:', item.label)
-  uni.showToast({
-    title: `点击了${item.label}`,
-    icon: 'none'
+  uni.navigateTo({
+    url: item.path
   })
 }
 

@@ -8,7 +8,8 @@ const mineMocks: Record<string, (data: any) => MockResponse> = {
       data: {
         avatar: 'https://img.yzcdn.cn/vant/cat.jpeg',
         nickname: 'zxp114...',
-        grade: '七年级'
+        grade: '七年级',
+        phone: '152****9802'
       }
     }
   },
@@ -17,6 +18,15 @@ const mineMocks: Record<string, (data: any) => MockResponse> = {
       code: 200,
       msg: '更新用户信息成功 (Mock)',
       data
+    }
+  },
+  '/mine/settings': () => {
+    return {
+      code: 200,
+      msg: '获取设置信息成功 (Mock)',
+      data: {
+        version: '1.8.2575'
+      }
     }
   }
 }

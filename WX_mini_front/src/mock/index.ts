@@ -1,4 +1,4 @@
-import mineMocks from './modules/mine';
+import mineMocks from './mine/index';
 
 export interface MockResponse {
   code: number;
