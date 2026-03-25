@@ -1,32 +1,57 @@
 import { defineUniPages } from "@uni-helper/vite-plugin-uni-pages";
 
 export default defineUniPages({
-	pages: [
-		{
-			path: "pages/login/index",
-			style: {
-				navigationBarTitleText: "登录",
-			},
-		},
-		{
-			path: "pages/home/index",
-			style: {
-				navigationBarTitleText: "首页",
-			},
-		},
-		{
-			path: "pages/course/index",
-			style: {
-				navigationBarTitleText: "课程",
-			},
-		},
-		{
-			path: "pages/mine/index",
-			style: {
-				navigationBarTitleText: "我的",
-			},
-		},
-	],
+  pages: [
+    {
+      path: 'pages/login/index',
+      type: 'home',
+      style: {
+        navigationBarTitleText : '登录',
+      },
+    },
+    {
+      path: 'pages/auth/bind-student',
+      style: {
+        navigationStyle: 'custom',
+      },
+    },
+    {
+      path: 'pages/auth/forgot-account',
+      style: {
+        navigationStyle: 'custom',
+      },
+    },
+    {
+      path: 'pages/auth/forgot-password',
+      style: {
+        navigationStyle: 'custom',
+      },
+    },
+    {
+      path: 'pages/auth/reset-password',
+      style: {
+        navigationStyle: 'custom',
+      },
+    },
+    {
+      path: 'pages/home/index',
+      style: {
+        navigationBarTitleText: '首页',
+      },
+    },
+    {
+      path: 'pages/course/index',
+      style: {
+        navigationBarTitleText: '课程',
+      },
+    },
+    {
+      path: 'pages/mine/index',
+      style: {
+        navigationBarTitleText: '我的',
+      },
+    },
+  ],
 	globalStyle: {
 		navigationBarTextStyle: "black",
 		navigationBarTitleText: "russ-uniapp",

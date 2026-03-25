@@ -43,19 +43,16 @@
       </view>
       <view class="icons">
         <view class="icon-item" @click="thirdPartyLogin('wechat')">
-          <!-- Wot Design Uni icon wechat -->
           <wd-icon name="wechat" size="40px" color="#07C160" />
           <text class="icon-text">微信</text>
         </view>
         <view class="icon-item" @click="thirdPartyLogin('qq')">
-          <!-- Wot Design Uni might not have QQ icon natively, fallback to a text or check if qq is there -->
           <wd-icon name="qq" size="40px" color="#12B7F5" />
           <text class="icon-text">QQ</text>
         </view>
       </view>
     </view>
     
-    <!-- 注册弹窗 -->
     <wd-popup v-model="showRegisterPopup" position="bottom" custom-style="height: 70%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
       <view class="popup-content">
         <view class="popup-title">快速注册</view>
@@ -76,7 +73,6 @@
       </view>
     </wd-popup>
 
-    <!-- 找回密码弹窗 -->
     <wd-popup v-model="showForgotPopup" position="bottom" custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
       <view class="popup-content">
         <view class="popup-title">找回密码</view>
@@ -138,6 +134,7 @@ const forgotForm = ref({
 onMounted(() => {
   const token = uni.getStorageSync('token')
   if (token) {
+    // 如果已经登录，直接进入首页
     uni.switchTab({ url: '/pages/home/index' })
   }
 })
@@ -187,8 +184,13 @@ const handleLogin = async () => {
         uni.setStorageSync('token', res.data.token)
       }
       toast.success('登录成功')
+      
+      // 修改点：因为登录页是启动页，跳转到绑定页必须使用 redirectTo
+      // 这样跳转后页面栈会替换，用户在绑定页按返回键不会回到登录页
       setTimeout(() => {
-        uni.switchTab({ url: '/pages/home/index' })
+        uni.redirectTo({ 
+          url: `/pages/auth/bind-student?phone=${phone.value}` 
+        })
       }, 1500)
     } else {
       toast.error(res.msg || '登录失败')
@@ -203,7 +205,8 @@ const goToRegister = () => {
 }
 
 const goToForgotPassword = () => {
-  showForgotPopup.value = true
+  // 注意：如果 forgot-password 也是独立页面，建议检查其返回逻辑
+  uni.navigateTo({ url: '/pages/auth/forgot-password' })
 }
 
 // 注册逻辑
@@ -282,7 +285,6 @@ const handleForgot = async () => {
 
 const thirdPartyLogin = (type: string) => {
   if (type === 'wechat') {
-    // 微信登录
     uni.login({
       provider: 'weixin',
       success: async (loginRes) => {
@@ -293,6 +295,7 @@ const thirdPartyLogin = (type: string) => {
               uni.setStorageSync('token', res.data.token)
             }
             toast.success('微信登录成功')
+            // 第三方登录通常直接进首页
             setTimeout(() => {
               uni.switchTab({ url: '/pages/home/index' })
             }, 1500)
@@ -304,12 +307,10 @@ const thirdPartyLogin = (type: string) => {
       }
     })
   } else if (type === 'qq') {
-    // QQ 登录模拟 (uni-app QQ 登录需要配置)
     uni.login({
       provider: 'qq',
       success: async (loginRes) => {
         try {
-          // QQ 登录通常返回 openid 或 access_token
           const res = await thirdPartyLoginApi('qq', 'mock_qq_openid')
           if (res.data && res.data.token) {
             uni.setStorageSync('token', res.data.token)
@@ -321,14 +322,12 @@ const thirdPartyLogin = (type: string) => {
         } catch (error) {}
       },
       fail: () => {
-        // 如果没有配置 QQ 登录，这里会失败，我们直接模拟
         mockThirdPartyLogin('qq')
       }
     })
   }
 }
 
-// 模拟第三方登录（用于开发调试）
 const mockThirdPartyLogin = async (type: string) => {
   toast.success(`正在模拟${type === 'wechat' ? '微信' : 'QQ'}登录...`)
   try {
