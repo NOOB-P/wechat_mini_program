@@ -30,8 +30,8 @@
       </view>
 
       <view class="sub-actions">
-        <text class="link" @click="goToRegister">注册账号</text>
-        <text class="link" @click="goToForgotPassword">忘记密码？</text>
+        <text class="link" @click="goToRegister">立即注册</text>
+        <text class="link" @click="goToForgotPassword">找回密码</text>
       </view>
     </view>
 
@@ -55,6 +55,47 @@
       </view>
     </view>
     
+    <!-- 注册弹窗 -->
+    <wd-popup v-model="showRegisterPopup" position="bottom" custom-style="height: 70%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+      <view class="popup-content">
+        <view class="popup-title">快速注册</view>
+        <view class="input-group">
+          <wd-input v-model="registerForm.phone" placeholder="请输入手机号" clearable type="number" maxlength="11" />
+          <view class="code-wrapper">
+            <wd-input v-model="registerForm.code" placeholder="请输入验证码" clearable type="number" maxlength="6" />
+            <wd-button class="code-btn" type="primary" plain size="small" @click="sendRegisterCode" :disabled="registerCountdown > 0">
+              {{ registerCountdown > 0 ? `${registerCountdown}s后重试` : '获取验证码' }}
+            </wd-button>
+          </view>
+          <wd-input v-model="registerForm.password" placeholder="请设置密码" clearable show-password type="text" />
+          <wd-input v-model="registerForm.nickname" placeholder="请输入昵称" clearable type="text" />
+        </view>
+        <view class="action-btn">
+          <wd-button type="primary" block @click="handleRegister">立即注册</wd-button>
+        </view>
+      </view>
+    </wd-popup>
+
+    <!-- 找回密码弹窗 -->
+    <wd-popup v-model="showForgotPopup" position="bottom" custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+      <view class="popup-content">
+        <view class="popup-title">找回密码</view>
+        <view class="input-group">
+          <wd-input v-model="forgotForm.phone" placeholder="请输入手机号" clearable type="number" maxlength="11" />
+          <view class="code-wrapper">
+            <wd-input v-model="forgotForm.code" placeholder="请输入验证码" clearable type="number" maxlength="6" />
+            <wd-button class="code-btn" type="primary" plain size="small" @click="sendForgotCode" :disabled="forgotCountdown > 0">
+              {{ forgotCountdown > 0 ? `${forgotCountdown}s后重试` : '获取验证码' }}
+            </wd-button>
+          </view>
+          <wd-input v-model="forgotForm.password" placeholder="请输入新密码" clearable show-password type="text" />
+        </view>
+        <view class="action-btn">
+          <wd-button type="primary" block @click="handleForgot">重置密码</wd-button>
+        </view>
+      </view>
+    </wd-popup>
+
     <wd-toast id="wd-toast" />
   </view>
 </template>
@@ -62,7 +103,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useToast } from 'wot-design-uni'
-import { sendSmsCode, loginByPhone, loginByPassword } from '@/api/login'
+import { sendSmsCode, loginByPhone, loginByPassword, register, forgotPassword, thirdPartyLoginApi } from '@/api/login'
 
 const toast = useToast()
 
@@ -72,6 +113,27 @@ const code = ref('')
 const password = ref('')
 const countdown = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
+
+// 注册相关
+const showRegisterPopup = ref(false)
+const registerCountdown = ref(0)
+let registerTimer: ReturnType<typeof setInterval> | null = null
+const registerForm = ref({
+  phone: '',
+  code: '',
+  password: '',
+  nickname: ''
+})
+
+// 找回密码相关
+const showForgotPopup = ref(false)
+const forgotCountdown = ref(0)
+let forgotTimer: ReturnType<typeof setInterval> | null = null
+const forgotForm = ref({
+  phone: '',
+  code: '',
+  password: ''
+})
 
 onMounted(() => {
   const token = uni.getStorageSync('token')
@@ -103,53 +165,181 @@ const sendCode = async () => {
 
 const handleLogin = async () => {
   if (!phone.value) {
-    toast.show('请输入手机号')
-    return
+    return toast.show('请输入手机号')
   }
   if (loginType.value === 'phone' && !code.value) {
-    toast.show('请输入验证码')
-    return
+    return toast.show('请输入验证码')
   }
   if (loginType.value === 'password' && !password.value) {
-    toast.show('请输入密码')
-    return
+    return toast.show('请输入密码')
   }
-  
+
   try {
     let res
     if (loginType.value === 'phone') {
-      res = await loginByPhone(phone.value, code.value)
+      res = await loginByPhone({ phone: phone.value, code: code.value })
     } else {
-      res = await loginByPassword(phone.value, password.value)
+      res = await loginByPassword({ phone: phone.value, password: password.value })
     }
 
-    // 存储 token (假设返回结构中有 data.token)
-    if (res.data && res.data.token) {
-      uni.setStorageSync('token', res.data.token)
+    if (res.code === 200) {
+      if (res.data && res.data.token) {
+        uni.setStorageSync('token', res.data.token)
+      }
+      toast.success('登录成功')
+      setTimeout(() => {
+        uni.switchTab({ url: '/pages/index/index' })
+      }, 1500)
     } else {
-      // 兼容模拟数据的 token 存储
-      uni.setStorageSync('token', 'mock_token_123456')
+      toast.error(res.msg || '登录失败')
     }
-    
-    toast.success('登录成功')
-    setTimeout(() => {
-      uni.switchTab({ url: '/pages/index/index' })
-    }, 1500)
-  } catch (error) {
-    console.error('登录失败', error)
+  } catch (error: any) {
+    toast.error(error.msg || '网络错误，请稍后重试')
   }
 }
 
 const goToRegister = () => {
-  toast.show('跳转到注册页面')
+  showRegisterPopup.value = true
 }
 
 const goToForgotPassword = () => {
-  toast.show('跳转到找回密码页面')
+  showForgotPopup.value = true
+}
+
+// 注册逻辑
+const sendRegisterCode = async () => {
+  if (!registerForm.value.phone || registerForm.value.phone.length !== 11) {
+    toast.show('请输入正确的手机号')
+    return
+  }
+  try {
+    await sendSmsCode(registerForm.value.phone)
+    toast.success('验证码已发送')
+    registerCountdown.value = 60
+    registerTimer = setInterval(() => {
+      registerCountdown.value--
+      if (registerCountdown.value <= 0) {
+        clearInterval(registerTimer!)
+      }
+    }, 1000)
+  } catch (error) {}
+}
+
+const handleRegister = async () => {
+  if (!registerForm.value.phone || !registerForm.value.code || !registerForm.value.password) {
+    return toast.show('请填写完整注册信息')
+  }
+
+  try {
+    const res = await register(registerForm.value)
+    if (res.code === 200) {
+      toast.success('注册成功')
+      showRegisterPopup.value = false
+    } else {
+      toast.error(res.msg || '注册失败')
+    }
+  } catch (error: any) {
+    toast.error(error.msg || '网络错误')
+  }
+}
+
+// 找回密码逻辑
+const sendForgotCode = async () => {
+  if (!forgotForm.value.phone || forgotForm.value.phone.length !== 11) {
+    toast.show('请输入正确的手机号')
+    return
+  }
+  try {
+    await sendSmsCode(forgotForm.value.phone)
+    toast.success('验证码已发送')
+    forgotCountdown.value = 60
+    forgotTimer = setInterval(() => {
+      forgotCountdown.value--
+      if (forgotCountdown.value <= 0) {
+        clearInterval(forgotTimer!)
+      }
+    }, 1000)
+  } catch (error) {}
+}
+
+const handleForgot = async () => {
+  if (!forgotForm.value.phone || !forgotForm.value.code || !forgotForm.value.password) {
+    return toast.show('请填写完整信息')
+  }
+
+  try {
+    const res = await forgotPassword(forgotForm.value)
+    if (res.code === 200) {
+      toast.success('密码重置成功')
+      showForgotPopup.value = false
+    } else {
+      toast.error(res.msg || '重置失败')
+    }
+  } catch (error: any) {
+    toast.error(error.msg || '网络错误')
+  }
 }
 
 const thirdPartyLogin = (type: string) => {
-  toast.success(`正在使用${type === 'wechat' ? '微信' : 'QQ'}登录...`)
+  if (type === 'wechat') {
+    // 微信登录
+    uni.login({
+      provider: 'weixin',
+      success: async (loginRes) => {
+        if (loginRes.code) {
+          try {
+            const res = await thirdPartyLoginApi('wechat', loginRes.code)
+            if (res.data && res.data.token) {
+              uni.setStorageSync('token', res.data.token)
+            }
+            toast.success('微信登录成功')
+            setTimeout(() => {
+              uni.switchTab({ url: '/pages/index/index' })
+            }, 1500)
+          } catch (error) {}
+        }
+      },
+      fail: () => {
+        toast.show('微信登录失败')
+      }
+    })
+  } else if (type === 'qq') {
+    // QQ 登录模拟 (uni-app QQ 登录需要配置)
+    uni.login({
+      provider: 'qq',
+      success: async (loginRes) => {
+        try {
+          // QQ 登录通常返回 openid 或 access_token
+          const res = await thirdPartyLoginApi('qq', 'mock_qq_openid')
+          if (res.data && res.data.token) {
+            uni.setStorageSync('token', res.data.token)
+          }
+          toast.success('QQ登录成功')
+          setTimeout(() => {
+            uni.switchTab({ url: '/pages/index/index' })
+          }, 1500)
+        } catch (error) {}
+      },
+      fail: () => {
+        // 如果没有配置 QQ 登录，这里会失败，我们直接模拟
+        mockThirdPartyLogin('qq')
+      }
+    })
+  }
+}
+
+// 模拟第三方登录（用于开发调试）
+const mockThirdPartyLogin = async (type: string) => {
+  toast.success(`正在模拟${type === 'wechat' ? '微信' : 'QQ'}登录...`)
+  try {
+    const res = await thirdPartyLoginApi(type, `mock_${type}_openid_123`)
+    if (res.data && res.data.token) {
+      uni.setStorageSync('token', res.data.token)
+    }
+    setTimeout(() => {
+      uni.switchTab({ url: '/pages/index/index' })
+    }, 1500)
+  } catch (error) {}
 }
 </script>
 
@@ -260,6 +450,40 @@ const thirdPartyLogin = (type: string) => {
           opacity: 0.7;
         }
       }
+    }
+  }
+
+  .popup-content {
+    .popup-title {
+      font-size: 36rpx;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 40rpx;
+      text-align: center;
+    }
+    
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 30rpx;
+    }
+    
+    .code-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 20rpx;
+      
+      :deep(.wd-input) {
+        flex: 1;
+      }
+      
+      .code-btn {
+        min-width: 180rpx;
+      }
+    }
+    
+    .action-btn {
+      margin-top: 60rpx;
     }
   }
 }

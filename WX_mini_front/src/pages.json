@@ -1,17 +1,17 @@
 {
 	"pages": [
 		{
-			"path": "pages/index/index",
-			"type": "home",
-			"style": {
-				"navigationBarTitleText": "首页"
-			}
-		},
-		{
 			"path": "pages/login/index",
 			"type": "page",
 			"style": {
 				"navigationBarTitleText": "登录"
+			}
+		},
+		{
+			"path": "pages/index/index",
+			"type": "home",
+			"style": {
+				"navigationBarTitleText": "首页"
 			}
 		},
 		{
@@ -20,6 +20,11 @@
 			"style": {
 				"navigationBarTitleText": "我的"
 			}
+		},
+		{
+			"path": "pages/register/index",
+			"type": "page",
+			"style": {}
 		}
 	],
 	"globalStyle": {

@@ -40,6 +40,48 @@ export const loginByPassword = (phone: string, password: string) => {
 }
 
 /**
+ * @Description: 注册账号
+ * @param {string} phone 手机号
+ * @param {string} password 密码
+ * @param {string} nickname 昵称
+ * @param {string} code 验证码
+ */
+export const register = (data: { phone: string; password?: string; nickname?: string; code?: string }) => {
+  return request({
+    url: '/login/register',
+    method: 'POST',
+    data
+  })
+}
+
+/**
+ * @Description: 找回密码
+ * @param {string} phone 手机号
+ * @param {string} password 新密码
+ * @param {string} code 验证码
+ */
+export const forgotPassword = (data: { phone: string; password?: string; code?: string }) => {
+  return request({
+    url: '/login/forgotPassword',
+    method: 'POST',
+    data
+  })
+}
+
+/**
+ * @Description: 第三方登录
+ * @param {string} type 登录类型 wechat | qq
+ * @param {string} openid 第三方唯一标识
+ */
+export const thirdPartyLoginApi = (type: string, openid: string) => {
+  return request({
+    url: '/login/thirdParty',
+    method: 'POST',
+    data: { type, openid }
+  })
+}
+
+/**
  * @Description: 退出登录
  */
 export const logout = () => {
