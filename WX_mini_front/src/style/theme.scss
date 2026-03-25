@@ -1,0 +1,32 @@
+// dark 
+// 主要行为颜色
+$-color-primary: #4d80f0;
+$-color-success: #34d19d;
+$-color-warning: #f0883a;
+$-color-danger: #fa4350;
+$-color-info: #f0f0f0;
+
+$-font-color: #333;
+$-bg-color: #f8f9fa;
+
+
+// light 暗黑模式
+$-color-primary-light: #4d80f0;
+$-color-success-light: #34d19d;
+$-color-warning-light: #f0883a;
+$-color-danger-light: #fa4350;
+$-color-info-light: #f0f0f0;
+
+$-font-color-light: #fff;
+$-bg-color-light: #1b1b1b;
+
+$theme: (
+    light: (
+        font-color: $-font-color-light,
+        bg-color: $-bg-color-light
+    ),
+    dark: (
+        font-color: $-font-color,
+        bg-color: $-bg-color
+    )
+)
