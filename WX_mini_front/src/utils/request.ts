@@ -1,5 +1,5 @@
 import type { requestOptions } from '@/types/request'
-import { useNotify } from '@/components/GlobalNotify/index'
+import { useNotify } from '@/components/GlobalNotify/useNotify'
 import { getMockData } from '@/mock/index'
 
 const Notify = useNotify()

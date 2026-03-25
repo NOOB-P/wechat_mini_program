@@ -15,27 +15,25 @@ export const sendSmsCode = (phone: string) => {
 
 /**
  * @Description: 验证码登录
- * @param {string} phone 手机号
- * @param {string} code 验证码
+ * @param {object} data { phone, code }
  */
-export const loginByPhone = (phone: string, code: string) => {
+export const loginByPhone = (data: { phone: string; code: string }) => {
   return request({
     url: '/login/phone',
     method: 'POST',
-    data: { phone, code }
+    data
   })
 }
 
 /**
  * @Description: 密码登录
- * @param {string} phone 手机号
- * @param {string} password 密码
+ * @param {object} data { phone, password }
  */
-export const loginByPassword = (phone: string, password: string) => {
+export const loginByPassword = (data: { phone: string; password: string }) => {
   return request({
     url: '/login/password',
     method: 'POST',
-    data: { phone, password }
+    data
   })
 }
 

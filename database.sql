@@ -7,8 +7,8 @@
 *******************************************************************************
 */
 
-CREATE DATABASE IF NOT EXISTS youth_hui_db CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-USE youth_hui_db;
+CREATE DATABASE IF NOT EXISTS edu_data CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE edu_data;
 
 -- ---------------------------------------------------------
 -- 1. 学校与组织架构模块

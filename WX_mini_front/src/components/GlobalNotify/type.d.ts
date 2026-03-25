@@ -1,4 +1,5 @@
 import { PopupType } from "wot-design-uni/components/wd-popup/types"
+import type { Ref } from "vue"
 
 // 通知主题类型
 enum TypeEnum {
@@ -17,7 +18,7 @@ export type NotifyIconType =
     "loading"
 
 export type NotifyOptions = {
-    icon?: NotifyIconEnum
+    icon?: NotifyIconType
     content?: string
     duration?: number | boolean
     type?: string

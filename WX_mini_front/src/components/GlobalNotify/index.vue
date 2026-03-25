@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useNotify } from './index'
+import { useNotify } from './useNotify'
 const {
     globalNotifyState,
     options
