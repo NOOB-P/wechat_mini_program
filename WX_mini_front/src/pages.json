@@ -25,6 +25,11 @@
 			"path": "pages/register/index",
 			"type": "page",
 			"style": {}
+		},
+		{
+			"path": "pages/mine/settings/index",
+			"type": "page",
+			"style": {}
 		}
 	],
 	"globalStyle": {
