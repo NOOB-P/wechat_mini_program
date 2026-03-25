@@ -1,3 +1,5 @@
+import mineMocks from './modules/mine';
+
 export interface MockResponse {
   code: number;
   msg: string;
@@ -5,6 +7,7 @@ export interface MockResponse {
 }
 
 const mocks: Record<string, (data: any) => MockResponse> = {
+  ...mineMocks,
   '/login/sendCode': (data) => {
     return {
       code: 200,
