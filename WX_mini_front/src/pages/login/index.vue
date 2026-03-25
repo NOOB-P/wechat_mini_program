@@ -138,7 +138,7 @@ const forgotForm = ref({
 onMounted(() => {
   const token = uni.getStorageSync('token')
   if (token) {
-    uni.switchTab({ url: '/pages/index/index' })
+    uni.switchTab({ url: '/pages/home/index' })
   }
 })
 
@@ -188,7 +188,7 @@ const handleLogin = async () => {
       }
       toast.success('登录成功')
       setTimeout(() => {
-        uni.switchTab({ url: '/pages/index/index' })
+        uni.switchTab({ url: '/pages/home/index' })
       }, 1500)
     } else {
       toast.error(res.msg || '登录失败')
@@ -294,7 +294,7 @@ const thirdPartyLogin = (type: string) => {
             }
             toast.success('微信登录成功')
             setTimeout(() => {
-              uni.switchTab({ url: '/pages/index/index' })
+              uni.switchTab({ url: '/pages/home/index' })
             }, 1500)
           } catch (error) {}
         }
@@ -316,7 +316,7 @@ const thirdPartyLogin = (type: string) => {
           }
           toast.success('QQ登录成功')
           setTimeout(() => {
-            uni.switchTab({ url: '/pages/index/index' })
+            uni.switchTab({ url: '/pages/home/index' })
           }, 1500)
         } catch (error) {}
       },
@@ -337,7 +337,7 @@ const mockThirdPartyLogin = async (type: string) => {
       uni.setStorageSync('token', res.data.token)
     }
     setTimeout(() => {
-      uni.switchTab({ url: '/pages/index/index' })
+      uni.switchTab({ url: '/pages/home/index' })
     }, 1500)
   } catch (error) {}
 }

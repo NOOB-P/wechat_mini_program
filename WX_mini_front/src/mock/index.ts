@@ -122,6 +122,47 @@ const mocks: Record<string, (data: any) => MockResponse> = {
         token: `mock-token-${type}-${openid}`
       }
     };
+  },
+  '/login/logout': (data) => {
+    return {
+      code: 200,
+      msg: '退出成功 (Mock)'
+    };
+  },
+  '/home/stats': (data) => {
+    return {
+      code: 200,
+      msg: '获取统计数据成功 (Mock)',
+      data: {
+        paperCount: 12,
+        wrongCount: 45,
+        analysisProgress: 85
+      }
+    };
+  },
+  '/home/recommend': (data) => {
+    return {
+      code: 200,
+      msg: '获取推荐课程成功 (Mock)',
+      data: [
+        { id: 1, name: '数学强化班', price: 199, image: 'https://via.placeholder.com/150' },
+        { id: 2, name: '英语口语课', price: 299, image: 'https://via.placeholder.com/150' },
+        { id: 3, name: '物理实验课', price: 150, image: 'https://via.placeholder.com/150' },
+        { id: 4, name: '化学奥赛', price: 399, image: 'https://via.placeholder.com/150' }
+      ]
+    };
+  },
+  '/course/list': (data) => {
+    return {
+      code: 200,
+      msg: '获取课程列表成功 (Mock)',
+      data: [
+        { id: 1, name: '数学基础', desc: '适合初学者', price: 99, image: 'https://via.placeholder.com/150' },
+        { id: 2, name: '英语语法', desc: '精讲常用语法', price: 129, image: 'https://via.placeholder.com/150' },
+        { id: 3, name: '物理力学', desc: '力学基础知识', price: 149, image: 'https://via.placeholder.com/150' },
+        { id: 4, name: '化学反应', desc: '带你了解化学世界', price: 199, image: 'https://via.placeholder.com/150' }
+      ]
+    };
   }
 };
 

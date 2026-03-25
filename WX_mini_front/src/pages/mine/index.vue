@@ -1,3 +1,66 @@
+<script setup lang="ts">
+import { reactive, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { getUserInfoApi } from '@/api/mine'
+
+// 用户信息
+const userInfo = reactive({
+  avatar: '',
+  nickname: '',
+  grade: ''
+})
+
+// 菜单组一
+const menuGroup1 = [
+  { label: '我的课程', icon: 'books', value: 'courses' },
+  { label: '我的收藏', icon: 'star', value: 'favorites' },
+  { label: '学习记录', icon: 'time', value: 'history' }
+]
+
+// 菜单组二
+const menuGroup2 = [
+  { label: '个人设置', icon: 'setting', value: 'settings' },
+  { label: '关于我们', icon: 'info-circle', value: 'about' }
+]
+
+// 获取用户信息
+const getUserInfo = async () => {
+  try {
+    const res = await getUserInfoApi()
+    if (res.code === 200) {
+      Object.assign(userInfo, res.data)
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+  }
+}
+
+onShow(() => {
+  const token = uni.getStorageSync('token')
+  if (!token) {
+    uni.reLaunch({ url: '/pages/login/index' })
+  } else {
+    getUserInfo()
+  }
+})
+
+onMounted(() => {
+  // 初始加载由 onShow 处理，如果需要其他逻辑可以放在这里
+})
+
+const handleMenuClick = (item: any) => {
+  if (item.value === 'settings') {
+    uni.navigateTo({ url: '/pages/mine/settings/index' })
+  } else {
+    uni.showToast({ title: `点击了${item.label}`, icon: 'none' })
+  }
+}
+
+const handleEditProfile = () => {
+  uni.showToast({ title: '编辑个人资料', icon: 'none' })
+}
+</script>
+
 <template>
   <view class="mine-container">
     <!-- 头部背景渐变 -->
@@ -67,62 +130,6 @@
   </view>
 </template>
 
-<script setup lang="ts">
-import { reactive, onMounted } from 'vue'
-import { getUserInfoApi } from '@/api/mine'
-
-// 用户信息
-const userInfo = reactive({
-  avatar: '',
-  nickname: '',
-  grade: ''
-})
-
-// 获取用户信息
-const getUserInfo = async () => {
-  try {
-    const res = await getUserInfoApi()
-    if (res.code === 200) {
-      Object.assign(userInfo, res.data)
-    }
-  } catch (error) {
-    console.error('获取用户信息失败:', error)
-  }
-}
-
-onMounted(() => {
-  getUserInfo()
-})
-
-// 菜单组一
-const menuGroup1 = [
-  { label: '绑定公众号', icon: 'check-outline', path: '/pages/mine/bind/wechat' },
-  { label: '绑定学生账号', icon: 'link', path: '/pages/mine/bind/student' },
-  { label: '收货地址', icon: 'location', path: '/pages/mine/address/index' }
-]
-
-// 菜单组二
-const menuGroup2 = [
-  { label: '客服中心', icon: 'chat', path: '/pages/mine/support/index' },
-  { label: '关于我们', icon: 'info-circle', path: '/pages/mine/about/index' },
-  { label: '意见反馈', icon: 'edit', path: '/pages/mine/feedback/index' },
-  { label: '设置', icon: 'setting', path: '/pages/mine/settings/index' }
-]
-
-// 处理菜单点击
-const handleMenuClick = (item: any) => {
-  console.log('点击了菜单:', item.label)
-  uni.navigateTo({
-    url: item.path
-  })
-}
-
-// 处理个人资料编辑
-const handleEditProfile = () => {
-  console.log('编辑个人资料')
-}
-</script>
-
 <style lang="scss" scoped>
 .mine-container {
   min-height: 100vh;
@@ -135,93 +142,79 @@ const handleEditProfile = () => {
   top: 0;
   left: 0;
   right: 0;
-  height: 280rpx;
-  background: linear-gradient(180deg, #e6f1ff 0%, #f8f9fa 100%);
-  z-index: 0;
+  height: 400rpx;
+  background: linear-gradient(180deg, #1a5f8e 0%, #f8f9fa 100%);
+  opacity: 0.1;
 }
 
 .header-content {
   position: relative;
-  z-index: 1;
-  padding: 0 40rpx;
-}
-
-.status-bar {
-  height: var(--status-bar-height);
-}
-
-.nav-bar {
-  height: 88rpx;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.notice-icon {
-  color: #333;
-}
-
-.user-info-section {
-  display: flex;
-  align-items: center;
-  margin-top: 20rpx;
-  margin-bottom: 60rpx;
-}
-
-.user-avatar {
-  border: 4rpx solid #fff;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-}
-
-.user-text {
-  margin-left: 24rpx;
-  flex: 1;
-}
-
-.nickname-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.nickname {
-  font-size: 40rpx;
-  font-weight: bold;
-  color: #333;
-}
-
-.grade {
-  font-size: 26rpx;
-  color: #999;
-  margin-top: 8rpx;
-  display: block;
+  padding: 0 40rpx 40rpx;
+  
+  .status-bar {
+    height: var(--status-bar-height);
+  }
+  
+  .nav-bar {
+    height: 88rpx;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    .notice-icon {
+      color: #333;
+    }
+  }
+  
+  .user-info-section {
+    display: flex;
+    align-items: center;
+    margin-top: 20rpx;
+    
+    .user-avatar {
+      border: 4rpx solid #fff;
+      box-shadow: 0 8rpx 20rpx rgba(0,0,0,0.1);
+    }
+    
+    .user-text {
+      margin-left: 30rpx;
+      .nickname-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8rpx;
+        .nickname {
+          font-size: 40rpx;
+          font-weight: bold;
+          margin-right: 8rpx;
+        }
+      }
+      .grade {
+        font-size: 24rpx;
+        color: #666;
+        background: rgba(0,0,0,0.05);
+        padding: 4rpx 16rpx;
+        border-radius: 20rpx;
+      }
+    }
+  }
 }
 
 .menu-content {
-  position: relative;
-  z-index: 1;
-  padding: 0 30rpx;
-}
-
-.menu-card {
-  background-color: #fff;
-  border-radius: 24rpx;
-  overflow: hidden;
-  margin-bottom: 30rpx;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.02);
-}
-
-.menu-icon {
-  margin-right: 20rpx;
-  color: #333;
-}
-
-/* 深度修改 wot-design 样式以符合卡片风格 */
-:deep(.wd-cell-group) {
-  background-color: transparent !important;
-}
-
-:deep(.wd-cell) {
-  padding: 32rpx 32rpx !important;
+  padding: 0 30rpx 40rpx;
+  .menu-card {
+    background: #fff;
+    border-radius: 24rpx;
+    overflow: hidden;
+    margin-bottom: 30rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.02);
+    
+    .menu-icon {
+      margin-right: 20rpx;
+      color: #1a5f8e;
+    }
+    
+    :deep(.wd-cell) {
+      padding: 30rpx 24rpx;
+    }
+  }
 }
 </style>

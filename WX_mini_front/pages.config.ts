@@ -9,9 +9,15 @@ export default defineUniPages({
 			},
 		},
 		{
-			path: "pages/index/index",
+			path: "pages/home/index",
 			style: {
 				navigationBarTitleText: "首页",
+			},
+		},
+		{
+			path: "pages/course/index",
+			style: {
+				navigationBarTitleText: "课程",
 			},
 		},
 		{
@@ -19,7 +25,7 @@ export default defineUniPages({
 			style: {
 				navigationBarTitleText: "我的",
 			},
-		}
+		},
 	],
 	globalStyle: {
 		navigationBarTextStyle: "black",
@@ -36,8 +42,14 @@ export default defineUniPages({
 		  {
 			iconPath: 'static/tabbar/tabbar_home.png',
 			selectedIconPath: 'static/tabbar/tabbar_home.png',
-			pagePath: 'pages/index/index',
+			pagePath: 'pages/home/index',
 			text: '首页',
+		  },
+		  {
+			iconPath: 'static/tabbar/tabbar_course.png',
+			selectedIconPath: 'static/tabbar/tabbar_course.png',
+			pagePath: 'pages/course/index',
+			text: '课程',
 		  },
 		  {
 			iconPath: 'static/tabbar/tabbar_mine.png',
