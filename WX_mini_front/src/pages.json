@@ -1,17 +1,24 @@
 {
 	"pages": [
 		{
-			"path": "pages/index/index",
-			"type": "home",
+			"path": "pages/login/index",
+			"type": "page",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
+			"path": "pages/home/index",
+			"type": "page",
 			"style": {
 				"navigationBarTitleText": "首页"
 			}
 		},
 		{
-			"path": "pages/login/index",
+			"path": "pages/course/index",
 			"type": "page",
 			"style": {
-				"navigationBarTitleText": "登录"
+				"navigationBarTitleText": "课程"
 			}
 		},
 		{
@@ -45,16 +52,22 @@
 		"borderStyle": "black",
 		"list": [
 			{
+				"pagePath": "pages/home/index",
+				"text": "首页",
 				"iconPath": "static/tabbar/tabbar_home.png",
-				"selectedIconPath": "static/tabbar/tabbar_home.png",
-				"pagePath": "pages/index/index",
-				"text": "首页"
+				"selectedIconPath": "static/tabbar/tabbar_home.png"
 			},
 			{
-				"iconPath": "static/tabbar/tabbar_mine.png",
-				"selectedIconPath": "static/tabbar/tabbar_mine.png",
+				"pagePath": "pages/course/index",
+				"text": "课程",
+				"iconPath": "static/tabbar/tabbar_course.png",
+				"selectedIconPath": "static/tabbar/tabbar_course.png"
+			},
+			{
 				"pagePath": "pages/mine/index",
-				"text": "我的"
+				"text": "我的",
+				"iconPath": "static/tabbar/tabbar_mine.png",
+				"selectedIconPath": "static/tabbar/tabbar_mine.png"
 			}
 		]
 	},
