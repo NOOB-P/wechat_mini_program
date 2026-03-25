@@ -1,29 +1,39 @@
 {
 	"pages": [
 		{
+			"path": "pages/login/index",
+			"type": "home",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
 			"path": "pages/auth/bind-student",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationStyle": "custom"
+			}
 		},
 		{
 			"path": "pages/auth/forgot-account",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationStyle": "custom"
+			}
 		},
 		{
 			"path": "pages/auth/forgot-password",
 			"type": "page",
-			"style": {}
-		},
-		{
-			"path": "pages/auth/login",
-			"type": "page",
-			"style": {}
+			"style": {
+				"navigationStyle": "custom"
+			}
 		},
 		{
 			"path": "pages/auth/reset-password",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationStyle": "custom"
+			}
 		},
 		{
 			"path": "pages/course/index",
@@ -37,13 +47,6 @@
 			"type": "page",
 			"style": {
 				"navigationBarTitleText": "首页"
-			}
-		},
-		{
-			"path": "pages/login/index",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "登录"
 			}
 		},
 		{

@@ -70,7 +70,7 @@ const handleReset = async () => {
     const res = await resetPassword({ phone, code, password })
     if (res.code === 200) {
       toast.success('密码重置成功')
-      setTimeout(() => uni.navigateTo({ url: '/pages/auth/login' }), 1500)
+      setTimeout(() => uni.navigateTo({ url: '/pages/login/index' }), 1500)
     } else {
       toast.error(res.msg || '重置失败')
     }
