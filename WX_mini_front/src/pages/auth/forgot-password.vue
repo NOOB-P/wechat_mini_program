@@ -31,6 +31,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useToast } from 'wot-design-uni'
+import { verifyPhoneAccountApi } from '@/api/auth/forgot-password'
 
 const toast = useToast()
 const phone = ref('13800000000')
@@ -39,13 +40,24 @@ const goBack = () => {
   uni.navigateBack()
 }
 
-const handleNext = () => {
+const handleNext = async () => {
   if (!phone.value || phone.value.length !== 11) {
     toast.show('请输入正确的手机号')
     return
   }
-  // MOCK: 跳转到验证/重置密码页面，并携带手机号
-  uni.navigateTo({ url: `/pages/auth/reset-password?phone=${phone.value}` })
+  
+  try {
+    toast.loading('验证中...')
+    const res = await verifyPhoneAccountApi(phone.value)
+    if (res.code === 200) {
+      toast.close()
+      uni.navigateTo({ url: `/pages/auth/reset-password?phone=${phone.value}` })
+    } else {
+      toast.error(res.msg || '手机号未注册')
+    }
+  } catch (error: any) {
+    toast.error(error.msg || '验证失败')
+  }
 }
 
 const gotoForgotAccount = () => {
@@ -56,15 +68,24 @@ const gotoForgotAccount = () => {
 <style lang="scss" scoped>
 .forgot-password-page {
   min-height: 100vh;
-  background-color: #fff;
-  padding: 40rpx;
-  display: flex;
-  flex-direction: column;
+  background-color: #f7f8fa;
+  padding: 120rpx 32rpx 32rpx; // 增加了顶部的 padding (原来是 32rpx) 避免被刘海屏挡住
+  box-sizing: border-box;
 }
 
 .header {
-  margin-top: 100rpx;
-  margin-bottom: 80rpx;
+  display: flex;
+  align-items: center;
+  padding: 40rpx 0; // 增加了内边距
+  margin-bottom: 60rpx; // 增加与下方卡片的距离
+  position: relative; // 增加定位以便于扩大点击区域而不影响布局
+  z-index: 10;
+  .back-icon {
+    font-size: 44rpx !important; // 稍微放大一点图标
+    color: #333;
+    padding: 20rpx; // 增加点击区域
+    margin-left: -20rpx; // 抵消 padding 带来的位移
+  }
   .title {
     font-size: 56rpx;
     font-weight: bold;
