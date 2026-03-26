@@ -5,15 +5,19 @@
       <view class="title">重置密码</view>
     </view>
 
-    <view class="form-card">
-      <view class="code-input-wrapper">
-        <wd-input v-model="form.code" label="验证码" placeholder="请输入验证码" />
-        <wd-button class="code-btn" type="primary" plain size="small" @click="sendCode" :disabled="countdown > 0">
-          {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
-        </wd-button>
+    <view class="form-container">
+      <view class="input-group">
+        <view class="code-wrapper">
+          <wd-input v-model="form.code" placeholder="请输入验证码" clearable type="number" maxlength="6" />
+          <wd-button class="code-btn" type="primary" plain size="small" @click="sendCode" :disabled="countdown > 0">
+            {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
+          </wd-button>
+        </view>
+        <wd-input v-model="form.password" placeholder="请输入新密码" clearable show-password type="text" />
       </view>
-      <wd-input v-model="form.password" label="新密码" placeholder="请输入新密码" type="password" show-password />
-      <wd-button type="primary" block custom-class="confirm-btn" @click="handleReset">确认</wd-button>
+      <view class="action-btn">
+        <wd-button type="primary" block @click="handleReset">确认</wd-button>
+      </view>
     </view>
     <wd-toast id="wd-toast" />
   </view>
@@ -83,51 +87,48 @@ const handleReset = async () => {
 <style lang="scss" scoped>
 .reset-password-page {
   min-height: 100vh;
-  background-color: #f7f8fa;
-  padding: 32rpx;
-  box-sizing: border-box;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  padding: 20rpx 0;
-  margin-bottom: 40rpx;
-  .back-icon {
-    font-size: 40rpx !important;
-    color: #333;
-  }
-  .title {
-    flex: 1;
-    text-align: center;
-    font-size: 36rpx;
-    font-weight: bold;
-    color: #333;
-    transform: translateX(-20rpx);
-  }
-}
-
-.form-card {
   background-color: #fff;
-  border-radius: 24rpx;
   padding: 40rpx;
   display: flex;
   flex-direction: column;
-  gap: 32rpx;
+}
 
-  .code-input-wrapper {
+.header {
+  margin-top: 100rpx;
+  margin-bottom: 80rpx;
+  .title {
+    font-size: 56rpx;
+    font-weight: bold;
+    color: #333;
+  }
+}
+
+.form-container {
+  flex: 1;
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 30rpx;
+  }
+
+  .code-wrapper {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 20rpx;
+    
+    :deep(.wd-input) {
+      flex: 1;
+    }
+    
     .code-btn {
-      flex-shrink: 0;
+      margin-left: 20rpx;
+      min-width: 200rpx;
     }
   }
 
-  .confirm-btn {
-    margin-top: 20rpx;
-    --wd-button-primary-bg-color: #00c8a0;
-    --wd-button-primary-border-color: #00c8a0;
+  .action-btn {
+    margin-top: 80rpx;
   }
 }
 </style>
