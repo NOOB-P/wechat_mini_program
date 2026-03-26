@@ -10,26 +10,28 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/login")
-@CrossOrigin
+// 移除这里的 @CrossOrigin，因为已经在 CorsConfig 中全局配置了，避免冲突
 public class LoginController {
 
     @Autowired
     private ParentService parentService;
 
+    @GetMapping("/test")
+    public String test() {
+        return "hello";
+    }
+
     @PostMapping("/sendCode")
-    @CrossOrigin
     public Result<String> sendCode(@RequestBody LoginDTO loginDTO) {
         return parentService.sendSmsCode(loginDTO.getPhone());
     }
 
     @PostMapping("/password")
-    @CrossOrigin
     public Result<Parent> login(@RequestBody LoginDTO loginDTO) {
         return parentService.login(loginDTO);
     }
 
     @PostMapping("/register")
-    @CrossOrigin
     public Result<Parent> register(@RequestBody RegisterDTO registerDTO) {
         return parentService.register(registerDTO);
     }
