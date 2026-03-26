@@ -80,6 +80,18 @@ export const thirdPartyLoginApi = (type: string, openid: string) => {
 }
 
 /**
+ * @Description: 第三方登录绑定手机号
+ * @param {object} data { phone, code, openid, type }
+ */
+export const bindThirdPartyPhone = (data: { phone: string; code: string; openid: string; type: string }) => {
+  return request({
+    url: '/login/bindPhone',
+    method: 'POST',
+    data
+  })
+}
+
+/**
  * @Description: 退出登录
  */
 export const logout = () => {
