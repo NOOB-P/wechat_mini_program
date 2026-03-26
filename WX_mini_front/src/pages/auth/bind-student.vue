@@ -1,35 +1,38 @@
 <template>
   <view class="bind-student-page">
     <view class="header">
-      <wd-icon name="arrow-left" custom-class="back-icon" @click="goBack" />
       <view class="title">绑定学生账号</view>
       <text class="skip-btn" @click="skipBinding">跳过</text>
     </view>
 
-    <view class="notice-bar">
-      <wd-notice-bar
-        text="请勿恶意绑定其他用户账号，所有绑定记录均已进行备案，一经查出，我司将保留追究其法律责任的权利。"
-        prefix="warn-bold"
-        type="warning"
-        closable
-      />
-    </view>
-
-    <view class="form-card">
-      <wd-input v-model="form.studentName" label="学生姓名" placeholder="请输入学生真实姓名" />
-      <wd-input v-model="form.studentId" label="学生账号" placeholder="请输入学生用户/准考证" />
-      <wd-input v-model="form.password" label="账号密码" placeholder="请输入密码" type="password" show-password />
-      <wd-input v-model="form.phone" label="手机号" disabled />
-      <view class="code-input-wrapper">
-        <wd-input v-model="form.code" label="验证码" placeholder="请输入验证码" />
-        <wd-button class="code-btn" type="primary" plain size="small" @click="sendCode" :disabled="countdown > 0">
-          {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
-        </wd-button>
+    <view class="form-container">
+      <view class="notice-bar">
+        <wd-notice-bar
+          text="请勿恶意绑定其他用户账号，所有绑定记录均已进行备案，一经查出，我司将保留追究其法律责任的权利。"
+          prefix="warn-bold"
+          type="warning"
+          closable
+        />
       </view>
 
-      <wd-button type="primary" block custom-class="bind-btn" @click="handleBind">确认绑定</wd-button>
+      <view class="input-group">
+        <wd-input v-model="form.studentName" placeholder="请输入学生真实姓名" clearable />
+        <wd-input v-model="form.studentId" placeholder="请输入学生用户/准考证" clearable />
+        <wd-input v-model="form.password" placeholder="请输入密码" clearable show-password type="text" />
+        <wd-input v-model="form.phone" placeholder="手机号" disabled clearable />
+        <view class="code-wrapper">
+          <wd-input v-model="form.code" placeholder="请输入验证码" clearable type="number" maxlength="6" />
+          <wd-button class="code-btn" type="primary" plain size="small" @click="sendCode" :disabled="countdown > 0">
+            {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
+          </wd-button>
+        </view>
+      </view>
 
-      <view class="form-links">
+      <view class="action-btn">
+        <wd-button type="primary" block @click="handleBind">确认绑定</wd-button>
+      </view>
+
+      <view class="sub-actions">
         <text class="link" @click="gotoForgotAccount">忘记账号</text>
         <text class="link" @click="gotoForgotPassword">忘记密码</text>
       </view>
@@ -146,82 +149,75 @@ const gotoForgotPassword = () => {
 <style lang="scss" scoped>
 .bind-student-page {
   min-height: 100vh;
-  background-color: #f7f8fa;
-  padding: 120rpx 32rpx 32rpx;
-  box-sizing: border-box;
+  background-color: #fff;
+  padding: 40rpx;
   display: flex;
   flex-direction: column;
 }
 
 .header {
-  display: flex;
-  align-items: center;
-  padding: 40rpx 0 30rpx;
-  margin-bottom: 60rpx;
-  .back-icon {
-    font-size: 44rpx !important;
-    color: #333;
-  }
+  margin-top: 100rpx;
+  margin-bottom: 80rpx;
+  position: relative;
   .title {
-    flex: 1;
-    text-align: center;
-    font-size: 40rpx;
+    font-size: 56rpx;
     font-weight: bold;
     color: #333;
   }
   .skip-btn {
+    position: absolute;
+    right: 0;
+    bottom: 0;
     font-size: 30rpx;
     color: #666;
   }
 }
 
-.notice-bar {
-  margin-bottom: 60rpx;
-}
+.form-container {
+  flex: 1;
 
-.form-card {
-  background-color: #fff;
-  border-radius: 32rpx;
-  padding: 60rpx 40rpx; // 稍微缩小了内边距以适应移动端屏幕
-  display: flex;
-  flex-direction: column;
-  gap: 40rpx;
-  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.08);
-  margin: 0 10rpx;
-
-  :deep(.wd-input) {
-    --wd-input-label-width: 160rpx;
+  .notice-bar {
+    margin-bottom: 40rpx;
   }
 
-  .code-input-wrapper {
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 30rpx;
+  }
+
+  .code-wrapper {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 20rpx;
+    
+    :deep(.wd-input) {
+      flex: 1;
+    }
+    
     .code-btn {
-      flex-shrink: 0;
-      min-width: 180rpx;
+      margin-left: 20rpx;
+      min-width: 200rpx;
     }
   }
 
-  .bind-btn {
-    margin-top: 40rpx;
-    height: 96rpx;
-    border-radius: 48rpx;
-    font-size: 34rpx;
-    font-weight: bold;
-    // 建议使用你项目的主色调
-    --wd-button-primary-bg-color: #1a5f8e;
-    --wd-button-primary-border-color: #1a5f8e;
+  .action-btn {
+    margin-top: 80rpx;
   }
 
-  .form-links {
+  .sub-actions {
     display: flex;
     justify-content: space-between;
-    margin-top: 20rpx;
-    padding: 0 20rpx;
-    font-size: 28rpx;
+    margin-top: 40rpx;
+    padding: 0 10rpx;
+
     .link {
-      color: #007aff;
+      font-size: 28rpx;
+      color: #666;
+      
+      &:active {
+        color: #1a5f8e;
+      }
     }
   }
 }

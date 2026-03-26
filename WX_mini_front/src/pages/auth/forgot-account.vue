@@ -5,21 +5,23 @@
       <view class="title">忘记账号</view>
     </view>
 
-    <view class="form-card">
-      <wd-input
-        v-model="studentName"
-        label="学生姓名"
-        placeholder="请输入学生真实姓名"
-        clearable
-      />
-      <wd-picker
-        v-model="school"
-        :columns="schoolColumns"
-        label="学校信息"
-        placeholder="请选择所在的学校"
-        @confirm="onSchoolConfirm"
-      />
-      <wd-button type="primary" block custom-class="next-btn" @click="handleNext">下一步</wd-button>
+    <view class="form-container">
+      <view class="input-group">
+        <wd-input
+          v-model="studentName"
+          placeholder="请输入学生真实姓名"
+          clearable
+        />
+        <wd-picker
+          v-model="school"
+          :columns="schoolColumns"
+          placeholder="请选择所在的学校"
+          @confirm="onSchoolConfirm"
+        />
+      </view>
+      <view class="action-btn">
+        <wd-button type="primary" block @click="handleNext">下一步</wd-button>
+      </view>
     </view>
     <wd-toast id="wd-toast" />
   </view>
@@ -92,42 +94,33 @@ const handleNext = async () => {
 <style lang="scss" scoped>
 .forgot-account-page {
   min-height: 100vh;
-  background-color: #f7f8fa;
-  padding: 32rpx;
-  box-sizing: border-box;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  padding: 20rpx 0;
-  margin-bottom: 40rpx;
-  .back-icon {
-    font-size: 40rpx !important;
-    color: #333;
-  }
-  .title {
-    flex: 1;
-    text-align: center;
-    font-size: 36rpx;
-    font-weight: bold;
-    color: #333;
-    transform: translateX(-20rpx);
-  }
-}
-
-.form-card {
   background-color: #fff;
-  border-radius: 24rpx;
   padding: 40rpx;
   display: flex;
   flex-direction: column;
-  gap: 32rpx;
+}
 
-  .next-btn {
-    margin-top: 20rpx;
-    --wd-button-primary-bg-color: #00c8a0;
-    --wd-button-primary-border-color: #00c8a0;
+.header {
+  margin-top: 100rpx;
+  margin-bottom: 80rpx;
+  .title {
+    font-size: 56rpx;
+    font-weight: bold;
+    color: #333;
+  }
+}
+
+.form-container {
+  flex: 1;
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 30rpx;
+  }
+
+  .action-btn {
+    margin-top: 80rpx;
   }
 }
 </style>
