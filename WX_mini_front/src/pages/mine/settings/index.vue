@@ -45,8 +45,13 @@ const fetchData = async () => {
       userInfo.phone = userRes.data.phone
     }
 
+<<<<<<< HEAD
     // 获取设置信息 (Mock)
     const settingsRes = await request({ url: '/mine/settings', method: 'GET' })
+=======
+    // 获取设置信息
+    const settingsRes = await getSettingsInfoApi()
+>>>>>>> 9ad6c498d119f7f02d79c837023d866551bcb152
     if (settingsRes.code === 200) {
       settingsInfo.version = settingsRes.data.version
     }
