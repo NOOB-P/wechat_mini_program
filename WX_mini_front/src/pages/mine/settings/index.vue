@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { reactive, onMounted } from 'vue'
 import { getUserInfoApi } from '@/api/mine'
-import { getSettingsInfoApi } from '@/api/mine/settings/index'
+import request from '@/utils/request'
 
 // 用户信息
 const userInfo = reactive({
