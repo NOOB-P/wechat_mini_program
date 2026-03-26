@@ -15,9 +15,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .cors(cors -> cors.configure(http)) // 启用CORS
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/login/**").permitAll()
+                .requestMatchers("/**").permitAll() // 测试阶段，先允许所有请求，排查是否是其他拦截导致
                 .anyRequest().authenticated()
             );
         return http.build();
