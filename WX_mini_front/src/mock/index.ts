@@ -16,15 +16,38 @@ const mocks: Record<string, (data: any) => MockResponse> = {
     };
   },
   '/auth/bind-student/confirm': (data) => {
-    return {
-      code: 200,
-      msg: '绑定成功 (Mock)'
-    };
+    const { studentName, studentId, password, code, phone } = data;
+    
+    // 模拟绑定验证：假设特定的信息能成功
+    if (studentName === '张三' && studentId === '123456' && password === '123456') {
+      return {
+        code: 200,
+        msg: '绑定成功 (Mock)'
+      };
+    } else {
+      return {
+        code: 400,
+        msg: '账号密码错误或学生不存在 (Mock)'
+      };
+    }
   },
   '/auth/forgot-account/find': (data) => {
     return {
       code: 200,
       msg: '查询成功，账号已通过短信发送 (Mock)'
+    };
+  },
+  '/auth/forgot-password/verify-phone': (data) => {
+    const { phone } = data;
+    if (phone === '13800000000' || phone === '13588888888') {
+      return {
+        code: 200,
+        msg: '验证通过 (Mock)'
+      };
+    }
+    return {
+      code: 400,
+      msg: '该手机号未注册 (Mock)'
     };
   },
   '/auth/school/list': () => {
@@ -211,6 +234,59 @@ const mocks: Record<string, (data: any) => MockResponse> = {
         { id: 3, name: '物理力学', desc: '力学基础知识', price: 149, image: 'https://via.placeholder.com/150' },
         { id: 4, name: '化学反应', desc: '带你了解化学世界', price: 199, image: 'https://via.placeholder.com/150' }
       ]
+    };
+  },
+  '/score/list': (data) => {
+    return {
+      code: 200,
+      msg: '获取成绩成功 (Mock)',
+      data: {
+        examName: '2023-2024学年第一学期期中考试',
+        examDate: '2023-11-15',
+        totalScore: 620,
+        totalLevel: 'A',
+        subjects: [
+          { name: '语文', score: 120, level: 'A', fullScore: 150 },
+          { name: '数学', score: 135, level: 'A', fullScore: 150 },
+          { name: '英语', score: 110, level: 'B', fullScore: 150 },
+          { name: '物理', score: 85, level: 'B', fullScore: 100 },
+          { name: '化学', score: 90, level: 'A', fullScore: 100 },
+          { name: '生物', score: 80, level: 'B', fullScore: 100 }
+        ],
+        history: [
+          { period: '一月', score: 580 },
+          { period: '二月', score: 590 },
+          { period: '三月', score: 620 },
+          { period: '四月', score: 605 },
+          { period: '五月', score: 650 }
+        ]
+      }
+    };
+  },
+  '/paper/detail': (data) => {
+    return {
+      code: 200,
+      msg: '获取试卷详情成功 (Mock)',
+      data: {
+        examName: '2023-2024学年第一学期期中考试 - 数学',
+        score: 135,
+        fullScore: 150,
+        teacherComment: '本次考试基础题掌握得很好，但在最后一道压轴大题上计算出现了失误。继续保持，注意做题时的计算细节！',
+        originalPaperImages: [
+          'https://via.placeholder.com/600x800.png?text=Original+Paper+Page+1',
+          'https://via.placeholder.com/600x800.png?text=Original+Paper+Page+2'
+        ],
+        electronicPaperImages: [
+          'https://via.placeholder.com/600x800.png?text=Electronic+Paper+Page+1',
+          'https://via.placeholder.com/600x800.png?text=Electronic+Paper+Page+2'
+        ],
+        answers: [
+          { questionNo: '1', type: '选择题', studentAnswer: 'A', correctAnswer: 'A', isRight: true },
+          { questionNo: '2', type: '选择题', studentAnswer: 'C', correctAnswer: 'B', isRight: false },
+          { questionNo: '15', type: '解答题', studentAnswer: '见试卷原卷', correctAnswer: '参考答案详见电子版解析...', isRight: true }
+        ],
+        downloadUrl: 'https://example.com/download/paper.pdf'
+      }
     };
   }
 };

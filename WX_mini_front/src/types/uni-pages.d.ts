@@ -12,7 +12,9 @@ interface NavigateToOptions {
        "/pages/course/index" |
        "/pages/home/index" |
        "/pages/mine/index" |
+       "/pages/paper/index" |
        "/pages/register/index" |
+       "/pages/score/index" |
        "/pages/mine/settings/index";
 }
 interface RedirectToOptions extends NavigateToOptions {}

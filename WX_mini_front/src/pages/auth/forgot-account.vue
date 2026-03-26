@@ -93,18 +93,22 @@ const handleNext = async () => {
 .forgot-account-page {
   min-height: 100vh;
   background-color: #f7f8fa;
-  padding: 32rpx;
+  padding: 120rpx 32rpx 32rpx; // 增加了顶部的 padding (原来是 32rpx) 避免被刘海屏挡住
   box-sizing: border-box;
 }
 
 .header {
   display: flex;
   align-items: center;
-  padding: 20rpx 0;
-  margin-bottom: 40rpx;
+  padding: 40rpx 0; // 增加了内边距
+  margin-bottom: 60rpx; // 增加与下方卡片的距离
+  position: relative; // 增加定位以便于扩大点击区域而不影响布局
+  z-index: 10;
   .back-icon {
-    font-size: 40rpx !important;
+    font-size: 44rpx !important; // 稍微放大一点图标
     color: #333;
+    padding: 20rpx; // 增加点击区域
+    margin-left: -20rpx; // 抵消 padding 带来的位移
   }
   .title {
     flex: 1;
