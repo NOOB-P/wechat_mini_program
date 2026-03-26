@@ -4,6 +4,8 @@ import { systemRoutes } from './system'
 import { resultRoutes } from './result'
 import { exceptionRoutes } from './exception'
 import { coreBusinessRoutes } from './core-business'
+import { courseStudyRoutes } from './course-study'
+import { supportInteractionRoutes } from './support-interaction'
 
 /**
  * 导出所有模块化路由
@@ -11,6 +13,8 @@ import { coreBusinessRoutes } from './core-business'
 export const routeModules: AppRouteRecord[] = [
   dashboardRoutes,
   coreBusinessRoutes,
+  courseStudyRoutes,
+  supportInteractionRoutes,
   systemRoutes,
   resultRoutes,
   exceptionRoutes
