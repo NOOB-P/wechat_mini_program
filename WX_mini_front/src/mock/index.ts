@@ -142,12 +142,31 @@ const mocks: Record<string, (data: any) => MockResponse> = {
   },
   '/login/thirdParty': (data) => {
     const { type, openid } = data;
+    // 模拟：如果没有绑定手机号，返回需要绑定手机号的状态
     return {
       code: 200,
-      msg: `${type === 'wechat' ? '微信' : 'QQ'}登录成功 (Mock)`,
+      msg: '需要绑定手机号 (Mock)',
+      data: {
+        needBind: true,
+        openid: openid,
+        type: type
+      }
+    };
+  },
+  '/login/bindPhone': (data) => {
+    const { phone, code, openid, type } = data;
+    if (code !== '114514') {
+      return {
+        code: 400,
+        msg: '验证码错误 (Mock)'
+      };
+    }
+    return {
+      code: 200,
+      msg: '绑定成功并登录 (Mock)',
       data: {
         id: 99,
-        phone: '138****8888',
+        phone: phone,
         nickname: `${type === 'wechat' ? '微信' : 'QQ'}用户`,
         token: `mock-token-${type}-${openid}`
       }

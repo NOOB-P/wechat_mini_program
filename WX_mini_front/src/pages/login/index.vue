@@ -92,6 +92,24 @@
       </view>
     </wd-popup>
 
+    <wd-popup v-model="showBindPhonePopup" position="bottom" custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+      <view class="popup-content">
+        <view class="popup-title">绑定手机号</view>
+        <view class="input-group">
+          <wd-input v-model="bindPhoneForm.phone" placeholder="请输入手机号" clearable type="number" maxlength="11" />
+          <view class="code-wrapper">
+            <wd-input v-model="bindPhoneForm.code" placeholder="请输入验证码" clearable type="number" maxlength="6" />
+            <wd-button class="code-btn" type="primary" plain size="small" @click="sendBindPhoneCode" :disabled="bindPhoneCountdown > 0">
+              {{ bindPhoneCountdown > 0 ? `${bindPhoneCountdown}s后重试` : '获取验证码' }}
+            </wd-button>
+          </view>
+        </view>
+        <view class="action-btn">
+          <wd-button type="primary" block @click="handleBindPhone">确认绑定</wd-button>
+        </view>
+      </view>
+    </wd-popup>
+
     <wd-toast id="wd-toast" />
   </view>
 </template>
@@ -99,7 +117,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useToast } from 'wot-design-uni'
-import { sendSmsCode, loginByPhone, loginByPassword, register, forgotPassword, thirdPartyLoginApi } from '@/api/login'
+import { sendSmsCode, loginByPhone, loginByPassword, register, forgotPassword, thirdPartyLoginApi, bindThirdPartyPhone } from '@/api/login'
 
 const toast = useToast()
 
@@ -129,6 +147,17 @@ const forgotForm = ref({
   phone: '',
   code: '',
   password: ''
+})
+
+// 绑定手机号相关
+const showBindPhonePopup = ref(false)
+const bindPhoneCountdown = ref(0)
+let bindPhoneTimer: ReturnType<typeof setInterval> | null = null
+const bindPhoneForm = ref({
+  phone: '',
+  code: '',
+  openid: '',
+  type: ''
 })
 
 onMounted(() => {
@@ -283,6 +312,66 @@ const handleForgot = async () => {
   }
 }
 
+// 绑定手机号逻辑
+const sendBindPhoneCode = async () => {
+  if (!bindPhoneForm.value.phone || bindPhoneForm.value.phone.length !== 11) {
+    toast.show('请输入正确的手机号')
+    return
+  }
+  try {
+    await sendSmsCode(bindPhoneForm.value.phone)
+    toast.success('验证码已发送')
+    bindPhoneCountdown.value = 60
+    bindPhoneTimer = setInterval(() => {
+      bindPhoneCountdown.value--
+      if (bindPhoneCountdown.value <= 0) {
+        clearInterval(bindPhoneTimer!)
+      }
+    }, 1000)
+  } catch (error) {}
+}
+
+const handleBindPhone = async () => {
+  if (!bindPhoneForm.value.phone || !bindPhoneForm.value.code) {
+    return toast.show('请填写完整信息')
+  }
+
+  try {
+    const res = await bindThirdPartyPhone(bindPhoneForm.value)
+    if (res.code === 200) {
+      if (res.data && res.data.token) {
+        uni.setStorageSync('token', res.data.token)
+      }
+      toast.success('绑定成功')
+      showBindPhonePopup.value = false
+      setTimeout(() => {
+        uni.redirectTo({ 
+          url: `/pages/auth/bind-student?phone=${bindPhoneForm.value.phone}` 
+        })
+      }, 1500)
+    } else {
+      toast.error(res.msg || '绑定失败')
+    }
+  } catch (error: any) {
+    toast.error(error.msg || '网络错误')
+  }
+}
+
+const handleThirdPartySuccess = (res: any, type: string) => {
+  if (res.data && res.data.needBind) {
+    toast.show('请绑定手机号')
+    bindPhoneForm.value.openid = res.data.openid
+    bindPhoneForm.value.type = type
+    showBindPhonePopup.value = true
+  } else if (res.data && res.data.token) {
+    uni.setStorageSync('token', res.data.token)
+    toast.success(`${type === 'wechat' ? '微信' : 'QQ'}登录成功`)
+    setTimeout(() => {
+      uni.switchTab({ url: '/pages/home/index' })
+    }, 1500)
+  }
+}
+
 const thirdPartyLogin = (type: string) => {
   if (type === 'wechat') {
     uni.login({
@@ -291,14 +380,7 @@ const thirdPartyLogin = (type: string) => {
         if (loginRes.code) {
           try {
             const res = await thirdPartyLoginApi('wechat', loginRes.code)
-            if (res.data && res.data.token) {
-              uni.setStorageSync('token', res.data.token)
-            }
-            toast.success('微信登录成功')
-            // 第三方登录通常直接进首页
-            setTimeout(() => {
-              uni.switchTab({ url: '/pages/home/index' })
-            }, 1500)
+            handleThirdPartySuccess(res, 'wechat')
           } catch (error) {}
         }
       },
@@ -312,13 +394,7 @@ const thirdPartyLogin = (type: string) => {
       success: async (loginRes) => {
         try {
           const res = await thirdPartyLoginApi('qq', 'mock_qq_openid')
-          if (res.data && res.data.token) {
-            uni.setStorageSync('token', res.data.token)
-          }
-          toast.success('QQ登录成功')
-          setTimeout(() => {
-            uni.switchTab({ url: '/pages/home/index' })
-          }, 1500)
+          handleThirdPartySuccess(res, 'qq')
         } catch (error) {}
       },
       fail: () => {
@@ -332,12 +408,7 @@ const mockThirdPartyLogin = async (type: string) => {
   toast.success(`正在模拟${type === 'wechat' ? '微信' : 'QQ'}登录...`)
   try {
     const res = await thirdPartyLoginApi(type, `mock_${type}_openid_123`)
-    if (res.data && res.data.token) {
-      uni.setStorageSync('token', res.data.token)
-    }
-    setTimeout(() => {
-      uni.switchTab({ url: '/pages/home/index' })
-    }, 1500)
+    handleThirdPartySuccess(res, type)
   } catch (error) {}
 }
 </script>
