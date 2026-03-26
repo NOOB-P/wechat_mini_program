@@ -8,7 +8,6 @@ export interface MockResponse {
 
 const mocks: Record<string, (data: any) => MockResponse> = {
   ...mineMocks,
-<<<<<<< HEAD
   '/auth/bind-student/sendCode': (data) => {
     return {
       code: 200,
@@ -39,8 +38,6 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       ]
     };
   },
-=======
->>>>>>> 6b2f62dac9451053cd09d1eae0fd6f31d7995d35
   '/login/sendCode': (data) => {
     return {
       code: 200,

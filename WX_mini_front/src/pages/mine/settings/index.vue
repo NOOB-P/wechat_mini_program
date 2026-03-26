@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { reactive, onMounted } from 'vue'
 import { getUserInfoApi } from '@/api/mine'
-import { getSettingsInfoApi } from '@/api/mine/settings/index'
+import request from '@/utils/request'
 
 // 用户信息
 const userInfo = reactive({
@@ -45,13 +45,8 @@ const fetchData = async () => {
       userInfo.phone = userRes.data.phone
     }
 
-<<<<<<< HEAD
-    // 获取设置信息
-    const settingsRes = await getSettingsInfoApi()
-=======
     // 获取设置信息 (Mock)
     const settingsRes = await request({ url: '/mine/settings', method: 'GET' })
->>>>>>> 6b2f62dac9451053cd09d1eae0fd6f31d7995d35
     if (settingsRes.code === 200) {
       settingsInfo.version = settingsRes.data.version
     }

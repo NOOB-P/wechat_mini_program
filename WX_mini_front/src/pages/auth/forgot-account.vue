@@ -26,20 +26,14 @@
 </template>
 
 <script setup lang="ts">
-<<<<<<< HEAD
 import { ref, onMounted } from 'vue'
 import { useToast } from 'wot-design-uni'
 import { getSchoolList, findAccountByStudentInfo } from '@/api/auth/forgot-account'
-=======
-import { ref } from 'vue'
-import { useToast } from 'wot-design-uni'
->>>>>>> 6b2f62dac9451053cd09d1eae0fd6f31d7995d35
 
 const toast = useToast()
 const studentName = ref('')
 const school = ref('')
 
-<<<<<<< HEAD
 const schoolColumns = ref<any[]>([])
 
 const fetchSchoolList = async () => {
@@ -56,14 +50,6 @@ const fetchSchoolList = async () => {
 onMounted(() => {
   fetchSchoolList()
 })
-=======
-// MOCK: 模拟学校列表数据
-const schoolColumns = ref([
-  { label: '第一中学', value: '1' },
-  { label: '第二实验小学', value: '2' },
-  { label: '第三国际学校', value: '3' },
-])
->>>>>>> 6b2f62dac9451053cd09d1eae0fd6f31d7995d35
 
 const goBack = () => {
   uni.navigateBack()
@@ -74,11 +60,7 @@ const onSchoolConfirm = (event: any) => {
   school.value = value
 }
 
-<<<<<<< HEAD
 const handleNext = async () => {
-=======
-const handleNext = () => {
->>>>>>> 6b2f62dac9451053cd09d1eae0fd6f31d7995d35
   if (!studentName.value) {
     toast.show('请输入学生姓名')
     return
@@ -87,7 +69,6 @@ const handleNext = () => {
     toast.show('请选择学校')
     return
   }
-<<<<<<< HEAD
   
   try {
     toast.loading('正在查询...')
@@ -105,15 +86,6 @@ const handleNext = () => {
   } catch (error: any) {
     toast.error(error.msg || '查询失败')
   }
-=======
-  toast.loading('正在查询...')
-  // MOCK: 模拟查询账号
-  setTimeout(() => {
-    toast.success('查询成功，账号已通过短信发送')
-    // 可以在这里跳转到结果页或返回登录页
-    setTimeout(() => uni.navigateBack(), 1500)
-  }, 1000)
->>>>>>> 6b2f62dac9451053cd09d1eae0fd6f31d7995d35
 }
 </script>
 
