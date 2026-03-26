@@ -57,7 +57,17 @@
 			}
 		},
 		{
+			"path": "pages/paper/index",
+			"type": "page",
+			"style": {}
+		},
+		{
 			"path": "pages/register/index",
+			"type": "page",
+			"style": {}
+		},
+		{
+			"path": "pages/score/index",
 			"type": "page",
 			"style": {}
 		},

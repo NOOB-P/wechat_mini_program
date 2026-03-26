@@ -19,7 +19,7 @@
       <wd-input v-model="form.studentName" label="学生姓名" placeholder="请输入学生真实姓名" />
       <wd-input v-model="form.studentId" label="学生账号" placeholder="请输入学生用户/准考证" />
       <wd-input v-model="form.password" label="账号密码" placeholder="请输入密码" type="password" show-password />
-      <wd-input v-model="form.phone" label="手机号" disabled />
+      <wd-input v-model="form.phone" label="手机号" placeholder="请输入手机号" />
       <view class="code-input-wrapper">
         <wd-input v-model="form.code" label="验证码" placeholder="请输入验证码" />
         <wd-button class="code-btn" type="primary" plain size="small" @click="sendCode" :disabled="countdown > 0">
@@ -158,9 +158,13 @@ const gotoForgotPassword = () => {
   align-items: center;
   padding: 40rpx 0 30rpx;
   margin-bottom: 60rpx;
+  position: relative;
+  z-index: 10;
   .back-icon {
     font-size: 44rpx !important;
     color: #333;
+    padding: 20rpx; // 增加点击区域
+    margin-left: -20rpx; // 抵消 padding 带来的位移
   }
   .title {
     flex: 1;
@@ -217,11 +221,12 @@ const gotoForgotPassword = () => {
   .form-links {
     display: flex;
     justify-content: space-between;
-    margin-top: 20rpx;
-    padding: 0 20rpx;
+    margin-top: 60rpx;
+    padding: 0 10rpx;
     font-size: 28rpx;
     .link {
       color: #007aff;
+      padding: 20rpx; /* 增加点击区域，防止按不到 */
     }
   }
 }

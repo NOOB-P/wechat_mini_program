@@ -32,6 +32,11 @@ onShow(() => {
 
 const handleGridClick = (type: string) => {
   console.log('点击了:', type)
+  if (type === 'analysis') {
+    uni.navigateTo({ url: '/pages/score/index' })
+  } else if (type === 'paper') {
+    uni.navigateTo({ url: '/pages/paper/index' })
+  }
 }
 </script>
 
@@ -54,45 +59,39 @@ const handleGridClick = (type: string) => {
       
       <!-- 功能网格 -->
       <view class="function-grid">
-        <wd-grid :column="3" :border="false">
-          <wd-grid-item @click="handleGridClick('paper')">
-            <template #icon>
+        <wd-grid :column="3" :border="false" clickable>
+          <wd-grid-item use-slot @itemclick="handleGridClick('paper')">
+            <view class="grid-content-wrap">
               <view class="grid-icon-wrap paper">
                 <wd-icon name="edit" size="24px" color="#fff" />
               </view>
-            </template>
-            <template #text>
               <view class="grid-text-wrap">
                 <text class="grid-label">试卷报告</text>
                 <text class="grid-value">{{ stats.paperCount }}份</text>
               </view>
-            </template>
+            </view>
           </wd-grid-item>
-          <wd-grid-item @click="handleGridClick('wrong')">
-            <template #icon>
+          <wd-grid-item use-slot @itemclick="handleGridClick('wrong')">
+            <view class="grid-content-wrap">
               <view class="grid-icon-wrap wrong">
                 <wd-icon name="close-circle" size="24px" color="#fff" />
               </view>
-            </template>
-            <template #text>
               <view class="grid-text-wrap">
                 <text class="grid-label">错题本</text>
                 <text class="grid-value">{{ stats.wrongCount }}道</text>
               </view>
-            </template>
+            </view>
           </wd-grid-item>
-          <wd-grid-item @click="handleGridClick('analysis')">
-            <template #icon>
+          <wd-grid-item use-slot @itemclick="handleGridClick('analysis')">
+            <view class="grid-content-wrap">
               <view class="grid-icon-wrap analysis">
                 <wd-icon name="chart-line" size="24px" color="#fff" />
               </view>
-            </template>
-            <template #text>
               <view class="grid-text-wrap">
                 <text class="grid-label">总体分析</text>
                 <text class="grid-value">{{ stats.analysisProgress }}%</text>
               </view>
-            </template>
+            </view>
           </wd-grid-item>
         </wd-grid>
       </view>
@@ -178,6 +177,13 @@ const handleGridClick = (type: string) => {
     padding: 30rpx 10rpx;
     margin-bottom: 40rpx;
     box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+
+    .grid-content-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
 
     .grid-icon-wrap {
       width: 80rpx;
