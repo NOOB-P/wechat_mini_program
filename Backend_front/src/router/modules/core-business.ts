@@ -7,7 +7,7 @@ export const coreBusinessRoutes: AppRouteRecord = {
   name: 'CoreBusiness',
   meta: {
     title: '核心业务',
-    icon: 'OfficeBuilding',
+    icon: 'ri:database-2-line',
     sort: 1
   },
   children: [

@@ -19,6 +19,15 @@ export const dashboardRoutes: AppRouteRecord = {
         keepAlive: false,
         fixedTab: true
       }
+    },
+    {
+      path: 'analysis',
+      name: 'Analysis',
+      component: '/dashboard/analysis',
+      meta: {
+        title: '数据统计',
+        keepAlive: true
+      }
     }
   ]
 }
