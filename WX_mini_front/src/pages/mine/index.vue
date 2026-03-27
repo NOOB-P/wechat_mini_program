@@ -7,7 +7,9 @@ import { getUserInfoApi } from '@/api/mine'
 const userInfo = reactive({
   avatar: '',
   nickname: '',
-  grade: ''
+  grade: '',
+  role: 'normal',
+  roleName: '普通用户'
 })
 
 // 菜单组一
@@ -20,6 +22,7 @@ const menuGroup1 = [
 // 菜单组二
 const menuGroup2 = [
   { label: '个人设置', icon: 'setting', value: 'settings' },
+  { label: '帮助与客服', icon: 'chat', value: 'service' },
   { label: '关于我们', icon: 'info-circle', value: 'about' }
 ]
 
@@ -51,6 +54,8 @@ onMounted(() => {
 const handleMenuClick = (item: any) => {
   if (item.value === 'settings') {
     uni.navigateTo({ url: '/pages/mine/settings/index' })
+  } else if (item.value === 'service') {
+    uni.navigateTo({ url: '/pages/service/index' })
   } else {
     uni.showToast({ title: `点击了${item.label}`, icon: 'none' })
   }
@@ -58,6 +63,10 @@ const handleMenuClick = (item: any) => {
 
 const handleEditProfile = () => {
   uni.showToast({ title: '编辑个人资料', icon: 'none' })
+}
+
+const goToVip = () => {
+  uni.navigateTo({ url: '/pages/vip/index' })
 }
 </script>
 
@@ -86,7 +95,13 @@ const handleEditProfile = () => {
             <text class="nickname">{{ userInfo.nickname }}</text>
             <wd-icon name="arrow-right" size="16px" color="#999" />
           </view>
-          <text class="grade">{{ userInfo.grade }}</text>
+          <view class="tags-row">
+            <text class="grade">{{ userInfo.grade }}</text>
+            <view class="vip-tag" :class="userInfo.role" @click.stop="goToVip">
+              <wd-icon :name="userInfo.role === 'svip' ? 'crown' : 'vip'" size="14px" />
+              <text class="vip-text">{{ userInfo.roleName }}</text>
+            </view>
+          </view>
         </view>
       </view>
     </view>
@@ -177,22 +192,63 @@ const handleEditProfile = () => {
     
     .user-text {
       margin-left: 30rpx;
+      
       .nickname-row {
         display: flex;
         align-items: center;
-        margin-bottom: 8rpx;
+        margin-bottom: 12rpx;
+        
         .nickname {
           font-size: 40rpx;
           font-weight: bold;
-          margin-right: 8rpx;
+          color: #333;
+          margin-right: 12rpx;
         }
       }
-      .grade {
-        font-size: 24rpx;
-        color: #666;
-        background: rgba(0,0,0,0.05);
-        padding: 4rpx 16rpx;
-        border-radius: 20rpx;
+      
+      .tags-row {
+        display: flex;
+        align-items: center;
+        gap: 16rpx;
+
+        .grade {
+          display: inline-block;
+          padding: 4rpx 16rpx;
+          background-color: rgba(0,0,0,0.05);
+          border-radius: 20rpx;
+          font-size: 24rpx;
+          color: #666;
+        }
+
+        .vip-tag {
+          display: flex;
+          align-items: center;
+          padding: 4rpx 16rpx;
+          border-radius: 20rpx;
+          
+          &.vip {
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            box-shadow: 0 4rpx 10rpx rgba(253, 160, 133, 0.3);
+            color: #fff;
+          }
+          
+          &.svip {
+            background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%);
+            box-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.3);
+            color: #f6d365;
+          }
+          
+          &.normal {
+            background: #eee;
+            color: #999;
+          }
+          
+          .vip-text {
+            font-size: 22rpx;
+            font-weight: bold;
+            margin-left: 4rpx;
+          }
+        }
       }
     }
   }
