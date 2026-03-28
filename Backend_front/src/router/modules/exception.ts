@@ -6,7 +6,8 @@ export const exceptionRoutes: AppRouteRecord = {
   component: '/index/index',
   meta: {
     title: 'menus.exception.title',
-    icon: 'ri:error-warning-line'
+    icon: 'ri:error-warning-line',
+    isHide: true
   },
   children: [
     {
@@ -17,7 +18,8 @@ export const exceptionRoutes: AppRouteRecord = {
         title: 'menus.exception.forbidden',
         keepAlive: true,
         isHideTab: true,
-        isFullPage: true
+        isFullPage: true,
+        isHide: true
       }
     },
     {
@@ -28,7 +30,8 @@ export const exceptionRoutes: AppRouteRecord = {
         title: 'menus.exception.notFound',
         keepAlive: true,
         isHideTab: true,
-        isFullPage: true
+        isFullPage: true,
+        isHide: true
       }
     },
     {

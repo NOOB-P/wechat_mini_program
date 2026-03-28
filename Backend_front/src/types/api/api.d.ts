@@ -98,9 +98,128 @@ declare namespace Api {
       userName: string
       userGender: string
       nickName: string
+    }
+  }
+
+  /** 核心业务 - 学校架构 */
+  namespace School {
+    /** 节点类型 */
+    type NodeType = 'school' | 'grade' | 'class'
+
+    /** 架构节点 */
+    interface ArchitectureNode {
+      id: string
+      name: string
+      type: NodeType
+      children?: ArchitectureNode[]
+    }
+
+    /** 节点操作参数 */
+    interface NodeParams {
+      id?: string
+      name: string
+      type: NodeType
+      parentId?: string
+      parentName?: string
+    }
+  }
+
+  /** 核心业务 - 学生档案 */
+  namespace Student {
+    /** 学生信息 */
+    interface StudentItem {
+      id: string
+      name: string
+      studentNo: string
+      gender: string
+      school: string
+      grade: string
+      className: string
+      parentPhone: string
+      isBound: boolean
+      isVip: boolean
+      isSvip: boolean
+    }
+
+    /** 学生搜索参数 */
+    interface StudentSearchParams extends Api.Common.CommonSearchParams {
+      name?: string
+      studentNo?: string
+      school?: string
+      grade?: string
+      className?: string
+    }
+
+    /** 批量操作参数 */
+    interface BatchOpParams {
+      ids: string[]
+      type: 'vip' | 'svip'
+      action: 'enable' | 'disable'
+    }
+  }
+
+  /** 核心业务 - 考试数据 */
+  namespace Exam {
+    /** 考试项 */
+    interface ExamItem {
+      id: string
+      name: string
+      school: string
+      grade: string
+      className: string
+      date: string
+      status: '已解析' | '解析中' | '待解析'
+      successCount: number
+      failCount: number
+    }
+
+    /** 考试搜索参数 */
+    interface ExamSearchParams extends Api.Common.CommonSearchParams {
+      name?: string
+      school?: string
+      grade?: string
+      className?: string
+    }
+
+    /** 解析成功项 */
+    interface SuccessItem {
+      studentNo: string
+      name: string
+      school: string
+      grade: string
+      className: string
+      questionScores: number[]
+      score: number
+    }
+
+    /** 解析失败项 */
+    interface FailItem {
+      studentNo: string
+      reason: string
+    }
+
+    /** 解析结果 */
+    interface AnalysisResult {
+      successList: SuccessItem[]
+      failList: FailItem[]
+userGender: string
+      nickName: string
       userPhone: string
       userEmail: string
       userRoles: string[]
+      status: string
+      /** 用户类型: 1-管理员, 2-学校, 3-家长, 4-学生 */
+      userType: '1' | '2' | '3' | '4'
+      /** 绑定的学校 */
+      schoolName?: string
+      /** 绑定的年级 */
+      gradeName?: string
+      /** 绑定的班级 */
+      className?: string
+      /** 绑定的学生姓名（家长用户用） */
+      studentName?: string
+      /** 绑定的家长姓名（学生用户用） */
+      parentName?: string
       createBy: string
       createTime: string
       updateBy: string

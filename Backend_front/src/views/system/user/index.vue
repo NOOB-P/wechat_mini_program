@@ -45,7 +45,7 @@
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { ACCOUNT_TABLE_DATA } from '@/mock/temp/formData'
   import { useTable } from '@/hooks/core/useTable'
-  import { fetchGetUserList } from '@/api/system-manage'
+  import { fetchGetUserList, fetchDeleteUser } from '@/api/system/user'
   import UserSearch from './modules/user-search.vue'
   import UserDialog from './modules/user-dialog.vue'
   import { ElTag, ElMessageBox, ElImage } from 'element-plus'
@@ -98,6 +98,7 @@
     data,
     loading,
     pagination,
+    searchParams,
     getData,
     replaceSearchParams,
     resetSearchParams,
@@ -123,35 +124,70 @@
         { type: 'index', width: 60, label: '序号' }, // 序号
         {
           prop: 'userInfo',
-          label: '用户名',
-          width: 280,
-          // visible: false, // 默认是否显示列
+          label: '用户信息',
+          width: 200,
           formatter: (row) => {
             return h('div', { class: 'user flex-c' }, [
               h(ElImage, {
                 class: 'size-9.5 rounded-md',
                 src: row.avatar,
                 previewSrcList: [row.avatar],
-                // 图片预览是否插入至 body 元素上，用于解决表格内部图片预览样式异常
                 previewTeleported: true
               }),
               h('div', { class: 'ml-2' }, [
-                h('p', { class: 'user-name' }, row.userName),
-                h('p', { class: 'email' }, row.userEmail)
+                h('p', { class: 'user-name font-bold' }, row.userName),
+                h('p', { class: 'text-xs text-gray-400' }, row.nickName)
               ])
             ])
           }
         },
         {
-          prop: 'userGender',
-          label: '性别',
-          sortable: true,
-          formatter: (row) => row.userGender
+          prop: 'userType',
+          label: '用户类型',
+          width: 100,
+          formatter: (row) => {
+            const types = { '1': '管理员', '2': '学校', '3': '家长', '4': '学生' }
+            const colors = { '1': 'danger', '2': 'primary', '3': 'success', '4': 'warning' }
+            return h(
+              ElTag,
+              { type: colors[row.userType as keyof typeof colors] as any },
+              () => types[row.userType as keyof typeof types]
+            )
+          }
         },
-        { prop: 'userPhone', label: '手机号' },
+        {
+          prop: 'bindingInfo',
+          label: '绑定详情',
+          minWidth: 250,
+          formatter: (row) => {
+            const info = []
+            if (row.userType === '2') {
+              // 学校用户
+              info.push(h('p', `绑定学校: ${row.schoolName || '未绑定'}`))
+            } else if (row.userType === '3') {
+              // 家长用户
+              const bound = row.schoolName && row.className && row.studentName
+              if (bound) {
+                info.push(h('p', `学校班级: ${row.schoolName} / ${row.className}`))
+                info.push(h('p', `关联学生: ${row.studentName}`))
+              } else {
+                info.push(h('p', { class: 'text-red-500' }, '未绑定'))
+              }
+            } else if (row.userType === '4') {
+              // 学生用户
+              info.push(h('p', `学校班级: ${row.schoolName || '未设置'} / ${row.className || '未设置'}`))
+              info.push(h('p', `关联家长: ${row.parentName || '无'}`))
+            } else {
+              info.push(h('p', '-'))
+            }
+            return h('div', { class: 'text-xs' }, info)
+          }
+        },
+        { prop: 'userPhone', label: '手机号', width: 120 },
         {
           prop: 'status',
           label: '状态',
+          width: 80,
           formatter: (row) => {
             const statusConfig = getUserStatusConfig(row.status)
             return h(ElTag, { type: statusConfig.type }, () => statusConfig.text)
@@ -160,6 +196,7 @@
         {
           prop: 'createTime',
           label: '创建日期',
+          width: 160,
           sortable: true
         },
         {
@@ -203,12 +240,23 @@
   })
 
   /**
-   * 搜索处理
-   * @param params 参数
+   * 搜索
    */
-  const handleSearch = (params: Api.SystemManage.UserSearchParams) => {
-    replaceSearchParams(params)
-    getData()
+  const handleSearch = (params: any) => {
+    Object.assign(searchParams, params)
+    refreshData()
+  }
+
+  /**
+   * 重置
+   */
+  const handleReset = () => {
+    Object.keys(searchParams).forEach((key) => {
+      if (key !== 'current' && key !== 'size') {
+        ;(searchParams as any)[key] = undefined
+      }
+    })
+    refreshData()
   }
 
   /**
@@ -227,13 +275,16 @@
    * 删除用户
    */
   const deleteUser = (row: UserListItem): void => {
-    console.log('删除用户:', row)
-    ElMessageBox.confirm(`确定要注销该用户吗？`, '注销用户', {
+    ElMessageBox.confirm(`确定要删除该用户 ${row.userName} 吗？`, '删除确认', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'error'
-    }).then(() => {
-      ElMessage.success('注销成功')
+    }).then(async () => {
+      const res = await fetchDeleteUser(row.id)
+      if (res.code === 200) {
+        ElMessage.success('删除成功')
+        refreshData()
+      }
     })
   }
 

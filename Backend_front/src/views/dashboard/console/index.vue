@@ -1,5 +1,7 @@
-<!-- 工作台页面 -->
-<template>
+//111已在router中将其注释，此部分代码保留，需要组件才可以直接读取<!-- 工作台页面 -->
+
+
+<!-- <template>
   <div>
     <CardList></CardList>
 
@@ -38,4 +40,4 @@
   import AboutProject from './modules/about-project.vue'
 
   defineOptions({ name: 'Console' })
-</script>
+</script> -->
