@@ -14,29 +14,16 @@
       />
     </view>
 
-    <view class="form-card">
+    <view class="form-container">
       <wd-input v-model="form.studentName" label="学生姓名" placeholder="请输入学生真实姓名" />
       <wd-input v-model="form.studentId" label="学生账号" placeholder="请输入学生用户/准考证" />
       <wd-input v-model="form.password" label="账号密码" placeholder="请输入密码" type="password" show-password />
-      <wd-input v-model="form.phone" label="手机号" placeholder="请输入手机号" />
+      <wd-input v-model="form.phone" label="手机号" placeholder="请输入手机号" disabled />
       <view class="code-input-wrapper">
         <wd-input v-model="form.code" label="验证码" placeholder="请输入验证码" />
         <wd-button class="code-btn" type="primary" plain size="small" @click="sendCode" :disabled="countdown > 0">
           {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
         </wd-button>
-      </view>
-
-      <view class="input-group">
-        <wd-input v-model="form.studentName" placeholder="请输入学生真实姓名" clearable />
-        <wd-input v-model="form.studentId" placeholder="请输入学生用户/准考证" clearable />
-        <wd-input v-model="form.password" placeholder="请输入密码" clearable show-password type="text" />
-        <wd-input v-model="form.phone" placeholder="手机号" disabled clearable />
-        <view class="code-wrapper">
-          <wd-input v-model="form.code" placeholder="请输入验证码" clearable type="number" maxlength="6" />
-          <wd-button class="code-btn" type="primary" plain size="small" @click="sendCode" :disabled="countdown > 0">
-            {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
-          </wd-button>
-        </view>
       </view>
 
       <view class="action-btn">
@@ -200,13 +187,7 @@ const gotoForgotPassword = () => {
     margin-bottom: 40rpx;
   }
 
-  .input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 30rpx;
-  }
-
-  .code-wrapper {
+  .code-input-wrapper {
     position: relative;
     display: flex;
     align-items: center;
