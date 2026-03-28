@@ -1,8 +1,10 @@
-<!-- 菜单管理页面 -->
+//已注释和注释掉router中配置，需要可开启
+
+<!-- 菜单管理页面
 <template>
   <div class="menu-page art-full-height">
     <!-- 搜索栏 -->
-    <ArtSearchBar
+    <!-- <ArtSearchBar
       v-model="formFilters"
       :items="formItems"
       :showExpand="false"
@@ -10,9 +12,9 @@
       @search="handleSearch"
     />
 
-    <ElCard class="art-table-card">
+    <ElCard class="art-table-card"> -->
       <!-- 表格头部 -->
-      <ArtTableHeader
+      <!-- <ArtTableHeader
         :showZebra="false"
         :loading="loading"
         v-model:columns="columnChecks"
@@ -35,9 +37,9 @@
         :stripe="false"
         :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
         :default-expand-all="false"
-      />
+      /> -->
 
-      <!-- 菜单弹窗 -->
+      <!-- 菜单弹窗
       <MenuDialog
         v-model:visible="dialogVisible"
         :type="dialogType"
@@ -47,9 +49,9 @@
       />
     </ElCard>
   </div>
-</template>
+</template> -->
 
-<script setup lang="ts">
+<!-- <script setup lang="ts">
   import { formatMenuTitle } from '@/utils/router'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { useTableColumns } from '@/hooks/core/useTableColumns'
@@ -476,4 +478,4 @@
       }
     })
   }
-</script>
+</script>  -->

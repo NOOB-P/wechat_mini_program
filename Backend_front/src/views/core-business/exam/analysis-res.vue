@@ -21,21 +21,46 @@
       </el-row>
     </el-card>
 
-    <el-card shadow="never">
+    <el-card shadow="never" class="table-card">
       <el-tabs v-model="activeTab">
         <el-tab-pane label="成功匹配" name="success">
-          <el-table :data="successList" border style="width: 100%">
-            <el-table-column prop="studentNo" label="学号" />
-            <el-table-column prop="name" label="姓名" />
-            <el-table-column prop="score" label="得分" />
+          <!-- 设置 height="500" 固定表头并支持内部滚动 -->
+          <el-table 
+            :data="successList" 
+            border 
+            style="width: 100%" 
+            v-loading="loading"
+            height="550"
+          >
+            <!-- 固定左侧关键列 -->
+            <el-table-column prop="studentNo" label="学号" width="120" align="center" fixed="left" />
+            <el-table-column prop="name" label="姓名" width="100" align="center" fixed="left" />
+            <el-table-column prop="score" label="总分" width="100" align="center" fixed="left">
+              <template #default="{ row }">
+                <span class="font-bold text-primary">{{ row.score }}</span>
+              </template>
+            </el-table-column>
+            
+            <!-- 动态生成小题得分列，使用 min-width 以支持自适应伸缩 -->
+            <el-table-column 
+              v-for="(_, index) in maxQuestions" 
+              :key="index" 
+              :label="`第${index + 1}题`" 
+              min-width="90" 
+              align="center"
+            >
+              <template #default="{ row }">
+                {{ row.questionScores?.[index] ?? '-' }}
+              </template>
+            </el-table-column>
           </el-table>
         </el-tab-pane>
 
         <el-tab-pane label="匹配失败 (需手动处理)" name="fail">
-          <el-table :data="failList" border style="width: 100%">
-            <el-table-column prop="studentNo" label="未知学号" />
-            <el-table-column prop="reason" label="失败原因" />
-            <el-table-column label="操作" width="150" fixed="right">
+          <el-table :data="failList" border style="width: 100%" v-loading="loading" height="550">
+            <el-table-column prop="studentNo" label="未知学号" width="150" align="center" fixed="left" />
+            <el-table-column prop="reason" label="失败原因" min-width="250" show-overflow-tooltip />
+            <el-table-column label="操作" width="150" fixed="right" align="center">
               <template #default="{ row }">
                 <el-button link type="primary" size="small" @click="handleBind(row)">手动绑定学生</el-button>
               </template>
@@ -45,14 +70,14 @@
       </el-tabs>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" title="手动绑定学生">
+    <!-- 手动绑定对话框保持不变 -->
+    <el-dialog v-model="dialogVisible" title="手动绑定学生" width="450px">
       <el-form label-width="100px">
         <el-form-item label="当前异常学号">
           <el-input :value="currentFailItem?.studentNo" disabled />
         </el-form-item>
         <el-form-item label="选择真实学生">
-          <el-select v-model="bindStudentId" placeholder="请选择或搜索学生" filterable>
-            <!-- 模拟数据，实际应调用接口获取 -->
+          <el-select v-model="bindStudentId" placeholder="请选择或搜索学生" filterable class="w-full">
             <el-option label="学生A (2023001)" value="stu_1" />
             <el-option label="学生B (2023002)" value="stu_2" />
           </el-select>
@@ -67,7 +92,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchGetAnalysisResult, fetchBindStudent } from '@/api/core-business/exam/analysis-res'
 import { ElMessage } from 'element-plus'
@@ -76,24 +101,39 @@ import { Back } from '@element-plus/icons-vue'
 const route = useRoute()
 const router = useRouter()
 
-const activeTab = ref('fail')
-const successList = ref<any[]>([])
-const failList = ref<any[]>([])
+const loading = ref(false)
+const activeTab = ref('success')
+const successList = ref<Api.Exam.SuccessItem[]>([])
+const failList = ref<Api.Exam.FailItem[]>([])
 
 const dialogVisible = ref(false)
 const currentFailItem = ref<any>(null)
 const bindStudentId = ref('')
 
+// 计算最大题数，用于动态生成列
+const maxQuestions = computed(() => {
+  if (successList.value.length === 0) return 0
+  return Math.max(...successList.value.map(item => item.questionScores?.length || 0))
+})
+
 const loadData = async () => {
   const examId = route.query.id as string
   if (!examId) return
-  const res = await fetchGetAnalysisResult(examId)
-  if (res.code === 200) {
-    successList.value = res.data.successList
-    failList.value = res.data.failList
-    if (failList.value.length === 0) {
-      activeTab.value = 'success'
+  loading.value = true
+  try {
+    const res = await fetchGetAnalysisResult(examId)
+    if (res.code === 200) {
+      successList.value = res.data.successList
+      failList.value = res.data.failList
+      // 如果有失败项，默认切到失败页
+      if (failList.value.length > 0) {
+        activeTab.value = 'fail'
+      } else {
+        activeTab.value = 'success'
+      }
     }
+  } finally {
+    loading.value = false
   }
 }
 
@@ -131,5 +171,26 @@ onMounted(() => {
 <style scoped>
 .page-container {
   padding: 20px;
+}
+.table-card {
+  margin-top: 20px;
+}
+.text-primary {
+  color: var(--el-color-primary);
+}
+.w-full {
+  width: 100%;
+}
+
+/* 优化横向滚动条显示 */
+:deep(.el-table__body-wrapper::-webkit-scrollbar) {
+  height: 10px;
+}
+:deep(.el-table__body-wrapper::-webkit-scrollbar-thumb) {
+  background-color: #ddd;
+  border-radius: 5px;
+}
+:deep(.el-table__fixed-left) {
+  box-shadow: 2px 0 10px rgba(0,0,0,0.05);
 }
 </style>

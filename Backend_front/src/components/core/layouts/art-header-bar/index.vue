@@ -110,24 +110,24 @@
         </ElDropdown>
 
         <!-- 通知按钮 -->
-        <ArtIconButton
+        <!-- <ArtIconButton
           v-if="shouldShowNotification"
           icon="ri:notification-2-line"
           class="notice-button relative"
           @click="visibleNotice"
         >
           <div class="absolute top-2 right-2 size-1.5 !bg-danger rounded-full"></div>
-        </ArtIconButton>
+        </ArtIconButton> -->
 
         <!-- 聊天按钮 -->
-        <ArtIconButton
+        <!-- <ArtIconButton
           v-if="shouldShowChat"
           icon="ri:message-3-line"
           class="chat-button relative"
           @click="openChat"
         >
           <div class="breathing-dot absolute top-2 right-2 size-1.5 !bg-success rounded-full"></div>
-        </ArtIconButton>
+        </ArtIconButton> -->
 
         <!-- 设置按钮 -->
         <div v-if="shouldShowSettings">
