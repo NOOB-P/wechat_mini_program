@@ -1,8 +1,7 @@
 <template>
   <view class="bind-student-page">
-    <view class="header">
-      <view class="title">绑定学生账号</view>
-      <text class="skip-btn" @click="skipBinding">跳过</text>
+    <view class="skip-btn" @click="skipBinding">
+      跳过
     </view>
 
     <view class="notice-bar">
@@ -15,15 +14,20 @@
     </view>
 
     <view class="form-container">
-      <wd-input v-model="form.studentName" label="学生姓名" placeholder="请输入学生真实姓名" />
-      <wd-input v-model="form.studentId" label="学生账号" placeholder="请输入学生用户/准考证" />
-      <wd-input v-model="form.password" label="账号密码" placeholder="请输入密码" type="password" show-password />
-      <wd-input v-model="form.phone" label="手机号" placeholder="请输入手机号" disabled />
-      <view class="code-input-wrapper">
-        <wd-input v-model="form.code" label="验证码" placeholder="请输入验证码" />
-        <wd-button class="code-btn" type="primary" plain size="small" @click="sendCode" :disabled="countdown > 0">
-          {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
-        </wd-button>
+      <view class="input-group">
+        <wd-input v-model="form.studentName" placeholder="请输入学生真实姓名" no-border />
+        <wd-input v-model="form.studentId" placeholder="请输入学生用户/准考证" no-border />
+        <wd-input v-model="form.password" placeholder="请输入密码" type="password" show-password no-border />
+        <wd-input v-model="form.phone" placeholder="请输入手机号" disabled no-border />
+        <view class="code-wrapper">
+          <wd-input v-model="form.code" placeholder="请输入验证码" use-suffix-slot no-border>
+            <template #suffix>
+              <view class="code-btn-text" :class="{ disabled: countdown > 0 }" @click="countdown === 0 && sendCode()">
+                {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
+              </view>
+            </template>
+          </wd-input>
+        </view>
       </view>
 
       <view class="action-btn">
@@ -31,8 +35,8 @@
       </view>
 
       <view class="sub-actions">
-        <text class="link" @click="gotoForgotAccount">忘记账号</text>
-        <text class="link" @click="gotoForgotPassword">忘记密码</text>
+        <text class="link" @click="gotoForgotAccount">忘记账号？</text>
+        <text class="link" @click="gotoForgotPassword">忘记密码？</text>
       </view>
     </view>
 
@@ -45,7 +49,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onNavigationBarButtonTap } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { sendBindStudentCode, bindStudentAccount } from '@/api/auth/bind-student'
 
@@ -65,6 +69,17 @@ const form = reactive({
 onLoad((options) => {
   if (options && options.phone) {
     form.phone = options.phone
+  }
+  // 隐藏左上角返回首页按钮
+  // #ifdef MP-WEIXIN
+  uni.hideHomeButton()
+  // #endif
+})
+
+// 处理原生导航栏按钮点击事件
+onNavigationBarButtonTap((e) => {
+  if (e.index === 0) { // 第0个按钮是“跳过”
+    skipBinding()
   }
 })
 
@@ -153,61 +168,57 @@ const gotoForgotPassword = () => {
   flex-direction: column;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  padding: 40rpx 0 30rpx;
-  margin-bottom: 60rpx;
-  position: relative;
-  z-index: 10;
-  .back-icon {
-    font-size: 44rpx !important;
-    color: #333;
-    padding: 20rpx; // 增加点击区域
-    margin-left: -20rpx; // 抵消 padding 带来的位移
-  }
-  .title {
-    font-size: 56rpx;
-    font-weight: bold;
-    color: #333;
-  }
-  .skip-btn {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    font-size: 30rpx;
-    color: #666;
-  }
+.skip-btn {
+  text-align: right;
+  font-size: 28rpx;
+  color: #666;
+  padding: 10rpx 0 20rpx;
+  margin-top: -20rpx;
 }
 
 .notice-bar {
   margin-bottom: 40rpx;
 }
 
-.form-card {
-  background-color: #fff;
-  border-radius: 32rpx;
-  padding: 60rpx 40rpx;
-  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.08);
-  margin: 0 10rpx;
+.form-container {
+  flex: 1;
 
-  :deep(.wd-input) {
-    --wd-input-label-width: 160rpx;
-  }
-
-  .code-input-wrapper {
-    position: relative;
+  .input-group {
     display: flex;
-    align-items: center;
-    gap: 20rpx;
+    flex-direction: column;
     
     :deep(.wd-input) {
-      flex: 1;
+      margin-bottom: 40rpx;
+      background-color: #f8f9fa;
+      border-radius: 16rpx;
+      padding: 0 30rpx;
+      height: 100rpx;
+      display: flex;
+      align-items: center;
     }
-    
-    .code-btn {
-      flex-shrink: 0;
-      min-width: 180rpx;
+    :deep(.wd-input__inner) {
+      height: 100rpx;
+      line-height: 100rpx;
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  .code-wrapper {
+    margin-bottom: 40rpx;
+
+    :deep(.wd-input) {
+      margin-bottom: 0;
+    }
+
+    .code-btn-text {
+      font-size: 30rpx;
+      color: #1a5f8e;
+      padding: 20rpx 10rpx;
+      
+      &.disabled {
+        color: #999;
+      }
     }
   }
 
@@ -215,35 +226,29 @@ const gotoForgotPassword = () => {
     margin-top: 80rpx;
   }
 
-  .bind-btn {
-    margin-top: 40rpx;
-    height: 96rpx;
-    border-radius: 48rpx;
-    font-size: 34rpx;
-    font-weight: bold;
-    // 建议使用你项目的主色调
-    --wd-button-primary-bg-color: #1a5f8e;
-    --wd-button-primary-border-color: #1a5f8e;
-  }
-
   .sub-actions {
     display: flex;
     justify-content: space-between;
     margin-top: 40rpx;
     padding: 0 10rpx;
-    font-size: 28rpx;
+
     .link {
-      color: #007aff;
-      padding: 20rpx; /* 增加点击区域，防止按不到 */
+      font-size: 28rpx;
+      color: #666;
+      
+      &:active {
+        color: #1a5f8e;
+      }
     }
   }
 }
 
 .footer-notice {
-  margin-top: 40rpx;
   font-size: 24rpx;
   color: #999;
   text-align: center;
-  padding: 0 20rpx;
+  line-height: 1.5;
+  padding: 40rpx 20rpx;
+  margin-top: auto;
 }
 </style>

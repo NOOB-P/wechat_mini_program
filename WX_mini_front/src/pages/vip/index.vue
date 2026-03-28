@@ -167,15 +167,15 @@
 
     <!-- 打印下单弹窗 -->
     <wd-popup v-model="showPrintDialog" position="bottom" custom-style="height: 50%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
-      <view class="print-dialog">
-        <view class="d-title">纸质打印服务下单</view>
-        <wd-input v-model="printForm.address" placeholder="请输入收件地址/线下取件点" clearable />
-        <wd-input v-model="printForm.phone" placeholder="联系电话" clearable />
-        <view class="d-action">
-          <wd-button type="primary" block @click="submitPrint">确认下单</wd-button>
+        <view class="print-dialog">
+          <view class="d-title">纸质打印服务下单</view>
+          <wd-input v-model="printForm.address" placeholder="请输入收件地址/线下取件点" no-border />
+          <wd-input v-model="printForm.phone" placeholder="联系电话" no-border />
+          <view class="d-action">
+            <wd-button type="primary" block @click="submitPrint">确认下单</wd-button>
+          </view>
         </view>
-      </view>
-    </wd-popup>
+      </wd-popup>
 
     <wd-toast id="wd-toast" />
   </view>

@@ -1,21 +1,19 @@
 <template>
   <view class="forgot-account-page">
-    <view class="header">
-      <view class="title">找回账号</view>
-    </view>
-
     <view class="form-container">
       <view class="input-group">
         <wd-input
           v-model="studentName"
           placeholder="请输入学生真实姓名"
-          clearable
+          no-border
         />
+
         <wd-picker
           v-model="school"
           :columns="schoolColumns"
           placeholder="请选择所在的学校"
           @confirm="onSchoolConfirm"
+          no-border
         />
       </view>
       <view class="action-btn">
@@ -93,58 +91,35 @@ const handleNext = async () => {
 <style lang="scss" scoped>
 .forgot-account-page {
   min-height: 100vh;
-  background-color: #f7f8fa;
-  padding: 40rpx 32rpx 32rpx;
-  box-sizing: border-box;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  padding: 40rpx 0; // 增加了内边距
-  margin-bottom: 60rpx; // 增加与下方卡片的距离
-  position: relative; // 增加定位以便于扩大点击区域而不影响布局
-  z-index: 10;
-  .back-icon {
-    font-size: 44rpx !important; // 稍微放大一点图标
-    color: #333;
-    padding: 20rpx; // 增加点击区域
-    margin-left: -20rpx; // 抵消 padding 带来的位移
-  }
-  .title {
-    flex: 1;
-    text-align: center;
-    font-size: 36rpx;
-    font-weight: bold;
-    color: #333;
-    transform: translateX(-20rpx);
-  }
-}
-
-.form-card {
   background-color: #fff;
   padding: 40rpx;
   display: flex;
   flex-direction: column;
 }
 
-.header {
-  margin-top: 100rpx;
-  margin-bottom: 80rpx;
-  .title {
-    font-size: 56rpx;
-    font-weight: bold;
-    color: #333;
-  }
-}
-
 .form-container {
   flex: 1;
+  margin-top: 40rpx;
 
   .input-group {
     display: flex;
     flex-direction: column;
-    gap: 30rpx;
+    
+    :deep(.wd-input), :deep(.wd-picker) {
+      margin-bottom: 40rpx;
+      background-color: #f8f9fa;
+      border-radius: 16rpx;
+      padding: 0 30rpx;
+      height: 100rpx;
+      display: flex;
+      align-items: center;
+    }
+    :deep(.wd-input__inner) {
+      height: 100rpx;
+      line-height: 100rpx;
+      display: flex;
+      align-items: center;
+    }
   }
 
   .action-btn {

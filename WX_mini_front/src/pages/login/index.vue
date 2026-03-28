@@ -8,19 +8,22 @@
       <wd-tabs v-model="loginType">
         <wd-tab title="快捷登录" name="phone">
           <view class="input-group">
-            <wd-input v-model="phone" placeholder="请输入手机号" clearable type="number" maxlength="11" />
+            <wd-input v-model="phone" placeholder="请输入手机号" type="number" maxlength="11" no-border />
             <view class="code-wrapper">
-              <wd-input v-model="code" placeholder="请输入验证码" clearable type="number" maxlength="6" />
-              <wd-button class="code-btn" type="primary" plain size="small" @click="sendCode" :disabled="countdown > 0">
-                {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
-              </wd-button>
+              <wd-input v-model="code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+                <template #suffix>
+                  <view class="code-btn-text" :class="{ disabled: countdown > 0 }" @click="countdown === 0 && sendCode()">
+                    {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
+                  </view>
+                </template>
+              </wd-input>
             </view>
           </view>
         </wd-tab>
         <wd-tab title="密码登录" name="password">
           <view class="input-group">
-            <wd-input v-model="phone" placeholder="请输入手机号" clearable type="number" maxlength="11" />
-            <wd-input v-model="password" placeholder="请输入密码" clearable show-password type="text" />
+            <wd-input v-model="phone" placeholder="请输入手机号" type="number" maxlength="11" no-border />
+            <wd-input v-model="password" placeholder="请输入密码" show-password type="text" no-border />
           </view>
         </wd-tab>
       </wd-tabs>
@@ -58,15 +61,18 @@
       <view class="popup-content">
         <view class="popup-title">快速注册</view>
         <view class="input-group">
-          <wd-input v-model="registerForm.phone" placeholder="请输入手机号" clearable type="number" maxlength="11" />
+          <wd-input v-model="registerForm.phone" placeholder="请输入手机号" type="number" maxlength="11" no-border />
           <view class="code-wrapper">
-            <wd-input v-model="registerForm.code" placeholder="请输入验证码" clearable type="number" maxlength="6" />
-            <wd-button class="code-btn" type="primary" plain size="small" @click="sendRegisterCode" :disabled="registerCountdown > 0">
-              {{ registerCountdown > 0 ? `${registerCountdown}s后重试` : '获取验证码' }}
-            </wd-button>
+            <wd-input v-model="registerForm.code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+              <template #suffix>
+                <view class="code-btn-text" :class="{ disabled: registerCountdown > 0 }" @click="registerCountdown === 0 && sendRegisterCode()">
+                  {{ registerCountdown > 0 ? `${registerCountdown}s后重试` : '获取验证码' }}
+                </view>
+              </template>
+            </wd-input>
           </view>
-          <wd-input v-model="registerForm.password" placeholder="请设置密码" clearable show-password type="text" />
-          <wd-input v-model="registerForm.nickname" placeholder="请输入昵称" clearable type="text" />
+          <wd-input v-model="registerForm.password" placeholder="请设置密码" show-password type="text" no-border />
+          <wd-input v-model="registerForm.nickname" placeholder="请输入昵称" type="text" no-border />
         </view>
         <view class="action-btn">
           <wd-button type="primary" block @click="handleRegister">立即注册</wd-button>
@@ -78,14 +84,17 @@
       <view class="popup-content">
         <view class="popup-title">找回密码</view>
         <view class="input-group">
-          <wd-input v-model="forgotForm.phone" placeholder="请输入手机号" clearable type="number" maxlength="11" />
+          <wd-input v-model="forgotForm.phone" placeholder="请输入手机号" type="number" maxlength="11" no-border />
           <view class="code-wrapper">
-            <wd-input v-model="forgotForm.code" placeholder="请输入验证码" clearable type="number" maxlength="6" />
-            <wd-button class="code-btn" type="primary" plain size="small" @click="sendForgotCode" :disabled="forgotCountdown > 0">
-              {{ forgotCountdown > 0 ? `${forgotCountdown}s后重试` : '获取验证码' }}
-            </wd-button>
+            <wd-input v-model="forgotForm.code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+              <template #suffix>
+                <view class="code-btn-text" :class="{ disabled: forgotCountdown > 0 }" @click="forgotCountdown === 0 && sendForgotCode()">
+                  {{ forgotCountdown > 0 ? `${forgotCountdown}s后重试` : '获取验证码' }}
+                </view>
+              </template>
+            </wd-input>
           </view>
-          <wd-input v-model="forgotForm.password" placeholder="请输入新密码" clearable show-password type="text" />
+          <wd-input v-model="forgotForm.password" placeholder="请输入新密码" show-password type="text" no-border />
         </view>
         <view class="action-btn">
           <wd-button type="primary" block @click="handleForgot">重置密码</wd-button>
@@ -97,12 +106,15 @@
       <view class="popup-content">
         <view class="popup-title">绑定手机号</view>
         <view class="input-group">
-          <wd-input v-model="bindPhoneForm.phone" placeholder="请输入手机号" clearable type="number" maxlength="11" />
+          <wd-input v-model="bindPhoneForm.phone" placeholder="请输入手机号" type="number" maxlength="11" no-border />
           <view class="code-wrapper">
-            <wd-input v-model="bindPhoneForm.code" placeholder="请输入验证码" clearable type="number" maxlength="6" />
-            <wd-button class="code-btn" type="primary" plain size="small" @click="sendBindPhoneCode" :disabled="bindPhoneCountdown > 0">
-              {{ bindPhoneCountdown > 0 ? `${bindPhoneCountdown}s后重试` : '获取验证码' }}
-            </wd-button>
+            <wd-input v-model="bindPhoneForm.code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+              <template #suffix>
+                <view class="code-btn-text" :class="{ disabled: bindPhoneCountdown > 0 }" @click="bindPhoneCountdown === 0 && sendBindPhoneCode()">
+                  {{ bindPhoneCountdown > 0 ? `${bindPhoneCountdown}s后重试` : '获取验证码' }}
+                </view>
+              </template>
+            </wd-input>
           </view>
         </view>
         <view class="action-btn">
@@ -439,21 +451,51 @@ const mockThirdPartyLogin = async (type: string) => {
       margin-top: 40rpx;
       display: flex;
       flex-direction: column;
-      gap: 30rpx;
+      
+      :deep(.wd-input) {
+        margin-bottom: 40rpx;
+        background-color: #f8f9fa;
+        border-radius: 16rpx;
+        padding: 0 30rpx;
+        height: 100rpx;
+        display: flex;
+        align-items: center;
+      }
+      :deep(.wd-input__inner) {
+        height: 100rpx;
+        line-height: 100rpx;
+        display: flex;
+        align-items: center;
+      }
+      :deep(.wd-input__placeholder) {
+        line-height: 100rpx;
+      }
+      :deep(.wd-input__placeholder) {
+        line-height: 100rpx;
+      }
+      :deep(.wd-input__placeholder) {
+        line-height: 100rpx;
+      }
+      :deep(.wd-input__placeholder) {
+        line-height: 100rpx;
+      }
     }
 
     .code-wrapper {
-      position: relative;
-      display: flex;
-      align-items: center;
-      
+      margin-bottom: 40rpx;
+
       :deep(.wd-input) {
-        flex: 1;
+        margin-bottom: 0;
       }
-      
-      .code-btn {
-        margin-left: 20rpx;
-        min-width: 200rpx;
+
+      .code-btn-text {
+        font-size: 30rpx;
+        color: #1a5f8e;
+        padding: 20rpx 10rpx;
+        
+        &.disabled {
+          color: #999;
+        }
       }
     }
 
@@ -536,20 +578,39 @@ const mockThirdPartyLogin = async (type: string) => {
     .input-group {
       display: flex;
       flex-direction: column;
-      gap: 30rpx;
+      
+      :deep(.wd-input) {
+        margin-bottom: 40rpx;
+        background-color: #f8f9fa;
+        border-radius: 16rpx;
+        padding: 0 30rpx;
+        height: 100rpx;
+        display: flex;
+        align-items: center;
+      }
+      :deep(.wd-input__inner) {
+        height: 100rpx;
+        line-height: 100rpx;
+        display: flex;
+        align-items: center;
+      }
     }
     
     .code-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 20rpx;
-      
+      margin-bottom: 40rpx;
+
       :deep(.wd-input) {
-        flex: 1;
+        margin-bottom: 0;
       }
-      
-      .code-btn {
-        min-width: 180rpx;
+
+      .code-btn-text {
+        font-size: 30rpx;
+        color: #1a5f8e;
+        padding: 20rpx 10rpx;
+        
+        &.disabled {
+          color: #999;
+        }
       }
     }
     

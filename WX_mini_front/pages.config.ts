@@ -13,6 +13,17 @@ export default defineUniPages({
       path: 'pages/auth/bind-student',
       style: {
         navigationBarTitleText: '绑定学生账号',
+        appPlus: {
+          titleNView: {
+            buttons: [
+              {
+                text: '跳过',
+                fontSize: '14px',
+                color: '#666666'
+              }
+            ]
+          }
+        }
       },
     },
     {

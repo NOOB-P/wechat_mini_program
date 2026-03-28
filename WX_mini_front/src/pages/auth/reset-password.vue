@@ -1,18 +1,17 @@
 <template>
   <view class="reset-password-page">
-    <view class="header">
-      <view class="title">重置密码</view>
-    </view>
-
     <view class="form-container">
       <view class="input-group">
         <view class="code-wrapper">
-          <wd-input v-model="form.code" placeholder="请输入验证码" clearable type="number" maxlength="6" />
-          <wd-button class="code-btn" type="primary" plain size="small" @click="sendCode" :disabled="countdown > 0">
-            {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
-          </wd-button>
+          <wd-input v-model="form.code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+            <template #suffix>
+              <view class="code-btn-text" :class="{ disabled: countdown > 0 }" @click="countdown === 0 && sendCode()">
+                {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
+              </view>
+            </template>
+          </wd-input>
         </view>
-        <wd-input v-model="form.password" placeholder="请输入新密码" clearable show-password type="text" />
+        <wd-input v-model="form.password" placeholder="请输入新密码" show-password type="text" no-border />
       </view>
       <view class="action-btn">
         <wd-button type="primary" block @click="handleReset">确认</wd-button>
@@ -86,58 +85,52 @@ const handleReset = async () => {
 <style lang="scss" scoped>
 .reset-password-page {
   min-height: 100vh;
-  background-color: #f7f8fa;
-  padding: 40rpx 32rpx 32rpx;
-  box-sizing: border-box;
   background-color: #fff;
   padding: 40rpx;
   display: flex;
   flex-direction: column;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  padding: 40rpx 0; // 增加了内边距
-  margin-bottom: 60rpx; // 增加与下方卡片的距离
-  position: relative; // 增加定位以便于扩大点击区域而不影响布局
-  z-index: 10;
-  .back-icon {
-    font-size: 44rpx !important; // 稍微放大一点图标
-    color: #333;
-    padding: 20rpx; // 增加点击区域
-    margin-left: -20rpx; // 抵消 padding 带来的位移
-  }
-  margin-top: 100rpx;
-  margin-bottom: 80rpx;
-  .title {
-    font-size: 56rpx;
-    font-weight: bold;
-    color: #333;
-  }
-}
-
 .form-container {
   flex: 1;
+  margin-top: 40rpx;
 
   .input-group {
     display: flex;
     flex-direction: column;
-    gap: 30rpx;
-  }
-
-  .code-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
     
     :deep(.wd-input) {
-      flex: 1;
+      margin-bottom: 40rpx;
+      background-color: #f8f9fa;
+      border-radius: 16rpx;
+      padding: 0 30rpx;
+      height: 100rpx;
+      display: flex;
+      align-items: center;
     }
-    
-    .code-btn {
-      margin-left: 20rpx;
-      min-width: 200rpx;
+    :deep(.wd-input__inner) {
+      height: 100rpx;
+      line-height: 100rpx;
+      display: flex;
+      align-items: center;
+    }
+
+    .code-wrapper {
+      margin-bottom: 40rpx;
+
+      :deep(.wd-input) {
+        margin-bottom: 0;
+      }
+
+      .code-btn-text {
+        font-size: 30rpx;
+        color: #1a5f8e;
+        padding: 20rpx 10rpx;
+        
+        &.disabled {
+          color: #999;
+        }
+      }
     }
   }
 
