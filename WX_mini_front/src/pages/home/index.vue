@@ -65,7 +65,6 @@ const handleCourseClick = (course: any) => {
 
 <template>
   <view class="index-container">
-    <view class="status-bar"></view>
     <view class="header">
       <text class="title">教育学习平台</text>
     </view>
@@ -145,10 +144,6 @@ const handleCourseClick = (course: any) => {
   min-height: 100vh;
   background-color: #f8f9fa;
   padding: 0 30rpx 40rpx;
-}
-
-.status-bar {
-  height: var(--status-bar-height);
 }
 
 .header {

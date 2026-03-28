@@ -11,28 +11,28 @@
 			"path": "pages/auth/bind-student",
 			"type": "page",
 			"style": {
-				"navigationStyle": "custom"
+				"navigationBarTitleText": "绑定学生账号"
 			}
 		},
 		{
 			"path": "pages/auth/forgot-account",
 			"type": "page",
 			"style": {
-				"navigationStyle": "custom"
+				"navigationBarTitleText": "找回账号"
 			}
 		},
 		{
 			"path": "pages/auth/forgot-password",
 			"type": "page",
 			"style": {
-				"navigationStyle": "custom"
+				"navigationBarTitleText": "找回密码"
 			}
 		},
 		{
 			"path": "pages/auth/reset-password",
 			"type": "page",
 			"style": {
-				"navigationStyle": "custom"
+				"navigationBarTitleText": "重置密码"
 			}
 		},
 		{
@@ -59,37 +59,51 @@
 		{
 			"path": "pages/paper/index",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationBarTitleText": "试卷报告"
+			}
 		},
 		{
 			"path": "pages/register/index",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationBarTitleText": "注册账号"
+			}
 		},
 		{
 			"path": "pages/score/index",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationBarTitleText": "成绩分析"
+			}
 		},
 		{
 			"path": "pages/service/index",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationBarTitleText": "客服帮助"
+			}
 		},
 		{
 			"path": "pages/vip/index",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationBarTitleText": "VIP会员"
+			}
 		},
 		{
 			"path": "pages/vip/recharge",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationBarTitleText": "会员充值"
+			}
 		},
 		{
 			"path": "pages/mine/settings/index",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationBarTitleText": "个人设置"
+			}
 		}
 	],
 	"globalStyle": {

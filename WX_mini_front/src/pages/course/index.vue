@@ -53,7 +53,6 @@ onMounted(() => {
 
 <template>
   <view class="course-container">
-    <view class="status-bar"></view>
     <view class="header">
       <view class="title">课程中心</view>
       <view class="search-bar">
@@ -82,10 +81,6 @@ onMounted(() => {
   min-height: 100vh;
   background-color: #f8f9fa;
   padding: 0 30rpx 40rpx;
-}
-
-.status-bar {
-  height: var(--status-bar-height);
 }
 
 .header {

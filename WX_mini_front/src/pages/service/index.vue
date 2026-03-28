@@ -71,16 +71,6 @@ const goBack = () => {
 
 <template>
   <view class="service-container">
-    <view class="status-bar"></view>
-    
-    <view class="nav-bar">
-      <view class="back-btn" @click="goBack">
-        <wd-icon name="arrow-left" size="40rpx" color="#333" />
-      </view>
-      <text class="title">家长咨询与服务</text>
-      <view class="placeholder"></view>
-    </view>
-
     <view class="search-box">
       <wd-search 
         v-model="searchValue" 
@@ -141,40 +131,6 @@ const goBack = () => {
   padding-bottom: 200rpx; /* 留出底部按钮空间 */
 }
 
-.status-bar {
-  height: var(--status-bar-height);
-  background-color: #fff;
-}
-
-.nav-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 88rpx;
-  background-color: #fff;
-  padding: 0 32rpx;
-  position: sticky;
-  top: var(--status-bar-height);
-  z-index: 100;
-  
-  .back-btn {
-    padding: 20rpx;
-    margin: -20rpx;
-    position: relative;
-    z-index: 10;
-  }
-  
-  .title {
-    font-size: 34rpx;
-    font-weight: 600;
-    color: #333;
-  }
-  
-  .placeholder {
-    width: 40rpx;
-  }
-}
-
 .search-box {
   background-color: #fff;
   padding: 10rpx 0 20rpx;
@@ -193,7 +149,7 @@ const goBack = () => {
 }
 
 .faq-list {
-  height: calc(100vh - var(--status-bar-height) - 88rpx - 120rpx - 100rpx - 200rpx);
+  height: calc(100vh - 120rpx - 100rpx - 200rpx);
   padding: 10rpx 0;
 }
 

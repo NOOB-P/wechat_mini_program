@@ -1,10 +1,5 @@
 <template>
   <view class="recharge-container">
-    <view class="header">
-      <wd-icon name="arrow-left" custom-class="back-icon" @click="goBack" />
-      <view class="title">开通会员</view>
-    </view>
-
     <view class="content">
       <!-- VIP 类型选择 -->
       <view class="vip-types">
@@ -111,31 +106,6 @@ const handlePay = () => {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  padding: 40rpx 0 30rpx;
-  margin-bottom: 20rpx;
-  position: relative;
-  z-index: 10;
-  
-  .back-icon {
-    font-size: 44rpx !important;
-    color: #333;
-    padding: 20rpx;
-    margin-left: -20rpx; // 抵消 padding 带来的位移
-  }
-  
-  .title {
-    flex: 1;
-    text-align: center;
-    font-size: 36rpx;
-    font-weight: bold;
-    color: #333;
-    transform: translateX(-20rpx);
-  }
 }
 
 .content {

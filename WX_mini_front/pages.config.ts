@@ -12,25 +12,25 @@ export default defineUniPages({
     {
       path: 'pages/auth/bind-student',
       style: {
-        navigationStyle: 'custom',
+        navigationBarTitleText: '绑定学生账号',
       },
     },
     {
       path: 'pages/auth/forgot-account',
       style: {
-        navigationStyle: 'custom',
+        navigationBarTitleText: '找回账号',
       },
     },
     {
       path: 'pages/auth/forgot-password',
       style: {
-        navigationStyle: 'custom',
+        navigationBarTitleText: '找回密码',
       },
     },
     {
       path: 'pages/auth/reset-password',
       style: {
-        navigationStyle: 'custom',
+        navigationBarTitleText: '重置密码',
       },
     },
     {
@@ -49,6 +49,48 @@ export default defineUniPages({
       path: 'pages/mine/index',
       style: {
         navigationBarTitleText: '我的',
+      },
+    },
+    {
+      path: 'pages/paper/index',
+      style: {
+        navigationBarTitleText: '试卷报告',
+      },
+    },
+    {
+      path: 'pages/score/index',
+      style: {
+        navigationBarTitleText: '成绩分析',
+      },
+    },
+    {
+      path: 'pages/service/index',
+      style: {
+        navigationBarTitleText: '客服帮助',
+      },
+    },
+    {
+      path: 'pages/vip/index',
+      style: {
+        navigationBarTitleText: 'VIP会员',
+      },
+    },
+    {
+      path: 'pages/vip/recharge',
+      style: {
+        navigationBarTitleText: '会员充值',
+      },
+    },
+    {
+      path: 'pages/mine/settings/index',
+      style: {
+        navigationBarTitleText: '个人设置',
+      },
+    },
+    {
+      path: 'pages/register/index',
+      style: {
+        navigationBarTitleText: '注册账号',
       },
     },
   ],

@@ -1,7 +1,6 @@
 <template>
   <view class="forgot-password-page">
     <view class="header">
-      <wd-icon name="arrow-left" custom-class="back-icon" @click="goBack" />
       <view class="title">忘记密码</view>
     </view>
 
@@ -69,7 +68,7 @@ const gotoForgotAccount = () => {
 .forgot-password-page {
   min-height: 100vh;
   background-color: #f7f8fa;
-  padding: 120rpx 32rpx 32rpx; // 增加了顶部的 padding (原来是 32rpx) 避免被刘海屏挡住
+  padding: 40rpx 32rpx 32rpx; // 增加了顶部的 padding (原来是 32rpx) 避免被刘海屏挡住
   box-sizing: border-box;
 }
 
