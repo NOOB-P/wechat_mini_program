@@ -1,8 +1,7 @@
 <template>
   <view class="forgot-account-page">
     <view class="header">
-      <wd-icon name="arrow-left" custom-class="back-icon" @click="goBack" />
-      <view class="title">忘记账号</view>
+      <view class="title">找回账号</view>
     </view>
 
     <view class="form-container">
@@ -95,7 +94,7 @@ const handleNext = async () => {
 .forgot-account-page {
   min-height: 100vh;
   background-color: #f7f8fa;
-  padding: 120rpx 32rpx 32rpx; // 增加了顶部的 padding (原来是 32rpx) 避免被刘海屏挡住
+  padding: 40rpx 32rpx 32rpx;
   box-sizing: border-box;
 }
 

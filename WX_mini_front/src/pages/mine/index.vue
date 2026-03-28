@@ -77,7 +77,6 @@ const goToVip = () => {
 
     <!-- 头部用户信息 -->
     <view class="header-content">
-      <view class="status-bar"></view>
       <view class="nav-bar">
         <wd-icon name="notification" size="24px" class="notice-icon" />
       </view>
@@ -163,14 +162,11 @@ const goToVip = () => {
 }
 
 .header-content {
-  position: relative;
-  padding: 0 40rpx 40rpx;
-  
-  .status-bar {
-    height: var(--status-bar-height);
-  }
-  
-  .nav-bar {
+    position: relative;
+    z-index: 1;
+    padding: 0 40rpx 40rpx;
+
+    .nav-bar {
     height: 88rpx;
     display: flex;
     justify-content: flex-end;

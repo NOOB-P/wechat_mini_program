@@ -6,7 +6,7 @@
 
     <view class="form-container">
       <wd-tabs v-model="loginType">
-        <wd-tab title="手机验证码登录" name="phone">
+        <wd-tab title="快捷登录" name="phone">
           <view class="input-group">
             <wd-input v-model="phone" placeholder="请输入手机号" clearable type="number" maxlength="11" />
             <view class="code-wrapper">
@@ -30,8 +30,9 @@
       </view>
 
       <view class="sub-actions">
-        <text class="link" @click="goToRegister">立即注册</text>
-        <text class="link" @click="goToForgotPassword">找回密码</text>
+        <!-- 占位元素，保证如果只有右侧按钮时能通过 space-between 推到右边 -->
+        <text></text>
+        <text v-if="loginType === 'password'" class="link" @click="goToForgotPassword">找回密码</text>
       </view>
     </view>
 

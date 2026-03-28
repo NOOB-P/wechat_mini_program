@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { onLaunch, onShow, onHide } from "@dcloudio/uni-app";
-import { interceptorAuth } from '@/utils/interceptor'
+// import { interceptorAuth } from '@/utils/interceptor'
 
 onLaunch(() => {
   console.log("App Launch");
-  interceptorAuth()
+  // interceptorAuth()
 });
 onShow(() => {
   console.log("App Show");
@@ -14,9 +14,6 @@ onHide(() => {
 });
 </script>
 <style>
-/* 引入 wot-design-uni 样式 */
-@import 'wot-design-uni/components/common/style/index.css';
-
 /* 全局抗锯齿和字体优化，解决模糊问题 */
 page {
   -webkit-font-smoothing: antialiased;

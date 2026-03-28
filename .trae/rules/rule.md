@@ -22,6 +22,8 @@ mysql
 - 小程序前端：Wot Design Uni
 - 后台前端：Element Plus
 
+- 小程序页面统一添加"navigationBarTitleText"
+
 ### 统一返回请求接口
 - 统一后端接口，返回值格式为：
 ```json
