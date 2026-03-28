@@ -112,8 +112,8 @@
   import { useUserStore } from '@/store/modules/user'
   import { useI18n } from 'vue-i18n'
   import { HttpError } from '@/utils/http/error'
-  import { fetchLogin } from '@/api/auth'
-  import { ElNotification, type FormInstance, type FormRules } from 'element-plus'
+  import { fetchLogin } from '@/api/auth/login'
+  import { ElNotification, ElMessage, type FormInstance, type FormRules } from 'element-plus'
   import { useSettingStore } from '@/store/modules/setting'
 
   defineOptions({ name: 'Login' })
@@ -128,7 +128,7 @@
     formKey.value++
   })
 
-  type AccountKey = 'super' | 'admin' | 'user'
+  type AccountKey = 'admin' | 'school'
 
   export interface Account {
     key: AccountKey
@@ -140,13 +140,6 @@
 
   const accounts = computed<Account[]>(() => [
     {
-      key: 'super',
-      label: t('login.roles.super'),
-      userName: 'Super',
-      password: '123456',
-      roles: ['R_SUPER']
-    },
-    {
       key: 'admin',
       label: t('login.roles.admin'),
       userName: 'Admin',
@@ -154,11 +147,11 @@
       roles: ['R_ADMIN']
     },
     {
-      key: 'user',
-      label: t('login.roles.user'),
-      userName: 'User',
+      key: 'school',
+      label: '学校',
+      userName: 'School',
       password: '123456',
-      roles: ['R_USER']
+      roles: ['R_SCHOOL']
     }
   ])
 
@@ -188,7 +181,7 @@
   const loading = ref(false)
 
   onMounted(() => {
-    setupAccount('super')
+    setupAccount('admin')
   })
 
   // 设置账号
@@ -239,13 +232,13 @@
       // 获取 redirect 参数，如果存在则跳转到指定页面，否则跳转到首页
       const redirect = route.query.redirect as string
       router.push(redirect || '/')
-    } catch (error) {
+    } catch (error: any) {
       // 处理 HttpError
       if (error instanceof HttpError) {
         // console.log(error.code)
       } else {
         // 处理非 HttpError
-        // ElMessage.error('登录失败，请稍后重试')
+        ElMessage.error(error.message || '登录失败，请稍后重试')
         console.error('[Login] Unexpected error:', error)
       }
     } finally {
