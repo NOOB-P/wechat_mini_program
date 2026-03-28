@@ -88,7 +88,7 @@
         />
 
         <!-- 国际化按钮 -->
-        <ElDropdown
+        <!-- <ElDropdown
           @command="changeLanguage"
           popper-class="langDropDownStyle"
           v-if="shouldShowLanguage"
@@ -107,7 +107,7 @@
               </div>
             </ElDropdownMenu>
           </template>
-        </ElDropdown>
+        </ElDropdown> -->
 
         <!-- 通知按钮 -->
         <!-- <ArtIconButton
