@@ -7,16 +7,19 @@
 
     <view class="form-container">
       <view class="input-group">
-        <wd-input v-model="nickname" placeholder="请输入昵称" clearable />
-        <wd-input v-model="phone" placeholder="请输入手机号" clearable type="number" maxlength="11" />
+        <wd-input v-model="nickname" placeholder="请输入昵称" no-border />
+        <wd-input v-model="phone" placeholder="请输入手机号" type="number" maxlength="11" no-border />
         <view class="code-wrapper">
-          <wd-input v-model="code" placeholder="请输入验证码" clearable type="number" maxlength="6" />
-          <wd-button class="code-btn" type="primary" plain size="small" @click="sendCode" :disabled="countdown > 0">
-            {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
-          </wd-button>
+          <wd-input v-model="code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+            <template #suffix>
+              <view class="code-btn-text" :class="{ disabled: countdown > 0 }" @click="countdown === 0 && sendCode()">
+                {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
+              </view>
+            </template>
+          </wd-input>
         </view>
-        <wd-input v-model="password" placeholder="请输入密码" clearable show-password type="text" />
-        <wd-input v-model="confirmPassword" placeholder="请确认密码" clearable show-password type="text" />
+        <wd-input v-model="password" placeholder="请输入密码" show-password type="text" no-border />
+        <wd-input v-model="confirmPassword" placeholder="请确认密码" show-password type="text" no-border />
       </view>
 
       <view class="action-btn">
@@ -144,20 +147,39 @@ const goToLogin = () => {
     .input-group {
       display: flex;
       flex-direction: column;
-      gap: 30rpx;
+      
+      :deep(.wd-input) {
+        margin-bottom: 40rpx;
+        background-color: #f8f9fa;
+        border-radius: 16rpx;
+        padding: 0 30rpx;
+        height: 100rpx;
+        display: flex;
+        align-items: center;
+      }
+      :deep(.wd-input__inner) {
+        height: 100rpx;
+        line-height: 100rpx;
+        display: flex;
+        align-items: center;
+      }
     }
 
     .code-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 20rpx;
-      
+      margin-bottom: 40rpx;
+
       :deep(.wd-input) {
-        flex: 1;
+        margin-bottom: 0;
       }
-      
-      .code-btn {
-        min-width: 200rpx;
+
+      .code-btn-text {
+        font-size: 30rpx;
+        color: #1a5f8e;
+        padding: 20rpx 10rpx;
+        
+        &.disabled {
+          color: #999;
+        }
       }
     }
 
