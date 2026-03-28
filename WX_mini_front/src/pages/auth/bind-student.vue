@@ -27,7 +27,7 @@
       </view>
 
       <view class="action-btn">
-        <wd-button type="primary" block @click="handleBind">确认绑定</wd-button>
+        <wd-button type="primary" block custom-class="bind-btn" @click="handleBind">确认绑定</wd-button>
       </view>
 
       <view class="sub-actions">
@@ -180,25 +180,34 @@ const gotoForgotPassword = () => {
   }
 }
 
-.form-container {
-  flex: 1;
+.notice-bar {
+  margin-bottom: 40rpx;
+}
 
-  .notice-bar {
-    margin-bottom: 40rpx;
+.form-card {
+  background-color: #fff;
+  border-radius: 32rpx;
+  padding: 60rpx 40rpx;
+  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.08);
+  margin: 0 10rpx;
+
+  :deep(.wd-input) {
+    --wd-input-label-width: 160rpx;
   }
 
   .code-input-wrapper {
     position: relative;
     display: flex;
     align-items: center;
+    gap: 20rpx;
     
     :deep(.wd-input) {
       flex: 1;
     }
     
     .code-btn {
-      margin-left: 20rpx;
-      min-width: 200rpx;
+      flex-shrink: 0;
+      min-width: 180rpx;
     }
   }
 
@@ -206,10 +215,21 @@ const gotoForgotPassword = () => {
     margin-top: 80rpx;
   }
 
+  .bind-btn {
+    margin-top: 40rpx;
+    height: 96rpx;
+    border-radius: 48rpx;
+    font-size: 34rpx;
+    font-weight: bold;
+    // 建议使用你项目的主色调
+    --wd-button-primary-bg-color: #1a5f8e;
+    --wd-button-primary-border-color: #1a5f8e;
+  }
+
   .sub-actions {
     display: flex;
     justify-content: space-between;
-    margin-top: 60rpx;
+    margin-top: 40rpx;
     padding: 0 10rpx;
     font-size: 28rpx;
     .link {

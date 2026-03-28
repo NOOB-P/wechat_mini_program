@@ -17,6 +17,26 @@ const getCourseList = async () => {
   }
 }
 
+const handleCourseClick = (course: any) => {
+  const token = uni.getStorageSync('token') || ''
+  const isSVIP = token.includes('13688888888')
+  
+  if (isSVIP) {
+    uni.showToast({ title: `正在进入: ${course.name}`, icon: 'none' })
+  } else {
+    uni.showModal({
+      title: 'SVIP 专属课程',
+      content: '此为 AI 名师精品课程，开通 SVIP 即可无限畅学！',
+      confirmText: '去开通',
+      success: (res) => {
+        if (res.confirm) {
+          uni.navigateTo({ url: '/pages/vip/recharge' })
+        }
+      }
+    })
+  }
+}
+
 onShow(() => {
   const token = uni.getStorageSync('token')
   if (!token) {
@@ -42,7 +62,7 @@ onMounted(() => {
     </view>
 
     <view class="course-list">
-      <view v-for="(item, index) in courses" :key="index" class="course-card">
+      <view v-for="(item, index) in courses" :key="index" class="course-card" @click="handleCourseClick(item)">
         <wd-img :src="item.image" :width="120" :height="80" round class="course-img" />
         <view class="course-info">
           <text class="course-name">{{ item.name }}</text>

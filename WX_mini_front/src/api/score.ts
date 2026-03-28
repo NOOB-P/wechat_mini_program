@@ -2,12 +2,12 @@ import request from '@/utils/request'
 
 /**
  * @Description: 获取学生成绩数据
- * @param {string} studentId 学生ID
+ * @param {object} params 参数包含 studentId 和 semester (学期)
  */
-export const getStudentScoresApi = (studentId?: string) => {
+export const getStudentScoresApi = (params?: any) => {
   return request({
     url: '/score/list',
     method: 'GET',
-    data: { studentId }
+    data: params
   })
 }

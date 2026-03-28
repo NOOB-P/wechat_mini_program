@@ -72,6 +72,21 @@
 			"style": {}
 		},
 		{
+			"path": "pages/service/index",
+			"type": "page",
+			"style": {}
+		},
+		{
+			"path": "pages/vip/index",
+			"type": "page",
+			"style": {}
+		},
+		{
+			"path": "pages/vip/recharge",
+			"type": "page",
+			"style": {}
+		},
+		{
 			"path": "pages/mine/settings/index",
 			"type": "page",
 			"style": {}

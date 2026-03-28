@@ -15,6 +15,9 @@ interface NavigateToOptions {
        "/pages/paper/index" |
        "/pages/register/index" |
        "/pages/score/index" |
+       "/pages/service/index" |
+       "/pages/vip/index" |
+       "/pages/vip/recharge" |
        "/pages/mine/settings/index";
 }
 interface RedirectToOptions extends NavigateToOptions {}

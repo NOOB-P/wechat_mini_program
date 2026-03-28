@@ -37,3 +37,7 @@ git push https://github.com/NOOB-P/wechat_mini_program.git master
 **WX_mini_front:** 小程序前端
 
 **JavaSB_back:** 后端
+
+# 提示词模板
+1. 把pages所有实现模拟实现后端逻辑的script文件的和位置标注出来，之后将这些逻辑写在mock文件夹中，模拟后端逻辑，接着把调用请求的函数写在api中，用来对接前端和后端，最后pages页面调用api中的接口
+2. 

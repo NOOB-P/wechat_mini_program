@@ -36,6 +36,29 @@ const handleGridClick = (type: string) => {
     uni.navigateTo({ url: '/pages/score/index' })
   } else if (type === 'paper') {
     uni.navigateTo({ url: '/pages/paper/index' })
+  } else if (type === 'wrong') {
+    uni.navigateTo({ url: '/pages/vip/index?tab=wrongbook' })
+  }
+}
+
+const handleCourseClick = (course: any) => {
+  const token = uni.getStorageSync('token') || ''
+  const isSVIP = token.includes('13688888888')
+  
+  if (isSVIP) {
+    uni.showToast({ title: `正在进入: ${course.name}`, icon: 'none' })
+    // 这里可以跳转到真正的课程播放页面
+  } else {
+    uni.showModal({
+      title: 'SVIP 专属课程',
+      content: '此为 AI 名师精品课程，开通 SVIP 即可无限畅学！',
+      confirmText: '去开通',
+      success: (res) => {
+        if (res.confirm) {
+          uni.navigateTo({ url: '/pages/vip/recharge' })
+        }
+      }
+    })
   }
 }
 </script>
@@ -102,7 +125,7 @@ const handleGridClick = (type: string) => {
       </view>
 
       <view class="recommend-list">
-        <view class="recommend-item" v-for="course in recommendCourses" :key="course.id">
+        <view class="recommend-item" v-for="course in recommendCourses" :key="course.id" @click="handleCourseClick(course)">
           <wd-img :src="course.image" :width="160" :height="100" round class="item-img" />
           <view class="item-info">
             <text class="item-name">{{ course.name }}</text>

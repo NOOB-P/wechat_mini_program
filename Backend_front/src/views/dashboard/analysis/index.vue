@@ -1,50 +1,102 @@
-<!-- 分析页页面 -->
 <template>
   <div>
-    <ElRow :gutter="20">
-      <ElCol :xl="14" :lg="15" :xs="24">
-        <TodaySales />
-      </ElCol>
-      <ElCol :xl="10" :lg="9" :xs="24">
-        <VisitorInsights />
-      </ElCol>
-    </ElRow>
+    <!-- 数据概览 -->
+    <AnalysisStats :data="analysisData.stats" />
 
+    <!-- 系统监控与图表 -->
     <ElRow :gutter="20">
-      <ElCol :xl="10" :lg="10" :xs="24">
-        <TotalRevenue />
+      <ElCol :xs="24" :lg="16">
+        <GrowthChart :data="analysisData.userGrowthTrend" />
+        <SystemMonitor :data="analysisData.systemMonitor" />
       </ElCol>
-      <ElCol :xl="7" :lg="7" :xs="24">
-        <CustomerSatisfaction />
-      </ElCol>
-      <ElCol :xl="7" :lg="7" :xs="24">
-        <TargetVsReality />
-      </ElCol>
-    </ElRow>
-
-    <ElRow :gutter="20">
-      <ElCol :xl="10" :lg="10" :xs="24">
-        <TopProducts />
-      </ElCol>
-      <ElCol :xl="7" :lg="7" :xs="24">
-        <SalesMappingByCountry />
-      </ElCol>
-      <ElCol :xl="7" :lg="7" :xs="24">
-        <VolumeServiceLevel />
+      <ElCol :xs="24" :lg="8">
+        <UserDistribution :data="analysisData.userDistribution" />
+        <!-- 快速入口 (参考工作台风格) -->
+        <div class="art-card p-5 rounded-xl bg-white shadow-sm mb-5 max-sm:mb-4 h-80">
+          <div class="flex justify-between items-center mb-6">
+            <span class="font-bold text-lg">常用操作</span>
+            <el-tag type="info" plain>快捷方式</el-tag>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <el-button
+              type="primary"
+              size="large"
+              class="!h-12 w-full"
+              plain
+              @click="goPage('ExamDataHub')"
+            >
+              <template #icon><ArtSvgIcon icon="ri:upload-cloud-2-line" /></template>
+              上传试卷
+            </el-button>
+            <el-button
+              type="success"
+              size="large"
+              class="!h-12 w-full"
+              plain
+              @click="goPage('StudentProfile')"
+            >
+              <template #icon><ArtSvgIcon icon="ri:user-add-line" /></template>
+              录入学生
+            </el-button>
+            <el-button
+              type="warning"
+              size="large"
+              class="!h-12 w-full"
+              plain
+              @click="goPage('SchoolOrg')"
+            >
+              <template #icon><ArtSvgIcon icon="ri:building-line" /></template>
+              班级管理
+            </el-button>
+            <el-button
+              type="info"
+              size="large"
+              class="!h-12 w-full"
+              plain
+              @click="goPage('UserCenter')"
+            >
+              <template #icon><ArtSvgIcon icon="ri:settings-4-line" /></template>
+              个人中心
+            </el-button>
+          </div>
+        </div>
       </ElCol>
     </ElRow>
   </div>
 </template>
 
 <script setup lang="ts">
-  import TodaySales from './modules/today-sales.vue'
-  import VisitorInsights from './modules/visitor-insights.vue'
-  import TotalRevenue from './modules/total-revenue.vue'
-  import CustomerSatisfaction from './modules/customer-satisfaction.vue'
-  import TargetVsReality from './modules/target-vs-reality.vue'
-  import TopProducts from './modules/top-products.vue'
-  import SalesMappingByCountry from './modules/sales-mapping-by-country.vue'
-  import VolumeServiceLevel from './modules/volume-service-level.vue'
+  import { ref, onMounted } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { fetchGetDashboardAnalysis } from '@/api/dashboard/analysis'
+  import AnalysisStats from './modules/AnalysisStats.vue'
+  import SystemMonitor from './modules/SystemMonitor.vue'
+  import GrowthChart from './modules/GrowthChart.vue'
+  import UserDistribution from './modules/UserDistribution.vue'
 
   defineOptions({ name: 'Analysis' })
+
+  const router = useRouter()
+  const analysisData = ref<any>({
+    stats: [],
+    systemMonitor: {},
+    userGrowthTrend: {},
+    userDistribution: []
+  })
+
+  const loadData = async () => {
+    const res = await fetchGetDashboardAnalysis()
+    if (res.code === 200) {
+      analysisData.value = res.data
+    }
+  }
+
+  const goPage = (name: string) => {
+    router.push({ name })
+  }
+
+  onMounted(() => {
+    loadData()
+  })
 </script>
+
