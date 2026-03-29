@@ -47,6 +47,33 @@ const fastEnterConfig: FastEnterConfig = {
       routeName: 'ExamDataHub'
     },
     {
+      name: '会员套餐',
+      description: '配置 VIP/SVIP 价格与权益',
+      icon: 'ri:vip-crown-line',
+      iconColor: '#f9d423',
+      enabled: true,
+      order: 4.5,
+      routeName: 'VipPackageManage'
+    },
+    {
+      name: '打印价格',
+      description: '配置纸张单价与配送费用',
+      icon: 'ri:printer-line',
+      iconColor: '#5ac8fa',
+      enabled: true,
+      order: 4.6,
+      routeName: 'PrintPriceManage'
+    },
+    {
+      name: '订单管理',
+      description: '查看 VIP 与打印订单详情',
+      icon: 'ri:bill-line',
+      iconColor: '#ffb100',
+      enabled: true,
+      order: 4.7,
+      routeName: 'VipOrderManage'
+    },
+    {
       name: '公益课程',
       description: '在线课程管理与发布',
       icon: 'ri:medal-line',
