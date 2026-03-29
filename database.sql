@@ -259,3 +259,176 @@ CREATE TABLE `audit_logs` (
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX `idx_audit_query` (`user_id`, `module`, `create_time`)
 ) ENGINE=InnoDB COMMENT='系统操作审计日志表';
+
+-- ---------------------------------------------------------
+-- 6. 课程与自习室模块
+-- ---------------------------------------------------------
+
+-- 6.1 课程信息表
+CREATE TABLE `courses` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `course_name` VARCHAR(200) NOT NULL COMMENT '课程名称',
+    `description` VARCHAR(500) COMMENT '课程简介',
+    `cover_image` VARCHAR(255) COMMENT '封面图',
+    `price` DECIMAL(10,2) DEFAULT 0.00 COMMENT '价格',
+    `is_svip_only` BOOLEAN DEFAULT FALSE COMMENT '是否SVIP专属',
+    `course_type` ENUM('local', 'url') DEFAULT 'local' COMMENT '课程类型: local-本地课程, url-外部链接',
+    `course_url` VARCHAR(500) COMMENT '课程链接（当course_type为url时必填）',
+    `status` TINYINT DEFAULT 1 COMMENT '状态: 1-上架, 0-下架',
+    `creator_id` INT COMMENT '创建人 ID',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB COMMENT='公益课程管理表';
+
+-- 6.2 AI自习室报名表
+CREATE TABLE `study_room_enrollments` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `student_id` INT NOT NULL COMMENT '学生 ID',
+    `parent_id` INT NOT NULL COMMENT '报名家长 ID',
+    `room_name` VARCHAR(100) NOT NULL COMMENT '自习室名称/期数',
+    `enroll_date` DATE NOT NULL COMMENT '报名日期',
+    `status` TINYINT DEFAULT 1 COMMENT '状态: 1-已报名, 0-已取消',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_enroll_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
+    CONSTRAINT `fk_enroll_parent` FOREIGN KEY (`parent_id`) REFERENCES `parents` (`id`)
+) ENGINE=InnoDB COMMENT='AI自习室报名表';
+
+-- ---------------------------------------------------------
+-- 7. 订单与支付模块
+-- ---------------------------------------------------------
+
+-- 7.1 VIP订单表
+CREATE TABLE `vip_orders` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `order_no` VARCHAR(50) NOT NULL UNIQUE COMMENT '订单号',
+    `parent_id` INT NOT NULL COMMENT '家长 ID',
+    `vip_level` ENUM('VIP', 'SVIP') NOT NULL COMMENT '购买的VIP等级',
+    `amount` DECIMAL(10,2) NOT NULL COMMENT '支付金额',
+    `pay_status` TINYINT DEFAULT 0 COMMENT '支付状态: 0-待支付, 1-已支付, 2-已取消',
+    `pay_time` DATETIME COMMENT '支付时间',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_vip_order_parent` FOREIGN KEY (`parent_id`) REFERENCES `parents` (`id`)
+) ENGINE=InnoDB COMMENT='VIP充值订单表';
+
+-- 7.2 错题打印订单表
+CREATE TABLE `print_orders` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `order_no` VARCHAR(50) NOT NULL UNIQUE COMMENT '订单号',
+    `parent_id` INT NOT NULL COMMENT '家长 ID',
+    `student_id` INT NOT NULL COMMENT '关联学生 ID',
+    `content_desc` VARCHAR(255) NOT NULL COMMENT '打印内容描述',
+    `contact_name` VARCHAR(50) NOT NULL COMMENT '收件人',
+    `contact_phone` VARCHAR(20) NOT NULL COMMENT '联系电话',
+    `address` VARCHAR(255) NOT NULL COMMENT '收件地址',
+    `amount` DECIMAL(10,2) NOT NULL COMMENT '金额',
+    `status` TINYINT DEFAULT 0 COMMENT '状态: 0-待支付, 1-待发货, 2-已发货, 3-已完成',
+    `express_no` VARCHAR(100) COMMENT '物流单号',
+    `pay_time` DATETIME COMMENT '支付时间',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_print_order_parent` FOREIGN KEY (`parent_id`) REFERENCES `parents` (`id`),
+    CONSTRAINT `fk_print_order_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`)
+) ENGINE=InnoDB COMMENT='错题纸质打印订单表';
+
+-- ---------------------------------------------------------
+-- 8. 学习资源与配置模块
+-- ---------------------------------------------------------
+
+-- 8.1 学习资源库表
+CREATE TABLE `learning_resources` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `category` ENUM('family-edu', 'student-talk', 'sync-course', 'paper') NOT NULL COMMENT '资源分类: 家庭教育/学生说/同步课程/试卷库',
+    `subject` VARCHAR(50) COMMENT '相关学科',
+    `title` VARCHAR(200) NOT NULL COMMENT '资源标题',
+    `cover_image` VARCHAR(255) COMMENT '封面图',
+    `content_url` VARCHAR(500) NOT NULL COMMENT '资源链接/视频地址',
+    `view_count` INT DEFAULT 0 COMMENT '浏览量',
+    `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB COMMENT='公共学习资源库';
+
+-- 8.2 微信群配置表
+CREATE TABLE `wechat_groups` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `group_name` VARCHAR(100) NOT NULL COMMENT '群名称',
+    `qr_code_url` VARCHAR(255) NOT NULL COMMENT '二维码图片地址',
+    `description` VARCHAR(255) COMMENT '入群说明',
+    `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB COMMENT='微信群二维码配置表';
+
+-- ---------------------------------------------------------
+-- 9. 系统管理与权限模块 (RBAC)
+-- ---------------------------------------------------------
+
+-- 9.1 角色表
+CREATE TABLE `sys_roles` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `role_name` VARCHAR(50) NOT NULL COMMENT '角色名称',
+    `role_code` VARCHAR(50) NOT NULL UNIQUE COMMENT '角色标识 (如: admin, teacher)',
+    `description` VARCHAR(255) COMMENT '角色描述',
+    `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB COMMENT='系统角色表';
+
+-- 9.2 菜单与权限表
+CREATE TABLE `sys_menus` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `parent_id` INT DEFAULT 0 COMMENT '父菜单ID',
+    `name` VARCHAR(50) NOT NULL COMMENT '菜单/按钮名称',
+    `path` VARCHAR(255) COMMENT '路由路径',
+    `component` VARCHAR(255) COMMENT '组件路径',
+    `permission` VARCHAR(100) COMMENT '权限标识 (如: system:user:add)',
+    `icon` VARCHAR(100) COMMENT '菜单图标',
+    `type` ENUM('M', 'C', 'F') NOT NULL COMMENT '菜单类型: M-目录, C-菜单, F-按钮',
+    `sort` INT DEFAULT 0 COMMENT '显示顺序',
+    `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB COMMENT='系统菜单权限表';
+
+-- 9.3 角色-菜单关联表
+CREATE TABLE `sys_role_menus` (
+    `role_id` INT NOT NULL,
+    `menu_id` INT NOT NULL,
+    PRIMARY KEY (`role_id`, `menu_id`),
+    CONSTRAINT `fk_rm_role` FOREIGN KEY (`role_id`) REFERENCES `sys_roles` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_rm_menu` FOREIGN KEY (`menu_id`) REFERENCES `sys_menus` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='角色与菜单权限关联表';
+
+-- 9.4 后台管理用户表 (原 userList 对应的表)
+CREATE TABLE `sys_users` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `username` VARCHAR(50) NOT NULL UNIQUE COMMENT '登录账号',
+    `password` VARCHAR(255) NOT NULL COMMENT '登录密码',
+    `real_name` VARCHAR(50) COMMENT '真实姓名/昵称',
+    `phone` VARCHAR(20) COMMENT '手机号',
+    `email` VARCHAR(100) COMMENT '邮箱',
+    `gender` ENUM('1', '2', '0') DEFAULT '0' COMMENT '性别: 1-男, 2-女, 0-未知',
+    `avatar` VARCHAR(255) COMMENT '头像',
+    `user_type` ENUM('1', '2', '3', '4') NOT NULL COMMENT '用户类型: 1-管理员, 2-学校, 3-家长, 4-学生',
+    `school_name` VARCHAR(200) COMMENT '绑定的学校名称(冗余)',
+    `grade_name` VARCHAR(50) COMMENT '绑定的年级名称(冗余)',
+    `class_name` VARCHAR(50) COMMENT '绑定的班级名称(冗余)',
+    `student_name` VARCHAR(50) COMMENT '绑定的学生姓名(家长用户用)',
+    `parent_name` VARCHAR(50) COMMENT '绑定的家长姓名(学生用户用)',
+    `status` TINYINT DEFAULT 1 COMMENT '状态: 1-正常, 0-禁用',
+    `create_by` VARCHAR(50) COMMENT '创建人',
+    `update_by` VARCHAR(50) COMMENT '更新人',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB COMMENT='后台管理用户表';
+
+-- 9.5 用户-角色关联表
+CREATE TABLE `sys_user_roles` (
+    `user_id` INT NOT NULL,
+    `role_id` INT NOT NULL,
+    PRIMARY KEY (`user_id`, `role_id`),
+    CONSTRAINT `fk_ur_user` FOREIGN KEY (`user_id`) REFERENCES `sys_users` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_ur_role` FOREIGN KEY (`role_id`) REFERENCES `sys_roles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='用户与角色关联表';
