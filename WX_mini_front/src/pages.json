@@ -89,9 +89,7 @@
 		{
 			"path": "pages/resource/index",
 			"type": "page",
-			"style": {
-				"navigationBarTitleText": "资源库"
-			}
+			"style": {}
 		},
 		{
 			"path": "pages/resource/paper",
@@ -163,10 +161,10 @@
 				"text": "首页"
 			},
 			{
-				"iconPath": "static/tabbar/tabbar_resource.png",
-				"selectedIconPath": "static/tabbar/tabbar_resource.png",
-				"pagePath": "pages/resource/index",
-				"text": "资源库"
+				"iconPath": "static/tabbar/tabbar_course.png",
+				"selectedIconPath": "static/tabbar/tabbar_course.png",
+				"pagePath": "pages/course/index",
+				"text": "课程"
 			},
 			{
 				"iconPath": "static/tabbar/tabbar_mine.png",
