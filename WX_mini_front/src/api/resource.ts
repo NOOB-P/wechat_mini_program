@@ -8,10 +8,44 @@ export const getFamilyEduListApi = () => {
   return request({ url: '/resource/family-edu/list', method: 'GET' })
 }
 
-export const getSyncCourseListApi = (data: { subject: string }) => {
-  return request({ url: '/resource/sync-course/list', method: 'POST', data })
+/**
+ * @Description: 获取同步辅导列表
+ */
+export const getSyncCourseListApi = (params?: any) => {
+  return request({
+    url: '/resource/sync-course/list',
+    method: 'POST',
+    data: params
+  })
 }
 
-export const getPaperListApi = (data: { keyword?: string, subject?: string }) => {
-  return request({ url: '/resource/paper/list', method: 'POST', data })
+/**
+ * @Description: 获取同步辅导的年级和科目选项
+ */
+export const getSyncCourseOptionsApi = () => {
+  return request({
+    url: '/resource/sync-course/options',
+    method: 'GET'
+  })
+}
+
+/**
+ * @Description: 获取历年真题列表
+ */
+export const getPaperListApi = (params?: any) => {
+  return request({
+    url: '/resource/paper/list',
+    method: 'POST',
+    data: params
+  })
+}
+
+/**
+ * @Description: 获取历年真题的科目列表
+ */
+export const getPaperSubjectsApi = () => {
+  return request({
+    url: '/resource/paper/subjects',
+    method: 'GET'
+  })
 }

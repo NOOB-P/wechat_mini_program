@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { getHomeStatsApi, getRecommendCoursesApi } from '@/api/index'
+import { getHomeStatsApi, getHomeBannersApi, getHomePublicCoursesApi, getRecommendCoursesApi } from '@/api/index'
 
 const toast = useToast()
 
@@ -12,6 +12,8 @@ const stats = ref({
   analysisProgress: 0
 })
 
+const banners = ref<any[]>([])
+const publicCourses = ref<any[]>([])
 const recommendCourses = ref<any[]>([])
 const isSVIPUser = ref(false)
 
@@ -20,13 +22,15 @@ const loadData = async () => {
     const token = uni.getStorageSync('token') || ''
     isSVIPUser.value = token.includes('13688888888')
 
-    const [statsRes, coursesRes] = await Promise.all([
+    const [statsRes, bannersRes, publicRes, coursesRes] = await Promise.all([
       getHomeStatsApi(),
+      getHomeBannersApi(),
+      getHomePublicCoursesApi(),
       getRecommendCoursesApi()
     ])
-    console.log('首页统计数据:', statsRes)
-    console.log('今日推荐课程:', coursesRes)
     if (statsRes.code === 200) stats.value = statsRes.data
+    if (bannersRes.code === 200) banners.value = bannersRes.data
+    if (publicRes.code === 200) publicCourses.value = publicRes.data
     if (coursesRes.code === 200) recommendCourses.value = coursesRes.data
   } catch (error) {
     console.error('加载首页数据失败:', error)
@@ -55,8 +59,22 @@ const joinRoom = () => {
 }
 
 const handleCourseClick = (course: any) => {
-  uni.showToast({ title: `正在进入: ${course.name}`, icon: 'none' })
-  // 这里可以跳转到真正的课程播放页面
+  if (course.isPublic || isSVIPUser.value) {
+    uni.navigateTo({ 
+      url: `/pages/course/detail?name=${encodeURIComponent(course.name)}&price=${course.price || ''}&image=${encodeURIComponent(course.image || '')}` 
+    })
+  } else {
+    uni.showModal({
+      title: 'SVIP 专属课程',
+      content: '此为精品课程，开通 SVIP 即可无限畅学！',
+      confirmText: '去开通',
+      success: (res) => {
+        if (res.confirm) {
+          uni.navigateTo({ url: '/pages/vip/recharge' })
+        }
+      }
+    })
+  }
 }
 </script>
 
@@ -92,41 +110,27 @@ const handleCourseClick = (course: any) => {
       </view>
 
       <!-- 新增：课程宣传轮播图 -->
-      <view class="banner-swiper">
+      <view class="banner-swiper" v-if="banners.length > 0">
         <swiper class="swiper-box" indicator-dots autoplay circular :interval="3000" :duration="500">
-          <swiper-item>
-            <view class="swiper-item-content banner-1">
-              <text class="b-title">心理健康微课堂</text>
-              <text class="b-desc">解读青春期烦恼，走进孩子内心世界</text>
-            </view>
-          </swiper-item>
-          <swiper-item>
-            <view class="swiper-item-content banner-2">
-              <text class="b-title">家长必修课</text>
-              <text class="b-desc">如何构建和谐的亲子沟通桥梁</text>
+          <swiper-item v-for="(banner, index) in banners" :key="banner.id">
+            <view class="swiper-item-content" :class="'banner-' + ((index % 2) + 1)" @click="handleCourseClick(banner)">
+              <text class="b-title">{{ banner.name }}</text>
+              <text class="b-desc">{{ banner.desc }}</text>
             </view>
           </swiper-item>
         </swiper>
       </view>
 
       <!-- 错题推送 (仅保留 AI 公益课程) 迁移至首页 -->
-      <view class="svip-content">
+      <view class="svip-content" v-if="publicCourses.length > 0">
         <!-- AI 课程 (不再限制 SVIP) -->
         <view class="card svip-card">
           <view class="card-title"><wd-icon name="video" class="icon" /> AI 公益课程</view>
           <view class="desc">由专家与算法联合设计，实时更新</view>
           <view class="course-grid">
-            <view class="c-item" @click="handleCourseClick({name: '高中数学压轴'})">
-              <view class="c-icon math">数</view>
-              <text>高中数学压轴</text>
-            </view>
-            <view class="c-item" @click="handleCourseClick({name: '外教口语特训'})">
-              <view class="c-icon eng">英</view>
-              <text>外教口语特训</text>
-            </view>
-            <view class="c-item" @click="handleCourseClick({name: '力学实验全解'})">
-              <view class="c-icon phy">物</view>
-              <text>力学实验全解</text>
+            <view class="c-item" v-for="course in publicCourses" :key="course.id" @click="handleCourseClick(course)">
+              <view class="c-icon" :class="course.iconClass">{{ course.iconText }}</view>
+              <text>{{ course.name }}</text>
             </view>
           </view>
         </view>
@@ -139,9 +143,15 @@ const handleCourseClick = (course: any) => {
 
       <view class="recommend-list">
         <view class="recommend-item" v-for="course in recommendCourses" :key="course.id" @click="handleCourseClick(course)">
-          <wd-img :src="course.image" :width="160" :height="100" round class="item-img" />
+          <view class="img-wrap">
+            <wd-img :src="course.image" :width="160" :height="100" round class="item-img" />
+            <view class="svip-tag" v-if="!isSVIPUser">SVIP专属</view>
+          </view>
           <view class="item-info">
-            <text class="item-name">{{ course.name }}</text>
+            <view class="name-wrap">
+              <text class="item-name">{{ course.name }}</text>
+              <wd-icon v-if="!isSVIPUser" name="lock-on" size="14px" color="#f6d365" style="margin-left: 8rpx;" />
+            </view>
             <view class="item-bottom">
               <text class="item-price">￥{{ course.price }}</text>
               <wd-button type="primary" size="small" plain>学习</wd-button>
@@ -371,12 +381,33 @@ const handleCourseClick = (course: any) => {
       gap: 24rpx;
       box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.02);
       
+      .img-wrap {
+        position: relative;
+        .svip-tag {
+          position: absolute;
+          top: 0;
+          left: 0;
+          background: linear-gradient(135deg, #333 0%, #1a1a1a 100%);
+          color: #f6d365;
+          font-size: 20rpx;
+          padding: 4rpx 12rpx;
+          border-radius: 16rpx 0 16rpx 0;
+          z-index: 1;
+        }
+      }
+
       .item-info {
         flex: 1;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         
+        .name-wrap {
+          display: flex;
+          align-items: center;
+          margin-bottom: 8rpx;
+        }
+
         .item-name {
           font-size: 30rpx;
           font-weight: 500;

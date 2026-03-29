@@ -105,7 +105,7 @@ const getStatusText = () => {
 // 模拟特权数据
 const vipPrivileges = [
   { icon: 'chart-bar', name: '成绩深度分析' },
-  { icon: 'book', name: '错题集解锁' },
+  { icon: 'view-list', name: '错题集解锁' },
   { icon: 'print', name: '错题纸质打印' }
 ]
 

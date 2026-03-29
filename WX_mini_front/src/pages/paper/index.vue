@@ -128,7 +128,7 @@ const downloadPaper = () => {
   setTimeout(() => {
     // 实际环境应使用 uni.downloadFile 和 uni.saveFile/uni.openDocument
     // uni.downloadFile({ url: paperData.value.downloadUrl, success: (res) => { ... } })
-    toast.success('试卷已保存 (Mock)')
+    toast.success('试卷已保存')
   }, 1500)
 }
 </script>

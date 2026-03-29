@@ -9,6 +9,7 @@ interface NavigateToOptions {
        "/pages/auth/forgot-account" |
        "/pages/auth/forgot-password" |
        "/pages/auth/reset-password" |
+       "/pages/course/detail" |
        "/pages/course/index" |
        "/pages/home/index" |
        "/pages/mine/index" |
@@ -28,7 +29,7 @@ interface NavigateToOptions {
 interface RedirectToOptions extends NavigateToOptions {}
 
 interface SwitchTabOptions {
-  url: "/pages/home/index" | "/pages/course/index" | "/pages/mine/index"
+  url: "/pages/home/index" | "/pages/resource/index" | "/pages/mine/index"
 }
 
 type ReLaunchOptions = NavigateToOptions | SwitchTabOptions;
