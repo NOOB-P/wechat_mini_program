@@ -84,37 +84,27 @@
 		{
 			"path": "pages/resource/family-edu",
 			"type": "page",
-			"style": {
-				"navigationBarTitleText": "家庭教育"
-			}
+			"style": {}
 		},
 		{
 			"path": "pages/resource/index",
 			"type": "page",
-			"style": {
-				"navigationBarTitleText": "资源库"
-			}
+			"style": {}
 		},
 		{
 			"path": "pages/resource/paper",
 			"type": "page",
-			"style": {
-				"navigationBarTitleText": "名校试卷"
-			}
+			"style": {}
 		},
 		{
 			"path": "pages/resource/student-talk",
 			"type": "page",
-			"style": {
-				"navigationBarTitleText": "学霸说"
-			}
+			"style": {}
 		},
 		{
 			"path": "pages/resource/sync-course",
 			"type": "page",
-			"style": {
-				"navigationBarTitleText": "同步课程"
-			}
+			"style": {}
 		},
 		{
 			"path": "pages/score/index",
@@ -171,10 +161,10 @@
 				"text": "首页"
 			},
 			{
-				"iconPath": "static/tabbar/tabbar_resource.png",
-				"selectedIconPath": "static/tabbar/tabbar_resource.png",
-				"pagePath": "pages/resource/index",
-				"text": "资源库"
+				"iconPath": "static/tabbar/tabbar_course.png",
+				"selectedIconPath": "static/tabbar/tabbar_course.png",
+				"pagePath": "pages/course/index",
+				"text": "课程"
 			},
 			{
 				"iconPath": "static/tabbar/tabbar_mine.png",
