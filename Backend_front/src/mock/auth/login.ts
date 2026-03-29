@@ -8,10 +8,12 @@ export const mockLoginData = {
     userInfo: {
       userId: 1,
       userName: 'Admin',
-      nickName: '系统管理员',
+      nickName: '超级管理员',
+      userPhone: '13800000001',
       avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin',
-      roles: ['R_ADMIN'],
-      buttons: ['*']
+      roles: ['R_SUPER'],
+      buttons: ['*'],
+      email: 'admin@example.com'
     }
   },
   school: {
@@ -20,10 +22,13 @@ export const mockLoginData = {
     userInfo: {
       userId: 2,
       userName: 'School',
-      nickName: '学校管理员',
+      nickName: '第一中学校长',
+      userPhone: '13800000002',
+      schoolName: '第一中学',
       avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=School',
       roles: ['R_SCHOOL'],
-      buttons: ['exam:view', 'student:view']
+      buttons: ['exam:view', 'student:view'],
+      email: 'school1@example.com'
     }
   }
 };
