@@ -14,6 +14,11 @@ interface NavigateToOptions {
        "/pages/mine/index" |
        "/pages/paper/index" |
        "/pages/register/index" |
+       "/pages/resource/family-edu" |
+       "/pages/resource/index" |
+       "/pages/resource/paper" |
+       "/pages/resource/student-talk" |
+       "/pages/resource/sync-course" |
        "/pages/score/index" |
        "/pages/service/index" |
        "/pages/vip/index" |

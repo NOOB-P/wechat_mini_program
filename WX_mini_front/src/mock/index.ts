@@ -415,6 +415,49 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       data: faqs
     };
   },
+  '/resource/student-talk/list': () => ({
+    code: 200,
+    msg: 'success',
+    data: [
+      { id: 1, title: '学霸说09期 总有那么几个瞬间想放弃', author: '学霸说', buyers: 1434, episodes: 1, price: '免费', cover: 'https://img.yzcdn.cn/vant/cat.jpeg' },
+      { id: 2, title: '学霸说08期 网络与学习的平衡之道', author: '学霸说', buyers: 556, episodes: 2, price: '免费', cover: 'https://img.yzcdn.cn/vant/ipad.jpeg' },
+      { id: 3, title: '学霸说07期 学习与娱乐如何共处', author: '学霸说', buyers: 619, episodes: 1, price: '免费', cover: 'https://img.yzcdn.cn/vant/apple-1.jpg' },
+      { id: 4, title: '学霸说06期 新学期新环境的相处', author: '学霸说', buyers: 152, episodes: 1, price: '免费', cover: 'https://img.yzcdn.cn/vant/apple-2.jpg' },
+    ]
+  }),
+  '/resource/family-edu/list': () => ({
+    code: 200,
+    msg: 'success',
+    data: [
+      { id: 1, title: '如何平衡学业和兴趣', author: '家长课', buyers: 43, episodes: 1, price: '免费', cover: 'https://img.yzcdn.cn/vant/ipad.jpeg' },
+      { id: 2, title: '如何提高孩子的注意力', author: '家长课', buyers: 61, episodes: 1, price: '免费', cover: 'https://img.yzcdn.cn/vant/apple-2.jpg' },
+      { id: 3, title: '如何解救孩子沉迷游戏', author: '家长课', buyers: 606, episodes: 1, price: '免费', cover: 'https://img.yzcdn.cn/vant/cat.jpeg' },
+      { id: 4, title: '期中备考大全，家长你Get了吗', author: '家长课', buyers: 57, episodes: 2, price: '免费', cover: 'https://img.yzcdn.cn/vant/apple-1.jpg' },
+    ]
+  }),
+  '/resource/sync-course/list': (data) => {
+    const subject = data?.subject || '语文'
+    return {
+      code: 200,
+      msg: 'success',
+      data: [
+        { id: 1, subject, title: `八年级上册${subject}同步课程`, episodes: 40, cover: 'https://img.yzcdn.cn/vant/apple-1.jpg' },
+        { id: 2, subject, title: `八年级下册${subject}同步课程`, episodes: 34, cover: 'https://img.yzcdn.cn/vant/apple-2.jpg' },
+      ]
+    }
+  },
+  '/resource/paper/list': (data) => {
+    const kw = data?.keyword || ''
+    return {
+      code: 200,
+      msg: 'success',
+      data: [
+        { id: 1, title: `2020-2限时练1 (七年级) ${kw}`, tags: ['名校', '松阳三中', kw || '语文', 'PDF版'], year: '2021年', grade: '七年级', downloads: 101 },
+        { id: 2, title: `2020-2限时练2 (七年级) ${kw}`, tags: ['名校', '松阳三中', kw || '语文', 'PDF版'], year: '2021年', grade: '七年级', downloads: 88 },
+        { id: 3, title: `期中模拟卷 (八年级) ${kw}`, tags: ['名校', '附中', kw || '数学', 'PDF版'], year: '2022年', grade: '八年级', downloads: 342 },
+      ]
+    }
+  },
   '/user/info': (data) => {
     // 根据请求头中的 token 区分角色
     const token = uni.getStorageSync('token') || '';
