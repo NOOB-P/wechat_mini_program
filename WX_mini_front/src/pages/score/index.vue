@@ -54,34 +54,7 @@
         </view>
       </view>
 
-      <!-- 近6次考试趋势分析 -->
-      <view class="section">
-        <view class="section-title">近6次考试趋势分析</view>
-        <view class="chart-tabs">
-          <view 
-            class="chart-tab" 
-            :class="{ active: currentSubject === '总分' }"
-            @click="currentSubject = '总分'"
-          >总分</view>
-          <view 
-            class="chart-tab" 
-            v-for="(sub, idx) in scoreData.subjects" 
-            :key="idx"
-            :class="{ active: currentSubject === sub.name }"
-            @click="currentSubject = sub.name"
-          >{{ sub.name }}</view>
-        </view>
-        
-        <view class="bar-chart-container">
-          <view class="bar-item" v-for="(item, idx) in scoreData.history" :key="idx">
-            <view class="bar-val">{{ getChartValue(item) }}</view>
-            <view class="bar-track">
-              <view class="bar-fill" :style="{ height: getChartHeight(item) }"></view>
-            </view>
-            <view class="bar-label">{{ item.period }}</view>
-          </view>
-        </view>
-      </view>
+
 
       <!-- 成绩分析 / 错题推送 区域 -->
       <view class="analysis-container">
@@ -166,19 +139,35 @@
                 </view>
               </view>
 
-              <!-- 详细的成绩趋势分析 -->
-              <view class="analysis-card detail-card" v-if="analysisData && analysisData.trend">
+              <!-- 近6次考试趋势分析 -->
+              <view class="analysis-card detail-card">
                 <view class="card-header">
-                  <text class="card-title">成绩趋势分析</text>
+                  <text class="card-title">近6次考试趋势分析</text>
                   <text class="vip-tag">VIP</text>
                 </view>
-                <view class="desc">成绩随时间变化走势</view>
                 
-                <view class="trend-chart">
-                  <view class="trend-point" v-for="(item, index) in analysisData.trend" :key="index">
-                    <view class="point-val">{{ item.score }}</view>
-                    <view class="point-dot"></view>
-                    <view class="point-label">{{ item.date }}</view>
+                <view class="chart-tabs" style="margin-top: 20rpx;">
+                  <view 
+                    class="chart-tab" 
+                    :class="{ active: currentSubject === '总分' }"
+                    @click="currentSubject = '总分'"
+                  >总分</view>
+                  <view 
+                    class="chart-tab" 
+                    v-for="(sub, idx) in scoreData.subjects" 
+                    :key="idx"
+                    :class="{ active: currentSubject === sub.name }"
+                    @click="currentSubject = sub.name"
+                  >{{ sub.name }}</view>
+                </view>
+                
+                <view class="bar-chart-container" style="padding-top: 20rpx; height: 300rpx;">
+                  <view class="bar-item" v-for="(item, idx) in scoreData.history" :key="idx">
+                    <view class="bar-val">{{ getChartValue(item) }}</view>
+                    <view class="bar-track">
+                      <view class="bar-fill" :style="{ height: getChartHeight(item) }"></view>
+                    </view>
+                    <view class="bar-label">{{ item.period }}</view>
                   </view>
                 </view>
               </view>

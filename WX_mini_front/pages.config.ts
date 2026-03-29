@@ -107,7 +107,7 @@ export default defineUniPages({
   ],
 	globalStyle: {
 		navigationBarTextStyle: "black",
-		navigationBarTitleText: "russ-uniapp",
+		navigationBarTitleText: "优题慧",
 		navigationBarBackgroundColor: "#F8F8F8",
 		backgroundColor: "#F8F8F8",
 	},
