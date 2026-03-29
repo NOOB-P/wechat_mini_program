@@ -7,7 +7,7 @@ import type { resultData } from '@/types/request'
  */
 export const sendSmsCode = (phone: string) => {
   return request({
-    url: '/login/sendCode',
+    url: '/api/app/auth/sendCode',
     method: 'POST',
     data: { phone }
   })
@@ -19,7 +19,7 @@ export const sendSmsCode = (phone: string) => {
  */
 export const loginByPhone = (data: { phone: string; code: string }) => {
   return request({
-    url: '/login/phone',
+    url: '/api/app/auth/login/phone',
     method: 'POST',
     data
   })
@@ -31,11 +31,13 @@ export const loginByPhone = (data: { phone: string; code: string }) => {
  */
 export const loginByPassword = (data: { phone: string; password: string }) => {
   return request({
-    url: '/login/password',
+    url: '/api/app/auth/login/password',
     method: 'POST',
     data
   })
 }
+
+
 
 /**
  * @Description: 注册账号
@@ -44,9 +46,9 @@ export const loginByPassword = (data: { phone: string; password: string }) => {
  * @param {string} nickname 昵称
  * @param {string} code 验证码
  */
-export const register = (data: { phone: string; password?: string; nickname?: string; code?: string }) => {
+export const register = (data: { phone: string; password: string; nickname?: string; code: string }) => {
   return request({
-    url: '/login/register',
+    url: '/api/app/auth/register',
     method: 'POST',
     data
   })
@@ -96,7 +98,7 @@ export const bindThirdPartyPhone = (data: { phone: string; code: string; openid:
  */
 export const logout = () => {
   return request({
-    url: '/login/logout',
+    url: '/api/auth/logout',
     method: 'POST'
   })
 }

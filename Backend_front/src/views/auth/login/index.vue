@@ -142,7 +142,7 @@
     {
       key: 'admin',
       label: t('login.roles.admin'),
-      userName: 'Admin',
+      userName: 'admin',
       password: '123456',
       roles: ['R_ADMIN']
     },
@@ -212,10 +212,18 @@
       // 登录请求
       const { username, password } = formData
 
-      const { token, refreshToken } = await fetchLogin({
+      // 后端返回的结构是 Result<LoginVO>，其中包含 data
+      // 前端 api.post 已经做了一层解包，但根据 axiosInstance.interceptors.response 来看
+      // 它可能返回的是 response，我们需要取出 data。
+      const res: any = await fetchLogin({
         userName: username,
         password
       })
+
+      // 提取后端的 token 和 refreshToken（从后端的 LoginVO 对象中获取）
+      // 注意，这里我们的 axios 拦截器可能会返回 res 或者 res.data，如果是 res.data.data 则取 data
+      const token = res.data?.token || res.token
+      const refreshToken = res.data?.refreshToken || res.refreshToken
 
       // 验证token
       if (!token) {
