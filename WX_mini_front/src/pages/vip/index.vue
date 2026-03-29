@@ -1,74 +1,6 @@
 <template>
   <view class="vip-container">
     <wd-tabs v-model="currentTab">
-      <!-- 原有的数据分析 -->
-      <wd-tab title="数据分析" name="analysis">
-        <!-- 内容保持不变... -->
-        <scroll-view scroll-y class="tab-content" v-if="analysisData">
-          
-          <!-- 成绩构成分析 -->
-          <view class="card">
-            <view class="card-title">成绩构成分析</view>
-            <view class="desc">各科成绩结构（基础 / 综合 / 难题）</view>
-            <view class="pie-chart-mock">
-              <view class="pie-slice" v-for="(item, index) in analysisData.composition" :key="index">
-                <text class="label">{{ item.name }} ({{ item.level }})</text>
-                <view class="bar-bg">
-                  <view class="bar-fill" :style="{ width: item.value + '%' }"></view>
-                </view>
-                <text class="value">{{ item.value }}%</text>
-              </view>
-            </view>
-          </view>
-
-          <!-- 成绩分布统计 -->
-          <view class="card">
-            <view class="card-title">成绩分布统计</view>
-            <view class="desc">班级相对位置：<text class="highlight">{{ analysisData.distribution.rankInfo }}</text> | 综合等级：<text class="highlight">{{ analysisData.distribution.overallLevel }}</text></view>
-            <view class="dist-chart">
-              <view class="dist-bar" v-for="(item, index) in analysisData.distribution.levels" :key="index">
-                <view class="bar-val">{{ item.count }}人</view>
-                <view class="bar-track">
-                  <view class="bar-fill" :style="{ height: (item.count / 20 * 100) + '%' }"></view>
-                </view>
-                <view class="bar-label">{{ item.level }}</view>
-              </view>
-            </view>
-          </view>
-
-          <!-- 成绩趋势分析 -->
-          <view class="card">
-            <view class="card-title">成绩趋势分析</view>
-            <view class="desc">成绩随时间变化走势</view>
-            <view class="trend-chart">
-              <view class="trend-point" v-for="(item, index) in analysisData.trend" :key="index">
-                <view class="point-val">{{ item.score }}</view>
-                <view class="point-dot"></view>
-                <view class="point-label">{{ item.date }}</view>
-              </view>
-            </view>
-          </view>
-
-          <!-- 学习习惯分析 -->
-          <view class="card">
-            <view class="card-title">学习习惯分析</view>
-            <view class="radar-mock">
-              <view class="radar-item" v-for="(item, index) in analysisData.habit.radarData" :key="index">
-                <text class="label">{{ item.indicator }}</text>
-                <view class="score-stars">
-                  <wd-icon name="star-on" size="16px" color="#f6d365" v-for="n in Math.floor(item.value/20)" :key="n" />
-                </view>
-                <text class="val">{{ item.value }}分</text>
-              </view>
-            </view>
-            <view class="suggestion">
-              <text class="sug-label">💡 个性化建议：</text>
-              {{ analysisData.habit.suggestion }}
-            </view>
-          </view>
-        </scroll-view>
-      </wd-tab>
-
       <!-- 原有的错题集 -->
       <wd-tab title="错题集" name="wrongbook">
         <view class="tab-content">
@@ -185,10 +117,10 @@
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { getVipAnalysisDataApi, getVipWrongBookApi, submitPrintOrderApi } from '@/api/vip'
+import { getVipWrongBookApi, submitPrintOrderApi } from '@/api/vip'
 
 const toast = useToast()
-const currentTab = ref('analysis')
+const currentTab = ref('wrongbook')
 const analysisData = ref<any>(null)
 const wrongBookData = ref<any[]>([])
 const isSVIPUser = ref(false)
@@ -209,12 +141,10 @@ const printForm = ref({ address: '', phone: '' })
 const loadData = async () => {
   try {
     toast.loading('加载中...')
-    const [anaRes, wrongRes] = await Promise.all([
-      getVipAnalysisDataApi(),
+    const [wrongRes] = await Promise.all([
       getVipWrongBookApi({})
     ])
     
-    if (anaRes.code === 200) analysisData.value = anaRes.data
     if (wrongRes.code === 200) wrongBookData.value = wrongRes.data
     
     toast.close()
@@ -301,94 +231,6 @@ const submitPrint = async () => {
     margin-bottom: 30rpx;
     .highlight { color: #f6d365; font-weight: bold; }
   }
-}
-
-// 图表Mock样式
-.pie-chart-mock {
-  .pie-slice {
-    display: flex;
-    align-items: center;
-    margin-bottom: 16rpx;
-    
-    .label { width: 160rpx; font-size: 26rpx; color: #555; }
-    .bar-bg {
-      flex: 1;
-      height: 16rpx;
-      background: #eee;
-      border-radius: 8rpx;
-      margin: 0 20rpx;
-      overflow: hidden;
-      .bar-fill { height: 100%; background: linear-gradient(to right, #f6d365, #fda085); }
-    }
-    .value { width: 60rpx; font-size: 24rpx; color: #333; text-align: right; }
-  }
-}
-
-.dist-chart {
-  display: flex;
-  justify-content: space-around;
-  align-items: flex-end;
-  height: 200rpx;
-  
-  .dist-bar {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    height: 100%;
-    
-    .bar-val { font-size: 22rpx; color: #666; margin-bottom: 8rpx; }
-    .bar-track {
-      width: 40rpx;
-      flex: 1;
-      background: #f0f0f0;
-      border-radius: 8rpx;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      .bar-fill { width: 100%; background: #4da8da; border-radius: 8rpx; }
-    }
-    .bar-label { font-size: 24rpx; margin-top: 10rpx; font-weight: bold; }
-  }
-}
-
-.trend-chart {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20rpx 0;
-  border-bottom: 2rpx dashed #eee;
-  
-  .trend-point {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    
-    .point-val { font-size: 28rpx; font-weight: bold; color: #1a5f8e; margin-bottom: 10rpx; }
-    .point-dot { width: 16rpx; height: 16rpx; border-radius: 50%; background: #f6d365; margin-bottom: 10rpx; }
-    .point-label { font-size: 22rpx; color: #999; }
-  }
-}
-
-.radar-mock {
-  .radar-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 16rpx;
-    
-    .label { width: 120rpx; font-size: 26rpx; color: #555; }
-    .score-stars { flex: 1; display: flex; gap: 8rpx; }
-    .val { width: 80rpx; font-size: 26rpx; color: #333; text-align: right; }
-  }
-}
-.suggestion {
-  margin-top: 20rpx;
-  padding: 20rpx;
-  background: #fff8e1;
-  border-radius: 12rpx;
-  font-size: 26rpx;
-  color: #666;
-  line-height: 1.5;
-  .sug-label { font-weight: bold; color: #f57f17; }
 }
 
 // 错题本样式

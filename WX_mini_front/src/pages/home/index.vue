@@ -37,7 +37,8 @@ const handleGridClick = (type: string) => {
   } else if (type === 'paper') {
     uni.navigateTo({ url: '/pages/paper/index' })
   } else if (type === 'wrong') {
-    uni.navigateTo({ url: '/pages/vip/index?tab=wrongbook' })
+    // 点击首页错题本，直接跳转到资源库页面的错题集区域
+    uni.switchTab({ url: '/pages/resource/index' })
   }
 }
 
@@ -79,43 +80,36 @@ const handleCourseClick = (course: any) => {
         <wd-icon name="chart" size="64px" color="rgba(255,255,255,0.2)" class="card-bg-icon" />
       </view>
       
-      <!-- 功能网格 -->
-      <view class="function-grid">
-        <wd-grid :column="3" :border="false" clickable>
-          <wd-grid-item use-slot @itemclick="handleGridClick('paper')">
-            <view class="grid-content-wrap">
-              <view class="grid-icon-wrap paper">
-                <wd-icon name="edit" size="24px" color="#fff" />
-              </view>
-              <view class="grid-text-wrap">
-                <text class="grid-label">试卷报告</text>
-                <text class="grid-value">{{ stats.paperCount }}份</text>
-              </view>
+      <!-- 核心功能：成绩分析 -->
+      <view class="function-banner" @click="handleGridClick('analysis')">
+        <view class="banner-content">
+          <view class="banner-icon-wrap">
+            <wd-icon name="chart-line" size="32px" color="#fff" />
+          </view>
+          <view class="banner-text-wrap">
+            <text class="banner-title">成绩分析</text>
+            <text class="banner-desc">查看近期考试趋势与各科综合表现</text>
+          </view>
+        </view>
+        <wd-icon name="arrow-right" size="20px" color="#999" />
+      </view>
+
+      <!-- 新增：课程宣传轮播图 -->
+      <view class="banner-swiper">
+        <swiper class="swiper-box" indicator-dots autoplay circular :interval="3000" :duration="500">
+          <swiper-item>
+            <view class="swiper-item-content banner-1">
+              <text class="b-title">心理健康微课堂</text>
+              <text class="b-desc">解读青春期烦恼，走进孩子内心世界</text>
             </view>
-          </wd-grid-item>
-          <wd-grid-item use-slot @itemclick="handleGridClick('wrong')">
-            <view class="grid-content-wrap">
-              <view class="grid-icon-wrap wrong">
-                <wd-icon name="close-circle" size="24px" color="#fff" />
-              </view>
-              <view class="grid-text-wrap">
-                <text class="grid-label">错题本</text>
-                <text class="grid-value">{{ stats.wrongCount }}道</text>
-              </view>
+          </swiper-item>
+          <swiper-item>
+            <view class="swiper-item-content banner-2">
+              <text class="b-title">家长必修课</text>
+              <text class="b-desc">如何构建和谐的亲子沟通桥梁</text>
             </view>
-          </wd-grid-item>
-          <wd-grid-item use-slot @itemclick="handleGridClick('analysis')">
-            <view class="grid-content-wrap">
-              <view class="grid-icon-wrap analysis">
-                <wd-icon name="chart-line" size="24px" color="#fff" />
-              </view>
-              <view class="grid-text-wrap">
-                <text class="grid-label">总体分析</text>
-                <text class="grid-value">{{ stats.analysisProgress }}%</text>
-              </view>
-            </view>
-          </wd-grid-item>
-        </wd-grid>
+          </swiper-item>
+        </swiper>
       </view>
 
       <view class="section-header">
@@ -189,45 +183,85 @@ const handleCourseClick = (course: any) => {
     }
   }
   
-  .function-grid {
+  .function-banner {
     background: #fff;
     border-radius: 24rpx;
-    padding: 30rpx 10rpx;
+    padding: 40rpx 30rpx;
     margin-bottom: 40rpx;
     box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 
-    .grid-content-wrap {
+    .banner-content {
+      display: flex;
+      align-items: center;
+      gap: 30rpx;
+    }
+
+    .banner-icon-wrap {
+      width: 100rpx;
+      height: 100rpx;
+      border-radius: 30rpx;
+      background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8rpx 20rpx rgba(132, 250, 176, 0.4);
+    }
+
+    .banner-text-wrap {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .grid-icon-wrap {
-      width: 80rpx;
-      height: 80rpx;
-      border-radius: 24rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 16rpx;
+      gap: 8rpx;
       
-      &.paper { background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%); }
-      &.wrong { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); }
-      &.analysis { background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); }
-    }
-
-    .grid-text-wrap {
-      text-align: center;
-      .grid-label {
-        display: block;
-        font-size: 26rpx;
-        color: #666;
-        margin-bottom: 4rpx;
+      .banner-title {
+        font-size: 34rpx;
+        font-weight: bold;
+        color: #333;
       }
-      .grid-value {
+      .banner-desc {
         font-size: 24rpx;
         color: #999;
+      }
+    }
+  }
+
+  .banner-swiper {
+    margin-bottom: 40rpx;
+    border-radius: 20rpx;
+    overflow: hidden;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+
+    .swiper-box {
+      height: 200rpx;
+    }
+
+    .swiper-item-content {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 40rpx;
+      box-sizing: border-box;
+      
+      &.banner-1 {
+        background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+      }
+      &.banner-2 {
+        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+      }
+
+      .b-title {
+        font-size: 36rpx;
+        font-weight: bold;
+        color: #fff;
+        margin-bottom: 10rpx;
+      }
+      .b-desc {
+        font-size: 24rpx;
+        color: rgba(255, 255, 255, 0.9);
       }
     }
   }
