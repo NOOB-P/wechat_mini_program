@@ -1,7 +1,7 @@
 <template>
   <view class="list-container">
     <scroll-view scroll-y class="list-wrap">
-      <view class="list-item" v-for="item in list" :key="item.id">
+      <view class="list-item" v-for="item in list" :key="item.id" @click="handleItemClick(item)">
         <wd-img :src="item.cover" width="200rpx" height="150rpx" radius="12rpx" mode="aspectFill" />
         <view class="item-info">
           <text class="item-title">{{ item.title }}</text>
@@ -34,6 +34,12 @@ const loadData = async () => {
   } catch (e) {
     console.error(e)
   }
+}
+
+const handleItemClick = (item: any) => {
+  uni.navigateTo({
+    url: `/pages/course/detail?name=${encodeURIComponent(item.title)}&price=${item.price === '免费' ? '' : item.price}&image=${encodeURIComponent(item.cover)}`
+  })
 }
 
 onMounted(() => loadData())

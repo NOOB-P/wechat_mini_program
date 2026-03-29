@@ -44,9 +44,15 @@
       </view>
       <view class="course-list">
         <view v-for="(item, index) in filteredCourses" :key="index" class="course-card" @click="handleCourseClick(item)">
-          <wd-img :src="item.image" :width="120" :height="80" round class="course-img" />
+          <view class="img-wrap">
+            <wd-img :src="item.image" :width="120" :height="80" round class="course-img" />
+            <view class="svip-tag" v-if="!isSVIPUser">SVIP专属</view>
+          </view>
           <view class="course-info">
-            <text class="course-name">{{ item.name }}</text>
+            <view class="name-wrap">
+              <text class="course-name">{{ item.name }}</text>
+              <wd-icon v-if="!isSVIPUser" name="lock-on" size="14px" color="#f6d365" style="margin-left: 8rpx;" />
+            </view>
             <text class="course-desc">{{ item.desc }}</text>
             <view class="course-bottom">
               <text class="course-price">￥{{ item.price }}</text>
@@ -63,9 +69,20 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { getCourseListApi } from '@/api/course'
+import { onShow } from '@dcloudio/uni-app'
 
 const courses = ref<any[]>([])
 const searchKeyword = ref('')
+const isSVIPUser = ref(false)
+
+const checkVipStatus = () => {
+  const token = uni.getStorageSync('token') || ''
+  isSVIPUser.value = token.includes('13688888888')
+}
+
+onShow(() => {
+  checkVipStatus()
+})
 
 const getCourseList = async () => {
   try {
@@ -98,11 +115,10 @@ const navTo = (url: string) => {
 }
 
 const handleCourseClick = (course: any) => {
-  const token = uni.getStorageSync('token') || ''
-  const isSVIP = token.includes('13688888888')
-  
-  if (isSVIP) {
-    uni.showToast({ title: `正在进入: ${course.name}`, icon: 'none' })
+  if (isSVIPUser.value) {
+    uni.navigateTo({ 
+      url: `/pages/course/detail?name=${encodeURIComponent(course.name)}&price=${course.price || ''}&image=${encodeURIComponent(course.image || '')}&desc=${encodeURIComponent(course.desc || '')}` 
+    })
   } else {
     uni.showModal({
       title: 'SVIP 专属课程',
@@ -199,17 +215,37 @@ onMounted(() => {
   gap: 20rpx;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.03);
 
+  .img-wrap {
+    position: relative;
+    .svip-tag {
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: linear-gradient(135deg, #333 0%, #1a1a1a 100%);
+      color: #f6d365;
+      font-size: 20rpx;
+      padding: 4rpx 12rpx;
+      border-radius: 16rpx 0 16rpx 0;
+      z-index: 1;
+    }
+  }
+
   .course-info {
     flex: 1;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     
+    .name-wrap {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8rpx;
+    }
+
     .course-name {
       font-size: 30rpx;
       font-weight: bold;
       color: #333;
-      margin-bottom: 8rpx;
     }
     
     .course-desc {

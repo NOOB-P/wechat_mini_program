@@ -47,6 +47,11 @@
 			}
 		},
 		{
+			"path": "pages/course/detail",
+			"type": "page",
+			"style": {}
+		},
+		{
 			"path": "pages/course/index",
 			"type": "page",
 			"style": {

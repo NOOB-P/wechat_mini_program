@@ -16,7 +16,7 @@
     </view>
 
     <scroll-view scroll-y class="list-wrap">
-      <view class="list-item" v-for="item in list" :key="item.id">
+      <view class="list-item" v-for="item in list" :key="item.id" @click="handleItemClick(item)">
         <wd-img :src="item.cover" width="160rpx" height="120rpx" radius="12rpx" mode="aspectFill" />
         <view class="item-info">
           <text class="item-title">{{ item.title }}</text>
@@ -29,17 +29,33 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getSyncCourseListApi } from '@/api/resource'
+import { getSyncCourseListApi, getSyncCourseOptionsApi } from '@/api/resource'
 
-const grades = ['七年级', '八年级', '九年级']
-const gradeIndex = ref(1)
+const grades = ref<string[]>([])
+const gradeIndex = ref(0)
 
-const subjects = ['语文', '数学', '英语', '物理', '生物', '道德与法治', '历史']
-const currentSubject = ref('语文')
+const subjects = ref<string[]>([])
+const currentSubject = ref('')
 
 const list = ref<any[]>([])
 
+const loadOptions = async () => {
+  try {
+    const res = await getSyncCourseOptionsApi()
+    if (res.code === 200) {
+      grades.value = res.data.grades || []
+      subjects.value = res.data.subjects || []
+      if (grades.value.length > 0) gradeIndex.value = 1 // Default to second item as in original code, or 0
+      if (subjects.value.length > 0) currentSubject.value = subjects.value[0]
+      loadData()
+    }
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 const loadData = async () => {
+  if (!currentSubject.value) return
   try {
     const res = await getSyncCourseListApi({ subject: currentSubject.value })
     if (res.code === 200) {
@@ -63,7 +79,13 @@ const onSubjectChange = (item: any) => {
   }
 }
 
-onMounted(() => loadData())
+const handleItemClick = (item: any) => {
+  uni.navigateTo({
+    url: `/pages/course/detail?name=${encodeURIComponent(item.title)}&price=&image=${encodeURIComponent(item.cover)}`
+  })
+}
+
+onMounted(() => loadOptions())
 </script>
 
 <style lang="scss" scoped>
