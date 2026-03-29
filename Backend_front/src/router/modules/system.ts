@@ -27,7 +27,7 @@ export const systemRoutes: AppRouteRecord = {
       meta: {
         title: 'menus.system.role',
         keepAlive: true,
-        roles: ['R_SUPER']
+        roles: ['R_SUPER', 'R_ADMIN']
       }
     },
     {

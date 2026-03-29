@@ -10,78 +10,96 @@ const fastEnterConfig: FastEnterConfig = {
   minWidth: 1200,
   // 应用列表
   applications: [
-    // {
-    //   name: '工作台',
-    //   description: '系统概览与数据统计',
-    //   icon: 'ri:pie-chart-line',
-    //   iconColor: '#377dff',
-    //   enabled: true,
-    //   order: 1,
-    //   routeName: 'Console'
-    // },
     {
-      name: '分析页',
-      description: '数据分析与可视化',
-      icon: 'ri:game-line',
-      iconColor: '#ff3b30',
+      name: '数据统计',
+      description: '全站数据概览与分析',
+      icon: 'ri:pie-chart-line',
+      iconColor: '#377dff',
       enabled: true,
-      order: 2,
+      order: 1,
       routeName: 'Analysis'
     },
-    // {
-    //   name: '礼花效果',
-    //   description: '动画特效展示',
-    //   icon: 'ri:loader-line',
-    //   iconColor: '#7A7FFF',
-    //   enabled: true,
-    //   order: 3,
-    //   routeName: 'Fireworks'
-    // },
-    // {
-    //   name: '聊天',
-    //   description: '即时通讯功能',
-    //   icon: 'ri:user-line',
-    //   iconColor: '#13DEB9',
-    //   enabled: true,
-    //   order: 4,
-    //   routeName: 'Chat'
-    // },
-    // {
-    //   name: '官方文档',
-    //   description: '使用指南与开发文档',
-    //   icon: 'ri:bill-line',
-    //   iconColor: '#ffb100',
-    //   enabled: true,
-    //   order: 5,
-    //   link: WEB_LINKS.DOCS
-    // },
-    // {
-    //   name: '技术支持',
-    //   description: '技术支持与问题反馈',
-    //   icon: 'ri:user-location-line',
-    //   iconColor: '#ff6b6b',
-    //   enabled: true,
-    //   order: 6,
-    //   link: WEB_LINKS.COMMUNITY
-    // },
-    // {
-    //   name: '更新日志',
-    //   description: '版本更新与变更记录',
-    //   icon: 'ri:gamepad-line',
-    //   iconColor: '#38C0FC',
-    //   enabled: true,
-    //   order: 7,
-    //   routeName: 'ChangeLog'
-    // },
-    // {
-    //   name: '哔哩哔哩',
-    //   description: '技术分享与交流',
-    //   icon: 'ri:bilibili-line',
-    //   iconColor: '#FB7299',
-    //   enabled: true,
-    //   order: 8,
-    //   link: WEB_LINKS.BILIBILI
-    // }
+    {
+      name: '学校架构',
+      description: '管理多级学校组织架构',
+      icon: 'ri:building-4-line',
+      iconColor: '#ff9500',
+      enabled: true,
+      order: 2,
+      routeName: 'SchoolOrg'
+    },
+    {
+      name: '学生档案',
+      description: '学生档案与 VIP 状态管理',
+      icon: 'ri:user-star-line',
+      iconColor: '#5856d6',
+      enabled: true,
+      order: 3,
+      routeName: 'StudentProfile'
+    },
+    {
+      name: '考试中心',
+      description: '考试数据与详细得分分析',
+      icon: 'ri:file-list-3-line',
+      iconColor: '#ff2d55',
+      enabled: true,
+      order: 4,
+      routeName: 'ExamDataHub'
+    },
+    {
+      name: '公益课程',
+      description: '在线课程管理与发布',
+      icon: 'ri:medal-line',
+      iconColor: '#4cd964',
+      enabled: true,
+      order: 5,
+      routeName: 'CourseManage'
+    },
+    {
+      name: '自习室报名',
+      description: 'AI 自习室预约报名管理',
+      icon: 'ri:robot-line',
+      iconColor: '#5ac8fa',
+      enabled: true,
+      order: 6,
+      routeName: 'StudyRoomManage'
+    },
+    {
+      name: 'FAQ 管理',
+      description: '常见问题解答配置',
+      icon: 'ri:question-answer-line',
+      iconColor: '#007aff',
+      enabled: true,
+      order: 7,
+      routeName: 'FaqManage'
+    },
+    {
+      name: '微信群配置',
+      description: '互动群组二维码管理',
+      icon: 'ri:wechat-line',
+      iconColor: '#07c160',
+      enabled: true,
+      order: 8,
+      routeName: 'WechatConfig'
+    },
+    {
+      name: '用户管理',
+      description: '系统用户账号与权限',
+      icon: 'ri:group-line',
+      iconColor: '#af52de',
+      enabled: true,
+      order: 9,
+      routeName: 'User'
+    },
+    {
+      name: '日志管理',
+      description: '系统操作日志记录',
+      icon: 'ri:file-list-2-line',
+      iconColor: '#8e8e93',
+      enabled: true,
+      order: 10,
+      routeName: 'Log'
+    }
   ],
   // 快速链接
   quickLinks: [
