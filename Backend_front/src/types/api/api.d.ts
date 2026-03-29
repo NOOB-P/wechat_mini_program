@@ -80,6 +80,9 @@ declare namespace Api {
       roles: string[]
       userId: number
       userName: string
+      nickName?: string
+      userPhone?: string
+      schoolName?: string
       email: string
       avatar?: string
     }
