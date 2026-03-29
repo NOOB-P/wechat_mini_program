@@ -326,19 +326,18 @@ const startLearning = () => {
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 110rpx;
   background: #fff;
   box-shadow: 0 -4rpx 16rpx rgba(0,0,0,0.05);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 30rpx;
+  padding: 15rpx 30rpx calc(15rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
   z-index: 100;
-  padding-bottom: env(safe-area-inset-bottom);
 
   .action-icons {
     display: flex;
+    align-items: center;
     gap: 40rpx;
     
     .icon-item {
@@ -346,22 +345,29 @@ const startLearning = () => {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 4rpx;
+      gap: 6rpx;
+      line-height: 1;
       
       text {
-        font-size: 20rpx;
+        font-size: 22rpx;
         color: #666;
       }
     }
   }
 
-  .study-btn {
+  :deep(.study-btn) {
     width: 400rpx !important;
     height: 80rpx !important;
+    line-height: 80rpx !important;
     border-radius: 40rpx !important;
     background: linear-gradient(135deg, #1a5f8e 0%, #00897b 100%) !important;
     border: none !important;
     font-size: 30rpx !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 }
 </style>
