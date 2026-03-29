@@ -42,7 +42,7 @@
       </view>
       
       <view class="paper-list">
-        <view class="paper-item" v-for="item in list" :key="item.id">
+        <view class="paper-item" v-for="item in list" :key="item.id" @click="handleItemClick(item)">
           <text class="p-title">{{ item.title }}</text>
           <view class="p-tags">
             <text class="tag" v-for="tag in item.tags" :key="tag">{{ tag }}</text>
@@ -59,22 +59,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getPaperListApi } from '@/api/resource'
+import { getPaperListApi, getPaperSubjectsApi } from '@/api/resource'
 
 const keyword = ref('')
 const list = ref<any[]>([])
-
-const subjects = [
-  { name: '语文', icon: 'read', color: '#ff5252' },
-  { name: '数学', icon: 'chart', color: '#4caf50' },
-  { name: '英语', icon: 'edit', color: '#2196f3' },
-  { name: '物理', icon: 'setting', color: '#00bcd4' },
-  { name: '化学', icon: 'filter', color: '#ff9800' },
-  { name: '生物', icon: 'share', color: '#3f51b5' },
-  { name: '历史', icon: 'time', color: '#ffc107' },
-  { name: '地理', icon: 'location', color: '#03a9f4' },
-  { name: '道德与法治', icon: 'star', color: '#f44336' }
-]
+const subjects = ref<any[]>([])
 
 const loadData = async () => {
   try {
@@ -87,12 +76,32 @@ const loadData = async () => {
   }
 }
 
+const loadSubjects = async () => {
+  try {
+    const res = await getPaperSubjectsApi()
+    if (res.code === 200) {
+      subjects.value = res.data
+    }
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 const selectSubject = (name: string) => {
   keyword.value = name
   loadData()
 }
 
-onMounted(() => loadData())
+const handleItemClick = (item: any) => {
+  uni.navigateTo({
+    url: `/pages/course/detail?name=${encodeURIComponent(item.title)}&price=&image=${encodeURIComponent('https://img.yzcdn.cn/vant/cat.jpeg')}`
+  })
+}
+
+onMounted(() => {
+  loadSubjects()
+  loadData()
+})
 </script>
 
 <style lang="scss" scoped>

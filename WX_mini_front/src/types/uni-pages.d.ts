@@ -9,6 +9,7 @@ interface NavigateToOptions {
        "/pages/auth/forgot-account" |
        "/pages/auth/forgot-password" |
        "/pages/auth/reset-password" |
+       "/pages/course/detail" |
        "/pages/course/index" |
        "/pages/home/index" |
        "/pages/mine/index" |
