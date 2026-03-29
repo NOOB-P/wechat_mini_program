@@ -233,6 +233,36 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       ]
     };
   },
+  '/score/semester/list': (data) => {
+    return {
+      code: 200,
+      msg: '获取学期考试列表成功 (Mock)',
+      data: {
+        semesters: [
+          { label: '2023-2024学年 第二学期', value: '2023-2024-2' },
+          { label: '2023-2024学年 第一学期', value: '2023-2024-1' }
+        ],
+        semesterData: {
+          '2023-2024-2': [
+            { label: '期末考试', value: 'final' },
+            { label: '六月模拟', value: 'mock2' },
+            { label: '五月月考', value: 'month3' },
+            { label: '期中考试', value: 'midterm' },
+            { label: '三月月考', value: 'month1' },
+            { label: '开学考', value: 'start' }
+          ],
+          '2023-2024-1': [
+            { label: '期末考试', value: 'final' },
+            { label: '五月模拟', value: 'mock1' },
+            { label: '四月模拟', value: 'mock2' },
+            { label: '三月月考', value: 'month2' },
+            { label: '期中考试', value: 'midterm' },
+            { label: '一月月考', value: 'month1' }
+          ]
+        }
+      }
+    }
+  },
   '/score/list': (data) => {
     // 模拟根据不同学期和考试返回不同数据
     const isNextSemester = data?.semester === '2023-2024-2';
@@ -374,6 +404,30 @@ const mocks: Record<string, (data: any) => MockResponse> = {
     return {
       code: 200,
       msg: '打印订单提交成功，请等待快递配送 (Mock)'
+    };
+  },
+  '/vip/print/config': (data) => {
+    return {
+      code: 200,
+      msg: '获取打印配置成功 (Mock)',
+      data: {
+        paperConfigs: [
+          { size: 'A4', side: '单面', color: '黑白', price: 0.20 },
+          { size: 'A4', side: '双面', color: '黑白', price: 0.35 },
+          { size: 'A4', side: '单面', color: '彩色', price: 1.00 },
+          { size: 'A4', side: '双面', color: '彩色', price: 1.80 },
+          { size: 'A3', side: '单面', color: '黑白', price: 0.50 }
+        ],
+        globalParams: {
+          minAmount: 5.00,
+          bindingFee: 2.00
+        },
+        deliveryConfigs: [
+          { method: 'standard', name: '标准快递', baseFee: 8.00, freeThreshold: 50.00, desc: '普通快递配送，预计2-3天送达' },
+          { method: 'express', name: '极速达', baseFee: 15.00, freeThreshold: 100.00, desc: '顺丰特快，预计次日送达' },
+          { method: 'pickup', name: '自提', baseFee: 0.00, freeThreshold: 0.00, desc: '学校指定地点自提' }
+        ]
+      }
     };
   },
   '/service/faq/categories': () => {

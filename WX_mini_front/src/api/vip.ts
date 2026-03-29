@@ -32,3 +32,13 @@ export const submitPrintOrderApi = (data: any) => {
     data
   })
 }
+
+/**
+ * @Description: 获取打印配置
+ */
+export const getPrintConfigApi = () => {
+  return request({
+    url: '/vip/print/config',
+    method: 'GET'
+  })
+}

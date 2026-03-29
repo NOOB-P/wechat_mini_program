@@ -4,11 +4,6 @@
       <!-- 原有的错题集 -->
       <wd-tab title="错题集" name="wrongbook">
         <view class="tab-content">
-          <view class="action-bar">
-            <wd-button type="primary" size="small" plain @click="handleExport">导出 PDF/Word</wd-button>
-            <wd-button type="success" size="small" @click="showPrintDialog = true">纸质打印下单</wd-button>
-          </view>
-
           <scroll-view scroll-y class="wrong-list">
             <view class="wrong-item" v-for="item in wrongBookData" :key="item.id">
               <view class="w-header">
@@ -25,8 +20,8 @@
                 <view class="row"><text class="label">解析：</text><text class="exp">{{ item.explanation }}</text></view>
               </view>
               <view class="w-actions">
-                <wd-button size="small" plain>添加笔记</wd-button>
-                <wd-button size="small" plain type="warning">标记分类</wd-button>
+                <wd-button size="small" plain @click="handleExport">导出 PDF/Word</wd-button>
+                <wd-button size="small" plain type="success" @click="showPrintDialog = true">纸质打印下单</wd-button>
               </view>
             </view>
           </scroll-view>
@@ -98,26 +93,81 @@
     </wd-tabs>
 
     <!-- 打印下单弹窗 -->
-    <wd-popup v-model="showPrintDialog" position="bottom" custom-style="height: 50%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+    <wd-popup v-model="showPrintDialog" position="bottom" custom-style="height: 75%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+      <scroll-view scroll-y style="height: 100%;">
         <view class="print-dialog">
           <view class="d-title">纸质打印服务下单</view>
-          <wd-input v-model="printForm.address" placeholder="请输入收件地址/线下取件点" no-border />
-          <wd-input v-model="printForm.phone" placeholder="联系电话" no-border />
+          
+          <view class="form-section">
+            <view class="sec-title">纸张配置</view>
+            <view class="config-row">
+              <text class="label">纸张规格</text>
+              <view class="options">
+                <view class="opt-btn" :class="{active: printForm.paperSize === 'A4'}" @click="printForm.paperSize = 'A4'">A4</view>
+                <view class="opt-btn" :class="{active: printForm.paperSize === 'A3'}" @click="printForm.paperSize = 'A3'">A3</view>
+              </view>
+            </view>
+            <view class="config-row">
+              <text class="label">单/双面</text>
+              <view class="options">
+                <view class="opt-btn" :class="{active: printForm.printSide === '单面'}" @click="printForm.printSide = '单面'">单面</view>
+                <view class="opt-btn" :class="{active: printForm.printSide === '双面'}" @click="printForm.printSide = '双面'">双面</view>
+              </view>
+            </view>
+            <view class="config-row">
+              <text class="label">颜色</text>
+              <view class="options">
+                <view class="opt-btn" :class="{active: printForm.color === '黑白'}" @click="printForm.color = '黑白'">黑白</view>
+                <view class="opt-btn" :class="{active: printForm.color === '彩色'}" @click="printForm.color = '彩色'">彩色</view>
+              </view>
+            </view>
+          </view>
+
+          <view class="form-section">
+            <view class="sec-title">配送配置</view>
+            <view class="config-row">
+              <text class="label">配送方式</text>
+              <view class="options delivery-options">
+                <view 
+                  v-for="d in printConfig.deliveryConfigs" 
+                  :key="d.method"
+                  class="opt-btn" 
+                  :class="{active: printForm.deliveryMethod === d.method}" 
+                  @click="printForm.deliveryMethod = d.method"
+                >
+                  {{ d.name }}
+                </view>
+              </view>
+            </view>
+            <view class="delivery-desc" v-if="currentDeliveryConfig">
+              <wd-icon name="info-circle" size="14px" />
+              {{ currentDeliveryConfig.desc }}（基础运费：￥{{ currentDeliveryConfig.baseFee }}，满￥{{ currentDeliveryConfig.freeThreshold }}免邮）
+            </view>
+            <wd-input v-model="printForm.address" placeholder="请输入收件地址/线下取件点" no-border />
+            <wd-input v-model="printForm.phone" placeholder="联系电话" no-border />
+          </view>
+
+          <view class="price-preview">
+            <text>预估费用：</text>
+            <text class="price">￥{{ estimatedPrice }}</text>
+          </view>
+
           <view class="d-action">
             <wd-button type="primary" block @click="submitPrint">确认下单</wd-button>
           </view>
         </view>
-      </wd-popup>
+      </scroll-view>
+    </wd-popup>
 
     <wd-toast id="wd-toast" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { getVipWrongBookApi, submitPrintOrderApi } from '@/api/vip'
+import { getVipWrongBookApi, submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
 
 const toast = useToast()
 const currentTab = ref('wrongbook')
@@ -136,16 +186,68 @@ onLoad((options) => {
 })
 
 const showPrintDialog = ref(false)
-const printForm = ref({ address: '', phone: '' })
+const printForm = ref({
+  address: '',
+  phone: '',
+  paperSize: 'A4',
+  printSide: '双面',
+  color: '黑白',
+  deliveryMethod: 'standard'
+})
+
+// 打印配置数据
+const printConfig = ref<any>({
+  paperConfigs: [],
+  globalParams: { minAmount: 5, bindingFee: 2 },
+  deliveryConfigs: []
+})
+
+// 动态计算当前选中的配送配置
+const currentDeliveryConfig = computed(() => {
+  return printConfig.value.deliveryConfigs.find((d: any) => d.method === printForm.value.deliveryMethod)
+})
+
+// 动态计算预估费用
+const estimatedPrice = computed(() => {
+  // 基础纸张费用
+  const paperConfig = printConfig.value.paperConfigs.find((p: any) => 
+    p.size === printForm.value.paperSize && 
+    p.side === printForm.value.printSide && 
+    p.color === printForm.value.color
+  )
+  
+  // 假设默认打印 20 页
+  const pageCount = 20
+  let paperCost = paperConfig ? paperConfig.price * pageCount : 0
+  
+  // 加上装订费
+  let totalCost = paperCost + (printConfig.value.globalParams.bindingFee || 0)
+  
+  // 如果不满起印金额，按起印金额算
+  if (totalCost < printConfig.value.globalParams.minAmount) {
+    totalCost = printConfig.value.globalParams.minAmount
+  }
+
+  // 加上运费
+  if (currentDeliveryConfig.value) {
+    if (totalCost < currentDeliveryConfig.value.freeThreshold || currentDeliveryConfig.value.freeThreshold === 0) {
+      totalCost += currentDeliveryConfig.value.baseFee
+    }
+  }
+  
+  return totalCost.toFixed(2)
+})
 
 const loadData = async () => {
   try {
     toast.loading('加载中...')
-    const [wrongRes] = await Promise.all([
-      getVipWrongBookApi({})
+    const [wrongRes, printRes] = await Promise.all([
+      getVipWrongBookApi({}),
+      getPrintConfigApi()
     ])
     
     if (wrongRes.code === 200) wrongBookData.value = wrongRes.data
+    if (printRes.code === 200) printConfig.value = printRes.data
     
     toast.close()
   } catch (error: any) {
@@ -233,13 +335,6 @@ const submitPrint = async () => {
   }
 }
 
-// 错题本样式
-.action-bar {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 30rpx;
-}
-
 .wrong-list {
   height: calc(100% - 100rpx);
 }
@@ -303,7 +398,102 @@ const submitPrint = async () => {
 
 .print-dialog {
   .d-title { font-size: 34rpx; font-weight: bold; text-align: center; margin-bottom: 40rpx; }
-  .d-action { margin-top: 60rpx; }
+  
+  .form-section {
+    background: #f8f9fa;
+    border-radius: 16rpx;
+    padding: 30rpx;
+    margin-bottom: 30rpx;
+
+    .sec-title {
+      font-size: 28rpx;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 24rpx;
+      border-left: 6rpx solid #1a5f8e;
+      padding-left: 12rpx;
+    }
+
+    .config-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 24rpx;
+      
+      .label {
+        width: 140rpx;
+        font-size: 26rpx;
+        color: #666;
+      }
+      
+      .options {
+        flex: 1;
+        display: flex;
+        gap: 20rpx;
+        
+        .opt-btn {
+          padding: 10rpx 30rpx;
+          border-radius: 8rpx;
+          font-size: 24rpx;
+          background: #fff;
+          border: 1px solid #ddd;
+          color: #333;
+          transition: all 0.3s;
+          
+          &.active {
+            background: rgba(26, 95, 142, 0.1);
+            border-color: #1a5f8e;
+            color: #1a5f8e;
+            font-weight: bold;
+          }
+        }
+
+        &.delivery-options {
+          flex-wrap: wrap;
+        }
+      }
+    }
+
+    .delivery-desc {
+      font-size: 22rpx;
+      color: #ff9800;
+      background: rgba(255, 152, 0, 0.1);
+      padding: 16rpx;
+      border-radius: 8rpx;
+      margin-bottom: 20rpx;
+      display: flex;
+      align-items: center;
+      gap: 8rpx;
+    }
+    
+    :deep(.wd-input) {
+      margin-top: 20rpx;
+      background: #fff;
+      border-radius: 8rpx;
+    }
+  }
+
+  .price-preview {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 30rpx;
+    background: rgba(26, 95, 142, 0.05);
+    border-radius: 16rpx;
+    margin-bottom: 40rpx;
+    
+    text {
+      font-size: 30rpx;
+      font-weight: bold;
+      color: #333;
+    }
+    
+    .price {
+      font-size: 40rpx;
+      color: #f44336;
+    }
+  }
+
+  .d-action { margin-top: 40rpx; }
 }
 
 // SVIP 专区样式
