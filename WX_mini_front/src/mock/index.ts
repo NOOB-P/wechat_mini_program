@@ -198,18 +198,39 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       msg: '退出成功 (Mock)'
     };
   },
-  '/home/stats': (data) => {
+  '/home/stats': () => {
     return {
       code: 200,
       msg: '获取统计数据成功 (Mock)',
       data: {
         paperCount: 12,
-        wrongCount: 45,
-        analysisProgress: 85
+        wrongCount: 56,
+        analysisProgress: 80
       }
     };
   },
-  '/home/recommend': (data) => {
+  '/home/banners': () => {
+    return {
+      code: 200,
+      msg: '获取轮播图成功 (Mock)',
+      data: [
+        { id: 1, name: '心理健康微课堂', desc: '解读青春期烦恼，走进孩子内心世界', image: 'https://img.yzcdn.cn/vant/cat.jpeg', isPublic: true },
+        { id: 2, name: '家长必修课', desc: '如何构建和谐的亲子沟通桥梁', image: 'https://img.yzcdn.cn/vant/cat.jpeg', isPublic: true }
+      ]
+    };
+  },
+  '/home/publicCourses': () => {
+    return {
+      code: 200,
+      msg: '获取公益课程成功 (Mock)',
+      data: [
+        { id: 1, name: '高中数学压轴', iconClass: 'math', iconText: '数', isPublic: true },
+        { id: 2, name: '外教口语特训', iconClass: 'eng', iconText: '英', isPublic: true },
+        { id: 3, name: '力学实验全解', iconClass: 'phy', iconText: '物', isPublic: true }
+      ]
+    };
+  },
+  '/home/recommend': () => {
     return {
       code: 200,
       msg: '获取推荐课程成功 (Mock)',
@@ -504,13 +525,40 @@ const mocks: Record<string, (data: any) => MockResponse> = {
     const kw = data?.keyword || ''
     return {
       code: 200,
-      msg: 'success',
+      msg: '获取试卷列表成功 (Mock)',
       data: [
         { id: 1, title: `2020-2限时练1 (七年级) ${kw}`, tags: ['名校', '松阳三中', kw || '语文', 'PDF版'], year: '2021年', grade: '七年级', downloads: 101 },
         { id: 2, title: `2020-2限时练2 (七年级) ${kw}`, tags: ['名校', '松阳三中', kw || '语文', 'PDF版'], year: '2021年', grade: '七年级', downloads: 88 },
-        { id: 3, title: `期中模拟卷 (八年级) ${kw}`, tags: ['名校', '附中', kw || '数学', 'PDF版'], year: '2022年', grade: '八年级', downloads: 342 },
+        { id: 3, title: `期中模拟卷 (八年级) ${kw}`, tags: ['名校', '附中', kw || '数学', 'PDF版'], year: '2022年', grade: '八年级', downloads: 342 }
       ]
-    }
+    };
+  },
+  '/resource/paper/subjects': () => {
+    return {
+      code: 200,
+      msg: '获取试卷科目成功 (Mock)',
+      data: [
+        { name: '语文', icon: 'read', color: '#ff5252' },
+        { name: '数学', icon: 'chart', color: '#4caf50' },
+        { name: '英语', icon: 'edit', color: '#2196f3' },
+        { name: '物理', icon: 'setting', color: '#00bcd4' },
+        { name: '化学', icon: 'filter', color: '#ff9800' },
+        { name: '生物', icon: 'share', color: '#3f51b5' },
+        { name: '历史', icon: 'time', color: '#ffc107' },
+        { name: '地理', icon: 'location', color: '#03a9f4' },
+        { name: '道德与法治', icon: 'star', color: '#f44336' }
+      ]
+    };
+  },
+  '/resource/sync-course/options': () => {
+    return {
+      code: 200,
+      msg: '获取同步辅导选项成功 (Mock)',
+      data: {
+        grades: ['七年级', '八年级', '九年级'],
+        subjects: ['语文', '数学', '英语', '物理', '生物', '道德与法治', '历史']
+      }
+    };
   },
   '/user/info': (data) => {
     // 根据请求头中的 token 区分角色
@@ -547,6 +595,57 @@ const mocks: Record<string, (data: any) => MockResponse> = {
 export const getMockData = (url: string, data: any): MockResponse | null => {
   // 去掉 baseUrl 部分（如果有）
   const pureUrl = url.replace(__VITE_SERVER_BASEURL__, '');
+
+  // 课程详情 mock 拦截
+  if (pureUrl === '/course/detail') {
+    const detailData = getCourseDetailData(data?.name || '');
+    return {
+      code: 200,
+      msg: '获取课程详情成功',
+      data: detailData
+    };
+  }
+
   const handler = mocks[pureUrl];
   return handler ? handler(data) : null;
 };
+
+// --- 课程详情相关 ---
+export const getCourseDetailData = (courseName: string) => {
+  // 根据课程名称返回不同的模拟数据
+  const chapterLists: Record<string, any[]> = {
+    '心理健康微课堂': [
+      { title: '青春期心理特征解析' },
+      { title: '如何建立有效的沟通机制' },
+      { title: '应对孩子叛逆期的策略' }
+    ],
+    '外教口语特训': [
+      { title: '音标发音基础与纠正' },
+      { title: '日常交际口语100句' },
+      { title: '旅游出行场景模拟' },
+      { title: '商务英语初步' }
+    ],
+    '高中数学压轴': [
+      { title: '导数综合问题（一）' },
+      { title: '导数综合问题（二）' },
+      { title: '圆锥曲线与方程（上）' },
+      { title: '圆锥曲线与方程（下）' },
+      { title: '概率统计压轴突破' }
+    ]
+  }
+
+  // 默认大纲
+  const defaultChapters = [
+    { title: '核心概念解析与基础回顾' },
+    { title: '典型例题精讲与思路点拨' },
+    { title: '高频易错点避坑指南' },
+    { title: '综合拔高与实战演练' }
+  ]
+
+  return {
+    desc: '这是一门精心打磨的高质量课程，由资深名师亲自授课，深入浅出地剖析核心知识点。无论你是基础薄弱想要稳扎稳打，还是寻求突破冲击高分，这门课程都能为你提供针对性的指导与帮助。',
+    studentCount: Math.floor(Math.random() * 1000) + 100,
+    videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
+    chapters: chapterLists[courseName] || defaultChapters
+  }
+}

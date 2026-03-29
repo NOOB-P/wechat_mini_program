@@ -47,6 +47,15 @@
 			}
 		},
 		{
+			"path": "pages/course/detail",
+			"type": "page",
+			"style": {
+				"navigationBarTitleText": "课程详情",
+				"navigationBarBackgroundColor": "#000000",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
 			"path": "pages/course/index",
 			"type": "page",
 			"style": {
@@ -161,10 +170,10 @@
 				"text": "首页"
 			},
 			{
-				"iconPath": "static/tabbar/tabbar_course.png",
-				"selectedIconPath": "static/tabbar/tabbar_course.png",
-				"pagePath": "pages/course/index",
-				"text": "课程"
+				"iconPath": "static/tabbar/tabbar_resource.png",
+				"selectedIconPath": "static/tabbar/tabbar_resource.png",
+				"pagePath": "pages/resource/index",
+				"text": "资源库"
 			},
 			{
 				"iconPath": "static/tabbar/tabbar_mine.png",
