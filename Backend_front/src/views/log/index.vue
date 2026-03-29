@@ -1,0 +1,220 @@
+<template>
+  <div class="log-container p-5">
+    <!-- 搜索区域 -->
+    <LogSearch :query-params="queryParams" @query="handleQuery" @reset="resetQuery" />
+
+    <!-- 工具栏 -->
+    <div class="table-toolbar flex justify-between items-center mb-4">
+      <div class="left-btns">
+        <el-button
+          type="danger"
+          plain
+          icon="Delete"
+          :disabled="!selectedIds.length"
+          @click="handleBatchDelete"
+          >批量删除</el-button
+        >
+        <el-button type="warning" plain icon="Download" @click="handleExport">导出日志</el-button>
+      </div>
+      <div class="right-btns">
+        <el-button icon="Refresh" circle @click="getList" />
+      </div>
+    </div>
+
+    <!-- 表格区域 -->
+    <div class="table-wrapper bg-white dark:bg-dark-800 p-5 rounded-lg shadow-sm">
+      <el-table
+        v-loading="loading"
+        :data="logList"
+        style="width: 100%"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="55" align="center" />
+        <el-table-column label="日志编号" align="center" prop="id" width="100" />
+        <el-table-column label="操作模块" align="center" prop="operation" :show-overflow-tooltip="true" />
+        <el-table-column label="操作人员" align="center" prop="userName" width="150">
+          <template #default="scope">
+            <div class="user-info flex items-center justify-center">
+              <span class="font-medium mr-1">{{ scope.row.nickName }}</span>
+              <span class="text-xs text-gray-400">({{ scope.row.userName }})</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="请求方式" align="center" prop="method" width="100">
+          <template #default="scope">
+            <el-tag :type="getMethodTagType(scope.row.method)">{{ scope.row.method }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作地址" align="center" prop="ip" width="130" />
+        <el-table-column label="操作地点" align="center" prop="location" width="100" />
+        <el-table-column label="操作状态" align="center" prop="status" width="100">
+          <template #default="scope">
+            <el-tag :type="scope.row.status === 200 ? 'success' : 'danger'">
+              {{ scope.row.status === 200 ? '成功' : '失败' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作时间" align="center" prop="createTime" width="180" />
+        <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="100">
+          <template #default="scope">
+            <el-button link type="primary" icon="View" @click="handleView(scope.row)">详情</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 分页 -->
+      <div class="pagination-wrapper flex justify-end mt-5">
+        <el-pagination
+          v-model:current-page="queryParams.current"
+          v-model:page-size="queryParams.size"
+          :page-sizes="[10, 20, 30, 50]"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="total"
+          @size-change="getList"
+          @current-change="getList"
+        />
+      </div>
+    </div>
+
+    <!-- 详情弹窗 -->
+    <el-dialog title="操作日志详情" v-model="open" width="700px" append-to-body>
+      <el-form :model="form" label-width="100px" size="default">
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="操作人员：">{{ form.nickName }} / {{ form.userName }}</el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="操作地址：">{{ form.ip }} ({{ form.location }})</el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="请求地址：">{{ form.url }}</el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="请求方式：">{{ form.method }}</el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="操作状态：">
+              <el-tag :type="form.status === 200 ? 'success' : 'danger'">
+                {{ form.status === 200 ? '成功' : '失败' }}
+              </el-tag>
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="操作内容：">{{ form.operation }}</el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="操作时间：">{{ form.createTime }}</el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="open = false">关 闭</el-button>
+        </div>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+  import { fetchLogList, deleteLogs, exportLogs } from '@/api/log'
+  import LogSearch from './modules/log-search.vue'
+  import { ElMessage, ElMessageBox } from 'element-plus'
+
+  const loading = ref(false)
+  const logList = ref([])
+  const total = ref(0)
+  const selectedIds = ref([])
+  const open = ref(false)
+  const form = ref<any>({})
+
+  const queryParams = reactive({
+    current: 1,
+    size: 10,
+    userName: '',
+    operation: '',
+    status: undefined
+  })
+
+  const getList = async () => {
+    loading.value = true
+    try {
+      const res = await fetchLogList(queryParams)
+      if (res.code === 200) {
+        logList.value = res.data.records
+        total.value = res.data.total
+      }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const handleQuery = () => {
+    queryParams.current = 1
+    getList()
+  }
+
+  const resetQuery = () => {
+    queryParams.userName = ''
+    queryParams.operation = ''
+    queryParams.status = undefined
+    handleQuery()
+  }
+
+  const handleSelectionChange = (selection: any[]) => {
+    selectedIds.value = selection.map((item) => item.id)
+  }
+
+  const handleBatchDelete = () => {
+    if (!selectedIds.value.length) return
+    ElMessageBox.confirm(`是否确认删除日志编号为 "${selectedIds.value.join(',')}" 的数据项?`, '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }).then(async () => {
+      const res = await deleteLogs(selectedIds.value)
+      if (res.code === 200) {
+        ElMessage.success('删除成功')
+        getList()
+      }
+    })
+  }
+
+  const handleExport = async () => {
+    const res = await exportLogs(queryParams)
+    if (res.code === 200) {
+      ElMessage.success(res.msg)
+    }
+  }
+
+  const handleView = (row: any) => {
+    form.value = { ...row }
+    open.value = true
+  }
+
+  const getMethodTagType = (method: string) => {
+    switch (method) {
+      case 'GET': return 'info'
+      case 'POST': return 'success'
+      case 'PUT': return 'warning'
+      case 'DELETE': return 'danger'
+      default: return ''
+    }
+  }
+
+  onMounted(() => {
+    getList()
+  })
+</script>
+
+<style scoped lang="scss">
+  .log-container {
+    .table-toolbar {
+      .left-btns {
+        .el-button {
+          margin-right: 10px;
+        }
+      }
+    }
+  }
+</style>
