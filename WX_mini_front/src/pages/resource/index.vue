@@ -38,9 +38,12 @@
     <view class="course-section">
       <view class="section-header">
         <text class="section-title">精选课程</text>
+        <view class="search-box">
+          <wd-search v-model="searchKeyword" placeholder="搜索课程名称" hide-cancel @search="onSearch" @clear="onSearch" />
+        </view>
       </view>
       <view class="course-list">
-        <view v-for="(item, index) in courses" :key="index" class="course-card" @click="handleCourseClick(item)">
+        <view v-for="(item, index) in filteredCourses" :key="index" class="course-card" @click="handleCourseClick(item)">
           <wd-img :src="item.image" :width="120" :height="80" round class="course-img" />
           <view class="course-info">
             <text class="course-name">{{ item.name }}</text>
@@ -58,10 +61,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { getCourseListApi } from '@/api/course'
 
 const courses = ref<any[]>([])
+const searchKeyword = ref('')
 
 const getCourseList = async () => {
   try {
@@ -72,6 +76,21 @@ const getCourseList = async () => {
   } catch (error) {
     console.error('获取课程列表失败:', error)
   }
+}
+
+// 搜索过滤逻辑
+const filteredCourses = computed(() => {
+  if (!searchKeyword.value) {
+    return courses.value
+  }
+  return courses.value.filter((course: any) => 
+    course.name.toLowerCase().includes(searchKeyword.value.toLowerCase()) || 
+    (course.desc && course.desc.toLowerCase().includes(searchKeyword.value.toLowerCase()))
+  )
+})
+
+const onSearch = () => {
+  // 触发 computed 更新，实际逻辑在 computed 中已处理
 }
 
 const navTo = (url: string) => {
@@ -150,10 +169,23 @@ onMounted(() => {
   
   .section-header {
     margin-bottom: 20rpx;
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+    
     .section-title {
       font-size: 34rpx;
       font-weight: bold;
       color: #333;
+    }
+    
+    .search-box {
+      width: 100%;
+      // 穿透覆盖 wd-search 内部的圆角，使其看起来更自然
+      :deep(.wd-search) {
+        padding: 0;
+        background: transparent;
+      }
     }
   }
 }

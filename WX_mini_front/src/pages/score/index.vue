@@ -54,42 +54,6 @@
         </view>
       </view>
 
-      <!-- 快捷功能区：试卷分析、错题集、成绩分析 -->
-      <view class="function-grid">
-        <wd-grid :column="3" :border="false" clickable>
-          <wd-grid-item use-slot @itemclick="handleGridClick('paper')">
-            <view class="grid-content-wrap">
-              <view class="grid-icon-wrap paper">
-                <wd-icon name="edit" size="24px" color="#fff" />
-              </view>
-              <view class="grid-text-wrap">
-                <text class="grid-label">试卷报告</text>
-              </view>
-            </view>
-          </wd-grid-item>
-          <wd-grid-item use-slot @itemclick="handleGridClick('wrong')">
-            <view class="grid-content-wrap">
-              <view class="grid-icon-wrap wrong">
-                <wd-icon name="close-circle" size="24px" color="#fff" />
-              </view>
-              <view class="grid-text-wrap">
-                <text class="grid-label">错题本</text>
-              </view>
-            </view>
-          </wd-grid-item>
-          <wd-grid-item use-slot @itemclick="handleGridClick('analysis')">
-            <view class="grid-content-wrap">
-              <view class="grid-icon-wrap analysis">
-                <wd-icon name="chart-line" size="24px" color="#fff" />
-              </view>
-              <view class="grid-text-wrap">
-                <text class="grid-label">总体分析</text>
-              </view>
-            </view>
-          </wd-grid-item>
-        </wd-grid>
-      </view>
-
       <!-- 近6次考试趋势分析 -->
       <view class="section">
         <view class="section-title">近6次考试趋势分析</view>
@@ -119,136 +83,352 @@
         </view>
       </view>
 
-      <!-- VIP 专属：错题本数据分析 -->
-      <view class="vip-analysis-section">
-        <view class="vip-lock-mask" v-if="!isVIPUser">
-          <wd-icon name="lock-on" size="48px" color="#f6d365" />
-          <view class="lock-text">开通 VIP 解锁深度分析</view>
-          <wd-button custom-class="upgrade-btn" size="small" @click="goToRecharge">立即开通</wd-button>
+      <!-- 成绩分析 / 错题推送 区域 -->
+      <view class="analysis-container">
+        <!-- 顶部 Tab -->
+        <view class="top-tabs">
+          <view 
+            class="tab-item" 
+            :class="{ active: currentMainTab === 'analysis' }"
+            @click="currentMainTab = 'analysis'"
+          >
+            成绩分析
+            <view class="line" v-if="currentMainTab === 'analysis'"></view>
+          </view>
+          <view 
+            class="tab-item" 
+            :class="{ active: currentMainTab === 'wrong_book' }"
+            @click="currentMainTab = 'wrong_book'"
+          >
+            错题集
+            <view class="line" v-if="currentMainTab === 'wrong_book'"></view>
+          </view>
+          <view 
+            class="tab-item" 
+            :class="{ active: currentMainTab === 'wrong_push' }"
+            @click="currentMainTab = 'wrong_push'"
+          >
+            错题推送
+            <view class="line" v-if="currentMainTab === 'wrong_push'"></view>
+          </view>
         </view>
 
-        <view class="vip-analysis-content" :class="{ 'blurred': !isVIPUser }">
-          
-          <!-- 详细的成绩构成分析 -->
-          <view class="analysis-card detail-card" v-if="analysisData && analysisData.composition">
-            <view class="card-header">
-              <text class="card-title">成绩构成分析</text>
-              <text class="vip-tag">VIP</text>
+        <!-- 成绩分析内容 (原 VIP 数据分析卡片) -->
+        <view v-if="currentMainTab === 'analysis'">
+          <view class="vip-analysis-section">
+            <view class="vip-lock-mask" v-if="!isVIPUser">
+              <view class="lock-icon-wrapper">
+                <wd-icon name="lock-on" size="48px" color="#f6d365" />
+              </view>
+              <view class="lock-text">开通 VIP 解锁深度分析</view>
+              <wd-button custom-class="upgrade-btn" @click="goToRecharge">立即升级 VIP</wd-button>
             </view>
-            <view class="desc">各科成绩结构（基础 / 综合 / 难题）</view>
-            
-            <view class="pie-chart-mock">
-              <view class="pie-slice" v-for="(item, index) in analysisData.composition" :key="index">
-                <text class="label">{{ item.name }} ({{ item.level }})</text>
-                <view class="bar-bg">
-                  <view class="bar-fill" :style="{ width: item.value + '%' }"></view>
+
+            <view class="vip-analysis-content" :class="{ 'blurred': !isVIPUser }">
+              
+              <!-- 详细的成绩构成分析 -->
+              <view class="analysis-card detail-card" v-if="analysisData && analysisData.composition">
+                <view class="card-header">
+                  <text class="card-title">成绩构成分析</text>
+                  <text class="vip-tag">VIP</text>
                 </view>
-                <text class="value">{{ item.value }}%</text>
-              </view>
-            </view>
-          </view>
-
-          <!-- 详细的成绩分布统计 -->
-          <view class="analysis-card detail-card" v-if="analysisData && analysisData.distribution">
-            <view class="card-header">
-              <text class="card-title">成绩分布统计</text>
-              <text class="vip-tag">VIP</text>
-            </view>
-            <view class="desc">
-              班级相对位置：<text class="highlight">{{ analysisData.distribution.rankInfo }}</text> | 综合等级：<text class="highlight">{{ analysisData.distribution.overallLevel }}</text>
-            </view>
-            
-            <view class="dist-chart">
-              <view class="dist-bar" v-for="(item, index) in analysisData.distribution.levels" :key="index">
-                <view class="bar-val">{{ item.count }}人</view>
-                <view class="bar-track">
-                  <view class="bar-fill" :style="{ height: (item.count / 20 * 100) + '%' }"></view>
+                <view class="desc">各科成绩结构（基础 / 综合 / 难题）</view>
+                
+                <view class="pie-chart-mock">
+                  <view class="pie-slice" v-for="(item, index) in analysisData.composition" :key="index">
+                    <text class="label">{{ item.name }} ({{ item.level }})</text>
+                    <view class="bar-bg">
+                      <view class="bar-fill" :style="{ width: item.value + '%' }"></view>
+                    </view>
+                    <text class="value">{{ item.value }}%</text>
+                  </view>
                 </view>
-                <view class="bar-label">{{ item.level }}</view>
+              </view>
+
+              <!-- 详细的成绩分布统计 -->
+              <view class="analysis-card detail-card" v-if="analysisData && analysisData.distribution">
+                <view class="card-header">
+                  <text class="card-title">成绩分布统计</text>
+                  <text class="vip-tag">VIP</text>
+                </view>
+                <view class="desc">
+                  班级相对位置：<text class="highlight">{{ analysisData.distribution.rankInfo }}</text> | 综合等级：<text class="highlight">{{ analysisData.distribution.overallLevel }}</text>
+                </view>
+                
+                <view class="dist-chart">
+                  <view class="dist-bar" v-for="(item, index) in analysisData.distribution.levels" :key="index">
+                    <view class="bar-val">{{ item.count }}人</view>
+                    <view class="bar-track">
+                      <view class="bar-fill" :style="{ height: (item.count / 20 * 100) + '%' }"></view>
+                    </view>
+                    <view class="bar-label">{{ item.level }}</view>
+                  </view>
+                </view>
+              </view>
+
+              <!-- 详细的成绩趋势分析 -->
+              <view class="analysis-card detail-card" v-if="analysisData && analysisData.trend">
+                <view class="card-header">
+                  <text class="card-title">成绩趋势分析</text>
+                  <text class="vip-tag">VIP</text>
+                </view>
+                <view class="desc">成绩随时间变化走势</view>
+                
+                <view class="trend-chart">
+                  <view class="trend-point" v-for="(item, index) in analysisData.trend" :key="index">
+                    <view class="point-val">{{ item.score }}</view>
+                    <view class="point-dot"></view>
+                    <view class="point-label">{{ item.date }}</view>
+                  </view>
+                </view>
               </view>
             </view>
           </view>
-
-          <!-- 详细的成绩趋势分析 -->
-          <view class="analysis-card detail-card" v-if="analysisData && analysisData.trend">
-            <view class="card-header">
-              <text class="card-title">成绩趋势分析</text>
-              <text class="vip-tag">VIP</text>
-            </view>
-            <view class="desc">成绩随时间变化走势</view>
-            
-            <view class="trend-chart">
-              <view class="trend-point" v-for="(item, index) in analysisData.trend" :key="index">
-                <view class="point-val">{{ item.score }}</view>
-                <view class="point-dot"></view>
-                <view class="point-label">{{ item.date }}</view>
-              </view>
-            </view>
-          </view>
-
         </view>
-      </view>
+
+        <!-- 错题集区域 -->
+        <view v-if="currentMainTab === 'wrong_book'">
+          <view class="tab-content" style="position: relative; min-height: 600rpx;">
+            <!-- VIP 权限判断遮罩 -->
+            <view class="vip-lock-mask" v-if="!isVIPUser">
+              <view class="lock-icon-wrapper">
+                <wd-icon name="lock-on" size="48px" color="#f6d365" />
+              </view>
+              <view class="lock-text">开通 VIP 解锁错题集及打印功能</view>
+              <wd-button custom-class="upgrade-btn" @click="goToRecharge">立即升级 VIP</wd-button>
+            </view>
+            
+            <scroll-view scroll-y class="wrong-list" style="height: 600rpx;" v-else>
+              <view class="wrong-item" v-for="item in wrongBookData" :key="item.id">
+                <view class="w-header">
+                  <text class="subject">{{ item.subject }}</text>
+                  <text class="time">{{ item.time }}</text>
+                </view>
+                <view class="w-question">{{ item.question }}</view>
+                <view class="w-tags">
+                  <text class="tag" v-for="(tag, idx) in item.tags" :key="idx">{{ tag }}</text>
+                </view>
+                <view class="w-ans">
+                  <view class="row"><text class="label">你的答案：</text><text class="wrong">{{ item.studentAnswer }}</text></view>
+                  <view class="row"><text class="label">正确答案：</text><text class="correct">{{ item.correctAnswer }}</text></view>
+                  <view class="row"><text class="label">解析：</text><text class="exp">{{ item.explanation }}</text></view>
+                </view>
+                <view class="w-actions">
+                  <wd-button size="small" plain @click="handleExport">导出 PDF/Word</wd-button>
+                  <wd-button size="small" plain type="success" @click="showPrintDialog = true">纸质打印下单</wd-button>
+                </view>
+              </view>
+            </scroll-view>
+          </view>
+        </view>
+
+        <!-- 错题推送区域（原有 AI 自习室 / 学习建议） -->
+        <view v-if="currentMainTab === 'wrong_push'">
+          <view class="tab-content svip-content">
+            <!-- 权限判断遮罩 -->
+            <view class="svip-lock" v-if="!isSVIPUser">
+              <view class="lock-icon-wrapper">
+                <wd-icon name="lock-on" size="48px" color="#f6d365" />
+              </view>
+              <view class="lock-text">此专区为 SVIP 专属功能</view>
+              <wd-button custom-class="upgrade-btn" @click="goToRecharge">立即升级 SVIP</wd-button>
+            </view>
+            
+            <view v-else>
+              <!-- AI 自习室 -->
+              <view class="card svip-card">
+                <view class="card-title"><wd-icon name="time" class="icon" /> AI 智能自习室</view>
+                <view class="desc">智能辅导 / 专注训练 / 计划管理</view>
+                <view class="room-info">
+                  <view class="status">
+                    <view class="dot"></view> 当前开放中 (08:00 - 23:00)
+                  </view>
+                  <wd-button type="primary" block size="small" @click="joinRoom">一键报名进入自习室</wd-button>
+                </view>
+              </view>
+
+              <!-- AI 学习建议 -->
+              <view class="card svip-card">
+                <view class="card-title"><wd-icon name="chart-pie" class="icon" /> AI 专属学习建议</view>
+                <view class="desc">基于你的近期表现动态生成</view>
+                <view class="ai-suggestion-box">
+                  <view class="s-item">
+                    <text class="s-title">📅 每日学习安排</text>
+                    <text class="s-txt">建议每天 19:00-20:00 攻克数学函数错题，20:00-20:30 进行英语听力磨耳朵。</text>
+                  </view>
+                  <view class="s-item">
+                    <text class="s-title">📚 资源智能推荐</text>
+                    <text class="s-txt">检测到物理运动学模块薄弱，已为您匹配《高一物理必刷题-运动学专练》。</text>
+                    <text class="link">点击直接查看 >></text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view> <!-- analysis-container 闭合 -->
+
     </scroll-view>
+
+    <!-- 打印下单弹窗 -->
+    <wd-popup v-model="showPrintDialog" position="bottom" custom-style="height: 75%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+      <scroll-view scroll-y style="height: 100%;">
+        <view class="print-dialog">
+          <view class="d-title">纸质打印服务下单</view>
+          
+          <view class="form-section">
+            <view class="sec-title">纸张配置</view>
+            <view class="config-row">
+              <text class="label">纸张规格</text>
+              <view class="options">
+                <view class="opt-btn" :class="{active: printForm.paperSize === 'A4'}" @click="printForm.paperSize = 'A4'">A4</view>
+                <view class="opt-btn" :class="{active: printForm.paperSize === 'A3'}" @click="printForm.paperSize = 'A3'">A3</view>
+              </view>
+            </view>
+            <view class="config-row">
+              <text class="label">单/双面</text>
+              <view class="options">
+                <view class="opt-btn" :class="{active: printForm.printSide === '单面'}" @click="printForm.printSide = '单面'">单面</view>
+                <view class="opt-btn" :class="{active: printForm.printSide === '双面'}" @click="printForm.printSide = '双面'">双面</view>
+              </view>
+            </view>
+            <view class="config-row">
+              <text class="label">颜色</text>
+              <view class="options">
+                <view class="opt-btn" :class="{active: printForm.color === '黑白'}" @click="printForm.color = '黑白'">黑白</view>
+                <view class="opt-btn" :class="{active: printForm.color === '彩色'}" @click="printForm.color = '彩色'">彩色</view>
+              </view>
+            </view>
+          </view>
+
+          <view class="form-section">
+            <view class="sec-title">配送配置</view>
+            <view class="config-row">
+              <text class="label">配送方式</text>
+              <view class="options delivery-options">
+                <view 
+                  v-for="d in printConfig.deliveryConfigs" 
+                  :key="d.method"
+                  class="opt-btn" 
+                  :class="{active: printForm.deliveryMethod === d.method}" 
+                  @click="printForm.deliveryMethod = d.method"
+                >
+                  {{ d.name }}
+                </view>
+              </view>
+            </view>
+            <view class="delivery-desc" v-if="currentDeliveryConfig">
+              <wd-icon name="info-circle" size="14px" />
+              {{ currentDeliveryConfig.desc }}（基础运费：￥{{ currentDeliveryConfig.baseFee }}，满￥{{ currentDeliveryConfig.freeThreshold }}免邮）
+            </view>
+            <wd-input v-model="printForm.address" placeholder="请输入收件地址/线下取件点" no-border />
+            <wd-input v-model="printForm.phone" placeholder="联系电话" no-border />
+          </view>
+
+          <view class="price-preview">
+            <text>预估费用：</text>
+            <text class="price">￥{{ estimatedPrice }}</text>
+          </view>
+
+          <view class="d-action">
+            <wd-button type="primary" block @click="submitPrint">确认下单</wd-button>
+          </view>
+        </view>
+      </scroll-view>
+    </wd-popup>
+
     <wd-toast id="wd-toast" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useToast } from 'wot-design-uni'
-import { getStudentScoresApi } from '@/api/score'
-import { getVipAnalysisDataApi } from '@/api/vip'
+import { getStudentScoresApi, getSemesterListApi } from '@/api/score'
+import { getVipAnalysisDataApi, getVipWrongBookApi, submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
 
 const toast = useToast()
 const scoreData = ref<any>(null)
 const currentSubject = ref('总分')
+const currentMainTab = ref('analysis')
 
 // VIP 数据与权限
 const isVIPUser = ref(false)
+const isSVIPUser = ref(false)
 const analysisData = ref<any>(null)
+const wrongBookData = ref<any[]>([])
+
+const showPrintDialog = ref(false)
+const printForm = ref({
+  address: '',
+  phone: '',
+  paperSize: 'A4',
+  printSide: '双面',
+  color: '黑白',
+  deliveryMethod: 'standard'
+})
+
+// 打印配置数据
+const printConfig = ref<any>({
+  paperConfigs: [],
+  globalParams: { minAmount: 5, bindingFee: 2 },
+  deliveryConfigs: []
+})
 
 // 学期与考试的联动数据结构
-const semesterData: Record<string, any[]> = {
-  '2023-2024-2': [
-    { label: '期末考试', value: 'final' },
-    { label: '六月模拟', value: 'mock2' },
-    { label: '五月月考', value: 'month3' },
-    { label: '期中考试', value: 'midterm' },
-    { label: '三月月考', value: 'month1' },
-    { label: '开学考', value: 'start' }
-  ],
-  '2023-2024-1': [
-    { label: '期末考试', value: 'final' },
-    { label: '五月模拟', value: 'mock1' },
-    { label: '四月模拟', value: 'mock2' },
-    { label: '三月月考', value: 'month2' },
-    { label: '期中考试', value: 'midterm' },
-    { label: '一月月考', value: 'month1' }
-  ]
-}
-
-const semesters = [
-  { label: '2023-2024学年 第二学期', value: '2023-2024-2' },
-  { label: '2023-2024学年 第一学期', value: '2023-2024-1' }
-]
+const semesterData = ref<Record<string, any[]>>({})
+const semesters = ref<any[]>([])
 
 // Picker 数据列
-const pickerColumns = ref([
-  semesters,
-  semesterData[semesters[0].value]
-])
+const pickerColumns = ref<any[]>([[], []])
 // 当前选中的值 [学期value, 考试value]
-const pickerValue = ref([semesters[0].value, semesterData[semesters[0].value][0].value])
+const pickerValue = ref(['', ''])
 
 // 用于顶部显示的文本
-const currentDisplayLabel = ref(`${semesters[0].label} - ${semesterData[semesters[0].value][0].label}`)
+const currentDisplayLabel = ref('加载中...')
+
+// 动态计算当前选中的配送配置
+const currentDeliveryConfig = computed(() => {
+  return printConfig.value.deliveryConfigs.find((d: any) => d.method === printForm.value.deliveryMethod)
+})
+
+// 动态计算预估费用
+const estimatedPrice = computed(() => {
+  // 基础纸张费用
+  const paperConfig = printConfig.value.paperConfigs.find((p: any) => 
+    p.size === printForm.value.paperSize && 
+    p.side === printForm.value.printSide && 
+    p.color === printForm.value.color
+  )
+  
+  // 假设默认打印 20 页（这个在实际业务中应该是根据错题数量或者用户输入决定的，这里作为 mock 展示计算逻辑）
+  const pageCount = 20
+  let paperCost = paperConfig ? paperConfig.price * pageCount : 0
+  
+  // 加上装订费
+  let totalCost = paperCost + (printConfig.value.globalParams.bindingFee || 0)
+  
+  // 如果不满起印金额，按起印金额算
+  if (totalCost < printConfig.value.globalParams.minAmount) {
+    totalCost = printConfig.value.globalParams.minAmount
+  }
+
+  // 加上运费
+  if (currentDeliveryConfig.value) {
+    if (totalCost < currentDeliveryConfig.value.freeThreshold || currentDeliveryConfig.value.freeThreshold === 0) {
+      totalCost += currentDeliveryConfig.value.baseFee
+    }
+  }
+  
+  return totalCost.toFixed(2)
+})
 
 // 动态级联切换
 const onPickerColumnChange = (picker: any, value: any, columnIndex: number, resolve: Function) => {
   if (columnIndex === 0) {
     // 选择了不同的学期，更新第二列的考试列表
     const selectedSemesterValue = value[0]
-    picker.setColumnData(1, semesterData[selectedSemesterValue])
+    picker.setColumnData(1, semesterData.value[selectedSemesterValue] || [])
   }
   resolve()
 }
@@ -283,6 +463,39 @@ const getChartHeight = (item: any) => {
   return (val / max * 100) + '%'
 }
 
+const loadInitData = async () => {
+  try {
+    toast.loading('初始化中...')
+    const [semesterRes, printRes] = await Promise.all([
+      getSemesterListApi(),
+      getPrintConfigApi()
+    ])
+    
+    if (printRes.code === 200) {
+      printConfig.value = printRes.data
+    }
+    
+    if (semesterRes.code === 200) {
+      semesters.value = semesterRes.data.semesters
+      semesterData.value = semesterRes.data.semesterData
+      
+      const firstSemester = semesters.value[0].value
+      const firstExam = semesterData.value[firstSemester][0].value
+      
+      pickerColumns.value = [
+        semesters.value,
+        semesterData.value[firstSemester]
+      ]
+      pickerValue.value = [firstSemester, firstExam]
+      currentDisplayLabel.value = `${semesters.value[0].label} - ${semesterData.value[firstSemester][0].label}`
+      
+      loadData(firstSemester, firstExam)
+    }
+  } catch (error: any) {
+    toast.error('初始化失败')
+  }
+}
+
 const loadData = async (semesterVal: string, examIdVal: string) => {
   try {
     toast.loading('加载中...')
@@ -290,11 +503,13 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
     // 检查 VIP 权限
     const token = uni.getStorageSync('token') || ''
     isVIPUser.value = token.includes('13688888888') || token.includes('13588888888') || token.includes('13800000000')
+    isSVIPUser.value = token.includes('13688888888')
 
     const p1 = getStudentScoresApi({ semester: semesterVal, examId: examIdVal })
     const p2 = isVIPUser.value ? getVipAnalysisDataApi() : Promise.resolve({ code: 200, data: null })
+    const p3 = getVipWrongBookApi({})
 
-    const [res, anaRes] = await Promise.all([p1, p2])
+    const [res, anaRes, wrongRes] = await Promise.all([p1, p2, p3])
     
     if (res.code === 200) {
       scoreData.value = res.data
@@ -307,6 +522,10 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
       analysisData.value = anaRes.data
     }
 
+    if (wrongRes.code === 200) {
+      wrongBookData.value = wrongRes.data
+    }
+
     toast.close()
   } catch (error: any) {
     toast.error(error.msg || '网络错误')
@@ -317,22 +536,40 @@ const goToRecharge = () => {
   uni.navigateTo({ url: '/pages/vip/recharge' })
 }
 
-const handleGridClick = (type: string) => {
-  if (type === 'analysis') {
-    uni.showToast({ title: '请查看下方数据分析', icon: 'none' })
-  } else if (type === 'paper') {
-    uni.navigateTo({ url: `/pages/paper/index?exam=${currentDisplayLabel.value}` })
-  } else if (type === 'wrong') {
-    if (!isVIPUser.value) {
-      toast.warning('请先开通 VIP 体验错题本')
-      return
+const handleExport = () => {
+  toast.loading('正在生成...')
+  setTimeout(() => {
+    toast.success('导出成功，请查看通知')
+  }, 1500)
+}
+
+const submitPrint = async () => {
+  if (!printForm.value.address || !printForm.value.phone) {
+    return toast.show('请填写完整信息')
+  }
+  try {
+    toast.loading('提交中...')
+    const res = await submitPrintOrderApi(printForm.value)
+    if (res.code === 200) {
+      toast.success(res.msg || '下单成功')
+      showPrintDialog.value = false
+    } else {
+      toast.error('下单失败')
     }
-    uni.navigateTo({ url: '/pages/vip/index?tab=wrongbook' })
+  } catch (e: any) {
+    toast.error('下单失败')
   }
 }
 
+const joinRoom = () => {
+  toast.loading('正在为您分配座位...')
+  setTimeout(() => {
+    toast.success('报名成功，即将进入自习室')
+  }, 1500)
+}
+
 onMounted(() => {
-  loadData(pickerValue.value[0], pickerValue.value[1])
+  loadInitData()
 })
 </script>
 
@@ -500,41 +737,41 @@ onMounted(() => {
   }
 }
 
-.function-grid {
-  background: #fff;
-  border-radius: 24rpx;
-  padding: 30rpx 10rpx;
+.analysis-container {
   margin-bottom: 40rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+}
 
-  .grid-content-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-  }
+.top-tabs {
+  display: flex;
+  justify-content: space-around;
+  background: #fff;
+  padding: 0 40rpx;
+  margin-bottom: 30rpx;
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.02);
 
-  .grid-icon-wrap {
-    width: 80rpx;
-    height: 80rpx;
-    border-radius: 24rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 16rpx;
-    
-    &.paper { background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%); }
-    &.wrong { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); }
-    &.analysis { background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); }
-  }
+  .tab-item {
+    position: relative;
+    padding: 30rpx 0;
+    font-size: 30rpx;
+    color: #666;
+    transition: all 0.3s;
 
-  .grid-text-wrap {
-    text-align: center;
-    .grid-label {
-      display: block;
-      font-size: 26rpx;
-      color: #666;
-      margin-bottom: 4rpx;
+    &.active {
+      font-weight: bold;
+      color: #1a5f8e;
+      font-size: 32rpx;
+    }
+
+    .line {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40rpx;
+      height: 6rpx;
+      background: #1a5f8e;
+      border-radius: 4rpx;
     }
   }
 }
@@ -633,7 +870,7 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(8px);
   z-index: 10;
   display: flex;
@@ -641,19 +878,34 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 16rpx;
+  
+  .lock-icon-wrapper {
+    width: 120rpx;
+    height: 120rpx;
+    background: rgba(246, 211, 101, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20rpx;
+  }
 
   .lock-text {
     font-size: 32rpx;
     color: #333;
     font-weight: bold;
-    margin: 20rpx 0 30rpx;
+    margin-bottom: 40rpx;
   }
+
   .upgrade-btn {
     background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%) !important;
     color: #f6d365 !important;
     border: none !important;
     border-radius: 40rpx;
-    width: 260rpx;
+    width: 320rpx;
+    height: 80rpx;
+    font-size: 30rpx;
+    box-shadow: 0 8rpx 16rpx rgba(0,0,0,0.2);
   }
 }
 
@@ -761,4 +1013,281 @@ onMounted(() => {
     }
   }
 }
+
+// 错题集样式
+.wrong-list {
+  padding: 0 10rpx;
+}
+
+.wrong-item {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03);
+  
+  .w-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 16rpx;
+    .subject { font-weight: bold; color: #1a5f8e; }
+    .time { font-size: 24rpx; color: #999; }
+  }
+  
+  .w-question {
+    font-size: 30rpx;
+    color: #333;
+    margin-bottom: 16rpx;
+    line-height: 1.5;
+  }
+  
+  .w-tags {
+    display: flex;
+    gap: 10rpx;
+    margin-bottom: 20rpx;
+    .tag {
+      font-size: 22rpx;
+      padding: 4rpx 12rpx;
+      background: #e3f2fd;
+      color: #0288d1;
+      border-radius: 8rpx;
+    }
+  }
+  
+  .w-ans {
+    background: #f9f9f9;
+    padding: 20rpx;
+    border-radius: 12rpx;
+    margin-bottom: 20rpx;
+    
+    .row {
+      margin-bottom: 10rpx;
+      font-size: 26rpx;
+      .label { color: #666; }
+      .wrong { color: #f44336; }
+      .correct { color: #00c853; font-weight: bold; }
+      .exp { color: #555; }
+    }
+  }
+  
+  .w-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 20rpx;
+  }
+}
+
+.print-dialog {
+  .d-title { font-size: 34rpx; font-weight: bold; text-align: center; margin-bottom: 40rpx; }
+  
+  .form-section {
+    background: #f8f9fa;
+    border-radius: 16rpx;
+    padding: 30rpx;
+    margin-bottom: 30rpx;
+
+    .sec-title {
+      font-size: 28rpx;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 24rpx;
+      border-left: 6rpx solid #1a5f8e;
+      padding-left: 12rpx;
+    }
+
+    .config-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 24rpx;
+      
+      .label {
+        width: 140rpx;
+        font-size: 26rpx;
+        color: #666;
+      }
+      
+      .options {
+        flex: 1;
+        display: flex;
+        gap: 20rpx;
+        
+        .opt-btn {
+          padding: 10rpx 30rpx;
+          border-radius: 8rpx;
+          font-size: 24rpx;
+          background: #fff;
+          border: 1px solid #ddd;
+          color: #333;
+          transition: all 0.3s;
+          
+          &.active {
+            background: rgba(26, 95, 142, 0.1);
+            border-color: #1a5f8e;
+            color: #1a5f8e;
+            font-weight: bold;
+          }
+        }
+
+        &.delivery-options {
+          flex-wrap: wrap;
+        }
+      }
+    }
+
+    .delivery-desc {
+      font-size: 22rpx;
+      color: #ff9800;
+      background: rgba(255, 152, 0, 0.1);
+      padding: 16rpx;
+      border-radius: 8rpx;
+      margin-bottom: 20rpx;
+      display: flex;
+      align-items: center;
+      gap: 8rpx;
+    }
+    
+    :deep(.wd-input) {
+      margin-top: 20rpx;
+      background: #fff;
+      border-radius: 8rpx;
+    }
+  }
+
+  .price-preview {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 30rpx;
+    background: rgba(26, 95, 142, 0.05);
+    border-radius: 16rpx;
+    margin-bottom: 40rpx;
+    
+    text {
+      font-size: 30rpx;
+      font-weight: bold;
+      color: #333;
+    }
+    
+    .price {
+      font-size: 40rpx;
+      color: #f44336;
+    }
+  }
+
+  .d-action { margin-top: 40rpx; }
+}
+
+// 错题推送 (SVIP专区) 样式
+.svip-content {
+  position: relative;
+  padding: 10rpx;
+  min-height: 400rpx;
+}
+
+.svip-lock {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16rpx;
+
+  .lock-icon-wrapper {
+    width: 120rpx;
+    height: 120rpx;
+    background: rgba(246, 211, 101, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20rpx;
+  }
+
+  .lock-text {
+    font-size: 32rpx;
+    color: #333;
+    font-weight: bold;
+    margin-bottom: 40rpx;
+  }
+
+  .upgrade-btn {
+    background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%) !important;
+    color: #f6d365 !important;
+    border: none !important;
+    border-radius: 40rpx;
+    width: 320rpx;
+    height: 80rpx;
+    font-size: 30rpx;
+    box-shadow: 0 8rpx 16rpx rgba(0,0,0,0.2);
+  }
+}
+
+.svip-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03);
+  border-left: 8rpx solid #333 !important;
+
+  .card-title {
+    font-size: 32rpx;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10rpx;
+    display: flex;
+    align-items: center;
+    .icon { color: #f6d365; margin-right: 10rpx; }
+  }
+
+  .desc {
+    font-size: 24rpx;
+    color: #999;
+    margin-bottom: 30rpx;
+  }
+
+  .room-info {
+    background: #f8f9fa;
+    border-radius: 12rpx;
+    padding: 30rpx;
+    
+    .status {
+      display: flex;
+      align-items: center;
+      font-size: 28rpx;
+      color: #333;
+      margin-bottom: 30rpx;
+      
+      .dot {
+        width: 16rpx;
+        height: 16rpx;
+        background: #00c853;
+        border-radius: 50%;
+        margin-right: 12rpx;
+        box-shadow: 0 0 10rpx rgba(0, 200, 83, 0.4);
+      }
+    }
+  }
+
+  .ai-suggestion-box {
+    .s-item {
+      background: #fcfcfc;
+      padding: 24rpx;
+      border-radius: 12rpx;
+      margin-bottom: 20rpx;
+      
+      .s-title { display: block; font-weight: bold; font-size: 28rpx; margin-bottom: 12rpx; color: #333; }
+      .s-txt { font-size: 26rpx; color: #666; line-height: 1.5; display: block; }
+      .link { font-size: 24rpx; color: #007aff; margin-top: 10rpx; display: block; }
+    }
+  }
+}
+
 </style>

@@ -84,9 +84,7 @@
 		{
 			"path": "pages/resource/family-edu",
 			"type": "page",
-			"style": {
-				"navigationBarTitleText": "家庭教育"
-			}
+			"style": {}
 		},
 		{
 			"path": "pages/resource/index",
@@ -98,23 +96,17 @@
 		{
 			"path": "pages/resource/paper",
 			"type": "page",
-			"style": {
-				"navigationBarTitleText": "名校试卷"
-			}
+			"style": {}
 		},
 		{
 			"path": "pages/resource/student-talk",
 			"type": "page",
-			"style": {
-				"navigationBarTitleText": "学霸说"
-			}
+			"style": {}
 		},
 		{
 			"path": "pages/resource/sync-course",
 			"type": "page",
-			"style": {
-				"navigationBarTitleText": "同步课程"
-			}
+			"style": {}
 		},
 		{
 			"path": "pages/score/index",
