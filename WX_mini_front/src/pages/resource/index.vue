@@ -4,7 +4,7 @@
       <view class="grid-item" @click="navTo('/pages/resource/paper')">
         <wd-icon name="view-list" size="40px" color="#9b88ed" />
         <view class="info">
-          <text class="main-title">名校试卷</text>
+          <text class="main-title">历年真题</text>
           <text class="sub-title">高效学习</text>
         </view>
       </view>
@@ -12,7 +12,7 @@
       <view class="grid-item" @click="navTo('/pages/resource/student-talk')">
         <wd-icon name="user" size="40px" color="#ff7575" />
         <view class="info">
-          <text class="main-title">学霸说</text>
+          <text class="main-title">状元笔记</text>
           <text class="sub-title">经验学习</text>
         </view>
       </view>
@@ -20,7 +20,7 @@
       <view class="grid-item" @click="navTo('/pages/resource/family-edu')">
         <wd-icon name="heart" size="40px" color="#4fc3f7" />
         <view class="info">
-          <text class="main-title">家庭教育</text>
+          <text class="main-title">心理健康</text>
           <text class="sub-title">科学育儿</text>
         </view>
       </view>
@@ -28,7 +28,7 @@
       <view class="grid-item" @click="navTo('/pages/resource/sync-course')">
         <wd-icon name="video" size="40px" color="#ffb74d" />
         <view class="info">
-          <text class="main-title">同步/专题课</text>
+          <text class="main-title">同步辅导</text>
           <text class="sub-title">巩固复习</text>
         </view>
       </view>

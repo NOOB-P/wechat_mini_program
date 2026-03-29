@@ -55,21 +55,8 @@ const joinRoom = () => {
 }
 
 const handleCourseClick = (course: any) => {
-  if (isSVIPUser.value) {
-    uni.showToast({ title: `正在进入: ${course.name}`, icon: 'none' })
-    // 这里可以跳转到真正的课程播放页面
-  } else {
-    uni.showModal({
-      title: 'SVIP 专属课程',
-      content: '此为 AI 名师精品课程，开通 SVIP 即可无限畅学！',
-      confirmText: '去开通',
-      success: (res) => {
-        if (res.confirm) {
-          uni.navigateTo({ url: '/pages/vip/recharge' })
-        }
-      }
-    })
-  }
+  uni.showToast({ title: `正在进入: ${course.name}`, icon: 'none' })
+  // 这里可以跳转到真正的课程播放页面
 }
 </script>
 
@@ -124,33 +111,22 @@ const handleCourseClick = (course: any) => {
 
       <!-- 错题推送 (仅保留 AI 公益课程) 迁移至首页 -->
       <view class="svip-content">
-        <!-- 权限判断遮罩 -->
-        <view class="svip-lock" v-if="!isSVIPUser">
-          <view class="lock-icon-wrapper">
-            <wd-icon name="lock-on" size="48px" color="#f6d365" />
-          </view>
-          <view class="lock-text">此专区为 SVIP 专属功能</view>
-          <wd-button custom-class="upgrade-btn" @click="goToRecharge">立即升级 SVIP</wd-button>
-        </view>
-        
-        <view v-else>
-          <!-- AI 课程 -->
-          <view class="card svip-card">
-            <view class="card-title"><wd-icon name="video" class="icon" /> AI 公益课程</view>
-            <view class="desc">由专家与算法联合设计，实时更新</view>
-            <view class="course-grid">
-              <view class="c-item">
-                <view class="c-icon math">数</view>
-                <text>高中数学压轴</text>
-              </view>
-              <view class="c-item">
-                <view class="c-icon eng">英</view>
-                <text>外教口语特训</text>
-              </view>
-              <view class="c-item">
-                <view class="c-icon phy">物</view>
-                <text>力学实验全解</text>
-              </view>
+        <!-- AI 课程 (不再限制 SVIP) -->
+        <view class="card svip-card">
+          <view class="card-title"><wd-icon name="video" class="icon" /> AI 公益课程</view>
+          <view class="desc">由专家与算法联合设计，实时更新</view>
+          <view class="course-grid">
+            <view class="c-item" @click="handleCourseClick({name: '高中数学压轴'})">
+              <view class="c-icon math">数</view>
+              <text>高中数学压轴</text>
+            </view>
+            <view class="c-item" @click="handleCourseClick({name: '外教口语特训'})">
+              <view class="c-icon eng">英</view>
+              <text>外教口语特训</text>
+            </view>
+            <view class="c-item" @click="handleCourseClick({name: '力学实验全解'})">
+              <view class="c-icon phy">物</view>
+              <text>力学实验全解</text>
             </view>
           </view>
         </view>
@@ -312,54 +288,7 @@ const handleCourseClick = (course: any) => {
 
   // 错题推送 (原 SVIP 专区) 样式
   .svip-content {
-    position: relative;
     margin-bottom: 40rpx;
-    min-height: 280rpx;
-  }
-
-  .svip-lock {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(8px);
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border-radius: 16rpx;
-
-    .lock-icon-wrapper {
-      width: 120rpx;
-      height: 120rpx;
-      background: rgba(246, 211, 101, 0.1);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 20rpx;
-    }
-
-    .lock-text {
-      font-size: 32rpx;
-      color: #333;
-      font-weight: bold;
-      margin-bottom: 40rpx;
-    }
-
-    .upgrade-btn {
-      background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%) !important;
-      color: #f6d365 !important;
-      border: none !important;
-      border-radius: 40rpx;
-      width: 320rpx;
-      height: 80rpx;
-      font-size: 30rpx;
-      box-shadow: 0 8rpx 16rpx rgba(0,0,0,0.2);
-    }
   }
 
   .svip-card {
