@@ -1,3 +1,4 @@
+import api from '@/utils/http'
 import { mockLoginData } from '@/mock/auth/login'
 
 /**
@@ -6,25 +7,14 @@ import { mockLoginData } from '@/mock/auth/login'
  * @returns 登录响应
  */
 export async function fetchLogin(params: Api.Auth.LoginParams) {
-  // 模拟网络延迟
-  await new Promise(resolve => setTimeout(resolve, 800))
-
-  const { userName } = params
-  
-  // 模拟登录逻辑
-  if (userName.toLowerCase() === 'admin') {
-    return {
-      token: mockLoginData.admin.token,
-      refreshToken: mockLoginData.admin.refreshToken
+  // 连接真实后端
+  return api.post<any>({
+    url: '/api/admin/auth/login',
+    data: {
+      username: params.userName,
+      password: params.password
     }
-  } else if (userName.toLowerCase() === 'school') {
-    return {
-      token: mockLoginData.school.token,
-      refreshToken: mockLoginData.school.refreshToken
-    }
-  }
-
-  throw new Error('用户名或密码错误')
+  })
 }
 
 /**
@@ -32,7 +22,7 @@ export async function fetchLogin(params: Api.Auth.LoginParams) {
  * @returns 用户信息
  */
 export async function fetchGetUserInfo() {
-  // 实际开发中会根据 token 获取用户信息
-  // 这里简单模拟
+  // 我们暂时先不从后端获取所有权限菜单，直接用前端 mock 的全量权限数据，避免改动过大导致前端跑不起来
+  // 这里依然保留 mock 数据保证后台正常渲染，后续如果需要对接真实的菜单可以再替换
   return mockLoginData.admin.userInfo
 }
