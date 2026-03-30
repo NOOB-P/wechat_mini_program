@@ -216,9 +216,41 @@ public class SysAccountServiceImpl implements SysAccountService {
     @Override
     public Result<Void> logout(String token) {
         if (StringUtils.hasText(token)) {
-            // 将 Token 加入 Redis 黑名单，设置过期时间为 7 天（与 RefreshToken 过期时间一致即可）
-            stringRedisTemplate.opsForValue().set("jwt_blacklist:" + token, "logout", 7, TimeUnit.DAYS);
+            // 将 Token 加入 Redis 黑名单，增加容错
+            try {
+                stringRedisTemplate.opsForValue().set("jwt_blacklist:" + token, "logout", 7, TimeUnit.DAYS);
+            } catch (Exception e) {
+                System.err.println("Failed to write token to Redis blacklist: " + e.getMessage());
+            }
         }
         return Result.success("退出成功", null);
+    }
+
+    @Override
+    public Result<Void> updateBasicInfo(Long uid, com.edu.javasb_back.model.dto.AccountUpdateDTO updateDTO) {
+        Optional<SysAccount> accountOpt = accountRepository.findById(uid);
+        if (accountOpt.isEmpty()) {
+            return Result.error("用户不存在");
+        }
+        SysAccount account = accountOpt.get();
+        
+        // 如果提供了新数据，则更新
+        if (StringUtils.hasText(updateDTO.getNickname())) {
+            account.setNickname(updateDTO.getNickname());
+        }
+        if (StringUtils.hasText(updateDTO.getPhone())) {
+            // 简单查重：如果手机号被别人占用了
+            Optional<SysAccount> existPhone = accountRepository.findByPhone(updateDTO.getPhone());
+            if (existPhone.isPresent() && !existPhone.get().getUid().equals(uid)) {
+                return Result.error("该手机号已被其他账号绑定");
+            }
+            account.setPhone(updateDTO.getPhone());
+        }
+        if (StringUtils.hasText(updateDTO.getEmail())) {
+            account.setEmail(updateDTO.getEmail());
+        }
+        
+        accountRepository.save(account);
+        return Result.success("修改成功", null);
     }
 }

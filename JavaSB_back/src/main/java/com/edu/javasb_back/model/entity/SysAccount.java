@@ -29,6 +29,9 @@ public class SysAccount {
     private String phone;
 
     @Column(unique = true, length = 100)
+    private String email;
+
+    @Column(unique = true, length = 100)
     private String wxid;
 
     @Column(unique = true, length = 100)
@@ -69,6 +72,9 @@ public class SysAccount {
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
     public String getWxid() { return wxid; }
     public void setWxid(String wxid) { this.wxid = wxid; }

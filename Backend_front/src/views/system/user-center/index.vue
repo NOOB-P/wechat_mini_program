@@ -133,7 +133,7 @@
   import { useUserStore } from '@/store/modules/user'
   import type { FormInstance, FormRules } from 'element-plus'
   import { ElMessage } from 'element-plus'
-  import { fetchUpdateUser } from '@/api/system/user'
+  import { fetchUpdateBasicInfo } from '@/api/auth/login'
 
   defineOptions({ name: 'UserCenter' })
 
@@ -172,11 +172,13 @@
   /**
    * 用户信息表单
    */
+  // 这里需要跟后端实体类的属性名对应，但根据之前代码，这里的 form 绑定了前端的 nickName 和 userPhone
+  // 因此我们在初始化时从 userStore (包含了登录后获取的信息) 中读取
   const form = reactive({
     userName: userInfo.value.userName || '',
-    nickName: userInfo.value.nickName || '',
+    nickName: (userInfo.value as any).nickname || userInfo.value.nickName || '',
     email: userInfo.value.email || '',
-    userPhone: userInfo.value.userPhone || '',
+    userPhone: (userInfo.value as any).phone || userInfo.value.userPhone || '',
     schoolName: userInfo.value.schoolName || ''
   })
 
@@ -185,11 +187,11 @@
    */
   watch(
     () => userInfo.value,
-    (val) => {
+    (val: any) => {
       form.userName = val.userName || ''
-      form.nickName = val.nickName || ''
+      form.nickName = val.nickname || val.nickName || ''
       form.email = val.email || ''
-      form.userPhone = val.userPhone || ''
+      form.userPhone = val.phone || val.userPhone || ''
       form.schoolName = val.schoolName || ''
     },
     { deep: true }
@@ -268,20 +270,25 @@
       await ruleFormRef.value.validate(async (valid) => {
         if (valid) {
           try {
-            // 这里调用更新 API
-            // const res = await fetchUpdateUser(form)
-            // if (res.code === 200) {
-            //   ElMessage.success('更新成功')
-            //   userStore.setUserInfo({ ...userInfo.value, ...form })
-            //   isEdit.value = false
-            // }
-
-            // 模拟保存
+            // 调用真实后端更新 API
+            await fetchUpdateBasicInfo(userInfo.value.uid || userInfo.value.userId, {
+              nickname: form.nickName,
+              phone: form.userPhone,
+              email: form.email
+            })
+            
             ElMessage.success('保存成功')
-            userStore.setUserInfo({ ...userInfo.value, ...form } as Api.Auth.UserInfo)
+            // 更新本地 store
+            const newUserInfo = { 
+              ...userInfo.value, 
+              ...form,
+              nickname: form.nickName,
+              phone: form.userPhone
+            }
+            userStore.setUserInfo(newUserInfo as Api.Auth.UserInfo)
             isEdit.value = false
-          } catch (error) {
-            ElMessage.error('保存失败')
+          } catch (error: any) {
+            ElMessage.error(error.message || '保存失败')
           }
         }
       })

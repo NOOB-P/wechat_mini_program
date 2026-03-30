@@ -2,6 +2,7 @@ package com.edu.javasb_back.service;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.AccountLoginDTO;
+import com.edu.javasb_back.model.dto.AccountUpdateDTO;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.vo.LoginVO;
 
@@ -36,4 +37,9 @@ public interface SysAccountService {
      * @return 结果
      */
     Result<Void> logout(String token);
+
+    /**
+     * 更新当前用户基本信息
+     */
+    Result<Void> updateBasicInfo(Long uid, AccountUpdateDTO updateDTO);
 }

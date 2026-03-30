@@ -1,3 +1,4 @@
+import api from '@/utils/http'
 import { mockLogList } from '@/mock/log/log'
 
 /**
@@ -5,35 +6,9 @@ import { mockLogList } from '@/mock/log/log'
  * @param params 查询参数
  */
 export async function fetchLogList(params?: any) {
-  const { current = 1, size = 10, userName, operation, status } = params || {}
-  
-  // 模拟搜索过滤
-  let filteredList = [...mockLogList]
-  
-  if (userName) {
-    filteredList = filteredList.filter(item => item.userName.includes(userName))
-  }
-  if (operation) {
-    filteredList = filteredList.filter(item => item.operation.includes(operation))
-  }
-  if (status) {
-    filteredList = filteredList.filter(item => item.status === parseInt(status))
-  }
-
-  const total = filteredList.length
-  const start = (current - 1) * size
-  const end = start + size
-  const records = filteredList.slice(start, end)
-
-  return Promise.resolve({
-    code: 200,
-    msg: '获取成功',
-    data: {
-      records,
-      total,
-      current,
-      size
-    }
+  return api.get<any>({
+    url: '/api/log/list',
+    params
   })
 }
 
@@ -42,6 +17,7 @@ export async function fetchLogList(params?: any) {
  * @param ids 日志 ID 列表
  */
 export async function deleteLogs(ids: number[]) {
+  // TODO: 后续可以接入真实的删除接口
   return Promise.resolve({
     code: 200,
     msg: '删除成功',
@@ -54,6 +30,7 @@ export async function deleteLogs(ids: number[]) {
  * @param params 查询参数
  */
 export async function exportLogs(params?: any) {
+  // TODO: 后续可以接入真实的导出接口
   return Promise.resolve({
     code: 200,
     msg: '导出成功，正在生成文件...',
