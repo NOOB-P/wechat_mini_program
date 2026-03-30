@@ -6,22 +6,32 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configure(http)) // 启用CORS
+            .cors(org.springframework.security.config.Customizer.withDefaults()) // 启用CORS并使用默认配置（读取CorsConfig的配置）
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/login/**").permitAll()
-                .requestMatchers("/**").permitAll() // 测试阶段，先允许所有请求，排查是否是其他拦截导致
-                .anyRequest().authenticated()
-            );
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll() // 放在最前面：放行所有 OPTIONS 预检请求
+                .requestMatchers("/api/auth/**").permitAll() // 通用认证接口
+                .requestMatchers("/api/admin/auth/**").permitAll() // 后台管理端登录
+                .requestMatchers("/api/app/auth/**").permitAll() // 小程序端登录、验证码
+                .anyRequest().authenticated() // 其他所有请求都需要携带有效 Token
+            )
+            // 将 JWT 过滤器添加到 UsernamePasswordAuthenticationFilter 之前
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
