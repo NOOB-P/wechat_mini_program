@@ -257,4 +257,30 @@ userGender: string
         }
     >
   }
+
+  /** 内容管理 - 模块权限分配 */
+  namespace ContentManage {
+    /** 用户模块权限项 */
+    interface UserModulePermission {
+      id: number
+      userName: string
+      nickName: string
+      userRoles: string[]
+      /** 允许访问的模块路径列表，例如 ['/dashboard', '/payment'] */
+      allowedModules: string[]
+    }
+
+    /** 可配置的模块项 */
+    interface ModuleItem {
+      title: string
+      path: string
+      icon?: string
+    }
+
+    /** 搜索参数 */
+    interface PermissionSearchParams extends Api.Common.CommonSearchParams {
+      userName?: string
+      nickName?: string
+    }
+  }
 }

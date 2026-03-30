@@ -20,6 +20,14 @@ export const courseStudyRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'svip-course',
+      name: 'SvipCourseManage',
+      component: '/course-study/svip-course',
+      meta: {
+        title: 'SVIP 课程管理'
+      }
+    },
+    {
       path: 'study-room',
       name: 'StudyRoomManage',
       component: '/course-study/study-room',
