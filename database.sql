@@ -28,6 +28,7 @@ CREATE TABLE `sys_accounts` (
     `nickname` VARCHAR(100) NOT NULL DEFAULT '新用户' COMMENT '用户昵称',
     `password` VARCHAR(255) COMMENT '加密后的登录密码',
     `phone` VARCHAR(20) UNIQUE COMMENT '绑定手机号',
+    `email` VARCHAR(100) UNIQUE COMMENT '绑定邮箱',
     `wxid` VARCHAR(100) UNIQUE COMMENT '微信 OpenID/UnionID',
     `qqid` VARCHAR(100) UNIQUE COMMENT 'QQ OpenID',
     `role_id` INT NOT NULL COMMENT '关联角色ID',
@@ -230,10 +231,10 @@ INSERT INTO `sys_roles` (`id`, `role_name`, `role_code`, `description`, `status`
 (3, '家长', 'parent', '小程序端家长用户', 1);
 
 -- 2. 统一账号表数据 (密码默认设为123456)
-INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `password`, `phone`, `role_id`, `online_status`, `is_enabled`) VALUES
-(1, 'admin', '超级管理员', '123456', '13800000000', 1, 'offline', 1),
-(2, 'manager', '运营人员', '123456', '13800000001', 2, 'offline', 1),
-(3, 'parent01', '张三爸爸', '123456', '13800000002', 3, 'offline', 1);
+INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `password`, `phone`, `email`, `role_id`, `online_status`, `is_enabled`) VALUES
+(1, 'admin', '超级管理员', '123456', '13800000000', 'admin@example.com', 1, 'offline', 1),
+(2, 'manager', '运营人员', '123456', '13800000001', 'manager@example.com', 2, 'offline', 1),
+(3, 'parent01', '张三爸爸', '123456', '13800000002', 'parent01@example.com', 3, 'offline', 1);
 
 -- 3. 学校结构表数据
 INSERT INTO `schools` (`id`, `name`, `type`, `status`) VALUES

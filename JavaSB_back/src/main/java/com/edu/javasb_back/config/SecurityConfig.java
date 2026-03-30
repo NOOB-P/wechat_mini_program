@@ -28,6 +28,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll() // 通用认证接口
                 .requestMatchers("/api/admin/auth/**").permitAll() // 后台管理端登录
                 .requestMatchers("/api/app/auth/**").permitAll() // 小程序端登录、验证码
+                .requestMatchers("/api/log/**").permitAll() // 临时放行日志接口
                 .anyRequest().authenticated() // 其他所有请求都需要携带有效 Token
             )
             // 将 JWT 过滤器添加到 UsernamePasswordAuthenticationFilter 之前

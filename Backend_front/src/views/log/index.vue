@@ -30,31 +30,36 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column label="日志编号" align="center" prop="id" width="100" />
-        <el-table-column label="操作模块" align="center" prop="operation" :show-overflow-tooltip="true" />
-        <el-table-column label="操作人员" align="center" prop="userName" width="150">
-          <template #default="scope">
-            <div class="user-info flex items-center justify-center">
-              <span class="font-medium mr-1">{{ scope.row.nickName }}</span>
-              <span class="text-xs text-gray-400">({{ scope.row.userName }})</span>
+        <el-table-column prop="id" label="日志编号" width="100" />
+        <el-table-column prop="operation" label="操作模块" min-width="150" />
+        <el-table-column prop="userName" label="操作人员" min-width="120">
+          <template #default="{ row }">
+            <div class="flex flex-col">
+              <span>{{ row.nickName || row.nickname || '未知' }}</span>
+              <span class="text-xs text-gray-400">({{ row.userName || row.username }})</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="请求方式" align="center" prop="method" width="100">
-          <template #default="scope">
-            <el-tag :type="getMethodTagType(scope.row.method)">{{ scope.row.method }}</el-tag>
+        <el-table-column prop="method" label="请求方式" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.method === 'GET' ? 'info' : 'success'">{{ row.method }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作地址" align="center" prop="ip" width="130" />
-        <el-table-column label="操作地点" align="center" prop="location" width="100" />
-        <el-table-column label="操作状态" align="center" prop="status" width="100">
-          <template #default="scope">
-            <el-tag :type="scope.row.status === 200 ? 'success' : 'danger'">
-              {{ scope.row.status === 200 ? '成功' : '失败' }}
+        <el-table-column prop="ip" label="操作地址" min-width="150" />
+        <el-table-column prop="location" label="操作地点" min-width="120" />
+        <el-table-column prop="status" label="操作状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 200 ? 'success' : 'danger'">
+              {{ row.status === 200 ? '成功' : '失败' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作时间" align="center" prop="createTime" width="180" />
+        <el-table-column prop="createTime" label="操作时间" min-width="180">
+          <template #default="{ row }">
+            <!-- 简单格式化，如果需要可以用 dayjs -->
+            {{ row.createTime ? new Date(row.createTime).toLocaleString() : '' }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="100">
           <template #default="scope">
             <el-button link type="primary" icon="View" @click="handleView(scope.row)">详情</el-button>
@@ -140,10 +145,12 @@
     loading.value = true
     try {
       const res = await fetchLogList(queryParams)
-      if (res.code === 200) {
-        logList.value = res.data.records
-        total.value = res.data.total
-      }
+      logList.value = res.records || []
+      total.value = res.total || 0
+    } catch (error) {
+      console.error('Failed to fetch logs:', error)
+      logList.value = []
+      total.value = 0
     } finally {
       loading.value = false
     }

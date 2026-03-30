@@ -39,7 +39,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             jwt = authHeader.substring(7);
 
             // 检查 Token 是否在黑名单中 (已退出登录)
-            Boolean isBlacklisted = stringRedisTemplate.hasKey("jwt_blacklist:" + jwt);
+            // 增加 try-catch 块，如果 Redis 连接失败，不要阻断正常的 Token 验证
+            Boolean isBlacklisted = false;
+            try {
+                isBlacklisted = stringRedisTemplate.hasKey("jwt_blacklist:" + jwt);
+            } catch (Exception e) {
+                logger.error("Redis check failed: " + e.getMessage());
+                // 如果 Redis 挂了，暂时允许放行，或者你可以决定在这里返回 401
+            }
+
             if (Boolean.TRUE.equals(isBlacklisted)) {
                 logger.warn("JWT 在黑名单中，已被注销");
                 // 可以直接返回 401，也可以放行让后面的 Security 拦截器处理
