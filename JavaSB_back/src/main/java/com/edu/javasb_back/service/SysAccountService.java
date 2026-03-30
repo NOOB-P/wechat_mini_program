@@ -31,6 +31,11 @@ public interface SysAccountService {
      * 获取当前用户信息
      */
     Result<SysAccount> getUserInfo(Long uid);
+
+    /**
+     * 根据用户名获取当前用户信息
+     */
+    Result<SysAccount> getUserInfoByUsername(String username);
     /**
      * 退出登录
      * @param token JWT Token
