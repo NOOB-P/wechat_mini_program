@@ -271,7 +271,7 @@
         if (valid) {
           try {
             // 调用真实后端更新 API
-            await fetchUpdateBasicInfo(userInfo.value.uid || userInfo.value.userId, {
+            await fetchUpdateBasicInfo((userInfo.value as any).uid || userInfo.value.userId, {
               nickname: form.nickName,
               phone: form.userPhone,
               email: form.email

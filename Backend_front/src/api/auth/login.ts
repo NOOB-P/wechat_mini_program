@@ -27,7 +27,27 @@ export async function fetchUpdateBasicInfo(uid: number, data: { nickname: string
   })
 }
 export async function fetchGetUserInfo() {
-  // 我们暂时先不从后端获取所有权限菜单，直接用前端 mock 的全量权限数据，避免改动过大导致前端跑不起来
-  // 这里依然保留 mock 数据保证后台正常渲染，后续如果需要对接真实的菜单可以再替换
+  // 从真实后端获取当前登录用户信息
+  const res = await api.get<any>({
+    url: '/api/auth/info'
+  })
+  
+  if (res.code === 200 && res.data) {
+    const userInfo = res.data
+    // 为了兼容前端已有的 mock 数据结构，我们将获取到的信息与 mock 数据合并
+    // 主要是为了保留 mock 里的 roles, permissions, menus 等前端路由必须的数据
+    const mergedUserInfo = {
+      ...mockLoginData.admin.userInfo,
+      userId: userInfo.uid,
+      userName: userInfo.username,
+      nickName: userInfo.nickname,
+      phone: userInfo.phone,
+      userPhone: userInfo.phone,
+      email: userInfo.email,
+      roles: userInfo.roleId === 1 ? ['R_SUPER'] : userInfo.roleId === 2 ? ['R_ADMIN'] : ['R_USER']
+    }
+    return mergedUserInfo
+  }
+
   return mockLoginData.admin.userInfo
 }

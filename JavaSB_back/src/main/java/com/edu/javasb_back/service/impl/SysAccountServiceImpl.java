@@ -199,6 +199,16 @@ public class SysAccountServiceImpl implements SysAccountService {
         return Result.error("用户不存在");
     }
 
+    @Override
+    public Result<SysAccount> getUserInfoByUsername(String username) {
+        Optional<SysAccount> accountOpt = accountRepository.findByUsername(username);
+        if (accountOpt.isPresent()) {
+            SysAccount account = accountOpt.get();
+            return Result.success("获取成功", account);
+        }
+        return Result.error("用户不存在");
+    }
+
     private Result<LoginVO> generateLoginResult(SysAccount account) {
         // 更新最后登录时间和状态
         account.setLastLoginTime(LocalDateTime.now());

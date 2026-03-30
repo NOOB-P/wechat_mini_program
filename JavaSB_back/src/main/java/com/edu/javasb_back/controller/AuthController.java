@@ -6,6 +6,7 @@ import com.edu.javasb_back.model.dto.AccountUpdateDTO;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.service.SysAccountService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -20,9 +21,23 @@ public class AuthController {
     private SysAccountService sysAccountService;
 
     /**
-     * 获取当前用户信息
+     * 获取当前登录用户信息（无需传UID，根据Token解析）
      */
     @LogOperation("获取当前用户信息")
+    @GetMapping("/info")
+    public Result<SysAccount> getCurrentUserInfo() {
+        // 从 SecurityContext 获取用户名
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (username == null || "anonymousUser".equals(username)) {
+            return Result.error(401, "未登录");
+        }
+        return sysAccountService.getUserInfoByUsername(username);
+    }
+
+    /**
+     * 获取指定用户信息 (备用)
+     */
+    @LogOperation("获取指定用户信息")
     @GetMapping("/userInfo/{uid}")
     public Result<SysAccount> getUserInfo(@PathVariable Long uid) {
         return sysAccountService.getUserInfo(uid);
