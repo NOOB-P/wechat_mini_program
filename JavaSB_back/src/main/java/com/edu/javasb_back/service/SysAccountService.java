@@ -47,4 +47,9 @@ public interface SysAccountService {
      * 更新当前用户基本信息
      */
     Result<Void> updateBasicInfo(Long uid, AccountUpdateDTO updateDTO);
+
+    /**
+     * 修改密码
+     */
+    Result<Void> updatePassword(String username, String oldPassword, String newPassword);
 }

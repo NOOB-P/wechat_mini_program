@@ -3,6 +3,7 @@ package com.edu.javasb_back.controller;
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.AccountUpdateDTO;
+import com.edu.javasb_back.model.dto.PasswordUpdateDTO;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.service.SysAccountService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +51,19 @@ public class AuthController {
     @PutMapping("/userInfo/{uid}")
     public Result<Void> updateBasicInfo(@PathVariable Long uid, @RequestBody AccountUpdateDTO updateDTO) {
         return sysAccountService.updateBasicInfo(uid, updateDTO);
+    }
+
+    /**
+     * 修改密码
+     */
+    @LogOperation("修改密码")
+    @PutMapping("/password")
+    public Result<Void> updatePassword(@RequestBody PasswordUpdateDTO updateDTO) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (username == null || "anonymousUser".equals(username)) {
+            return Result.error(401, "未登录");
+        }
+        return sysAccountService.updatePassword(username, updateDTO.getOldPassword(), updateDTO.getNewPassword());
     }
 
     /**

@@ -1,16 +1,10 @@
-import { mockRoleList } from '@/mock/system/role'
+import api from '@/utils/http'
 
 /** 获取角色列表 */
 export function fetchGetRoleList(params: Api.SystemManage.RoleSearchParams) {
-  return Promise.resolve({
-    code: 200,
-    msg: '获取成功',
-    data: {
-      records: mockRoleList,
-      total: mockRoleList.length,
-      current: params.current || 1,
-      size: params.size || 10
-    }
+  return api.get<any>({
+    url: '/api/system/role/list',
+    params
   })
 }
 

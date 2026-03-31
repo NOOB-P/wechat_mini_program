@@ -179,12 +179,16 @@
       cancelButtonText: '取消',
       type: 'warning'
     }).then(async () => {
-      const res = await deleteLogs(selectedIds.value)
-      if (res.code === 200) {
+      try {
+        await deleteLogs(selectedIds.value)
         ElMessage.success('删除成功')
         getList()
+      } catch (error: any) {
+        // 如果 error 里有 code 或 message 也可以在这里做针对性处理
+        // 不过由于 utils/http 内部通常已经拦截报错了，这里可以只是做个 fallback
+        // ElMessage.error(error.message || '删除失败，请检查权限')
       }
-    })
+    }).catch(() => {})
   }
 
   const handleExport = async () => {
