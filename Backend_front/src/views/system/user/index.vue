@@ -43,9 +43,9 @@
 
 <script setup lang="ts">
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
-  import { ACCOUNT_TABLE_DATA } from '@/mock/temp/formData'
   import { useTable } from '@/hooks/core/useTable'
   import { fetchGetUserList, fetchDeleteUser } from '@/api/system/user'
+  import defaultAvatar from '@/assets/images/avatar/avatar.webp'
   import UserSearch from './modules/user-search.vue'
   import UserDialog from './modules/user-dialog.vue'
   import { ElTag, ElMessageBox, ElImage } from 'element-plus'
@@ -150,11 +150,12 @@
           label: '用户信息',
           width: 200,
           formatter: (row) => {
+            const avatar = row.avatar || defaultAvatar
             return h('div', { class: 'user flex-c' }, [
               h(ElImage, {
                 class: 'size-9.5 rounded-md',
-                src: row.avatar,
-                previewSrcList: [row.avatar],
+                src: avatar,
+                previewSrcList: [avatar],
                 previewTeleported: true
               }),
               h('div', { class: 'ml-2' }, [
@@ -177,6 +178,32 @@
               ElTag,
               { type: (colors[row.userType] || 'info') as any },
               () => roleName
+            )
+          }
+        },
+        {
+          prop: 'isVip',
+          label: 'VIP',
+          width: 80,
+          align: 'center',
+          formatter: (row) => {
+            return h(
+              ElTag,
+              { type: row.isVip === 1 ? 'success' : 'info', effect: row.isVip === 1 ? 'dark' : 'plain' },
+              () => (row.isVip === 1 ? '是' : '否')
+            )
+          }
+        },
+        {
+          prop: 'isSvip',
+          label: 'SVIP',
+          width: 80,
+          align: 'center',
+          formatter: (row) => {
+            return h(
+              ElTag,
+              { type: row.isSvip === 1 ? 'warning' : 'info', effect: row.isSvip === 1 ? 'dark' : 'plain' },
+              () => (row.isSvip === 1 ? '是' : '否')
             )
           }
         },
@@ -245,25 +272,6 @@
             ])
         }
       ]
-    },
-    // 数据处理
-    transform: {
-      // 数据转换器 - 替换头像
-      dataTransformer: (records) => {
-        // 类型守卫检查
-        if (!Array.isArray(records)) {
-          console.warn('数据转换器: 期望数组类型，实际收到:', typeof records)
-          return []
-        }
-
-        // 使用本地头像替换接口返回的头像
-        return records.map((item, index: number) => {
-          return {
-            ...item,
-            avatar: ACCOUNT_TABLE_DATA[index % ACCOUNT_TABLE_DATA.length].avatar
-          }
-        })
-      }
     }
   })
 

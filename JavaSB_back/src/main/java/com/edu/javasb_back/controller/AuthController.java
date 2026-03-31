@@ -27,12 +27,12 @@ public class AuthController {
     @LogOperation("获取当前用户信息")
     @GetMapping("/info")
     public Result<SysAccount> getCurrentUserInfo() {
-        // 从 SecurityContext 获取用户名
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        if (username == null || "anonymousUser".equals(username)) {
+        // 从 SecurityContext 获取用户ID (String形式存入的uid)
+        String uidStr = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (uidStr == null || "anonymousUser".equals(uidStr)) {
             return Result.error(401, "未登录");
         }
-        return sysAccountService.getUserInfoByUsername(username);
+        return sysAccountService.getUserInfo(Long.parseLong(uidStr));
     }
 
     /**
@@ -59,11 +59,11 @@ public class AuthController {
     @LogOperation("修改密码")
     @PutMapping("/password")
     public Result<Void> updatePassword(@RequestBody PasswordUpdateDTO updateDTO) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        if (username == null || "anonymousUser".equals(username)) {
+        String uidStr = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (uidStr == null || "anonymousUser".equals(uidStr)) {
             return Result.error(401, "未登录");
         }
-        return sysAccountService.updatePassword(username, updateDTO.getOldPassword(), updateDTO.getNewPassword());
+        return sysAccountService.updatePassword(Long.parseLong(uidStr), updateDTO.getOldPassword(), updateDTO.getNewPassword());
     }
 
     /**

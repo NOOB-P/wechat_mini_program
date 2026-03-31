@@ -51,5 +51,5 @@ public interface SysAccountService {
     /**
      * 修改密码
      */
-    Result<Void> updatePassword(String username, String oldPassword, String newPassword);
+    Result<Void> updatePassword(Long uid, String oldPassword, String newPassword);
 }

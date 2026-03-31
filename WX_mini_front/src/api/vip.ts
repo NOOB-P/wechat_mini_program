@@ -42,3 +42,25 @@ export const getPrintConfigApi = () => {
     method: 'GET'
   })
 }
+
+/**
+ * @Description: 创建 VIP 订单
+ */
+export const createVipOrderApi = (data: any) => {
+  return request({
+    url: '/api/app/vip/order/create',
+    method: 'POST',
+    data
+  })
+}
+
+/**
+ * @Description: 模拟支付回调
+ */
+export const simulatePayCallbackApi = (orderNo: string) => {
+  return request({
+    url: '/api/app/vip/order/callback',
+    method: 'POST',
+    data: { orderNo }
+  })
+}

@@ -65,11 +65,15 @@ public class SysLogController {
             return Result.error(401, "未登录");
         }
         
-        String username = authentication.getName();
-        Optional<SysAccount> accountOpt = sysAccountRepository.findByUsername(username);
-        
-        if (accountOpt.isEmpty() || accountOpt.get().getRoleId() == null || accountOpt.get().getRoleId() != 1) {
-            return Result.error(403, "无权限执行此操作，仅超级管理员可用");
+        String uidStr = authentication.getName();
+        try {
+            Optional<SysAccount> accountOpt = sysAccountRepository.findById(Long.parseLong(uidStr));
+            
+            if (accountOpt.isEmpty() || accountOpt.get().getRoleId() == null || accountOpt.get().getRoleId() != 1) {
+                return Result.error(403, "无权限执行此操作，仅超级管理员可用");
+            }
+        } catch (NumberFormatException e) {
+            return Result.error(401, "Token异常");
         }
 
         if (ids == null || ids.isEmpty()) {

@@ -35,10 +35,14 @@ public class SysFaqController {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
             return false;
         }
-        String currentUsername = authentication.getName();
-        Optional<SysAccount> currentUserOpt = sysAccountRepository.findByUsername(currentUsername);
-        return currentUserOpt.isPresent() && currentUserOpt.get().getRoleId() != null &&
-               (currentUserOpt.get().getRoleId() == 1 || currentUserOpt.get().getRoleId() == 2);
+        String uidStr = authentication.getName();
+        try {
+            Optional<SysAccount> currentUserOpt = sysAccountRepository.findById(Long.parseLong(uidStr));
+            return currentUserOpt.isPresent() && currentUserOpt.get().getRoleId() != null &&
+                   (currentUserOpt.get().getRoleId() == 1 || currentUserOpt.get().getRoleId() == 2);
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     /**

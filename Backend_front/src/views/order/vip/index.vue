@@ -72,6 +72,38 @@
         />
       </div>
     </div>
+
+    <!-- 订单详情弹窗 -->
+    <el-dialog
+      v-model="detailVisible"
+      title="订单详情"
+      width="600px"
+      destroy-on-close
+    >
+      <el-descriptions :column="1" border>
+        <el-descriptions-item label="订单编号">{{ currentOrder.orderNo }}</el-descriptions-item>
+        <el-descriptions-item label="用户姓名">{{ currentOrder.userName }}</el-descriptions-item>
+        <el-descriptions-item label="手机号码">{{ currentOrder.userPhone }}</el-descriptions-item>
+        <el-descriptions-item label="套餐类型">
+          <el-tag size="small">{{ currentOrder.packageType }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="订购周期">{{ currentOrder.period }}</el-descriptions-item>
+        <el-descriptions-item label="订单金额">
+          <span class="text-red-500 font-bold">¥{{ currentOrder.price?.toFixed(2) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="支付方式">{{ currentOrder.paymentMethod }}</el-descriptions-item>
+        <el-descriptions-item label="支付状态">
+          <el-tag :type="getStatusTag(currentOrder.paymentStatus)">
+            {{ getStatusText(currentOrder.paymentStatus) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="下单时间">{{ currentOrder.createTime }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间">{{ currentOrder.updateTime || '-' }}</el-descriptions-item>
+      </el-descriptions>
+      <template #footer>
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -82,6 +114,10 @@
   const loading = ref(false)
   const orderList = ref([])
   const total = ref(0)
+  
+  // 详情弹窗相关
+  const detailVisible = ref(false)
+  const currentOrder = ref<any>({})
 
   const queryParams = reactive({
     current: 1,
@@ -95,10 +131,16 @@
     loading.value = true
     try {
       const res = await fetchVipOrderList(queryParams)
-      if (res.code === 200) {
-        orderList.value = res.data.records
-        total.value = res.data.total
+      
+      // 调试：如果还是没数据，可能是由于响应结构嵌套层级不同
+      if (res) {
+        // 尝试从 res 或 res.data 中获取记录和总数
+        const data = res.data || res
+        orderList.value = data.records || []
+        total.value = data.total || 0
       }
+    } catch (error) {
+      console.error('获取VIP订单列表失败:', error)
     } finally {
       loading.value = false
     }
@@ -117,7 +159,8 @@
   }
 
   const handleDetail = (row: any) => {
-    ElMessage.info(`查看订单 ${row.orderNo} 的详情`)
+    currentOrder.value = { ...row }
+    detailVisible.value = true
   }
 
   const getPeriodTag = (period: string) => {

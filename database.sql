@@ -32,6 +32,8 @@ CREATE TABLE `sys_accounts` (
     `wxid` VARCHAR(100) UNIQUE COMMENT '微信 OpenID/UnionID',
     `qqid` VARCHAR(100) UNIQUE COMMENT 'QQ OpenID',
     `role_id` INT NOT NULL COMMENT '关联角色ID',
+    `is_vip` TINYINT DEFAULT NULL COMMENT '是否VIP: 1-是, 0-否 (仅家长角色有效)',
+    `is_svip` TINYINT DEFAULT NULL COMMENT '是否SVIP: 1-是, 0-否 (仅家长角色有效)',
     `online_status` ENUM('online', 'offline', 'banned') DEFAULT 'offline' COMMENT '在线状态: online-在线, offline-离线, banned-封禁',
     `is_enabled` TINYINT DEFAULT 1 COMMENT '是否启用: 1-启用, 0-禁用',
     `last_login_time` DATETIME COMMENT '最后登录时间',
@@ -68,8 +70,6 @@ CREATE TABLE `students` (
     `class_name` VARCHAR(50) COMMENT '所在班级(冗余)',
     `parent_phone` VARCHAR(20) COMMENT '家长联系电话',
     `is_bound` BOOLEAN DEFAULT FALSE COMMENT '是否已绑定家长',
-    `is_vip` BOOLEAN DEFAULT FALSE COMMENT '是否VIP',
-    `is_svip` BOOLEAN DEFAULT FALSE COMMENT '是否SVIP',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='学生档案表';
@@ -189,6 +189,7 @@ DROP TABLE IF EXISTS `vip_orders`;
 CREATE TABLE `vip_orders` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '内部记录ID',
     `order_no` VARCHAR(50) NOT NULL UNIQUE COMMENT '外部订单编号(VOD开头)',
+    `user_uid` BIGINT NOT NULL COMMENT '购买用户唯一ID(关联 sys_accounts.uid)',
     `user_name` VARCHAR(50) NOT NULL COMMENT '购买用户姓名(冗余)',
     `user_phone` VARCHAR(20) NOT NULL COMMENT '联系电话',
     `package_type` VARCHAR(50) NOT NULL COMMENT '套餐类型(VIP基础版/SVIP专业版)',
@@ -231,10 +232,10 @@ INSERT INTO `sys_roles` (`id`, `role_name`, `role_code`, `description`, `status`
 (3, '家长', 'parent', '小程序端家长用户', 1);
 
 -- 2. 统一账号表数据 (密码默认设为123456)
-INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `password`, `phone`, `email`, `role_id`, `online_status`, `is_enabled`) VALUES
-(1, 'admin', '超级管理员', '123456', '13800000000', 'admin@example.com', 1, 'offline', 1),
-(2, 'manager', '运营人员', '123456', '13800000001', 'manager@example.com', 2, 'offline', 1),
-(3, 'parent01', '张三爸爸', '123456', '13800000002', 'parent01@example.com', 3, 'offline', 1);
+INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `password`, `phone`, `email`, `role_id`, `is_vip`, `is_svip`, `online_status`, `is_enabled`) VALUES
+(1, 'admin', '超级管理员', '123456', '13800000000', 'admin@example.com', 1, NULL, NULL, 'offline', 1),
+(2, 'manager', '运营人员', '123456', '13800000001', 'manager@example.com', 2, NULL, NULL, 'offline', 1),
+(3, 'parent01', '张三爸爸', '123456', '13800000002', 'parent01@example.com', 3, 1, 0, 'offline', 1);
 
 -- 3. 学校结构表数据
 INSERT INTO `schools` (`id`, `name`, `type`, `status`) VALUES
@@ -242,9 +243,9 @@ INSERT INTO `schools` (`id`, `name`, `type`, `status`) VALUES
 ('SCH002', '实验小学', 'school', 1);
 
 -- 4. 学生档案表数据
-INSERT INTO `students` (`id`, `student_no`, `name`, `gender`, `school`, `grade`, `class_name`, `parent_phone`, `is_bound`, `is_vip`, `is_svip`) VALUES
-('STU001', '20230001', '张三', '男', '第一中学', '初一', '1班', '13800000002', 1, 0, 0),
-('STU002', '20230002', '李四', '女', '实验小学', '六年级', '2班', '13800000003', 0, 1, 0);
+INSERT INTO `students` (`id`, `student_no`, `name`, `gender`, `school`, `grade`, `class_name`, `parent_phone`, `is_bound`) VALUES
+('STU001', '20230001', '张三', '男', '第一中学', '初一', '1班', '13800000002', 1),
+('STU002', '20230002', '李四', '女', '实验小学', '六年级', '2班', '13800000003', 0);
 
 -- 5. 考试信息与成绩表数据
 INSERT INTO `exams` (`id`, `name`, `school`, `grade`, `class_name`, `exam_date`, `status`, `success_count`, `fail_count`) VALUES

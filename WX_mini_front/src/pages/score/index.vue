@@ -332,9 +332,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { getStudentScoresApi, getSemesterListApi } from '@/api/score'
 import { getVipAnalysisDataApi, getVipWrongBookApi, submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
+import { getUserInfoApi } from '@/api/mine'
 
 const toast = useToast()
 const scoreData = ref<any>(null)
@@ -344,6 +346,23 @@ const currentMainTab = ref('analysis')
 // VIP 数据与权限
 const isVIPUser = ref(false)
 const isSVIPUser = ref(false)
+
+const checkVipStatus = async () => {
+  try {
+    const res = await getUserInfoApi()
+    if (res.code === 200) {
+      isVIPUser.value = res.data.isVip === 1 || res.data.isSvip === 1
+      isSVIPUser.value = res.data.isSvip === 1
+      uni.setStorageSync('userInfo', res.data)
+    }
+  } catch (error) {
+    console.error('获取VIP状态失败:', error)
+  }
+}
+
+onShow(() => {
+  checkVipStatus()
+})
 const analysisData = ref<any>(null)
 const wrongBookData = ref<any[]>([])
 
@@ -489,10 +508,7 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
   try {
     toast.loading('加载中...')
     
-    // 检查 VIP 权限
-    const token = uni.getStorageSync('token') || ''
-    isVIPUser.value = token.includes('13688888888') || token.includes('13588888888') || token.includes('13800000000')
-    isSVIPUser.value = token.includes('13688888888')
+    // VIP 权限已在 onShow 中通过 checkVipStatus 更新
 
     const p1 = getStudentScoresApi({ semester: semesterVal, examId: examIdVal })
     const p2 = isVIPUser.value ? getVipAnalysisDataApi() : Promise.resolve({ code: 200, data: null })

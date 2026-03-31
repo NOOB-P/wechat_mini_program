@@ -32,19 +32,6 @@
         </el-form-item>
       </el-form>
 
-      <!-- 批量操作工具栏 -->
-      <div v-if="selectedIds.length > 0" class="batch-bar mb-4">
-        <el-alert type="info" :closable="false" show-icon>
-          <template #title>
-            <span>已选择 {{ selectedIds.length }} 项</span>
-            <el-divider direction="vertical" />
-            <el-button type="primary" link @click="handleBatchVip('vip', 'enable')">批量开通 VIP</el-button>
-            <el-button type="warning" link @click="handleBatchVip('svip', 'enable')">批量开通 SVIP</el-button>
-            <el-button type="danger" link @click="handleBatchVip('vip', 'disable')">取消 VIP</el-button>
-          </template>
-        </el-alert>
-      </div>
-
       <!-- 数据表格 -->
       <el-table 
         :data="tableData" 
@@ -60,22 +47,6 @@
         <el-table-column prop="school" label="学校" min-width="150" show-overflow-tooltip />
         <el-table-column prop="grade" label="年级" width="100" align="center" />
         <el-table-column prop="className" label="班级" width="80" align="center" />
-        
-        <el-table-column label="VIP 状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.isVip ? 'success' : 'info'" size="small">
-              {{ row.isVip ? '已开通' : '未开通' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        
-        <el-table-column label="SVIP 状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.isSvip ? 'warning' : 'info'" size="small">
-              {{ row.isSvip ? '已开通' : '未开通' }}
-            </el-tag>
-          </template>
-        </el-table-column>
 
         <el-table-column label="绑定状态" width="100" align="center">
           <template #default="{ row }">
@@ -83,20 +54,9 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="220" fixed="right" align="center">
+        <el-table-column label="操作" width="150" fixed="right" align="center">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-dropdown trigger="click" class="ml-2" @command="(cmd: string) => handleStatusCmd(cmd, row)">
-              <el-button link type="primary" size="small">权限管理<el-icon class="el-icon--right"><arrow-down /></el-icon></el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="vip_enable" :disabled="row.isVip">开通 VIP</el-dropdown-item>
-                  <el-dropdown-item command="vip_disable" :disabled="!row.isVip">取消 VIP</el-dropdown-item>
-                  <el-dropdown-item divided command="svip_enable" :disabled="row.isSvip">开通 SVIP</el-dropdown-item>
-                  <el-dropdown-item command="svip_disable" :disabled="!row.isSvip">取消 SVIP</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
             <el-button link type="danger" size="small" @click="handleDelete(row)" class="ml-2">删除</el-button>
           </template>
         </el-table-column>
@@ -196,11 +156,10 @@ import {
   fetchAddStudent, 
   fetchUpdateStudent, 
   fetchDeleteStudent,
-  fetchBatchUpdateStatus,
   fetchImportStudents
 } from '@/api/core-business/student/index'
 import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
-import { ArrowDown, UploadFilled } from '@element-plus/icons-vue'
+import { UploadFilled } from '@element-plus/icons-vue'
 import BindingStatus from './components/BindingStatus.vue'
 
 const loading = ref(false)
@@ -324,49 +283,6 @@ const submitForm = async () => {
       } finally {
         submitLoading.value = false
       }
-    }
-  })
-}
-
-// 权限管理指令处理
-const handleStatusCmd = async (command: string, row: Api.Student.StudentItem) => {
-  const [type, action] = command.split('_') as ['vip' | 'svip', 'enable' | 'disable']
-  const typeName = type === 'vip' ? 'VIP' : 'SVIP'
-  const actionName = action === 'enable' ? '开通' : '取消'
-  
-  try {
-    const res = await fetchBatchUpdateStatus({
-      ids: [row.id],
-      type,
-      action
-    })
-    if (res.code === 200) {
-      ElMessage.success(`${actionName} ${typeName} 成功`)
-      loadData()
-    }
-  } catch (error) {
-    console.error(error)
-  }
-}
-
-// 批量操作
-const handleBatchVip = (type: 'vip' | 'svip', action: 'enable' | 'disable') => {
-  const typeName = type === 'vip' ? 'VIP' : 'SVIP'
-  const actionName = action === 'enable' ? '开通' : '取消'
-  
-  ElMessageBox.confirm(`确定要为选中的 ${selectedIds.value.length} 名学生${actionName} ${typeName} 吗?`, '批量操作', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'info'
-  }).then(async () => {
-    const res = await fetchBatchUpdateStatus({
-      ids: selectedIds.value,
-      type,
-      action
-    })
-    if (res.code === 200) {
-      ElMessage.success(`批量${actionName}成功`)
-      loadData()
     }
   })
 }

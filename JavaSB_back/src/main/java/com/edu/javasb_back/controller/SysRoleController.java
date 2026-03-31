@@ -37,8 +37,12 @@ public class SysRoleController {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
             return null;
         }
-        String currentUsername = authentication.getName();
-        return sysAccountRepository.findByUsername(currentUsername).orElse(null);
+        String uidStr = authentication.getName();
+        try {
+            return sysAccountRepository.findById(Long.parseLong(uidStr)).orElse(null);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     // 辅助方法：检查当前用户是否为管理员

@@ -71,6 +71,24 @@
           <ElRadio label="2">禁用</ElRadio>
         </ElRadioGroup>
       </ElFormItem>
+
+      <ElFormItem label="VIP权限">
+        <ElSpace>
+          <ElSwitch
+            v-model="formData.isVip"
+            :active-value="1"
+            :inactive-value="0"
+            active-text="VIP"
+          />
+          <ElSwitch
+            v-model="formData.isSvip"
+            :active-value="1"
+            :inactive-value="0"
+            active-text="SVIP"
+            style="--el-switch-on-color: #e6a23c"
+          />
+        </ElSpace>
+      </ElFormItem>
     </ElForm>
     <template #footer>
       <div class="dialog-footer">
@@ -141,6 +159,8 @@
     userPhone: '',
     userType: '1',
     status: '1',
+    isVip: 0,
+    isSvip: 0,
     schoolName: '',
     gradeName: '',
     className: '',
@@ -181,6 +201,8 @@
         userPhone: row.userPhone || '',
         userType: row.userType || '1',
         status: row.status || '1',
+        isVip: row.isVip || 0,
+        isSvip: row.isSvip || 0,
         schoolName: row.schoolName || '',
         gradeName: row.gradeName || '',
         className: row.className || '',
@@ -196,6 +218,8 @@
         userPhone: '',
         userType: '1',
         status: '1',
+        isVip: 0,
+        isSvip: 0,
         schoolName: '',
         gradeName: '',
         className: '',

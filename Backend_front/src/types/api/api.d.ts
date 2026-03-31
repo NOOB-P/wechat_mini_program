@@ -101,6 +101,8 @@ declare namespace Api {
       userName: string
       userGender: string
       nickName: string
+      isVip?: number
+      isSvip?: number
     }
   }
 
@@ -140,8 +142,6 @@ declare namespace Api {
       className: string
       parentPhone: string
       isBound: boolean
-      isVip: boolean
-      isSvip: boolean
     }
 
     /** 学生搜索参数 */
@@ -205,12 +205,20 @@ declare namespace Api {
     interface AnalysisResult {
       successList: SuccessItem[]
       failList: FailItem[]
-userGender: string
+    }
+
+    /** 用户列表项 */
+    interface UserListItem {
+      id: number
+      userName: string
+      userGender: string
       nickName: string
       userPhone: string
       userEmail: string
       userRoles: string[]
       status: string
+      isVip?: number
+      isSvip?: number
       /** 用户类型: 1-管理员, 2-学校, 3-家长, 4-学生 */
       userType: '1' | '2' | '3' | '4'
       /** 绑定的学校 */
