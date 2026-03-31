@@ -5,7 +5,7 @@ import request from '@/utils/request'
  */
 export const getFaqCategoryApi = () => {
   return request({
-    url: '/service/faq/categories',
+    url: '/api/customer/faq/categories',
     method: 'GET'
   })
 }
@@ -13,10 +13,10 @@ export const getFaqCategoryApi = () => {
 /**
  * @Description: 获取 FAQ 问题列表
  */
-export const getFaqListApi = (data: { categoryId?: number; keyword?: string }) => {
+export const getFaqListApi = (data: { categoryName?: string; keyword?: string }) => {
   return request({
-    url: '/service/faq/list',
-    method: 'POST',
-    data
+    url: '/api/customer/faq/list',
+    method: 'GET',
+    params: data
   })
 }

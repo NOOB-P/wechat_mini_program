@@ -146,6 +146,7 @@ CREATE TABLE `study_room_enrollments` (
 DROP TABLE IF EXISTS `faqs`;
 CREATE TABLE `faqs` (
     `id` VARCHAR(50) PRIMARY KEY COMMENT 'FAQ ID',
+    `category_name` VARCHAR(50) DEFAULT '其他' COMMENT '所属模块名称',
     `category_id` INT DEFAULT 1 COMMENT '分类ID',
     `question` VARCHAR(255) NOT NULL COMMENT '问题标题',
     `answer` TEXT NOT NULL COMMENT '问题解答',
@@ -235,7 +236,8 @@ INSERT INTO `sys_roles` (`id`, `role_name`, `role_code`, `description`, `status`
 INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `password`, `phone`, `email`, `role_id`, `is_vip`, `is_svip`, `online_status`, `is_enabled`) VALUES
 (1, 'admin', '超级管理员', '123456', '13800000000', 'admin@example.com', 1, NULL, NULL, 'offline', 1),
 (2, 'manager', '运营人员', '123456', '13800000001', 'manager@example.com', 2, NULL, NULL, 'offline', 1),
-(3, 'parent01', '张三爸爸', '123456', '13800000002', 'parent01@example.com', 3, 1, 0, 'offline', 1);
+(3, 'parent01', '张三爸爸', '123456', '13800000002', 'parent01@example.com', 3, 1, 0, 'offline', 1),
+(4, 'parent02', '李四妈妈', '123456', '13800000003', 'parent02@example.com', 3, 0, 0, 'offline', 1);
 
 -- 3. 学校结构表数据
 INSERT INTO `schools` (`id`, `name`, `type`, `status`) VALUES
@@ -268,9 +270,10 @@ INSERT INTO `study_room_enrollments` (`id`, `parent_name`, `student_name`, `phon
 ('ENR002', '王五妈妈', '王小五', '13800000004', 'pending', '2023-10-02 11:30:00');
 
 -- 9. 常见问题 FAQ 表数据
-INSERT INTO `faqs` (`id`, `category_id`, `question`, `answer`, `status`) VALUES
-('FAQ001', 1, '如何绑定学生？', '在小程序“我的”页面，点击“绑定学生”，输入学号和姓名即可完成绑定。', 1),
-('FAQ002', 2, '错题本怎么打印？', '进入错题本页面，选择需要打印的题目，点击“生成打印PDF”，然后可以选择云打印服务。', 1);
+INSERT INTO `faqs` (`id`, `category_name`, `category_id`, `question`, `answer`, `status`) VALUES
+('FAQ001', '注册绑定', 1, '如何绑定学生？', '在小程序“我的”页面，点击“绑定学生”，输入学号和姓名即可完成绑定。', 1),
+('FAQ002', '成绩查询', 2, '错题本怎么打印？', '进入错题本页面，选择需要打印的题目，点击“生成打印PDF”，然后可以选择云打印服务。', 1),
+('FAQ003', 'VIP服务', 3, 'VIP和SVIP有什么区别？', 'VIP可查看详细成绩分析与基础错题本；SVIP享有额外特权，包括AI专属课程、智能自习室以及个性化学习计划生成。', 1);
 
 -- 10. 微信群配置表数据
 INSERT INTO `wechat_configs` (`group_name`, `qr_code_url`) VALUES
@@ -283,9 +286,9 @@ INSERT INTO `print_orders` (`order_no`, `user_name`, `user_phone`, `document_nam
 ('POD202310050002', '李四妈妈', '13800000003', '李四英语复习资料', 30, '彩色单面', '门店自提', 45.00, 1);
 
 -- 12. VIP套餐订单表数据
-INSERT INTO `vip_orders` (`order_no`, `user_name`, `user_phone`, `package_type`, `period`, `price`, `payment_status`, `payment_method`) VALUES
-('VOD202309010001', '张三爸爸', '13800000002', 'SVIP专业版', '年包', 365.00, 1, '微信支付'),
-('VOD202309150002', '李四妈妈', '13800000003', 'VIP基础版', '季包', 99.00, 1, '支付宝');
+INSERT INTO `vip_orders` (`order_no`, `user_uid`, `user_name`, `user_phone`, `package_type`, `period`, `price`, `payment_status`, `payment_method`) VALUES
+('VOD202309010001', 3, '张三爸爸', '13800000002', 'SVIP专业版', '年包', 365.00, 1, '微信支付'),
+('VOD202309150002', 4, '李四妈妈', '13800000003', 'VIP基础版', '季包', 99.00, 1, '支付宝');
 
 -- 13. 系统操作日志表数据
 INSERT INTO `sys_logs` (`uid`, `user_name`, `nick_name`, `operation`, `method`, `url`, `ip`, `location`, `status`) VALUES

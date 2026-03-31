@@ -11,6 +11,12 @@ export function fetchGetFaqList(params: any) {
   })
 }
 
+export function fetchGetFaqCategories() {
+  return api.get<any>({
+    url: '/api/customer/faq/categories'
+  })
+}
+
 export function fetchAddFaq(params: any) {
   return api.post<any>({
     url: '/api/customer/faq/add',

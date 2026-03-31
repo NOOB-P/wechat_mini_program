@@ -13,8 +13,13 @@ public interface SysFaqRepository extends JpaRepository<SysFaq, String> {
     
     @Query("SELECT f FROM SysFaq f WHERE " +
            "(:question IS NULL OR f.question LIKE %:question%) AND " +
+           "(:categoryName IS NULL OR f.categoryName = :categoryName) AND " +
            "(:status IS NULL OR f.status = :status)")
     Page<SysFaq> findFaqs(@Param("question") String question,
+                          @Param("categoryName") String categoryName,
                           @Param("status") Integer status,
                           Pageable pageable);
+
+    @Query("SELECT DISTINCT f.categoryName FROM SysFaq f WHERE f.status = 1")
+    java.util.List<String> findDistinctCategoryNames();
 }
