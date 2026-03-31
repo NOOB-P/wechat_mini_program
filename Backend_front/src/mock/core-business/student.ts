@@ -7,7 +7,5 @@ export const mockStudentList = Array.from({ length: 100 }).map((_, index) => ({
   grade: index % 4 === 0 ? '高一年级' : (index % 4 === 1 ? '高二年级' : (index % 4 === 2 ? '初一年级' : '小学一年级')),
   className: `${(index % 5) + 1}班`,
   parentPhone: `13800138${index.toString().padStart(3, '0')}`,
-  isBound: index % 3 !== 0,
-  isVip: index % 5 === 0,
-  isSvip: index % 10 === 0
+  isBound: index % 3 !== 0
 }));

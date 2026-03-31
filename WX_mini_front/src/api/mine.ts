@@ -5,7 +5,7 @@ import request from '@/utils/request'
  */
 export const getUserInfoApi = () => {
   return request({
-    url: '/mine/info',
+    url: '/api/auth/info',
     method: 'GET'
   })
 }
@@ -13,10 +13,10 @@ export const getUserInfoApi = () => {
 /**
  * @Description: 更新用户信息
  */
-export const updateUserInfoApi = (data: any) => {
+export const updateUserInfoApi = (uid: number, data: any) => {
   return request({
-    url: '/mine/update',
-    method: 'POST',
+    url: `/api/auth/userInfo/${uid}`,
+    method: 'PUT',
     data
   })
 }

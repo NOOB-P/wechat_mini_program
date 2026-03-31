@@ -165,21 +165,37 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { getVipWrongBookApi, submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
+import { getUserInfoApi } from '@/api/mine'
 
 const toast = useToast()
 const currentTab = ref('wrongbook')
 const analysisData = ref<any>(null)
 const wrongBookData = ref<any[]>([])
 const isSVIPUser = ref(false)
+const isVipUser = ref(false)
+
+const checkVipStatus = async () => {
+  try {
+    const res = await getUserInfoApi()
+    if (res.code === 200) {
+      isSVIPUser.value = res.data.isSvip === 1
+      isVipUser.value = res.data.isVip === 1
+      uni.setStorageSync('userInfo', res.data)
+    }
+  } catch (error) {
+    console.error('获取VIP状态失败:', error)
+  }
+}
+
+onShow(() => {
+  checkVipStatus()
+})
 
 // 处理从首页传来的参数，直接定位到对应 Tab
 onLoad((options) => {
-  const token = uni.getStorageSync('token') || ''
-  isSVIPUser.value = token.includes('13688888888')
-
   if (options && options.tab) {
     currentTab.value = options.tab
   }

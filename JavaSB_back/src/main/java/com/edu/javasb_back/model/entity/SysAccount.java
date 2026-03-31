@@ -40,6 +40,12 @@ public class SysAccount {
     @Column(name = "role_id", nullable = false)
     private Integer roleId;
 
+    @Column(name = "is_vip")
+    private Integer isVip;
+
+    @Column(name = "is_svip")
+    private Integer isSvip;
+
     @Column(name = "online_status")
     private String onlineStatus = "offline"; // online, offline, banned
 
@@ -84,6 +90,12 @@ public class SysAccount {
 
     public Integer getRoleId() { return roleId; }
     public void setRoleId(Integer roleId) { this.roleId = roleId; }
+
+    public Integer getIsVip() { return isVip; }
+    public void setIsVip(Integer isVip) { this.isVip = isVip; }
+
+    public Integer getIsSvip() { return isSvip; }
+    public void setIsSvip(Integer isSvip) { this.isSvip = isSvip; }
 
     public String getOnlineStatus() { return onlineStatus; }
     public void setOnlineStatus(String onlineStatus) { this.onlineStatus = onlineStatus; }

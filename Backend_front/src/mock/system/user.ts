@@ -41,6 +41,8 @@ export const mockUserList = [
     userRoles: ['R_PARENT'],
     status: '1',
     userType: '3',
+    isVip: 1,
+    isSvip: 0,
     schoolName: '第一中学',
     gradeName: '高一年级',
     className: '1班',

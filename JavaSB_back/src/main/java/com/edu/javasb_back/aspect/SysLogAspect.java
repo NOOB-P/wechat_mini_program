@@ -82,16 +82,21 @@ public class SysLogAspect {
         // 从 SecurityContext 获取当前登录用户
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getPrincipal())) {
-            String username = authentication.getName();
-            Optional<SysAccount> accountOpt = sysAccountRepository.findByUsername(username);
-            if (accountOpt.isPresent()) {
-                SysAccount account = accountOpt.get();
-                sysLog.setUid(account.getUid());
-                sysLog.setUserName(account.getUsername());
-                sysLog.setNickName(account.getNickname());
-            } else {
-                sysLog.setUserName(username);
-                sysLog.setNickName("未知用户");
+            String uidStr = authentication.getName();
+            try {
+                Optional<SysAccount> accountOpt = sysAccountRepository.findById(Long.parseLong(uidStr));
+                if (accountOpt.isPresent()) {
+                    SysAccount account = accountOpt.get();
+                    sysLog.setUid(account.getUid());
+                    sysLog.setUserName(account.getUsername());
+                    sysLog.setNickName(account.getNickname());
+                } else {
+                    sysLog.setUserName(uidStr);
+                    sysLog.setNickName("未知用户");
+                }
+            } catch (NumberFormatException e) {
+                sysLog.setUserName(uidStr);
+                sysLog.setNickName("Token异常");
             }
         } else {
             // 未登录时的请求（如登录接口本身）

@@ -70,14 +70,22 @@
 import { ref, onMounted, computed } from 'vue'
 import { getCourseListApi } from '@/api/course'
 import { onShow } from '@dcloudio/uni-app'
+import { getUserInfoApi } from '@/api/mine'
 
 const courses = ref<any[]>([])
 const searchKeyword = ref('')
 const isSVIPUser = ref(false)
 
-const checkVipStatus = () => {
-  const token = uni.getStorageSync('token') || ''
-  isSVIPUser.value = token.includes('13688888888')
+const checkVipStatus = async () => {
+  try {
+    const res = await getUserInfoApi()
+    if (res.code === 200) {
+      isSVIPUser.value = res.data.isSvip === 1
+      uni.setStorageSync('userInfo', res.data)
+    }
+  } catch (error) {
+    console.error('获取VIP状态失败:', error)
+  }
 }
 
 onShow(() => {

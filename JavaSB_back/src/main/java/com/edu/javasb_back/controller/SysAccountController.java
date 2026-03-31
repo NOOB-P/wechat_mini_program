@@ -36,8 +36,12 @@ public class SysAccountController {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
             return null;
         }
-        String currentUsername = authentication.getName();
-        return sysAccountRepository.findByUsername(currentUsername).orElse(null);
+        String uidStr = authentication.getName();
+        try {
+            return sysAccountRepository.findById(Long.parseLong(uidStr)).orElse(null);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     // 辅助方法：检查当前用户是否为管理员
@@ -98,6 +102,8 @@ public class SysAccountController {
                 map.put("userPhone", account.getPhone());
                 map.put("email", account.getEmail());
                 map.put("userType", String.valueOf(account.getRoleId()));
+                map.put("isVip", account.getIsVip() != null ? account.getIsVip() : 0);
+                map.put("isSvip", account.getIsSvip() != null ? account.getIsSvip() : 0);
                 // 前端的 status 期望 1在线 2离线，我们做个简单的转换
                 map.put("status", "online".equals(account.getOnlineStatus()) ? "1" : "2");
                 map.put("createTime", account.getCreateTime() != null ? account.getCreateTime().toString() : "");

@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { getHomeStatsApi, getHomeBannersApi, getHomePublicCoursesApi, getRecommendCoursesApi } from '@/api/index'
+import { getUserInfoApi } from '@/api/mine'
 
 const toast = useToast()
 
@@ -19,19 +20,21 @@ const isSVIPUser = ref(false)
 
 const loadData = async () => {
   try {
-    const token = uni.getStorageSync('token') || ''
-    isSVIPUser.value = token.includes('13688888888')
-
-    const [statsRes, bannersRes, publicRes, coursesRes] = await Promise.all([
+    const [statsRes, bannersRes, publicRes, coursesRes, userRes] = await Promise.all([
       getHomeStatsApi(),
       getHomeBannersApi(),
       getHomePublicCoursesApi(),
-      getRecommendCoursesApi()
+      getRecommendCoursesApi(),
+      getUserInfoApi()
     ])
     if (statsRes.code === 200) stats.value = statsRes.data
     if (bannersRes.code === 200) banners.value = bannersRes.data
     if (publicRes.code === 200) publicCourses.value = publicRes.data
     if (coursesRes.code === 200) recommendCourses.value = coursesRes.data
+    if (userRes.code === 200) {
+      isSVIPUser.value = userRes.data.isSvip === 1
+      uni.setStorageSync('userInfo', userRes.data)
+    }
   } catch (error) {
     console.error('加载首页数据失败:', error)
   }

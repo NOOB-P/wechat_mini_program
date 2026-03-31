@@ -89,6 +89,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useToast } from 'wot-design-uni'
+import { createVipOrderApi, simulatePayCallbackApi } from '@/api/vip'
+import { getUserInfoApi } from '@/api/mine'
 
 const toast = useToast()
 const currentTab = ref('vip')
@@ -96,9 +98,11 @@ const selectedPlanIndex = ref(1) // 默认选中中间的套餐（季卡/半年�
 
 // 动态获取状态文本
 const getStatusText = () => {
-  const token = uni.getStorageSync('token') || ''
-  if (token.includes('13688888888')) return '您当前是 SVIP 用户'
-  if (token.includes('13588888888') || token.includes('13800000000')) return '您当前是 VIP 用户'
+  const userInfo = uni.getStorageSync('userInfo')
+  if (userInfo) {
+    if (userInfo.isSvip === 1) return '您当前是 SVIP 用户'
+    if (userInfo.isVip === 1) return '您当前是 VIP 用户'
+  }
   return '未开通会员'
 }
 
@@ -122,29 +126,63 @@ const currentPrivileges = computed(() => {
 
 // 模拟套餐数据
 const vipPlans = [
-  { duration: '连续包月', price: 19, originalPrice: 30, tag: '' },
-  { duration: '连续包季', price: 45, originalPrice: 90, tag: '推荐' },
-  { duration: '连续包年', price: 168, originalPrice: 360, tag: '省192' }
+  { duration: '月包', price: 19, originalPrice: 30, tag: '' },
+  { duration: '季包', price: 45, originalPrice: 90, tag: '推荐' },
+  { duration: '年包', price: 168, originalPrice: 360, tag: '省192' }
 ]
 
 const svipPlans = [
-  { duration: '连续包月', price: 49, originalPrice: 80, tag: '' },
-  { duration: '连续包季', price: 128, originalPrice: 240, tag: '推荐' },
-  { duration: '连续包年', price: 398, originalPrice: 960, tag: '省562' }
+  { duration: '月包', price: 49, originalPrice: 80, tag: '' },
+  { duration: '季包', price: 128, originalPrice: 240, tag: '推荐' },
+  { duration: '年包', price: 398, originalPrice: 960, tag: '省562' }
 ]
 
 const currentPlans = computed(() => {
   return currentTab.value === 'vip' ? vipPlans : svipPlans
 })
 
-const handlePay = () => {
-  toast.loading('正在调起支付...')
-  setTimeout(() => {
-    toast.success('开通成功！请重新登录以刷新权限')
-    setTimeout(() => {
-      uni.navigateBack()
-    }, 1500)
-  }, 1500)
+const handlePay = async () => {
+  const selectedPlan = currentPlans.value[selectedPlanIndex.value]
+  const packageType = currentTab.value === 'vip' ? 'VIP基础版' : 'SVIP专业版'
+  
+  toast.loading('正在创建订单...')
+  
+  try {
+    const res = await createVipOrderApi({
+      packageType,
+      period: selectedPlan.duration,
+      price: selectedPlan.price
+    })
+    
+    if (res.code === 200) {
+      const orderNo = res.data.orderNo
+      toast.loading('正在调起支付...')
+      
+      // 模拟支付过程
+      setTimeout(async () => {
+        const payRes = await simulatePayCallbackApi(orderNo)
+        if (payRes.code === 200) {
+          // 支付成功后刷新用户信息
+          const userRes = await getUserInfoApi()
+          if (userRes.code === 200) {
+            uni.setStorageSync('userInfo', userRes.data)
+          }
+          
+          toast.success('开通成功！')
+          setTimeout(() => {
+            uni.navigateBack()
+          }, 1500)
+        } else {
+          toast.error(payRes.msg || '支付处理失败')
+        }
+      }, 1500)
+    } else {
+      toast.error(res.msg || '创建订单失败')
+    }
+  } catch (error) {
+    console.error('支付失败:', error)
+    toast.error('网络错误，请稍后重试')
+  }
 }
 </script>
 

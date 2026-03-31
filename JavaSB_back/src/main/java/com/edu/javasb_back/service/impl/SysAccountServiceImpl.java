@@ -268,12 +268,12 @@ public class SysAccountServiceImpl implements SysAccountService {
     }
 
     @Override
-    public Result<Void> updatePassword(String username, String oldPassword, String newPassword) {
+    public Result<Void> updatePassword(Long uid, String oldPassword, String newPassword) {
         if (!StringUtils.hasText(oldPassword) || !StringUtils.hasText(newPassword)) {
             return Result.error("密码不能为空");
         }
 
-        Optional<SysAccount> accountOpt = accountRepository.findByUsername(username);
+        Optional<SysAccount> accountOpt = accountRepository.findById(uid);
         if (accountOpt.isEmpty()) {
             return Result.error("用户不存在");
         }
