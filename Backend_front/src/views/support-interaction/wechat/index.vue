@@ -1,92 +1,207 @@
 <template>
-  <div class="page-container p-5 flex justify-center">
-    <div class="art-card p-8 rounded-xl bg-white shadow-sm max-w-xl w-full">
-      <div class="flex justify-between items-center mb-8 border-b pb-4">
+  <div class="page-container p-5">
+    <div class="art-card p-6 rounded-xl bg-white shadow-sm">
+      <div class="flex justify-between items-center mb-6">
         <div>
-          <span class="font-bold text-xl text-g-800">微信群二维码配置</span>
-          <p class="text-xs text-g-400 mt-2">小程序端将动态拉取此二维码供用户扫码入群</p>
+          <span class="font-bold text-lg text-g-800">微信群二维码配置</span>
+          <p class="text-xs text-g-400 mt-1">小程序端将动态拉取已启用的二维码供用户扫码入群</p>
         </div>
-        <el-tag type="info" size="small">最后更新：{{ config.updateTime }}</el-tag>
+        <el-button type="primary" @click="handleAdd">
+          <template #icon><ArtSvgIcon icon="ri:add-line" /></template>
+          新增微信群
+        </el-button>
       </div>
 
-      <el-form :model="config" label-position="top">
-        <el-form-item label="群名称">
-          <el-input v-model="config.groupName" placeholder="请输入微信群名称" />
+      <el-table :data="configList" border v-loading="loading">
+        <el-table-column prop="groupName" label="微信群名称" min-width="150" />
+        <el-table-column label="二维码" width="120" align="center">
+          <template #default="{ row }">
+            <el-image
+              :src="row.qrCodePath"
+              class="w-12 h-12 rounded shadow-sm cursor-pointer"
+              fit="cover"
+              :preview-src-list="[row.qrCodePath]"
+              preview-teleported
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 1 ? 'success' : 'info'">
+              {{ row.status === 1 ? '启用' : '禁用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="updateTime" label="最后更新" width="180" align="center" />
+        <el-table-column label="操作" width="150" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
+            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+    <!-- 新增/编辑弹窗 -->
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? '编辑微信群' : '新增微信群'"
+      width="500px"
+    >
+      <el-form :model="form" label-width="80px" :rules="rules" ref="formRef">
+        <el-form-item label="群名称" prop="groupName">
+          <el-input v-model="form.groupName" placeholder="请输入微信群名称" />
         </el-form-item>
 
-        <el-form-item label="二维码图片">
-          <div class="flex flex-col items-center p-6 border-2 border-dashed border-g-200 rounded-xl bg-g-50">
+        <el-form-item label="二维码" prop="qrCodePath">
+          <div class="flex flex-col items-center w-full p-4 border-2 border-dashed border-g-200 rounded-lg bg-g-50">
             <el-image
-              v-if="config.qrCodeUrl"
-              :src="config.qrCodeUrl"
-              class="w-48 h-48 rounded shadow-md mb-4"
+              v-if="form.qrCodePath"
+              :src="form.qrCodePath"
+              class="w-32 h-32 rounded shadow-sm mb-3"
               fit="contain"
             />
             <el-upload
               class="upload-demo"
-              action="#"
-              :auto-upload="false"
+              action="/api/customer/wechat/upload"
+              name="file"
+              :headers="uploadHeaders"
               :show-file-list="false"
-              :on-change="handleUpload"
+              :on-success="handleUploadSuccess"
+              :before-upload="beforeUpload"
             >
               <el-button type="primary" plain size="small">
                 <template #icon><ArtSvgIcon icon="ri:image-edit-line" /></template>
-                {{ config.qrCodeUrl ? '更换二维码' : '上传二维码' }}
+                {{ form.qrCodePath ? '更换二维码' : '上传二维码' }}
               </el-button>
             </el-upload>
-            <p class="text-xs text-g-400 mt-3">建议尺寸 500x500px，支持 JPG、PNG 格式</p>
+            <p class="text-[10px] text-g-400 mt-2 text-center">建议 500x500px，支持 JPG、PNG</p>
           </div>
         </el-form-item>
 
-        <div class="flex justify-center mt-10">
-          <el-button type="primary" size="large" class="!px-12" @click="handleSave" :loading="saving">
-            保存配置
-          </el-button>
-        </div>
+        <el-form-item label="状态">
+          <el-switch
+            v-model="form.status"
+            :active-value="1"
+            :inactive-value="0"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+        </el-form-item>
       </el-form>
-    </div>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submit" :loading="saving">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { fetchGetWechatConfig, fetchUpdateWechatConfig } from '@/api/support-interaction/index'
-import { ElMessage } from 'element-plus'
+import { ref, onMounted, computed } from 'vue'
+import { fetchGetWechatConfigList, fetchAddWechatConfig, fetchUpdateWechatConfig, fetchDeleteWechatConfig } from '@/api/support-interaction/index'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useUserStore } from '@/store/modules/user'
 
 defineOptions({ name: 'WechatConfig' })
 
+const userStore = useUserStore()
+const loading = ref(false)
 const saving = ref(false)
-const config = ref({
+const dialogVisible = ref(false)
+const isEdit = ref(false)
+const formRef = ref()
+const configList = ref([])
+
+const form = ref({
+  id: undefined,
   groupName: '',
-  qrCodeUrl: '',
-  updateTime: ''
+  qrCodePath: '',
+  status: 1
 })
 
+const rules = {
+  groupName: [{ required: true, message: '请输入群名称', trigger: 'blur' }],
+  qrCodePath: [{ required: true, message: '请上传二维码图片', trigger: 'change' }]
+}
+
+const uploadHeaders = computed(() => ({
+  Authorization: `Bearer ${userStore.accessToken}`
+}))
+
 const loadData = async () => {
-  const res = await fetchGetWechatConfig()
+  loading.value = true
+  try {
+    const res = await fetchGetWechatConfigList()
+    if (res && Array.isArray(res)) {
+      configList.value = res
+    }
+  } catch (error) {
+    console.error(error)
+  }
+  loading.value = false
+}
+
+const handleAdd = () => {
+  isEdit.value = false
+  form.value = { id: undefined, groupName: '', qrCodePath: '', status: 1 }
+  dialogVisible.value = true
+}
+
+const handleEdit = (row: any) => {
+  isEdit.value = true
+  form.value = { ...row }
+  dialogVisible.value = true
+}
+
+const handleDelete = (row: any) => {
+  ElMessageBox.confirm(`确定要删除微信群 "${row.groupName}" 吗?`, '提示', {
+    type: 'warning'
+  }).then(async () => {
+    try {
+      await fetchDeleteWechatConfig(row.id)
+      ElMessage.success('删除成功')
+      loadData()
+    } catch (error) {}
+  }).catch(() => {})
+}
+
+const beforeUpload = (file: any) => {
+  const isImage = file.type === 'image/jpeg' || file.type === 'image/png'
+  const isLt2M = file.size / 1024 / 1024 < 2
+
+  if (!isImage) {
+    ElMessage.error('上传图片只能是 JPG 或 PNG 格式!')
+  }
+  if (!isLt2M) {
+    ElMessage.error('上传图片大小不能超过 2MB!')
+  }
+  return isImage && isLt2M
+}
+
+const handleUploadSuccess = (res: any) => {
   if (res.code === 200) {
-    config.value = res.data
+    form.value.qrCodePath = res.data
+    ElMessage.success('二维码上传成功')
+  } else {
+    ElMessage.error(res.msg || '上传失败')
   }
 }
 
-const handleUpload = (file: any) => {
-  // 模拟图片上传
-  const reader = new FileReader()
-  reader.readAsDataURL(file.raw)
-  reader.onload = () => {
-    config.value.qrCodeUrl = reader.result as string
-    ElMessage.success('二维码预览已更新，请点击保存')
-  }
-}
-
-const handleSave = async () => {
-  saving.value = true
-  const res = await fetchUpdateWechatConfig(config.value)
-  if (res.code === 200) {
-    ElMessage.success('保存配置成功')
-    loadData()
-  }
-  saving.value = false
+const submit = async () => {
+  await formRef.value.validate(async (valid: boolean) => {
+    if (valid) {
+      saving.value = true
+      try {
+        const api = isEdit.value ? fetchUpdateWechatConfig : fetchAddWechatConfig
+        await api(form.value)
+        ElMessage.success(isEdit.value ? '更新成功' : '添加成功')
+        dialogVisible.value = false
+        loadData()
+      } catch (error) {}
+      saving.value = false
+    }
+  })
 }
 
 onMounted(() => {
@@ -96,7 +211,6 @@ onMounted(() => {
 
 <style scoped>
 .page-container {
-  min-height: calc(100vh - 120px);
   background-color: #f8fafc;
 }
 </style>
