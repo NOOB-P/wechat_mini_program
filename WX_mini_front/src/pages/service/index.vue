@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { getFaqCategoryApi, getFaqListApi } from '@/api/service'
 
 const searchValue = ref('')
-const currentTab = ref<number | null>(null) // 初始化为 null，避免与默认值 1 冲突
+const currentTab = ref<string | null>(null) // 改为 string，存储分类名称
 const categories = ref<any[]>([])
 const faqs = ref<any[]>([])
 const activeFaq = ref<number[]>([])
@@ -16,11 +16,12 @@ const loadFaqData = async () => {
   isLoading.value = true
   try {
     const res = await getFaqListApi({
-      categoryId: currentTab.value,
+      categoryName: currentTab.value === '全部' ? undefined : currentTab.value,
       keyword: searchValue.value
     })
     if (res.code === 200) {
-      faqs.value = res.data
+      // 后端返回的是分页对象，records 是列表
+      faqs.value = res.data.records || []
       activeFaq.value = [] 
     }
   } catch (error) {
@@ -34,10 +35,13 @@ const loadFaqData = async () => {
 const getCategories = async () => {
   try {
     const res = await getFaqCategoryApi()
-    if (res.code === 200 && res.data.length > 0) {
-      categories.value = res.data
+    if (res.code === 200) {
+      // 组装“全部”分类和后端返回的分类
+      const catList = ['全部', ...(res.data || [])]
+      categories.value = catList.map(name => ({ id: name, name }))
+      
       // 设置初始 Tab 并手动触发第一次加载
-      currentTab.value = res.data[0].id
+      currentTab.value = '全部'
       loadFaqData()
     }
   } catch (error) {

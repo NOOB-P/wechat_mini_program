@@ -451,45 +451,6 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   },
-  '/service/faq/categories': () => {
-    return {
-      code: 200,
-      msg: '获取 FAQ 分类成功 (Mock)',
-      data: [
-        { id: 1, name: '全部' },
-        { id: 2, name: '注册绑定' },
-        { id: 3, name: '成绩查询' },
-        { id: 4, name: 'VIP 服务' },
-        { id: 5, name: '课程报名' }
-      ]
-    };
-  },
-  '/service/faq/list': (data) => {
-    const { categoryId, keyword } = data || {};
-    let faqs = [
-      { id: 1, categoryId: 2, question: '如何绑定学生账号？', answer: '请在“我的”页面点击“绑定学生”，输入学生姓名、学号以及初始密码，验证通过后即可完成绑定。' },
-      { id: 2, categoryId: 2, question: '收不到验证码怎么办？', answer: '请检查手机号是否填写正确，或者是否被手机安全软件拦截。若多次尝试未果，请点击“在线客服”寻求人工帮助。' },
-      { id: 3, categoryId: 3, question: '为什么看不到最新考试成绩？', answer: '成绩通常在老师完成阅卷并在系统录入后24小时内同步。如长时间未更新，请联系班主任确认。' },
-      { id: 4, categoryId: 3, question: '成绩分析报告包含哪些内容？', answer: '成绩分析报告包括成绩构成分析、班级排名分布、历史趋势以及基于错题的学习习惯建议等。' },
-      { id: 5, categoryId: 4, question: 'VIP和SVIP有什么区别？', answer: 'VIP可查看详细成绩分析与基础错题本；SVIP享有额外特权，包括AI专属课程、智能自习室以及个性化学习计划生成。' },
-      { id: 6, categoryId: 4, question: '如何开通或续费VIP服务？', answer: '请在首页点击“开通VIP”或进入“我的”页面选择“VIP充值”，支持微信支付进行在线订阅。' },
-      { id: 7, categoryId: 5, question: '课程报名后可以退款吗？', answer: '未开始学习的课程可在开课前48小时内申请全额退款，详情请参考《课程服务协议》。' }
-    ];
-
-    if (categoryId && categoryId !== 1) {
-      faqs = faqs.filter(f => f.categoryId === categoryId);
-    }
-    
-    if (keyword) {
-      faqs = faqs.filter(f => f.question.includes(keyword) || f.answer.includes(keyword));
-    }
-
-    return {
-      code: 200,
-      msg: '获取 FAQ 列表成功 (Mock)',
-      data: faqs
-    };
-  },
   '/resource/student-talk/list': () => ({
     code: 200,
     msg: 'success',

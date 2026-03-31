@@ -15,6 +15,9 @@ public class SysFaq {
     @Column(length = 50)
     private String id;
 
+    @Column(name = "category_name")
+    private String categoryName = "其他";
+
     @Column(name = "category_id")
     private Integer categoryId = 1;
 
@@ -37,6 +40,9 @@ public class SysFaq {
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+
+    public String getCategoryName() { return categoryName; }
+    public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
 
     public Integer getCategoryId() { return categoryId; }
     public void setCategoryId(Integer categoryId) { this.categoryId = categoryId; }

@@ -54,10 +54,11 @@ public class SysFaqController {
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String question,
+            @RequestParam(required = false) String categoryName,
             @RequestParam(required = false) Integer status) {
 
         Pageable pageable = PageRequest.of(current - 1, size, Sort.by(Sort.Direction.DESC, "createTime"));
-        Page<SysFaq> pageData = sysFaqRepository.findFaqs(question, status, pageable);
+        Page<SysFaq> pageData = sysFaqRepository.findFaqs(question, categoryName, status, pageable);
 
         Map<String, Object> resultData = new HashMap<>();
         resultData.put("records", pageData.getContent());
@@ -66,6 +67,12 @@ public class SysFaqController {
         resultData.put("size", size);
 
         return Result.success("获取成功", resultData);
+    }
+
+    @LogOperation("获取FAQ分类")
+    @GetMapping("/categories")
+    public Result<java.util.List<String>> getCategories() {
+        return Result.success("获取成功", sysFaqRepository.findDistinctCategoryNames());
     }
 
     /**
@@ -113,6 +120,9 @@ public class SysFaqController {
         }
         if (updateData.getAnswer() != null && !updateData.getAnswer().isEmpty()) {
             faq.setAnswer(updateData.getAnswer());
+        }
+        if (updateData.getCategoryName() != null && !updateData.getCategoryName().isEmpty()) {
+            faq.setCategoryName(updateData.getCategoryName());
         }
         if (updateData.getStatus() != null) {
             faq.setStatus(updateData.getStatus());
