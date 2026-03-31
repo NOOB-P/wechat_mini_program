@@ -219,6 +219,9 @@ public class SysAccountServiceImpl implements SysAccountService {
         String token = "Bearer " + jwtUtils.generateToken(account.getUid(), account.getUsername(), account.getRoleId());
         String refreshToken = jwtUtils.generateRefreshToken(account.getUid(), account.getUsername());
 
+        // 因为使用了 @JsonIgnore 注解，JackSon 在序列化的时候会自动忽略 password 字段。
+        // 我们不需要，也不能在此时通过 account.setPassword(null) 去清空它，
+        // 否则如果在 Open-In-View 模式下或者事务内，JPA 会在请求结束时自动将 null 更新到数据库！
         LoginVO loginVO = new LoginVO(token, refreshToken, account);
         return Result.success("登录成功", loginVO);
     }
@@ -262,5 +265,44 @@ public class SysAccountServiceImpl implements SysAccountService {
         
         accountRepository.save(account);
         return Result.success("修改成功", null);
+    }
+
+    @Override
+    public Result<Void> updatePassword(String username, String oldPassword, String newPassword) {
+        if (!StringUtils.hasText(oldPassword) || !StringUtils.hasText(newPassword)) {
+            return Result.error("密码不能为空");
+        }
+
+        Optional<SysAccount> accountOpt = accountRepository.findByUsername(username);
+        if (accountOpt.isEmpty()) {
+            return Result.error("用户不存在");
+        }
+
+        SysAccount account = accountOpt.get();
+
+        // 验证旧密码
+        boolean isMatch = false;
+        if (account.getPassword() != null) {
+            if (oldPassword.equals(account.getPassword())) {
+                isMatch = true;
+            } else if (passwordEncoder.matches(oldPassword, account.getPassword())) {
+                isMatch = true;
+            }
+        } else {
+            // 兼容之前可能被置空的密码，如果旧密码输入 123456 则放行
+            if ("123456".equals(oldPassword)) {
+                isMatch = true;
+            }
+        }
+
+        if (!isMatch) {
+            return Result.error("当前密码不正确");
+        }
+
+        // 设置新密码
+        account.setPassword(passwordEncoder.encode(newPassword));
+        accountRepository.save(account);
+
+        return Result.success("密码修改成功", null);
     }
 }

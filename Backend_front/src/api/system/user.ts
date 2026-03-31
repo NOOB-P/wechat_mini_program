@@ -1,59 +1,47 @@
+import api from '@/utils/http'
 import { mockUserList } from '@/mock/system/user'
 
 /** 获取用户列表 */
 export function fetchGetUserList(params: Api.SystemManage.UserSearchParams) {
-  const { current = 1, size = 10, userName, userPhone, userEmail, status, userType, schoolName, className } = params
-  
-  // 模拟搜索过滤
-  let filteredList = [...mockUserList]
-  if (userName) filteredList = filteredList.filter(item => item.userName.includes(userName))
-  if (userPhone) filteredList = filteredList.filter(item => item.userPhone.includes(userPhone))
-  if (userEmail) filteredList = filteredList.filter(item => item.userEmail.includes(userEmail))
-  if (status) filteredList = filteredList.filter(item => item.status === status)
-  if (userType) filteredList = filteredList.filter(item => item.userType === userType)
-  if (schoolName) filteredList = filteredList.filter(item => item.schoolName === schoolName)
-  if (className) filteredList = filteredList.filter(item => item.className === className)
+  // 对接真实后端接口
+  return api.get<any>({
+    url: '/api/system/user/list',
+    params
+  })
+}
 
-  const total = filteredList.length
-  const start = (current - 1) * size
-  const end = start + size
-  const records = filteredList.slice(start, end)
-
-  return Promise.resolve({
-    code: 200,
-    msg: '获取成功',
+/** 添加用户 */
+export function fetchAddUser(data: any) {
+  return api.post<any>({
+    url: '/api/system/user/add',
     data: {
-      records,
-      total,
-      current,
-      size
+      username: data.userName,
+      nickname: data.nickName,
+      phone: data.userPhone,
+      email: data.email,
+      roleId: data.userType,
+      password: data.password
     }
   })
 }
 
-/** 新增用户 */
-export function fetchAddUser(params: Partial<Api.SystemManage.UserListItem>) {
-  return Promise.resolve({
-    code: 200,
-    msg: '添加成功',
-    data: null
-  })
-}
-
-/** 更新用户 */
-export function fetchUpdateUser(params: Partial<Api.SystemManage.UserListItem>) {
-  return Promise.resolve({
-    code: 200,
-    msg: '更新成功',
-    data: null
+/** 编辑用户 */
+export function fetchEditUser(id: number, data: any) {
+  return api.put<any>({
+    url: `/api/system/user/edit/${id}`,
+    data: {
+      nickname: data.nickName,
+      phone: data.userPhone,
+      email: data.email,
+      roleId: data.userType,
+      password: data.password
+    }
   })
 }
 
 /** 删除用户 */
 export function fetchDeleteUser(id: number) {
-  return Promise.resolve({
-    code: 200,
-    msg: '删除成功',
-    data: null
+  return api.del<any>({
+    url: `/api/system/user/delete/${id}`
   })
 }

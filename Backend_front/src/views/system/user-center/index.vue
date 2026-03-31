@@ -132,12 +132,14 @@
 <script setup lang="ts">
   import { useUserStore } from '@/store/modules/user'
   import type { FormInstance, FormRules } from 'element-plus'
-  import { ElMessage } from 'element-plus'
-  import { fetchUpdateBasicInfo } from '@/api/auth/login'
+  import { ElMessage, ElMessageBox } from 'element-plus'
+  import { fetchUpdateBasicInfo, fetchUpdatePassword } from '@/api/auth/login'
+  import { useRouter } from 'vue-router'
 
   defineOptions({ name: 'UserCenter' })
 
   const userStore = useUserStore()
+  const router = useRouter()
   const userInfo = computed(() => userStore.getUserInfo)
 
   const isEdit = ref(false)
@@ -177,8 +179,8 @@
   const form = reactive({
     userName: userInfo.value.userName || '',
     nickName: (userInfo.value as any).nickname || userInfo.value.nickName || '',
+    userPhone: userInfo.value.phone || userInfo.value.userPhone || '', // 确保从 phone 字段读取
     email: userInfo.value.email || '',
-    userPhone: (userInfo.value as any).phone || userInfo.value.userPhone || '',
     schoolName: userInfo.value.schoolName || ''
   })
 
@@ -306,24 +308,25 @@
       await pwdFormRef.value.validate(async (valid) => {
         if (valid) {
           try {
-            // 模拟调用修改密码 API
-            // const res = await fetchUpdatePassword(pwdForm)
-            // if (res.code === 200) {
-            //   ElMessage.success('密码修改成功')
-            //   isEditPwd.value = false
-            //   // 清空表单
-            //   pwdForm.password = ''
-            //   pwdForm.newPassword = ''
-            //   pwdForm.confirmPassword = ''
-            // }
+            // 调用真实修改密码 API
+            await fetchUpdatePassword({
+              oldPassword: pwdForm.password,
+              newPassword: pwdForm.newPassword
+            })
 
-            ElMessage.success('密码修改成功')
+            ElMessage.success('密码修改成功，请重新登录')
             isEditPwd.value = false
             pwdForm.password = ''
             pwdForm.newPassword = ''
             pwdForm.confirmPassword = ''
-          } catch (error) {
-            ElMessage.error('密码修改失败')
+            
+            // 修改成功后跳转到登录页
+            setTimeout(() => {
+              userStore.logout()
+              router.push('/login')
+            }, 1500)
+          } catch (error: any) {
+            ElMessage.error(error.message || '密码修改失败')
           }
         }
       })

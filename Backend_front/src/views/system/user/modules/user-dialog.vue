@@ -7,17 +7,28 @@
   >
     <ElForm ref="formRef" :model="formData" :rules="rules" label-width="100px">
       <ElFormItem label="用户名" prop="userName">
-        <ElInput v-model="formData.userName" placeholder="请输入用户名" />
+        <ElInput v-model="formData.userName" placeholder="请输入登录账号" :disabled="dialogType === 'edit'" />
+      </ElFormItem>
+      <ElFormItem label="姓名/昵称" prop="nickName">
+        <ElInput v-model="formData.nickName" placeholder="请输入姓名或昵称" />
+      </ElFormItem>
+      <ElFormItem v-if="dialogType === 'add'" label="密码" prop="password">
+        <ElInput v-model="formData.password" placeholder="请输入密码(默认123456)" type="password" show-password />
+      </ElFormItem>
+      <ElFormItem v-else label="重置密码" prop="password">
+        <ElInput v-model="formData.password" placeholder="不填则不修改" type="password" show-password />
       </ElFormItem>
       <ElFormItem label="手机号" prop="userPhone">
         <ElInput v-model="formData.userPhone" placeholder="请输入手机号" />
       </ElFormItem>
-      <ElFormItem label="用户类型" prop="userType">
-        <ElSelect v-model="formData.userType" placeholder="请选择用户类型" class="w-full">
-          <ElOption label="管理员" value="1" />
-          <ElOption label="学校" value="2" />
-          <ElOption label="家长" value="3" />
-          <ElOption label="学生" value="4" />
+      <ElFormItem label="角色类型" prop="userType">
+        <ElSelect v-model="formData.userType" placeholder="请选择角色类型" class="w-full">
+          <ElOption
+            v-for="role in roleList"
+            :key="role.id"
+            :label="role.roleName"
+            :value="String(role.id)"
+          />
         </ElSelect>
       </ElFormItem>
 
@@ -72,7 +83,9 @@
 
 <script setup lang="ts">
   import type { FormInstance, FormRules } from 'element-plus'
-  import { fetchAddUser, fetchUpdateUser } from '@/api/system/user'
+  import { fetchAddUser, fetchEditUser } from '@/api/system/user'
+  import { fetchGetRoleList } from '@/api/system/role'
+  import { onMounted, ref } from 'vue'
 
   interface Props {
     visible: boolean
@@ -89,6 +102,24 @@
   const emit = defineEmits<Emits>()
 
   const submitLoading = ref(false)
+  
+  // 角色列表
+  const roleList = ref<any[]>([])
+
+  const getRoles = async () => {
+    try {
+      const res = await fetchGetRoleList({ current: 1, size: 100 })
+      if (res && res.records) {
+        roleList.value = res.records
+      }
+    } catch (error) {
+      console.error('获取角色列表失败', error)
+    }
+  }
+
+  onMounted(() => {
+    getRoles()
+  })
 
   // 对话框显示控制
   const dialogVisible = computed({
@@ -102,9 +133,11 @@
   const formRef = ref<FormInstance>()
 
   // 表单数据
-  const formData = reactive<Partial<Api.SystemManage.UserListItem>>({
+  const formData = reactive<any>({
     id: undefined,
     userName: '',
+    nickName: '',
+    password: '',
     userPhone: '',
     userType: '1',
     status: '1',
@@ -121,8 +154,11 @@
       { required: true, message: '请输入用户名', trigger: 'blur' },
       { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
     ],
+    nickName: [
+      { required: true, message: '请输入昵称', trigger: 'blur' }
+    ],
     userPhone: [
-      { required: true, message: '请输入手机号', trigger: 'blur' },
+      { required: false, message: '请输入手机号', trigger: 'blur' },
       { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
     ],
     userType: [{ required: true, message: '请选择用户类型', trigger: 'change' }]
@@ -140,6 +176,8 @@
       Object.assign(formData, {
         id: row.id,
         userName: row.userName || '',
+        nickName: row.nickName || '',
+        password: '', // 编辑时不返回密码，重置为空
         userPhone: row.userPhone || '',
         userType: row.userType || '1',
         status: row.status || '1',
@@ -153,6 +191,8 @@
       Object.assign(formData, {
         id: undefined,
         userName: '',
+        nickName: '',
+        password: '',
         userPhone: '',
         userType: '1',
         status: '1',
@@ -193,13 +233,17 @@
       if (valid) {
         submitLoading.value = true
         try {
-          const api = dialogType.value === 'add' ? fetchAddUser : fetchUpdateUser
-          const res = await api(formData)
-          if (res.code === 200) {
-            ElMessage.success(dialogType.value === 'add' ? '添加成功' : '更新成功')
-            dialogVisible.value = false
-            emit('submit')
+          if (dialogType.value === 'add') {
+            await fetchAddUser(formData)
+            ElMessage.success('添加成功')
+          } else {
+            await fetchEditUser(formData.id, formData)
+            ElMessage.success('更新成功')
           }
+          dialogVisible.value = false
+          emit('submit')
+        } catch (error: any) {
+          // ElMessage.error(error.message || '操作失败')
         } finally {
           submitLoading.value = false
         }

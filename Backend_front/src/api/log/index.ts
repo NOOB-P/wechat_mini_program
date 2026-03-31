@@ -17,11 +17,9 @@ export async function fetchLogList(params?: any) {
  * @param ids 日志 ID 列表
  */
 export async function deleteLogs(ids: number[]) {
-  // TODO: 后续可以接入真实的删除接口
-  return Promise.resolve({
-    code: 200,
-    msg: '删除成功',
-    data: null
+  return api.del<any>({
+    url: '/api/log/batch',
+    data: ids
   })
 }
 

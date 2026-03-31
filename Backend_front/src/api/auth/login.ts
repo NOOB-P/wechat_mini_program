@@ -26,14 +26,25 @@ export async function fetchUpdateBasicInfo(uid: number, data: { nickname: string
     data
   })
 }
+
+/**
+ * 修改密码
+ */
+export async function fetchUpdatePassword(data: { oldPassword: string; newPassword: string }) {
+  return api.put<any>({
+    url: '/api/auth/password',
+    data
+  })
+}
+
 export async function fetchGetUserInfo() {
   // 从真实后端获取当前登录用户信息
-  const res = await api.get<any>({
+  // 拦截器返回的直接是 res.data.data 的值，所以不需要再判断 res.code
+  const userInfo = await api.get<any>({
     url: '/api/auth/info'
   })
   
-  if (res.code === 200 && res.data) {
-    const userInfo = res.data
+  if (userInfo) {
     // 为了兼容前端已有的 mock 数据结构，我们将获取到的信息与 mock 数据合并
     // 主要是为了保留 mock 里的 roles, permissions, menus 等前端路由必须的数据
     const mergedUserInfo = {

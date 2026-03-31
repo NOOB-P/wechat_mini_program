@@ -107,7 +107,7 @@
       excludeParams: ['daterange'],
       columnsFactory: () => [
         {
-          prop: 'roleId',
+          prop: 'id',
           label: '角色ID',
           width: 100
         },
@@ -128,11 +128,11 @@
           showOverflowTooltip: true
         },
         {
-          prop: 'enabled',
+          prop: 'status',
           label: '角色状态',
           width: 100,
           formatter: (row) => {
-            const statusConfig = row.enabled
+            const statusConfig = row.status === 1
               ? { type: 'success', text: '启用' }
               : { type: 'warning', text: '禁用' }
             return h(

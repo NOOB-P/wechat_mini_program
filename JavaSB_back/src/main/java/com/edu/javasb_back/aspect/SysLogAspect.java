@@ -1,7 +1,9 @@
 package com.edu.javasb_back.aspect;
 
 import com.edu.javasb_back.annotation.LogOperation;
+import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.SysLog;
+import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysLogRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -10,11 +12,14 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
+import java.util.Optional;
 
 @Aspect
 @Component
@@ -22,6 +27,9 @@ public class SysLogAspect {
 
     @Autowired
     private SysLogRepository sysLogRepository;
+
+    @Autowired
+    private SysAccountRepository sysAccountRepository;
 
     // 定义切点，拦截 Controller 下的所有方法
     @Pointcut("execution(* com.edu.javasb_back.controller..*.*(..))")
@@ -71,12 +79,25 @@ public class SysLogAspect {
 
         sysLog.setStatus(status);
 
-        // TODO: 从 SecurityContext 或 Token 获取当前登录用户，暂时使用模拟数据或 null
-        // 例如：sysLog.setUid(currentUser.getUid());
-        // sysLog.setUserName(currentUser.getUsername());
-        // sysLog.setNickName(currentUser.getNickname());
-        sysLog.setUserName("系统记录"); 
-        sysLog.setNickName("未知用户");
+        // 从 SecurityContext 获取当前登录用户
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getPrincipal())) {
+            String username = authentication.getName();
+            Optional<SysAccount> accountOpt = sysAccountRepository.findByUsername(username);
+            if (accountOpt.isPresent()) {
+                SysAccount account = accountOpt.get();
+                sysLog.setUid(account.getUid());
+                sysLog.setUserName(account.getUsername());
+                sysLog.setNickName(account.getNickname());
+            } else {
+                sysLog.setUserName(username);
+                sysLog.setNickName("未知用户");
+            }
+        } else {
+            // 未登录时的请求（如登录接口本身）
+            sysLog.setUserName("系统记录");
+            sysLog.setNickName("未登录/游客");
+        }
 
         // 设置一个默认地址
         sysLog.setLocation("未知");

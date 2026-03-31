@@ -91,9 +91,13 @@ const rules = {
 
 const loadData = async () => {
   loading.value = true
-  const res = await fetchGetFaqList({})
-  if (res.code === 200) {
-    tableData.value = res.data.list
+  try {
+    const res = await fetchGetFaqList({ current: 1, size: 50 })
+    if (res && res.records) {
+      tableData.value = res.records
+    }
+  } catch (error) {
+    console.error(error)
   }
   loading.value = false
 }
@@ -114,24 +118,24 @@ const handleDelete = (row: any) => {
   ElMessageBox.confirm('确定要删除该 FAQ 吗?', '提示', {
     type: 'warning'
   }).then(async () => {
-    const res = await fetchDeleteFaq(row.id)
-    if (res.code === 200) {
+    try {
+      await fetchDeleteFaq(row.id)
       ElMessage.success('删除成功')
       loadData()
-    }
-  })
+    } catch (error) {}
+  }).catch(() => {})
 }
 
 const submit = async () => {
   await formRef.value.validate(async (valid: boolean) => {
     if (valid) {
-      const api = isEdit.value ? fetchUpdateFaq : fetchAddFaq
-      const res = await api(form.value)
-      if (res.code === 200) {
+      try {
+        const api = isEdit.value ? fetchUpdateFaq : fetchAddFaq
+        await api(form.value)
         ElMessage.success(isEdit.value ? '更新成功' : '添加成功')
         dialogVisible.value = false
         loadData()
-      }
+      } catch (error) {}
     }
   })
 }

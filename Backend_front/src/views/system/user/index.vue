@@ -50,6 +50,8 @@
   import UserDialog from './modules/user-dialog.vue'
   import { ElTag, ElMessageBox, ElImage } from 'element-plus'
   import { DialogType } from '@/types'
+  import { fetchGetRoleList } from '@/api/system/role'
+  import { onMounted } from 'vue'
 
   defineOptions({ name: 'User' })
 
@@ -59,6 +61,27 @@
   const dialogType = ref<DialogType>('add')
   const dialogVisible = ref(false)
   const currentUserData = ref<Partial<UserListItem>>({})
+
+  // 角色列表缓存，用于表格渲染
+  const roleMap = ref<Record<string, string>>({})
+  const getRoleMap = async () => {
+    try {
+      const res = await fetchGetRoleList({ current: 1, size: 100 })
+      if (res && res.records) {
+        const map: Record<string, string> = {}
+        res.records.forEach((r: any) => {
+          map[String(r.id)] = r.roleName
+        })
+        roleMap.value = map
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  onMounted(() => {
+    getRoleMap()
+  })
 
   // 选中行
   const selectedRows = ref<UserListItem[]>([])
@@ -143,15 +166,17 @@
         },
         {
           prop: 'userType',
-          label: '用户类型',
+          label: '角色类型',
           width: 100,
           formatter: (row) => {
-            const types = { '1': '管理员', '2': '学校', '3': '家长', '4': '学生' }
-            const colors = { '1': 'danger', '2': 'primary', '3': 'success', '4': 'warning' }
+            // 根据接口返回的角色字典进行映射
+            const roleName = roleMap.value[row.userType] || '未知角色'
+            // 根据角色类型简单分配颜色（这里依然按 ID 粗略分配）
+            const colors: Record<string, string> = { '1': 'danger', '2': 'primary', '3': 'success', '4': 'warning' }
             return h(
               ElTag,
-              { type: colors[row.userType as keyof typeof colors] as any },
-              () => types[row.userType as keyof typeof types]
+              { type: (colors[row.userType] || 'info') as any },
+              () => roleName
             )
           }
         },
@@ -161,8 +186,11 @@
           minWidth: 250,
           formatter: (row) => {
             const info = []
-            if (row.userType === '2') {
-              // 学校用户
+            if (row.userType === '1' || row.userType === '2') {
+              // 管理员和后台管理不需要绑定
+              info.push(h('p', '-'))
+            } else if (row.userType === '5') {
+              // 假设 5 是学校用户（目前代码中并未定义5，保留以前逻辑兼容）
               info.push(h('p', `绑定学校: ${row.schoolName || '未绑定'}`))
             } else if (row.userType === '3') {
               // 家长用户
@@ -280,12 +308,14 @@
       cancelButtonText: '取消',
       type: 'error'
     }).then(async () => {
-      const res = await fetchDeleteUser(row.id)
-      if (res.code === 200) {
+      try {
+        await fetchDeleteUser(row.id as number)
         ElMessage.success('删除成功')
         refreshData()
+      } catch (error) {
+        // ...
       }
-    })
+    }).catch(() => {})
   }
 
   /**
@@ -295,6 +325,7 @@
     try {
       dialogVisible.value = false
       currentUserData.value = {}
+      refreshData()
     } catch (error) {
       console.error('提交失败:', error)
     }
