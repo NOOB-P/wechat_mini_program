@@ -7,7 +7,7 @@
           <template #header>
             <div class="flex justify-between items-center">
               <span class="font-bold">学校架构管理</span>
-              <el-button type="primary" @click="handleAddNode('school')">新增学校</el-button>
+              <el-button type="primary" @click="handleAddSchool">添加学校</el-button>
             </div>
           </template>
           <el-tree
@@ -21,7 +21,19 @@
               <span class="custom-tree-node">
                 <div class="node-label">
                   <el-tag 
-                    v-if="data.type === 'school'" 
+                    v-if="data.type === 'province'" 
+                    size="small" 
+                    type="danger" 
+                    class="mr-2"
+                  >省份</el-tag>
+                  <el-tag 
+                    v-else-if="data.type === 'city'" 
+                    size="small" 
+                    type="info" 
+                    class="mr-2"
+                  >城市</el-tag>
+                  <el-tag 
+                    v-else-if="data.type === 'school'" 
                     size="small" 
                     type="primary" 
                     class="mr-2"
@@ -41,23 +53,6 @@
                   <span>{{ node.label }}</span>
                 </div>
                 <div class="node-actions">
-                  <!-- 只有学校可以新增年级 -->
-                  <el-button 
-                    v-if="data.type === 'school'" 
-                    type="primary" 
-                    link 
-                    size="small" 
-                    @click.stop="handleAddNode('grade', data)"
-                  >新增年级</el-button>
-                  <!-- 只有年级可以新增班级 -->
-                  <el-button 
-                    v-if="data.type === 'grade'" 
-                    type="primary" 
-                    link 
-                    size="small" 
-                    @click.stop="handleAddNode('class', data)"
-                  >新增班级</el-button>
-                  
                   <el-button type="primary" link size="small" @click.stop="handleEditNode(data)">编辑</el-button>
                   <el-button type="danger" link size="small" @click.stop="handleDeleteNode(data)">删除</el-button>
                 </div>
@@ -123,11 +118,14 @@
       width="450px"
     >
       <el-form :model="form" label-width="80px" ref="formRef" :rules="rules">
-        <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" :placeholder="`请输入${typeName}名称`" />
+        <el-form-item label="省份" prop="province">
+          <el-input v-model="form.province" placeholder="请输入省份" />
         </el-form-item>
-        <el-form-item v-if="form.parentName" label="所属上级">
-          <el-input v-model="form.parentName" disabled />
+        <el-form-item label="城市" prop="city">
+          <el-input v-model="form.city" placeholder="请输入城市" />
+        </el-form-item>
+        <el-form-item label="学校名称" prop="name">
+          <el-input v-model="form.name" placeholder="请输入学校名称" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -144,7 +142,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { 
   fetchGetSchoolTree, 
-  fetchAddNode, 
+  fetchAddSchool, 
   fetchUpdateNode, 
   fetchDeleteNode,
   fetchImportExcel 
@@ -163,21 +161,24 @@ const dialogVisible = ref(false)
 const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
 const isEdit = ref(false)
-const form = ref<Api.School.NodeParams>({
+const form = ref({
   id: '',
-  name: '',
-  type: 'school',
-  parentId: '',
-  parentName: ''
+  province: '',
+  city: '',
+  name: ''
 })
 
 const rules = {
-  name: [{ required: true, message: '请输入名称', trigger: 'blur' }]
+  province: [{ required: true, message: '请输入省份', trigger: 'blur' }],
+  city: [{ required: true, message: '请输入城市', trigger: 'blur' }],
+  name: [{ required: true, message: '请输入学校名称', trigger: 'blur' }]
 }
 
-const dialogTitle = computed(() => `${isEdit.value ? '编辑' : '新增'}${typeName.value}`)
+const dialogTitle = computed(() => `${isEdit.value ? '编辑' : '添加'}学校`)
 const typeName = computed(() => {
   switch (form.value.type) {
+    case 'province': return '省份'
+    case 'city': return '城市'
     case 'school': return '学校'
     case 'grade': return '年级'
     case 'class': return '班级'
@@ -190,35 +191,34 @@ const importLoading = ref(false)
 const selectedFile = ref<File | null>(null)
 
 const loadData = async () => {
-  const res = await fetchGetSchoolTree()
-  if (res.code === 200) {
-    treeData.value = res.data
+  try {
+    const res = await fetchGetSchoolTree()
+    // 由于 axios 拦截器已经解包了 response.data.data，这里 res 直接就是数组
+    if (Array.isArray(res)) {
+      treeData.value = res
+    } else if (res && res.code === 200) {
+      // 兼容可能未被拦截器完全解包的情况
+      treeData.value = res.data
+    }
+  } catch (error) {
+    console.error('获取学校架构树失败:', error)
   }
 }
 
 // 节点操作
-const handleAddNode = (type: Api.School.NodeType, parent?: Api.School.ArchitectureNode) => {
+const handleAddSchool = () => {
   isEdit.value = false
   form.value = {
     id: '',
-    name: '',
-    type,
-    parentId: parent?.id || '',
-    parentName: parent?.name || ''
+    province: '',
+    city: '',
+    name: ''
   }
   dialogVisible.value = true
 }
 
 const handleEditNode = (data: Api.School.ArchitectureNode) => {
-  isEdit.value = true
-  form.value = {
-    id: data.id,
-    name: data.name,
-    type: data.type,
-    parentId: '', 
-    parentName: ''
-  }
-  dialogVisible.value = true
+  ElMessage.info('暂不支持编辑节点功能')
 }
 
 const handleDeleteNode = (data: Api.School.ArchitectureNode) => {
@@ -239,15 +239,22 @@ const submitForm = async () => {
   if (!formRef.value) return
   await formRef.value.validate(async (valid) => {
     if (valid) {
-      submitLoading.value = true
       try {
-        const action = isEdit.value ? fetchUpdateNode : fetchAddNode
-        const res = await action(form.value)
-        if (res.code === 200) {
-          ElMessage.success(`${isEdit.value ? '修改' : '添加'}成功`)
-          dialogVisible.value = false
-          loadData()
+        submitLoading.value = true
+        if (isEdit.value) {
+          // 编辑逻辑（暂未支持）
+        } else {
+          await fetchAddSchool({
+            province: form.value.province,
+            city: form.value.city,
+            name: form.value.name
+          })
+          ElMessage.success('添加成功')
         }
+        dialogVisible.value = false
+        loadData()
+      } catch (error) {
+        ElMessage.error('操作失败')
       } finally {
         submitLoading.value = false
       }

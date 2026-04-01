@@ -1,11 +1,24 @@
-import { mockSchoolTree } from '@/mock/core-business/school'
+import api from '@/utils/http'
 
 /** 获取学校架构树 */
 export function fetchGetSchoolTree() {
-  return Promise.resolve({
-    code: 200,
-    msg: '获取成功',
-    data: mockSchoolTree as Api.School.ArchitectureNode[]
+  return api.get<any>({
+    url: '/api/system/school/tree'
+  })
+}
+
+/** 获取学校平铺列表 */
+export function fetchGetSchoolList() {
+  return api.get<any>({
+    url: '/api/system/school/list'
+  })
+}
+
+/** 新增学校 */
+export function fetchAddSchool(params: { province: string, city: string, name: string }) {
+  return api.post<any>({
+    url: '/api/system/school/add',
+    data: params
   })
 }
 
