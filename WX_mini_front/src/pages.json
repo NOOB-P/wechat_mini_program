@@ -119,7 +119,7 @@
 			"path": "pages/score/index",
 			"type": "page",
 			"style": {
-				"navigationBarTitleText": "学情分析"
+				"navigationBarTitleText": "成绩分析"
 			}
 		},
 		{

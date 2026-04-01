@@ -1,11 +1,11 @@
 import { fetchVipPackages, updateVipPackage, updatePackagePrice } from './vip'
-import { fetchPrintConfig, updatePrintConfig, updateDeliveryConfig } from './print'
+import { fetchPrintConfig, updatePaperPrices, updateDeliveryConfig } from './print'
 
 export {
   fetchVipPackages,
   updateVipPackage,
   updatePackagePrice,
   fetchPrintConfig,
-  updatePrintConfig,
+  updatePaperPrices,
   updateDeliveryConfig
 }
