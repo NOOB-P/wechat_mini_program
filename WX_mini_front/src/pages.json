@@ -93,33 +93,64 @@
 		{
 			"path": "pages/resource/family-edu",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationBarTitleText": "家庭教育"
+			}
 		},
 		{
 			"path": "pages/resource/index",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationBarTitleText": "资源库"
+			}
 		},
 		{
 			"path": "pages/resource/paper",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationBarTitleText": "名校试卷"
+			}
 		},
 		{
 			"path": "pages/resource/student-talk",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationBarTitleText": "学霸说"
+			}
 		},
 		{
 			"path": "pages/resource/sync-course",
 			"type": "page",
-			"style": {}
+			"style": {
+				"navigationBarTitleText": "同步/专题课"
+			}
+		},
+		{
+			"path": "pages/score/composition",
+			"type": "page",
+			"style": {
+				"navigationBarTitleText": "成绩构成分析"
+			}
+		},
+		{
+			"path": "pages/score/distribution",
+			"type": "page",
+			"style": {
+				"navigationBarTitleText": "分数分布统计"
+			}
 		},
 		{
 			"path": "pages/score/index",
 			"type": "page",
 			"style": {
 				"navigationBarTitleText": "学情分析"
+			}
+		},
+		{
+			"path": "pages/score/trend",
+			"type": "page",
+			"style": {
+				"navigationBarTitleText": "近六次考试趋势分析"
 			}
 		},
 		{
@@ -165,13 +196,13 @@
 		"list": [
 			{
 				"iconPath": "static/tabbar/tabbar_home.png",
-				"selectedIconPath": "static/tabbar/tabbar_home.png",
+				"selectedIconPath": "static/tabbar/tabbar_home_active.png",
 				"pagePath": "pages/home/index",
 				"text": "首页"
 			},
 			{
 				"iconPath": "static/tabbar/tabbar_resource.png",
-				"selectedIconPath": "static/tabbar/tabbar_resource.png",
+				"selectedIconPath": "static/tabbar/tabbar_resource_active.png",
 				"pagePath": "pages/resource/index",
 				"text": "资源库"
 			},

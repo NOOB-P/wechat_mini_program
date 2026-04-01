@@ -17,6 +17,11 @@ const banners = ref<any[]>([])
 const publicCourses = ref<any[]>([])
 const recommendCourses = ref<any[]>([])
 const isSVIPUser = ref(false)
+const userInfo = ref<any>({})
+
+// 获取系统状态栏高度，用于自定义导航栏适配
+const systemInfo = uni.getSystemInfoSync()
+const statusBarHeight = ref(systemInfo.statusBarHeight || 44)
 
 const loadData = async () => {
   try {
@@ -33,6 +38,7 @@ const loadData = async () => {
     if (coursesRes.code === 200) recommendCourses.value = coursesRes.data
     if (userRes.code === 200) {
       isSVIPUser.value = userRes.data.isSvip === 1
+      userInfo.value = userRes.data
       uni.setStorageSync('userInfo', userRes.data)
     }
   } catch (error) {
@@ -83,58 +89,71 @@ const handleCourseClick = (course: any) => {
 
 <template>
   <view class="index-container">
+    <image class="page-bg" src="/static/home/page_bg.png" mode="widthFix" />
     <wd-toast id="wd-toast" />
     <view class="header">
-      <text class="title">教育学习平台</text>
+      <text class="title">优题慧数据分析平台</text>
     </view>
     
     <view class="content">
       <!-- 欢迎卡片 -->
       <view class="welcome-card">
+        <image class="welcome-bg" src="/static/home/bg.png" mode="aspectFill" />
         <view class="welcome-info">
+          <view class="user-header">
+            <text class="user-name">{{ userInfo.nickname || '张萌萌' }}家长</text>
+            <view class="grade-tag">{{ userInfo.grade || '二年级' }}</view>
+          </view>
           <text class="welcome-title">欢迎回来，开启学习之旅</text>
           <text class="welcome-desc">今天也要加油鸭！</text>
+          <view class="logo-box">LOGO</view>
         </view>
-        <wd-icon name="chart" size="64px" color="rgba(255,255,255,0.2)" class="card-bg-icon" />
       </view>
       
       <!-- 核心功能：成绩分析 -->
       <view class="function-banner" @click="handleGridClick('analysis')">
         <view class="banner-content">
-          <view class="banner-icon-wrap">
-            <wd-icon name="chart-line" size="32px" color="#fff" />
-          </view>
+          <image class="banner-icon-img" src="/static/home/analysis.png" mode="aspectFit" />
           <view class="banner-text-wrap">
-            <text class="banner-title">成绩分析</text>
+            <text class="banner-title">学情分析</text>
             <text class="banner-desc">查看近期考试趋势与各科综合表现</text>
           </view>
         </view>
-        <wd-icon name="arrow-right" size="20px" color="#999" />
+        <wd-icon name="expand" size="20px" color="#ccc" />
       </view>
 
-      <!-- 新增：课程宣传轮播图 -->
-      <view class="banner-swiper" v-if="banners.length > 0">
-        <swiper class="swiper-box" indicator-dots autoplay circular :interval="3000" :duration="500">
-          <swiper-item v-for="(banner, index) in banners" :key="banner.id">
-            <view class="swiper-item-content" :class="'banner-' + ((index % 2) + 1)" @click="handleCourseClick(banner)">
-              <text class="b-title">{{ banner.name }}</text>
-              <text class="b-desc">{{ banner.desc }}</text>
-            </view>
+      <!-- 轮播图组件 -->
+      <view class="banner-swiper-wrap">
+        <swiper
+          class="banner-swiper"
+          circular
+          autoplay
+          :interval="3000"
+          :duration="500"
+          indicator-dots
+          indicator-color="rgba(255, 255, 255, 0.5)"
+          indicator-active-color="#ffffff"
+        >
+          <swiper-item v-for="i in 3" :key="i">
+            <image class="swiper-img" src="/static/home/banner_bg.png" mode="aspectFill" />
           </swiper-item>
         </swiper>
       </view>
-
-      <!-- 错题推送 (仅保留 AI 公益课程) 迁移至首页 -->
-      <view class="svip-content" v-if="publicCourses.length > 0">
-        <!-- AI 课程 (不再限制 SVIP) -->
-        <view class="card svip-card">
-          <view class="card-title"><wd-icon name="video" class="icon" /> AI 公益课程</view>
-          <view class="desc">由专家与算法联合设计，实时更新</view>
-          <view class="course-grid">
-            <view class="c-item" v-for="course in publicCourses" :key="course.id" @click="handleCourseClick(course)">
-              <view class="c-icon" :class="course.iconClass">{{ course.iconText }}</view>
-              <text>{{ course.name }}</text>
-            </view>
+      
+      <!-- 测评模块 -->
+      <view class="eval-section">
+        <view class="eval-grid">
+          <view class="eval-item" @click="handleGridClick('academic')">
+            <image class="eval-icon" src="/static/home/academic_eval.png" mode="widthFix" />
+            <text class="eval-text">学业测评</text>
+          </view>
+          <view class="eval-item" @click="handleGridClick('character')">
+            <image class="eval-icon" src="/static/home/character_eval.png" mode="widthFix" />
+            <text class="eval-text">性格测评</text>
+          </view>
+          <view class="eval-item" @click="handleGridClick('homework')">
+            <image class="eval-icon" src="/static/home/homework_check.png" mode="widthFix" />
+            <text class="eval-text">作业批改</text>
           </view>
         </view>
       </view>
@@ -171,48 +190,108 @@ const handleCourseClick = (course: any) => {
   min-height: 100vh;
   background-color: #f8f9fa;
   padding: 0 30rpx 40rpx;
+  position: relative;
+}
+
+.page-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 0;
 }
 
 .header {
+  position: relative;
+  z-index: 1;
   padding: 40rpx 0 20rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   .title {
-    font-size: 48rpx;
-    font-weight: 800;
-    color: #1a1a1a;
+    font-size: 36rpx;
+    font-weight: bold;
+    color: #333;
   }
 }
 
 .content {
+  position: relative;
+  z-index: 1;
+  
   .welcome-card {
     position: relative;
-    background: linear-gradient(135deg, #2b5876 0%, #4e4376 100%);
-    padding: 60rpx 40rpx;
-    border-radius: 32rpx;
-    margin-bottom: 40rpx;
+    padding: 40rpx;
+    border-radius: 20rpx;
+    margin-bottom: 30rpx;
     overflow: hidden;
-    box-shadow: 0 12rpx 32rpx rgba(43, 88, 118, 0.2);
+    box-shadow: 0 8rpx 24rpx rgba(0, 122, 255, 0.1);
+    background-color: #eaf3ff;
+    
+    .welcome-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
     
     .welcome-info {
       position: relative;
-      z-index: 1;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      
+      .user-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20rpx;
+        
+        .user-name {
+          font-size: 36rpx;
+          font-weight: bold;
+          color: #0052d9;
+          margin-right: 20rpx;
+        }
+        
+        .grade-tag {
+          font-size: 24rpx;
+          color: #fff;
+          background: linear-gradient(90deg, #8cb8ff, #5a94ff);
+          padding: 6rpx 24rpx;
+          border-radius: 30rpx;
+          border: 2rpx solid #ffffff;
+          box-shadow: 0 4rpx 8rpx rgba(77, 141, 245, 0.2);
+        }
+      }
+      
       .welcome-title {
-        display: block;
-        color: #fff;
-        font-size: 36rpx;
-        font-weight: 600;
-        margin-bottom: 12rpx;
+        color: #333;
+        font-size: 28rpx;
+        margin-bottom: 8rpx;
       }
+      
       .welcome-desc {
-        color: rgba(255, 255, 255, 0.8);
+        color: #666;
         font-size: 24rpx;
+        margin-bottom: 20rpx;
       }
-    }
-    
-    .card-bg-icon {
-      position: absolute;
-      right: -20rpx;
-      bottom: -20rpx;
-      z-index: 0;
+      
+      .logo-box {
+        width: 80rpx;
+        height: 80rpx;
+        background: linear-gradient(135deg, #7ab0ff, #4d8df5);
+        color: #fff;
+        font-size: 20rpx;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 16rpx;
+        font-weight: bold;
+      }
     }
   }
 
@@ -232,15 +311,9 @@ const handleCourseClick = (course: any) => {
       gap: 30rpx;
     }
 
-    .banner-icon-wrap {
-      width: 100rpx;
-      height: 100rpx;
-      border-radius: 30rpx;
-      background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 8rpx 20rpx rgba(132, 250, 176, 0.4);
+    .banner-icon-img {
+      width: 120rpx;
+      height: 120rpx;
     }
 
     .banner-text-wrap {
@@ -260,99 +333,53 @@ const handleCourseClick = (course: any) => {
     }
   }
 
-  .banner-swiper {
+  .banner-swiper-wrap {
     margin-bottom: 40rpx;
-    border-radius: 20rpx;
+    border-radius: 24rpx;
     overflow: hidden;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
-
-    .swiper-box {
-      height: 200rpx;
-    }
-
-    .swiper-item-content {
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    /* 解决圆角在部分机型上失效的问题 */
+    transform: translateY(0); 
+    
+    .banner-swiper {
       width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 0 40rpx;
-      box-sizing: border-box;
+      height: 220rpx;
       
-      &.banner-1 {
-        background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
-      }
-      &.banner-2 {
-        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
-      }
-
-      .b-title {
-        font-size: 36rpx;
-        font-weight: bold;
-        color: #fff;
-        margin-bottom: 10rpx;
-      }
-      .b-desc {
-        font-size: 24rpx;
-        color: rgba(255, 255, 255, 0.9);
+      .swiper-img {
+        width: 100%;
+        height: 100%;
+        display: block;
       }
     }
   }
 
-  // 错题推送 (原 SVIP 专区) 样式
-  .svip-content {
+  .eval-section {
     margin-bottom: 40rpx;
-  }
-
-  .svip-card {
-    background: #fff;
-    border-radius: 16rpx;
-    padding: 30rpx;
-    margin-bottom: 30rpx;
-    box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03);
-
-    .card-title {
-      font-size: 32rpx;
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 10rpx;
-      display: flex;
-      align-items: center;
-      .icon { color: #f6d365; margin-right: 10rpx; }
-    }
-
-    .desc {
-      font-size: 24rpx;
-      color: #999;
-      margin-bottom: 30rpx;
-    }
-
-    .course-grid {
+    
+    .eval-grid {
       display: flex;
       justify-content: space-between;
+      gap: 20rpx;
       
-      .c-item {
+      .eval-item {
+        flex: 1;
+        background-color: transparent;
         display: flex;
-        flex-direction: column;
+        justify-content: center;
         align-items: center;
-        gap: 16rpx;
-        font-size: 24rpx;
-        color: #333;
+        position: relative;
         
-        .c-icon {
-          width: 100rpx;
-          height: 100rpx;
-          border-radius: 24rpx;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 36rpx;
-          font-weight: bold;
-          color: #fff;
-          
-          &.math { background: linear-gradient(135deg, #4facfe, #00f2fe); }
-          &.eng { background: linear-gradient(135deg, #ff0844, #ffb199); }
-          &.phy { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+        .eval-icon {
+          width: 100%;
+          display: block;
+        }
+
+        .eval-text {
+          position: absolute;
+          bottom: 20rpx;
+          font-size: 26rpx;
+          color: #333;
+          font-weight: 500;
         }
       }
     }
