@@ -9,7 +9,9 @@ const userInfo = reactive({
   nickname: '',
   grade: '',
   role: 'normal',
-  roleName: '普通用户'
+  roleName: '普通用户',
+  isVip: 0,
+  isSvip: 0
 })
 
 // 菜单组一
@@ -32,6 +34,18 @@ const getUserInfo = async () => {
     const res = await getUserInfoApi()
     if (res.code === 200) {
       Object.assign(userInfo, res.data)
+      
+      // 处理 VIP/SVIP 状态
+      if (res.data.isSvip === 1) {
+        userInfo.role = 'svip'
+        userInfo.roleName = 'SVIP'
+      } else if (res.data.isVip === 1) {
+        userInfo.role = 'vip'
+        userInfo.roleName = 'VIP'
+      } else {
+        userInfo.role = 'normal'
+        userInfo.roleName = '普通用户'
+      }
     }
   } catch (error) {
     console.error('获取用户信息失败:', error)
@@ -66,7 +80,7 @@ const handleEditProfile = () => {
 }
 
 const goToVip = () => {
-  uni.navigateTo({ url: '/pages/vip/index' })
+  uni.navigateTo({ url: '/pages/vip/recharge' })
 }
 </script>
 

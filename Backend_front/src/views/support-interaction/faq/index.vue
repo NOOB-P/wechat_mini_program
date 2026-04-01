@@ -21,10 +21,16 @@
           </el-input>
           <el-button type="primary" @click="loadData">查询</el-button>
         </div>
-        <el-button type="primary" @click="handleAdd">
-          <template #icon><ArtSvgIcon icon="ri:add-line" /></template>
-          新增问题
-        </el-button>
+        <div class="flex items-center space-x-2">
+          <el-button @click="handleManageCategory">
+            <template #icon><ArtSvgIcon icon="ri:settings-4-line" /></template>
+            模块管理
+          </el-button>
+          <el-button type="primary" @click="handleAdd">
+            <template #icon><ArtSvgIcon icon="ri:add-line" /></template>
+            新增问题
+          </el-button>
+        </div>
       </div>
 
       <el-table :data="tableData" border v-loading="loading">
@@ -92,12 +98,67 @@
         <el-button type="primary" @click="submit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 模块管理弹窗 -->
+    <el-dialog
+      v-model="categoryDialogVisible"
+      title="模块管理"
+      width="700px"
+    >
+      <div class="mb-4 flex justify-end">
+        <el-button type="primary" size="small" @click="handleAddCategory">
+          <template #icon><ArtSvgIcon icon="ri:add-line" /></template>
+          新增模块
+        </el-button>
+      </div>
+
+      <el-table :data="categoryList" border size="small">
+        <el-table-column label="模块名称" min-width="150">
+          <template #default="{ row }">
+            <el-input v-if="row.isEdit" v-model="row.name" size="small" style="width: 100%" />
+            <span v-else>{{ row.name }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="排序" width="120">
+          <template #default="{ row }">
+            <el-input-number v-if="row.isEdit" v-model="row.sort" :min="0" size="small" controls-position="right" style="width: 100%" />
+            <span v-else>{{ row.sort }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-switch
+              v-if="row.isEdit"
+              v-model="row.status"
+              :active-value="1"
+              :inactive-value="0"
+              size="small"
+            />
+            <el-tag v-else :type="row.status === 1 ? 'success' : 'info'" size="small">
+              {{ row.status === 1 ? '启用' : '禁用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row, $index }">
+            <template v-if="row.isEdit">
+              <el-button link type="primary" size="small" @click="saveCategory(row)">保存</el-button>
+              <el-button link size="small" @click="cancelEditCategory(row, $index)">取消</el-button>
+            </template>
+            <template v-else>
+              <el-button link type="primary" size="small" @click="row.isEdit = true">编辑</el-button>
+              <el-button link type="danger" size="small" @click="handleDeleteCategory(row)">删除</el-button>
+            </template>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { fetchGetFaqList, fetchGetFaqCategories, fetchAddFaq, fetchUpdateFaq, fetchDeleteFaq } from '@/api/support-interaction/index'
+import { fetchGetFaqList, fetchGetFaqCategories, fetchAddFaq, fetchUpdateFaq, fetchDeleteFaq, fetchAddFaqCategory, fetchGetFaqCategoryList, fetchUpdateFaqCategory, fetchDeleteFaqCategory } from '@/api/support-interaction/index'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 defineOptions({ name: 'FaqManage' })
@@ -110,6 +171,76 @@ const formRef = ref()
 const categoryOptions = ref<string[]>([])
 const filterCategory = ref('')
 const searchKeyword = ref('')
+
+// 分类管理相关
+const categoryDialogVisible = ref(false)
+const categoryList = ref<any[]>([])
+const originalCategories = new Map() // 用于取消编辑时还原数据
+
+const handleManageCategory = async () => {
+  categoryDialogVisible.value = true
+  await loadCategoryList()
+}
+
+const loadCategoryList = async () => {
+  try {
+    const res = await fetchGetFaqCategoryList()
+    if (res && Array.isArray(res)) {
+      categoryList.value = res.map((item: any) => ({
+        ...item,
+        isEdit: false
+      }))
+    }
+  } catch (error) {
+    console.error('获取模块列表失败', error)
+  }
+}
+
+const handleAddCategory = () => {
+  categoryList.value.push({
+    id: null,
+    name: '',
+    sort: 0,
+    status: 1,
+    isEdit: true
+  })
+}
+
+const saveCategory = async (row: any) => {
+  if (!row.name) {
+    ElMessage.warning('模块名称不能为空')
+    return
+  }
+  try {
+    const api = row.id ? fetchUpdateFaqCategory : fetchAddFaqCategory
+    await api(row)
+    ElMessage.success(row.id ? '更新成功' : '新增成功')
+    await loadCategoryList()
+    fetchCategories() // 更新主页面的下拉选项
+  } catch (error) {}
+}
+
+const cancelEditCategory = (row: any, index: number) => {
+  if (!row.id) {
+    categoryList.value.splice(index, 1)
+  } else {
+    row.isEdit = false
+    loadCategoryList() // 简单处理：直接重新加载
+  }
+}
+
+const handleDeleteCategory = (row: any) => {
+  ElMessageBox.confirm(`确定要删除模块 "${row.name}" 吗?`, '提示', {
+    type: 'warning'
+  }).then(async () => {
+    try {
+      await fetchDeleteFaqCategory(row.id)
+      ElMessage.success('删除成功')
+      await loadCategoryList()
+      fetchCategories()
+    } catch (error) {}
+  }).catch(() => {})
+}
 
 const form = ref({
   id: '',
