@@ -109,7 +109,7 @@ declare namespace Api {
   /** 核心业务 - 学校架构 */
   namespace School {
     /** 节点类型 */
-    type NodeType = 'school' | 'grade' | 'class'
+    type NodeType = 'province' | 'city' | 'school' | 'grade' | 'class'
 
     /** 架构节点 */
     interface ArchitectureNode {
@@ -141,7 +141,7 @@ declare namespace Api {
       grade: string
       className: string
       parentPhone: string
-      isBound: boolean
+      boundCount: number
     }
 
     /** 学生搜索参数 */
