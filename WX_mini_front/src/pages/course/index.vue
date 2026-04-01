@@ -54,7 +54,6 @@ onMounted(() => {
 <template>
   <view class="course-container">
     <view class="header">
-      <view class="title">课程中心</view>
       <view class="search-bar">
         <wd-search v-model="searchValue" placeholder="搜索课程" hide-cancel />
       </view>
@@ -84,13 +83,7 @@ onMounted(() => {
 }
 
 .header {
-  padding: 20rpx 0;
-  .title {
-    font-size: 40rpx;
-    font-weight: bold;
-    color: #333;
-    margin-bottom: 20rpx;
-  }
+  padding: 10rpx 0 20rpx;
 }
 
 .course-list {
