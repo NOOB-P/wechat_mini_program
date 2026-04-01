@@ -1,0 +1,57 @@
+package com.edu.javasb_back.service.impl;
+
+import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.model.entity.DeliveryConfig;
+import com.edu.javasb_back.model.entity.PaperPrice;
+import com.edu.javasb_back.repository.DeliveryConfigRepository;
+import com.edu.javasb_back.repository.PaperPriceRepository;
+import com.edu.javasb_back.service.PrintConfigService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 打印配置服务实现类
+ */
+@Service
+public class PrintConfigServiceImpl implements PrintConfigService {
+
+    @Autowired
+    private PaperPriceRepository paperPriceRepository;
+
+    @Autowired
+    private DeliveryConfigRepository deliveryConfigRepository;
+
+    @Override
+    public Result<Map<String, Object>> getPrintConfig() {
+        Map<String, Object> config = new HashMap<>();
+        config.put("paperPrices", paperPriceRepository.findAll());
+        config.put("deliveryConfigs", deliveryConfigRepository.findAll());
+        
+        // 其他配置也可以在这里扩展，如 mock data 中的 bindingPrice, minOrderPrice
+        Map<String, Object> otherConfigs = new HashMap<>();
+        otherConfigs.put("bindingPrice", 2.00);
+        otherConfigs.put("minOrderPrice", 5.00);
+        config.put("otherConfigs", otherConfigs);
+        
+        return Result.success(config);
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> updatePaperPrices(List<PaperPrice> paperPrices) {
+        paperPriceRepository.saveAll(paperPrices);
+        return Result.success(null);
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> updateDeliveryConfigs(List<DeliveryConfig> deliveryConfigs) {
+        deliveryConfigRepository.saveAll(deliveryConfigs);
+        return Result.success(null);
+    }
+}

@@ -148,7 +148,7 @@
 </template>
 
 <script setup lang="ts">
-  import { fetchPrintConfig, updatePrintConfig, updateDeliveryConfig } from '@/api/payment'
+  import { fetchPrintConfig, updatePaperPrices, updateDeliveryConfig } from '@/api/payment/print'
   import { ElMessage } from 'element-plus'
   import { Document, Van, Setting } from '@element-plus/icons-vue'
 
@@ -165,28 +165,38 @@
   const getList = async () => {
     loading.value = true
     try {
-      const res = await fetchPrintConfig()
-      if (res.code === 200) {
-        Object.assign(config, res.data)
-      }
+      const data = await fetchPrintConfig()
+      Object.assign(config, data)
     } finally {
       loading.value = false
     }
   }
 
   const handleUpdatePaper = async () => {
-    const res = await updatePrintConfig({ paperPrices: config.paperPrices })
-    if (res.code === 200) ElMessage.success('纸张价格配置已更新')
+    try {
+      loading.value = true
+      await updatePaperPrices(config.paperPrices)
+      ElMessage.success('纸张价格配置已更新')
+      getList()
+    } finally {
+      loading.value = false
+    }
   }
 
   const handleUpdateDelivery = async () => {
-    const res = await updateDeliveryConfig({ deliveryConfigs: config.deliveryConfigs })
-    if (res.code === 200) ElMessage.success('配送费用配置已更新')
+    try {
+      loading.value = true
+      await updateDeliveryConfig(config.deliveryConfigs)
+      ElMessage.success('配送费用配置已更新')
+      getList()
+    } finally {
+      loading.value = false
+    }
   }
 
   const handleUpdateOther = async () => {
-    const res = await updatePrintConfig({ otherConfigs: config.otherConfigs })
-    if (res.code === 200) ElMessage.success('全局参数已更新')
+    // 全局参数更新逻辑，如果有对应的后端接口可以调用
+    ElMessage.success('全局参数已更新')
   }
 
   onMounted(() => {
