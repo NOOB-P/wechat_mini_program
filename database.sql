@@ -145,12 +145,23 @@ CREATE TABLE `study_room_enrollments` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='AI自习室预约报名表';
 
--- 9. 常见问题 FAQ 表
+-- 9. FAQ 分类表
+DROP TABLE IF EXISTS `faq_categories`;
+CREATE TABLE `faq_categories` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT '分类ID',
+    `name` VARCHAR(50) NOT NULL UNIQUE COMMENT '分类名称',
+    `sort` INT DEFAULT 0 COMMENT '排序',
+    `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+) ENGINE=InnoDB COMMENT='FAQ 分类表';
+
+-- 10. 常见问题 FAQ 表
 DROP TABLE IF EXISTS `faqs`;
 CREATE TABLE `faqs` (
     `id` VARCHAR(50) PRIMARY KEY COMMENT 'FAQ ID',
     `category_name` VARCHAR(50) DEFAULT '其他' COMMENT '所属模块名称',
-    `category_id` INT DEFAULT 1 COMMENT '分类ID',
+    `category_id` INT COMMENT '分类ID',
     `question` VARCHAR(255) NOT NULL COMMENT '问题标题',
     `answer` TEXT NOT NULL COMMENT '问题解答',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
@@ -158,12 +169,13 @@ CREATE TABLE `faqs` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='客服支持常见问题表';
 
--- 10. 微信群配置表
+-- 11. 微信群配置表
 DROP TABLE IF EXISTS `wechat_configs`;
 CREATE TABLE `wechat_configs` (
     `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT '配置ID',
     `group_name` VARCHAR(100) NOT NULL COMMENT '群名称',
-    `qr_code_url` VARCHAR(255) NOT NULL COMMENT '二维码图片URL',
+    `qr_code_path` VARCHAR(255) NOT NULL COMMENT '二维码图片相对路径',
+    `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='官方微信群二维码配置表';
 
@@ -171,7 +183,7 @@ CREATE TABLE `wechat_configs` (
 -- 订单与交易模块
 -- ---------------------------------------------------------
 
--- 11. 错题打印订单表
+-- 12. 错题打印订单表
 DROP TABLE IF EXISTS `print_orders`;
 CREATE TABLE `print_orders` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '内部记录ID',
@@ -188,7 +200,7 @@ CREATE TABLE `print_orders` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='错题本纸质打印订单表';
 
--- 12. VIP套餐订单表
+-- 13. VIP套餐订单表
 DROP TABLE IF EXISTS `vip_orders`;
 CREATE TABLE `vip_orders` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '内部记录ID',
@@ -209,7 +221,7 @@ CREATE TABLE `vip_orders` (
 -- 系统监控日志模块
 -- ---------------------------------------------------------
 
--- 13. 系统操作日志表
+-- 14. 系统操作日志表
 DROP TABLE IF EXISTS `sys_logs`;
 CREATE TABLE `sys_logs` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '日志ID',
@@ -288,32 +300,38 @@ INSERT INTO `study_room_enrollments` (`id`, `parent_name`, `student_name`, `phon
 ('ENR002', '王五妈妈', '王小五', '13800000004', 'pending', '2023-10-02 11:30:00'),
 ('ENR003', '赵六爸爸', '赵小六', '13800000005', 'rejected', '2023-10-03 09:15:00');
 
--- 9. 常见问题 FAQ 表数据
+-- 9. FAQ 分类表数据
+INSERT INTO `faq_categories` (`id`, `name`, `sort`, `status`) VALUES
+(1, '注册绑定', 1, 1),
+(2, '成绩查询', 2, 1),
+(3, 'VIP服务', 3, 1),
+(4, '课程报名', 4, 1);
+
+-- 10. 常见问题 FAQ 表数据
 INSERT INTO `faqs` (`id`, `category_name`, `category_id`, `question`, `answer`, `status`) VALUES
 ('FAQ001', '注册绑定', 1, '如何绑定学生？', '在小程序“我的”页面，点击“绑定学生”，输入学号和姓名即可完成绑定。', 1),
 ('FAQ002', '成绩查询', 2, '错题本怎么打印？', '进入错题本页面，选择需要打印的题目，点击“生成打印PDF”，然后可以选择云打印服务。', 1),
 ('FAQ003', 'VIP服务', 3, 'VIP和SVIP有什么区别？', 'VIP可查看详细成绩分析与基础错题本；SVIP享有额外特权，包括AI专属课程、智能自习室以及个性化学习计划生成。', 1),
 ('FAQ004', '账号问题', 1, '忘记密码怎么办？', '在登录页面点击“忘记密码”，通过绑定的手机号验证后即可重置。', 1);
 
--- 10. 微信群配置表数据
-INSERT INTO `wechat_configs` (`group_name`, `qr_code_url`) VALUES
-('官方家长交流1群', 'https://example.com/qrcode1.png'),
-('初一学习辅导群', 'https://example.com/qrcode2.png'),
-('高三冲刺打卡群', 'https://example.com/qrcode3.png');
+-- 11. 微信群配置表数据
+INSERT INTO `wechat_configs` (`group_name`, `qr_code_path`, `status`) VALUES
+('官方家长交流1群', '/uploads/qrcode1.png', 1),
+('初一学习辅导群', '/uploads/qrcode2.png', 1);
 
--- 11. 错题打印订单表数据
+-- 12. 错题打印订单表数据
 INSERT INTO `print_orders` (`order_no`, `user_name`, `user_phone`, `document_name`, `pages`, `print_type`, `delivery_method`, `total_price`, `order_status`) VALUES
 ('POD202310010001', '张三爸爸', '13800000002', '张三数学错题本_10月', 15, '黑白双面', '快递配送', 12.50, 4),
 ('POD202310050002', '李四妈妈', '13800000003', '李四英语复习资料', 30, '彩色单面', '门店自提', 45.00, 1),
 ('POD202311020003', '王五妈妈', '13800000004', '王五物理错题集', 10, '黑白单面', '快递配送', 8.00, 2);
 
--- 12. VIP套餐订单表数据
+-- 13. VIP套餐订单表数据
 INSERT INTO `vip_orders` (`order_no`, `user_uid`, `user_name`, `user_phone`, `package_type`, `period`, `price`, `payment_status`, `payment_method`) VALUES
 ('VOD202309010001', 3, '张三爸爸', '13800000002', 'SVIP专业版', '年包', 365.00, 1, '微信支付'),
 ('VOD202309150002', 4, '李四妈妈', '13800000003', 'VIP基础版', '季包', 99.00, 1, '支付宝'),
 ('VOD202310010003', 5, '王五妈妈', '13800000004', 'SVIP专业版', '月包', 39.00, 1, '微信支付');
 
--- 13. 系统操作日志表数据
+-- 14. 系统操作日志表数据
 INSERT INTO `sys_logs` (`uid`, `user_name`, `nick_name`, `operation`, `method`, `url`, `ip`, `location`, `status`) VALUES
 (1, 'admin', '超级管理员', '登录系统', 'POST', '/api/auth/login/password', '192.168.1.100', '局域网', 200),
 (2, 'manager', '运营人员', '查询学生列表', 'GET', '/api/students/list', '192.168.1.101', '局域网', 200),

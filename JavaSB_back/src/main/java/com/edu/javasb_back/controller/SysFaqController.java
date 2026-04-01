@@ -4,6 +4,7 @@ import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.SysFaq;
+import com.edu.javasb_back.repository.FaqCategoryRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysFaqRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,9 @@ public class SysFaqController {
 
     @Autowired
     private SysFaqRepository sysFaqRepository;
+
+    @Autowired
+    private FaqCategoryRepository faqCategoryRepository;
 
     @Autowired
     private SysAccountRepository sysAccountRepository;
@@ -72,7 +76,7 @@ public class SysFaqController {
     @LogOperation("获取FAQ分类")
     @GetMapping("/categories")
     public Result<java.util.List<String>> getCategories() {
-        return Result.success("获取成功", sysFaqRepository.findDistinctCategoryNames());
+        return Result.success("获取成功", faqCategoryRepository.findAllActiveNames());
     }
 
     /**
