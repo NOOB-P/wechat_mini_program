@@ -1,68 +1,107 @@
 <template>
   <view class="resource-container">
-    <view class="grid-wrap">
+    <image class="page-bg" src="/static/home/page_bg.png" mode="widthFix" />
+    <wd-toast id="wd-toast" />
+    <view class="content">
+      <view class="grid-wrap">
       <view class="grid-item" @click="navTo('/pages/resource/paper')">
-        <wd-icon name="view-list" size="40px" color="#9b88ed" />
+        <image class="grid-icon" src="/static/resource/paper.png" mode="aspectFit" />
         <view class="info">
-          <text class="main-title">历年真题</text>
+          <text class="main-title">名校试卷</text>
           <text class="sub-title">高效学习</text>
         </view>
       </view>
       
       <view class="grid-item" @click="navTo('/pages/resource/student-talk')">
-        <wd-icon name="user" size="40px" color="#ff7575" />
+        <image class="grid-icon" src="/static/resource/student.png" mode="aspectFit" />
         <view class="info">
-          <text class="main-title">状元笔记</text>
+          <text class="main-title">学霸说</text>
           <text class="sub-title">经验学习</text>
         </view>
       </view>
       
       <view class="grid-item" @click="navTo('/pages/resource/family-edu')">
-        <wd-icon name="heart" size="40px" color="#4fc3f7" />
+        <image class="grid-icon" src="/static/resource/family.png" mode="aspectFit" />
         <view class="info">
-          <text class="main-title">心理健康</text>
+          <text class="main-title">家庭教育</text>
           <text class="sub-title">科学育儿</text>
         </view>
       </view>
       
       <view class="grid-item" @click="navTo('/pages/resource/sync-course')">
-        <wd-icon name="video" size="40px" color="#ffb74d" />
+        <image class="grid-icon" src="/static/resource/course.png" mode="aspectFit" />
         <view class="info">
-          <text class="main-title">同步辅导</text>
+          <text class="main-title">同步/专题课</text>
           <text class="sub-title">巩固复习</text>
         </view>
       </view>
-    </view>
+      </view>
 
-    <!-- 课程列表区域 -->
-    <view class="course-section">
+    <!-- 精选推荐区域 -->
+    <view class="recommend-section">
       <view class="section-header">
-        <text class="section-title">精选课程</text>
-        <view class="search-box">
-          <wd-search v-model="searchKeyword" placeholder="搜索课程名称" hide-cancel @search="onSearch" @clear="onSearch" />
+        <view class="title-wrap">
+          <view class="title-icon"></view>
+          <text class="section-title">精选推荐</text>
         </view>
       </view>
-      <view class="course-list">
-        <view v-for="(item, index) in filteredCourses" :key="index" class="course-card" @click="handleCourseClick(item)">
-          <view class="img-wrap">
-            <wd-img :src="item.image" :width="120" :height="80" round class="course-img" />
-            <view class="svip-tag" v-if="!isSVIPUser">SVIP专属</view>
-          </view>
-          <view class="course-info">
-            <view class="name-wrap">
-              <text class="course-name">{{ item.name }}</text>
-              <wd-icon v-if="!isSVIPUser" name="lock-on" size="14px" color="#f6d365" style="margin-left: 8rpx;" />
-            </view>
-            <text class="course-desc">{{ item.desc }}</text>
-            <view class="course-bottom">
-              <text class="course-price">￥{{ item.price }}</text>
-              <wd-button type="primary" size="small" plain>立即学习</wd-button>
-            </view>
-          </view>
+      <view class="recommend-grid">
+        <view class="recommend-item" @click="navTo('/pages/course/index')">
+          <image class="recommend-img" src="/static/resource/recommend_ai.png" mode="aspectFill" />
+          <text class="recommend-text">精选AI</text>
+        </view>
+        <view class="recommend-item" @click="navTo('/pages/course/index')">
+          <image class="recommend-img" src="/static/resource/recommend_tutor.png" mode="aspectFill" />
+          <text class="recommend-text">精选家教</text>
+        </view>
+        <view class="recommend-item" @click="navTo('/pages/course/index')">
+          <image class="recommend-img" src="/static/resource/recommend_course.png" mode="aspectFill" />
+          <text class="recommend-text">精选课程</text>
         </view>
       </view>
     </view>
 
+    <!-- AI自习室区域 -->
+    <view class="recommend-section">
+      <view class="section-header">
+        <view class="title-wrap">
+          <view class="title-icon"></view>
+          <text class="section-title">AI自习室</text>
+        </view>
+      </view>
+      <view class="recommend-grid">
+        <view class="recommend-item" @click="navTo('/pages/course/index')">
+          <image class="recommend-img" src="/static/resource/ai_study_1.png" mode="aspectFill" />
+        </view>
+        <view class="recommend-item" @click="navTo('/pages/course/index')">
+          <image class="recommend-img" src="/static/resource/ai_study_2.png" mode="aspectFill" />
+        </view>
+        <view class="recommend-item" @click="navTo('/pages/course/index')">
+          <image class="recommend-img" src="/static/resource/ai_study_3.png" mode="aspectFill" />
+        </view>
+      </view>
+    </view>
+
+    <!-- AI智能自习室区域 -->
+    <view class="recommend-section ai-smart-section">
+      <view class="section-header">
+        <view class="title-wrap">
+          <view class="title-icon"></view>
+          <text class="section-title">AI智能自习室</text>
+        </view>
+        <text class="section-desc">智能辅导/专注训练/计划管理</text>
+      </view>
+      <view class="ai-smart-content">
+        <view class="status-wrap">
+          <view class="status-dot"></view>
+          <text class="status-text">当前开放中 (08:00-23:00)</text>
+        </view>
+        <view class="join-btn" @click="joinStudyRoom">
+          <text class="btn-text">一键报名进入自习室</text>
+        </view>
+      </view>
+    </view>
+  </view>
   </view>
 </template>
 
@@ -71,10 +110,23 @@ import { ref, onMounted, computed } from 'vue'
 import { getCourseListApi } from '@/api/course'
 import { onShow } from '@dcloudio/uni-app'
 import { getUserInfoApi } from '@/api/mine'
+import { useToast } from 'wot-design-uni'
 
 const courses = ref<any[]>([])
 const searchKeyword = ref('')
 const isSVIPUser = ref(false)
+const toast = useToast()
+
+const joinStudyRoom = () => {
+  toast.loading('正在为您分配座位...')
+  setTimeout(() => {
+    toast.success('报名成功，即将进入自习室')
+  }, 1500)
+}
+
+// 获取系统状态栏高度，用于自定义导航栏适配
+const systemInfo = uni.getSystemInfoSync()
+const statusBarHeight = ref(systemInfo.statusBarHeight || 44)
 
 const checkVipStatus = async () => {
   try {
@@ -150,24 +202,59 @@ onMounted(() => {
 .resource-container {
   min-height: 100vh;
   background-color: #f8f9fa;
-  padding: 20rpx 30rpx;
+  padding: 0 30rpx 40rpx;
+  position: relative;
 }
+
+.page-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 0;
+}
+
+.header {
+  position: relative;
+  z-index: 1;
+  padding: 20rpx 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  .title {
+    font-size: 36rpx;
+    font-weight: bold;
+    color: #333;
+  }
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+}
+
 .grid-wrap {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 20rpx;
-  margin-top: 20rpx;
+  margin-top: 10rpx;
 }
 .grid-item {
   width: 48%;
   background: #fff;
   border-radius: 20rpx;
-  padding: 40rpx 20rpx;
+  padding: 30rpx 20rpx;
   display: flex;
   align-items: center;
   box-sizing: border-box;
   box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03);
+  
+  .grid-icon {
+    width: 90rpx;
+    height: 90rpx;
+    flex-shrink: 0;
+  }
   
   .info {
     margin-left: 16rpx;
@@ -188,88 +275,116 @@ onMounted(() => {
   }
 }
 
-.course-section {
+.recommend-section {
   margin-top: 40rpx;
+  background-color: #fff;
+  border-radius: 20rpx;
+  padding: 30rpx 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03);
   
   .section-header {
-    margin-bottom: 20rpx;
-    display: flex;
-    flex-direction: column;
-    gap: 16rpx;
+    margin-bottom: 30rpx;
     
-    .section-title {
-      font-size: 34rpx;
-      font-weight: bold;
-      color: #333;
-    }
-    
-    .search-box {
-      width: 100%;
-      // 穿透覆盖 wd-search 内部的圆角，使其看起来更自然
-      :deep(.wd-search) {
-        padding: 0;
-        background: transparent;
+    .title-wrap {
+      display: flex;
+      align-items: center;
+      
+      .title-icon {
+        width: 8rpx;
+        height: 32rpx;
+        background-color: #4facfe;
+        border-radius: 4rpx;
+        margin-right: 16rpx;
+      }
+      
+      .section-title {
+        font-size: 34rpx;
+        font-weight: bold;
+        color: #333;
       }
     }
   }
-}
 
-.course-card {
-  background-color: #fff;
-  border-radius: 16rpx;
-  padding: 20rpx;
-  margin-bottom: 24rpx;
-  display: flex;
-  gap: 20rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.03);
-
-  .img-wrap {
-    position: relative;
-    .svip-tag {
-      position: absolute;
-      top: 0;
-      left: 0;
-      background: linear-gradient(135deg, #333 0%, #1a1a1a 100%);
-      color: #f6d365;
-      font-size: 20rpx;
-      padding: 4rpx 12rpx;
-      border-radius: 16rpx 0 16rpx 0;
-      z-index: 1;
+  .recommend-grid {
+    display: flex;
+    justify-content: space-between;
+    gap: 16rpx;
+    
+    .recommend-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      
+      .recommend-img {
+        width: 100%;
+        height: 200rpx;
+        border-radius: 16rpx;
+        margin-bottom: 16rpx;
+      }
+      
+      .recommend-text {
+        font-size: 26rpx;
+        color: #333;
+      }
     }
   }
 
-  .course-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    
-    .name-wrap {
-      display: flex;
-      align-items: center;
-      margin-bottom: 8rpx;
+  &.ai-smart-section {
+    .section-header {
+      margin-bottom: 20rpx;
+      
+      .section-desc {
+        font-size: 24rpx;
+        color: #999;
+        margin-top: 10rpx;
+        margin-left: 24rpx;
+        display: block;
+      }
     }
 
-    .course-name {
-      font-size: 30rpx;
-      font-weight: bold;
-      color: #333;
-    }
-    
-    .course-desc {
-      font-size: 24rpx;
-      color: #666;
-      margin-bottom: 12rpx;
-    }
-    
-    .course-bottom {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      .course-price {
-        font-size: 32rpx;
-        font-weight: bold;
-        color: #f44336;
+    .ai-smart-content {
+      background-color: #f8fbff;
+      border-radius: 16rpx;
+      padding: 24rpx;
+      
+      .status-wrap {
+        display: flex;
+        align-items: center;
+        margin-bottom: 24rpx;
+        background-color: #fff;
+        padding: 16rpx 24rpx;
+        border-radius: 12rpx;
+        
+        .status-dot {
+          width: 12rpx;
+          height: 12rpx;
+          border-radius: 50%;
+          background-color: #4facfe;
+          margin-right: 12rpx;
+        }
+        
+        .status-text {
+          font-size: 26rpx;
+          color: #333;
+          font-weight: 500;
+        }
+      }
+      
+      .join-btn {
+        background: linear-gradient(90deg, #7ab0ff, #4facfe);
+        border-radius: 40rpx;
+        padding: 20rpx 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 8rpx 16rpx rgba(79, 172, 254, 0.3);
+        
+        .btn-text {
+          color: #fff;
+          font-size: 30rpx;
+          font-weight: bold;
+        }
       }
     }
   }
