@@ -13,21 +13,14 @@
 
       <!-- 搜索栏 -->
       <el-form :inline="true" :model="searchForm" class="search-form">
-        <el-form-item label="姓名">
-          <el-input v-model="searchForm.name" placeholder="请输入姓名" clearable @keyup.enter="handleSearch" />
-        </el-form-item>
-        <el-form-item label="学号">
-          <el-input v-model="searchForm.studentNo" placeholder="请输入学号" clearable @keyup.enter="handleSearch" />
-        </el-form-item>
-        <el-form-item label="学校">
-          <el-select v-model="searchForm.school" placeholder="请选择学校" clearable style="width: 180px">
-            <el-option 
-              v-for="item in schoolList" 
-              :key="item.id" 
-              :label="item.name" 
-              :value="item.id" 
-            />
-          </el-select>
+        <el-form-item label="综合搜索">
+          <el-input 
+            v-model="searchForm.keyword" 
+            placeholder="搜索姓名/学号/学校/年级/班级" 
+            clearable 
+            @keyup.enter="handleSearch" 
+            style="width: 300px"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
@@ -112,9 +105,6 @@
         <el-form-item label="班级" prop="className">
           <el-input v-model="form.className" placeholder="如：1班" />
         </el-form-item>
-        <el-form-item label="家长手机" prop="parentPhone">
-          <el-input v-model="form.parentPhone" placeholder="请输入手机号" />
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -182,9 +172,7 @@ const selectedIds = ref<string[]>([])
 const schoolList = ref<any[]>([])
 
 const searchForm = ref({
-  name: '',
-  studentNo: '',
-  school: ''
+  keyword: ''
 })
 
 const dialogVisible = ref(false)
@@ -198,8 +186,7 @@ const form = ref<Partial<Api.Student.StudentItem>>({
   gender: '男',
   school: '',
   grade: '',
-  className: '',
-  parentPhone: ''
+  className: ''
 })
 
 const rules = {
@@ -258,7 +245,7 @@ const handleSearch = () => {
 }
 
 const resetSearch = () => {
-  searchForm.value = { name: '', studentNo: '', school: '' }
+  searchForm.value = { keyword: '' }
   handleSearch()
 }
 
@@ -285,8 +272,7 @@ const handleAdd = () => {
     gender: '男',
     schoolId: '',
     grade: '',
-    className: '',
-    parentPhone: ''
+    className: ''
   }
   dialogVisible.value = true
 }

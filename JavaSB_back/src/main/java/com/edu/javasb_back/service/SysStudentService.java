@@ -6,7 +6,7 @@ import com.edu.javasb_back.model.entity.SysStudent;
 import java.util.Map;
 
 public interface SysStudentService {
-    Result<Map<String, Object>> getStudentList(int page, int size, String name, String studentNo, String schoolId);
+    Result<Map<String, Object>> getStudentList(int page, int size, String keyword);
     
     Result<Void> addStudent(SysStudent student);
     

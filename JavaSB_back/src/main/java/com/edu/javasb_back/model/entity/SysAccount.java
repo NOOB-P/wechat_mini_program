@@ -49,6 +49,9 @@ public class SysAccount {
     @Column(name = "online_status")
     private String onlineStatus = "offline"; // online, offline, banned
 
+    @Column(name = "is_bound_student")
+    private Integer isBoundStudent = 0; // 1-是, 0-否
+
     @Column(name = "is_enabled")
     private Integer isEnabled = 1;
 
@@ -62,6 +65,10 @@ public class SysAccount {
     @UpdateTimestamp
     @Column(name = "update_time")
     private LocalDateTime updateTime;
+
+    // Transient fields for request handling
+    @Transient
+    private String studentId;
 
     // 手动添加 Getter/Setter 解决部分环境 Lombok 未生效问题
     public Long getUid() { return uid; }
@@ -99,6 +106,12 @@ public class SysAccount {
 
     public String getOnlineStatus() { return onlineStatus; }
     public void setOnlineStatus(String onlineStatus) { this.onlineStatus = onlineStatus; }
+
+    public Integer getIsBoundStudent() { return isBoundStudent; }
+    public void setIsBoundStudent(Integer isBoundStudent) { this.isBoundStudent = isBoundStudent; }
+
+    public String getStudentId() { return studentId; }
+    public void setStudentId(String studentId) { this.studentId = studentId; }
 
     public Integer getIsEnabled() { return isEnabled; }
     public void setIsEnabled(Integer isEnabled) { this.isEnabled = isEnabled; }

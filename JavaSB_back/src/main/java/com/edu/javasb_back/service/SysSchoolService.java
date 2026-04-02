@@ -8,5 +8,7 @@ import java.util.List;
 public interface SysSchoolService {
     Result<List<SchoolNodeVO>> getSchoolTree();
     Result<Void> addSchool(SysSchool school);
-    Result<List<SysSchool>> getSchoolList();
+    Result<List<SysSchool>> getSchoolList(String keyword, String province, String city, String name);
+    Result<Void> updateSchool(SysSchool school);
+    Result<Void> deleteSchool(String id);
 }

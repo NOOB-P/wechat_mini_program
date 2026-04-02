@@ -8,9 +8,10 @@ export function fetchGetSchoolTree() {
 }
 
 /** 获取学校平铺列表 */
-export function fetchGetSchoolList() {
+export function fetchGetSchoolList(params?: { keyword?: string, province?: string, city?: string, name?: string }) {
   return api.get<any>({
-    url: '/api/system/school/list'
+    url: '/api/system/school/list',
+    params
   })
 }
 
@@ -32,20 +33,17 @@ export function fetchAddNode(params: Api.School.NodeParams) {
 }
 
 /** 修改节点 */
-export function fetchUpdateNode(params: Api.School.NodeParams) {
-  return Promise.resolve({
-    code: 200,
-    msg: '修改成功',
-    data: null
+export function fetchUpdateSchool(params: { id: string, province: string, city: string, name: string }) {
+  return api.put<any>({
+    url: '/api/system/school/edit',
+    data: params
   })
 }
 
 /** 删除节点 */
-export function fetchDeleteNode(id: string) {
-  return Promise.resolve({
-    code: 200,
-    msg: '删除成功',
-    data: null
+export function fetchDeleteSchool(id: string) {
+  return api.del<any>({
+    url: `/api/system/school/delete/${id}`
   })
 }
 

@@ -41,14 +41,23 @@
 
       <!-- 家长用户特有字段 -->
       <template v-if="formData.userType === '3'">
-        <ElFormItem label="绑定学校" prop="schoolName">
-          <ElInput v-model="formData.schoolName" placeholder="请输入学校名称" />
-        </ElFormItem>
-        <ElFormItem label="绑定班级" prop="className">
-          <ElInput v-model="formData.className" placeholder="请输入班级名称" />
-        </ElFormItem>
-        <ElFormItem label="关联学生" prop="studentName">
-          <ElInput v-model="formData.studentName" placeholder="请输入学生姓名" />
+        <ElFormItem label="关联学生" prop="studentId">
+          <ElSelect
+            v-model="formData.studentId"
+            placeholder="请搜索并选择学生"
+            filterable
+            remote
+            :remote-method="getStudents"
+            class="w-full"
+            clearable
+          >
+            <ElOption
+              v-for="item in studentList"
+              :key="item.id"
+              :label="`${item.name} (${item.school} / ${item.className || '未设置班级'})`"
+              :value="item.id"
+            />
+          </ElSelect>
         </ElFormItem>
       </template>
 
@@ -103,7 +112,8 @@
   import type { FormInstance, FormRules } from 'element-plus'
   import { fetchAddUser, fetchEditUser } from '@/api/system/user'
   import { fetchGetRoleList } from '@/api/system/role'
-  import { onMounted, ref } from 'vue'
+  import { fetchGetStudentList } from '@/api/core-business/student'
+  import { onMounted, ref, reactive, computed, watch, nextTick } from 'vue'
 
   interface Props {
     visible: boolean
@@ -123,6 +133,8 @@
   
   // 角色列表
   const roleList = ref<any[]>([])
+  // 学生列表 (用于家长绑定)
+  const studentList = ref<any[]>([])
 
   const getRoles = async () => {
     try {
@@ -135,8 +147,20 @@
     }
   }
 
+  const getStudents = async (query?: string) => {
+    try {
+      const res = await fetchGetStudentList({ current: 1, size: 50, keyword: query })
+      if (res && res.records) {
+        studentList.value = res.records
+      }
+    } catch (error) {
+      console.error('获取学生列表失败', error)
+    }
+  }
+
   onMounted(() => {
     getRoles()
+    getStudents()
   })
 
   // 对话框显示控制
@@ -165,24 +189,33 @@
     gradeName: '',
     className: '',
     studentName: '',
+    studentId: '',
     parentName: ''
   })
 
   // 表单验证规则
-  const rules: FormRules = {
-    userName: [
-      { required: true, message: '请输入用户名', trigger: 'blur' },
-      { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
-    ],
-    nickName: [
-      { required: true, message: '请输入昵称', trigger: 'blur' }
-    ],
-    userPhone: [
-      { required: false, message: '请输入手机号', trigger: 'blur' },
-      { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
-    ],
-    userType: [{ required: true, message: '请选择用户类型', trigger: 'change' }]
-  }
+  const rules = computed<FormRules>(() => {
+    const baseRules: FormRules = {
+      userName: [
+        { required: true, message: '请输入用户名', trigger: 'blur' },
+        { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
+      ],
+      nickName: [
+        { required: true, message: '请输入昵称', trigger: 'blur' }
+      ],
+      userPhone: [
+        { required: false, message: '请输入手机号', trigger: 'blur' },
+        { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
+      ],
+      userType: [{ required: true, message: '请选择用户类型', trigger: 'change' }]
+    }
+
+    if (formData.userType === '3') {
+      baseRules.studentId = [{ required: true, message: '请选择关联学生', trigger: 'change' }]
+    }
+
+    return baseRules
+  })
 
   /**
    * 初始化表单数据
@@ -207,6 +240,7 @@
         gradeName: row.gradeName || '',
         className: row.className || '',
         studentName: row.studentName || '',
+        studentId: (row.boundStudents && row.boundStudents.length > 0) ? row.boundStudents[0].id : '',
         parentName: row.parentName || ''
       })
     } else {
@@ -224,6 +258,7 @@
         gradeName: '',
         className: '',
         studentName: '',
+        studentId: '',
         parentName: ''
       })
     }

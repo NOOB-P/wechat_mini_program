@@ -1,15 +1,13 @@
 import api from '@/utils/http'
 
 /** 获取学生列表 */
-export function fetchGetStudentList(params: Api.Student.StudentSearchParams) {
+export function fetchGetStudentList(params: { current?: number, size?: number, keyword?: string }) {
   return api.get<any>({
     url: '/api/students/list',
     params: {
       page: params.current || 1,
       size: params.size || 10,
-      name: params.name,
-      studentNo: params.studentNo,
-      schoolId: params.school
+      keyword: params.keyword
     }
   })
 }
