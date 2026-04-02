@@ -1,37 +1,34 @@
-import { mockPrintOrders } from '@/mock/order/print'
+import api from '@/utils/http'
 
 /**
  * 获取打印订单列表
  * @param params 查询参数
  */
-export async function fetchPrintOrderList(params?: any) {
-  const { current = 1, size = 10, userName, orderNo, orderStatus } = params || {}
-  
-  let filteredList = [...mockPrintOrders]
-  
-  if (userName) {
-    filteredList = filteredList.filter(item => item.userName.includes(userName))
-  }
-  if (orderNo) {
-    filteredList = filteredList.filter(item => item.orderNo.includes(orderNo))
-  }
-  if (orderStatus !== undefined && orderStatus !== '') {
-    filteredList = filteredList.filter(item => item.orderStatus === parseInt(orderStatus))
-  }
+export function fetchPrintOrderList(params?: any) {
+  return api.get<any>({
+    url: '/api/admin/order/print/list',
+    params
+  })
+}
 
-  const total = filteredList.length
-  const start = (current - 1) * size
-  const end = start + size
-  const records = filteredList.slice(start, end)
+/**
+ * 获取打印订单详情
+ * @param id 订单ID
+ */
+export function fetchPrintOrderDetail(id: number | string) {
+  return api.get<any>({
+    url: `/api/admin/order/print/${id}`
+  })
+}
 
-  return Promise.resolve({
-    code: 200,
-    msg: '获取成功',
-    data: {
-      records,
-      total,
-      current,
-      size
-    }
+/**
+ * 更新打印订单状态
+ * @param id 订单ID
+ * @param status 状态值
+ */
+export function updatePrintOrderStatus(id: number | string, status: number) {
+  return api.put<any>({
+    url: `/api/admin/order/print/${id}/status`,
+    data: { status }
   })
 }
