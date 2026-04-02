@@ -20,7 +20,10 @@ interface NavigateToOptions {
        "/pages/resource/paper" |
        "/pages/resource/student-talk" |
        "/pages/resource/sync-course" |
+       "/pages/score/composition" |
+       "/pages/score/distribution" |
        "/pages/score/index" |
+       "/pages/score/trend" |
        "/pages/service/index" |
        "/pages/vip/index" |
        "/pages/vip/recharge" |
