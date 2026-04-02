@@ -1,36 +1,32 @@
-import { mockPrintConfig } from '@/mock/payment/print'
+import api from '@/utils/http'
 
 /**
  * 获取打印价格配置
  */
-export async function fetchPrintConfig() {
-  return Promise.resolve({
-    code: 200,
-    msg: '获取成功',
-    data: mockPrintConfig
+export function fetchPrintConfig() {
+  return api.get<any>({
+    url: '/api/admin/payment/print/config'
   })
 }
 
 /**
- * 更新打印价格设置
- * @param params 配置参数
+ * 更新纸张价格设置
+ * @param params 纸张配置数组
  */
-export async function updatePrintConfig(params: any) {
-  return Promise.resolve({
-    code: 200,
-    msg: '配置更新成功',
-    data: null
+export function updatePaperPrices(params: any[]) {
+  return api.put<any>({
+    url: '/api/admin/payment/print/paper-prices',
+    data: params
   })
 }
 
 /**
  * 更新配送费用设置
- * @param params 配送参数
+ * @param params 配送参数数组
  */
-export async function updateDeliveryConfig(params: any) {
-  return Promise.resolve({
-    code: 200,
-    msg: '配送费用更新成功',
-    data: null
+export function updateDeliveryConfig(params: any[]) {
+  return api.put<any>({
+    url: '/api/admin/payment/print/delivery-configs',
+    data: params
   })
 }

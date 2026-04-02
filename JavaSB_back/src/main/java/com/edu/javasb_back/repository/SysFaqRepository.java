@@ -12,8 +12,8 @@ import org.springframework.stereotype.Repository;
 public interface SysFaqRepository extends JpaRepository<SysFaq, String> {
     
     @Query("SELECT f FROM SysFaq f WHERE " +
-           "(:question IS NULL OR f.question LIKE %:question%) AND " +
-           "(:categoryName IS NULL OR f.categoryName = :categoryName) AND " +
+           "(:question IS NULL OR :question = '' OR f.question LIKE %:question%) AND " +
+           "(:categoryName IS NULL OR :categoryName = '' OR f.categoryName = :categoryName) AND " +
            "(:status IS NULL OR f.status = :status)")
     Page<SysFaq> findFaqs(@Param("question") String question,
                           @Param("categoryName") String categoryName,

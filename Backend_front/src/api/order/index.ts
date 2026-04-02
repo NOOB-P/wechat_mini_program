@@ -1,7 +1,9 @@
 import { fetchVipOrderList } from './vip'
-import { fetchPrintOrderList } from './print'
+import { fetchPrintOrderList, updatePrintOrderStatus, fetchPrintOrderDetail } from './print'
 
 export {
   fetchVipOrderList,
-  fetchPrintOrderList
+  fetchPrintOrderList,
+  updatePrintOrderStatus,
+  fetchPrintOrderDetail
 }
