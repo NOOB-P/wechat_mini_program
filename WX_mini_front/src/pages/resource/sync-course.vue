@@ -43,9 +43,11 @@ const loadOptions = async () => {
   try {
     const res = await getSyncCourseOptionsApi()
     if (res.code === 200) {
-      grades.value = res.data.grades || []
-      subjects.value = res.data.subjects || []
-      if (grades.value.length > 0) gradeIndex.value = 1 // Default to second item as in original code, or 0
+      // 后端返回的是 [{label: '七年级', value: '七年级'}, ...]
+      grades.value = res.data.grades.map((item: any) => item.label) || []
+      subjects.value = res.data.subjects.map((item: any) => item.label) || []
+      
+      if (grades.value.length > 0) gradeIndex.value = 0
       if (subjects.value.length > 0) currentSubject.value = subjects.value[0]
       loadData()
     }
@@ -57,7 +59,10 @@ const loadOptions = async () => {
 const loadData = async () => {
   if (!currentSubject.value) return
   try {
-    const res = await getSyncCourseListApi({ subject: currentSubject.value })
+    const res = await getSyncCourseListApi({ 
+      subject: currentSubject.value,
+      grade: grades.value[gradeIndex.value]
+    })
     if (res.code === 200) {
       list.value = res.data
     }
@@ -81,7 +86,7 @@ const onSubjectChange = (item: any) => {
 
 const handleItemClick = (item: any) => {
   uni.navigateTo({
-    url: `/pages/course/detail?name=${encodeURIComponent(item.title)}&price=&image=${encodeURIComponent(item.cover)}`
+    url: `/pages/course/detail?id=${item.id}`
   })
 }
 

@@ -5,7 +5,7 @@ import { getUserInfoApi } from '@/api/mine'
 
 // 用户信息
 const userInfo = reactive({
-  avatar: '',
+  avatar: 'https://img.yzcdn.cn/vant/cat.jpeg', // 设置默认头像
   nickname: '',
   grade: '',
   role: 'normal',
@@ -33,15 +33,23 @@ const getUserInfo = async () => {
   try {
     const res = await getUserInfoApi()
     if (res.code === 200) {
-      Object.assign(userInfo, res.data)
+      // 只有当后端返回了非空的 avatar 时才更新
+      const updatedData = { ...res.data }
+      if (!updatedData.avatar) {
+        delete updatedData.avatar
+      }
+      Object.assign(userInfo, updatedData)
       
-      // 处理 VIP/SVIP 状态
-      if (res.data.isSvip === 1) {
+      // 处理 VIP/SVIP 逻辑
+      userInfo.isVip = res.data.isVip || 0
+      userInfo.isSvip = res.data.isSvip || 0
+      
+      if (userInfo.isSvip) {
         userInfo.role = 'svip'
-        userInfo.roleName = 'SVIP'
-      } else if (res.data.isVip === 1) {
+        userInfo.roleName = 'SVIP会员'
+      } else if (userInfo.isVip) {
         userInfo.role = 'vip'
-        userInfo.roleName = 'VIP'
+        userInfo.roleName = 'VIP会员'
       } else {
         userInfo.role = 'normal'
         userInfo.roleName = '普通用户'
@@ -66,9 +74,16 @@ onMounted(() => {
 })
 
 const handleMenuClick = (item: any) => {
-  if (item.value === 'settings') {
+  const type = item.value
+  if (type === 'courses') {
+    uni.navigateTo({ url: '/pages/mine/course-list?type=course' })
+  } else if (type === 'favorites') {
+    uni.navigateTo({ url: '/pages/mine/course-list?type=collection' })
+  } else if (type === 'history') {
+    uni.navigateTo({ url: '/pages/mine/course-list?type=record' })
+  } else if (type === 'settings') {
     uni.navigateTo({ url: '/pages/mine/settings/index' })
-  } else if (item.value === 'service') {
+  } else if (type === 'service') {
     uni.navigateTo({ url: '/pages/service/index' })
   } else {
     uni.showToast({ title: `点击了${item.label}`, icon: 'none' })
@@ -76,7 +91,7 @@ const handleMenuClick = (item: any) => {
 }
 
 const handleEditProfile = () => {
-  uni.showToast({ title: '编辑个人资料', icon: 'none' })
+  uni.navigateTo({ url: '/pages/mine/edit-profile' })
 }
 
 const goToVip = () => {

@@ -12,6 +12,8 @@ interface NavigateToOptions {
        "/pages/course/detail" |
        "/pages/course/index" |
        "/pages/home/index" |
+       "/pages/mine/course-list" |
+       "/pages/mine/edit-profile" |
        "/pages/mine/index" |
        "/pages/paper/index" |
        "/pages/register/index" |

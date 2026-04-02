@@ -242,6 +242,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       ]
     };
   },
+  /*
   '/course/list': (data) => {
     return {
       code: 200,
@@ -254,6 +255,8 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       ]
     };
   },
+  */
+  /*
   '/score/semester/list': (data) => {
     return {
       code: 200,
@@ -344,6 +347,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   },
+  */
   '/paper/detail': (data) => {
     return {
       code: 200,
@@ -451,6 +455,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   },
+  /*
   '/resource/student-talk/list': () => ({
     code: 200,
     msg: 'success',
@@ -461,6 +466,8 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       { id: 4, title: '学霸说06期 新学期新环境的相处', author: '学霸说', buyers: 152, episodes: 1, price: '免费', cover: 'https://img.yzcdn.cn/vant/apple-2.jpg' },
     ]
   }),
+  */
+  /*
   '/resource/family-edu/list': () => ({
     code: 200,
     msg: 'success',
@@ -482,6 +489,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       ]
     }
   },
+  */
   '/resource/paper/list': (data) => {
     const kw = data?.keyword || ''
     return {
@@ -511,6 +519,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       ]
     };
   },
+  /*
   '/resource/sync-course/options': () => {
     return {
       code: 200,
@@ -521,6 +530,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   },
+  */
   '/user/info': (data) => {
     // 根据请求头中的 token 区分角色
     const token = uni.getStorageSync('token') || '';
@@ -557,6 +567,7 @@ export const getMockData = (url: string, data: any): MockResponse | null => {
   // 去掉 baseUrl 部分（如果有）
   const pureUrl = url.replace(__VITE_SERVER_BASEURL__, '');
 
+  /*
   // 课程详情 mock 拦截
   if (pureUrl === '/course/detail') {
     const detailData = getCourseDetailData(data?.name || '');
@@ -566,43 +577,16 @@ export const getMockData = (url: string, data: any): MockResponse | null => {
       data: detailData
     };
   }
+  */
 
   const handler = mocks[pureUrl];
   return handler ? handler(data) : null;
 };
 
+/*
 // --- 课程详情相关 ---
 export const getCourseDetailData = (courseName: string) => {
-  // 根据课程名称返回不同的模拟数据
-  const chapterLists: Record<string, any[]> = {
-    '心理健康微课堂': [
-      { title: '青春期心理特征解析' },
-      { title: '如何建立有效的沟通机制' },
-      { title: '应对孩子叛逆期的策略' }
-    ],
-    '外教口语特训': [
-      { title: '音标发音基础与纠正' },
-      { title: '日常交际口语100句' },
-      { title: '旅游出行场景模拟' },
-      { title: '商务英语初步' }
-    ],
-    '高中数学压轴': [
-      { title: '导数综合问题（一）' },
-      { title: '导数综合问题（二）' },
-      { title: '圆锥曲线与方程（上）' },
-      { title: '圆锥曲线与方程（下）' },
-      { title: '概率统计压轴突破' }
-    ]
-  }
-
-  // 默认大纲
-  const defaultChapters = [
-    { title: '核心概念解析与基础回顾' },
-    { title: '典型例题精讲与思路点拨' },
-    { title: '高频易错点避坑指南' },
-    { title: '综合拔高与实战演练' }
-  ]
-
+...
   return {
     desc: '这是一门精心打磨的高质量课程，由资深名师亲自授课，深入浅出地剖析核心知识点。无论你是基础薄弱想要稳扎稳打，还是寻求突破冲击高分，这门课程都能为你提供针对性的指导与帮助。',
     studentCount: Math.floor(Math.random() * 1000) + 100,
@@ -610,3 +594,4 @@ export const getCourseDetailData = (courseName: string) => {
     chapters: chapterLists[courseName] || defaultChapters
   }
 }
+*/
