@@ -18,23 +18,10 @@ const getCourseList = async () => {
 }
 
 const handleCourseClick = (course: any) => {
-  const token = uni.getStorageSync('token') || ''
-  const isSVIP = token.includes('13688888888')
-  
-  if (isSVIP) {
-    uni.showToast({ title: `正在进入: ${course.name}`, icon: 'none' })
-  } else {
-    uni.showModal({
-      title: 'SVIP 专属课程',
-      content: '此为 AI 名师精品课程，开通 SVIP 即可无限畅学！',
-      confirmText: '去开通',
-      success: (res) => {
-        if (res.confirm) {
-          uni.navigateTo({ url: '/pages/vip/recharge' })
-        }
-      }
-    })
-  }
+  // 跳转到详情页，传递课程ID
+  uni.navigateTo({
+    url: `/pages/course/detail?id=${course.id}`
+  })
 }
 
 onShow(() => {
@@ -44,10 +31,6 @@ onShow(() => {
   } else {
     getCourseList()
   }
-})
-
-onMounted(() => {
-  // 初始加载由 onShow 处理
 })
 </script>
 
@@ -60,13 +43,14 @@ onMounted(() => {
     </view>
 
     <view class="course-list">
-      <view v-for="(item, index) in courses" :key="index" class="course-card" @click="handleCourseClick(item)">
-        <wd-img :src="item.image" :width="120" :height="80" round class="course-img" />
+      <view v-for="(item, index) in courses" :key="item.id" class="course-card" @click="handleCourseClick(item)">
+        <wd-img :src="item.cover || 'https://img.yzcdn.cn/vant/cat.jpeg'" :width="120" :height="80" round class="course-img" />
         <view class="course-info">
-          <text class="course-name">{{ item.name }}</text>
-          <text class="course-desc">{{ item.desc }}</text>
+          <text class="course-name">{{ item.title }}</text>
+          <text class="course-desc" v-if="item.content">{{ item.content.replace(/<[^>]+>/g, '').substring(0, 30) }}...</text>
           <view class="course-bottom">
-            <text class="course-price">￥{{ item.price }}</text>
+            <text class="course-price" v-if="item.price > 0">￥{{ item.price }}</text>
+            <text class="course-price free" v-else>免费</text>
             <wd-button type="primary" size="small" plain>立即学习</wd-button>
           </view>
         </view>

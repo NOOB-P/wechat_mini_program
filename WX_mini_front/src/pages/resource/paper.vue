@@ -94,7 +94,7 @@ const selectSubject = (name: string) => {
 
 const handleItemClick = (item: any) => {
   uni.navigateTo({
-    url: `/pages/course/detail?name=${encodeURIComponent(item.title)}&price=&image=${encodeURIComponent('https://img.yzcdn.cn/vant/cat.jpeg')}`
+    url: `/pages/course/detail?id=${item.id}`
   })
 }
 

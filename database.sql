@@ -26,6 +26,7 @@ CREATE TABLE `sys_accounts` (
     `uid` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用户唯一标识 UID',
     `username` VARCHAR(50) UNIQUE COMMENT '登录用户名',
     `nickname` VARCHAR(100) NOT NULL DEFAULT '新用户' COMMENT '用户昵称',
+    `avatar` VARCHAR(255) COMMENT '用户头像URL',
     `password` VARCHAR(255) COMMENT '加密后的登录密码',
     `phone` VARCHAR(20) UNIQUE COMMENT '绑定手机号',
     `email` VARCHAR(100) UNIQUE COMMENT '绑定邮箱',
@@ -113,7 +114,7 @@ CREATE TABLE `exam_results` (
 -- 课程、资源与交互模块
 -- ---------------------------------------------------------
 
--- 7. 课程资源表
+-- 7. 课程资源表 (增加类型分类)
 DROP TABLE IF EXISTS `courses`;
 CREATE TABLE `courses` (
     `id` VARCHAR(50) PRIMARY KEY COMMENT '课程ID',
@@ -121,12 +122,47 @@ CREATE TABLE `courses` (
     `cover` VARCHAR(255) COMMENT '封面图URL',
     `video_url` VARCHAR(500) COMMENT '视频URL',
     `content` TEXT COMMENT '课程详细富文本内容',
+    `type` ENUM('general', 'sync', 'family') DEFAULT 'general' COMMENT '课程类型: general-常规, sync-同步, family-家庭教育',
+    `subject` VARCHAR(50) COMMENT '科目 (仅同步课程有效)',
+    `grade` VARCHAR(50) COMMENT '年级 (仅同步课程有效)',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 1-上架, 0-下架',
-    `price` DECIMAL(10,2) DEFAULT 0.00 COMMENT '价格(可选)',
+    `price` DECIMAL(10,2) DEFAULT 0.00 COMMENT '价格',
     `is_svip_only` BOOLEAN DEFAULT FALSE COMMENT '是否SVIP专属',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='课程与学习资源表';
+
+-- 7.1 用户与课程交互表 (我的课程/最近查看)
+DROP TABLE IF EXISTS `user_courses`;
+CREATE TABLE `user_courses` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `user_uid` BIGINT NOT NULL COMMENT '用户UID',
+    `course_id` VARCHAR(50) NOT NULL COMMENT '课程ID',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uk_user_course` (`user_uid`, `course_id`)
+) ENGINE=InnoDB COMMENT='我的课程表 (点击进入算我的课程)';
+
+-- 7.2 用户收藏表 (我的收藏)
+DROP TABLE IF EXISTS `user_collections`;
+CREATE TABLE `user_collections` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `user_uid` BIGINT NOT NULL COMMENT '用户UID',
+    `course_id` VARCHAR(50) NOT NULL COMMENT '课程ID',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uk_user_collection` (`user_uid`, `course_id`)
+) ENGINE=InnoDB COMMENT='用户收藏表';
+
+-- 7.3 用户学习记录表 (学习记录)
+DROP TABLE IF EXISTS `user_study_records`;
+CREATE TABLE `user_study_records` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `user_uid` BIGINT NOT NULL COMMENT '用户UID',
+    `course_id` VARCHAR(50) NOT NULL COMMENT '课程ID',
+    `progress` INT DEFAULT 0 COMMENT '学习进度百分比',
+    `last_study_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uk_user_record` (`user_uid`, `course_id`)
+) ENGINE=InnoDB COMMENT='学习记录表 (点击立即学习算学习记录)';
 
 -- 8. AI 自习室报名表
 DROP TABLE IF EXISTS `study_room_enrollments`;
@@ -245,11 +281,11 @@ INSERT INTO `sys_roles` (`id`, `role_name`, `role_code`, `description`, `status`
 (3, '家长', 'parent', '小程序端家长用户', 1);
 
 -- 2. 统一账号表数据 (密码默认设为123456)
-INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `password`, `phone`, `email`, `role_id`, `is_vip`, `is_svip`, `online_status`, `is_enabled`) VALUES
-(1, 'admin', '超级管理员', '123456', '13800000000', 'admin@example.com', 1, NULL, NULL, 'offline', 1),
-(2, 'manager', '运营人员', '123456', '13800000001', 'manager@example.com', 2, NULL, NULL, 'offline', 1),
-(3, 'parent01', '张三爸爸', '123456', '13800000002', 'parent01@example.com', 3, 1, 0, 'offline', 1),
-(4, 'parent02', '李四妈妈', '123456', '13800000003', 'parent02@example.com', 3, 0, 0, 'offline', 1);
+INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `avatar`, `password`, `phone`, `email`, `role_id`, `is_vip`, `is_svip`, `online_status`, `is_enabled`) VALUES
+(1, 'admin', '超级管理员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000000', 'admin@example.com', 1, NULL, NULL, 'offline', 1),
+(2, 'manager', '运营人员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000001', 'manager@example.com', 2, NULL, NULL, 'offline', 1),
+(3, 'parent01', '张三爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000002', 'parent01@example.com', 3, 1, 0, 'offline', 1),
+(4, 'parent02', '李四妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000003', 'parent02@example.com', 3, 0, 0, 'offline', 1);
 
 -- 3. 学校结构表数据
 INSERT INTO `schools` (`id`, `name`, `type`, `status`) VALUES
@@ -272,9 +308,11 @@ INSERT INTO `exam_results` (`exam_id`, `student_no`, `student_name`, `school`, `
 ('EXAM002', '20230002', '李四', '实验小学', '六年级', '2班', 88.0, '{"q1": 5, "q2": 5, "q3": 5}');
 
 -- 7. 课程资源表数据
-INSERT INTO `courses` (`id`, `title`, `cover`, `video_url`, `content`, `status`, `price`, `is_svip_only`) VALUES
-('CRS001', '初中数学基础巩固', 'https://example.com/cover1.jpg', 'https://example.com/video1.mp4', '<p>这是初中数学基础巩固课程的详细介绍...</p>', 1, 0.00, 0),
-('CRS002', '中考物理冲刺冲刺班', 'https://example.com/cover2.jpg', 'https://example.com/video2.mp4', '<p>这是中考物理冲刺冲刺班的详细介绍...</p>', 1, 99.00, 1);
+INSERT INTO `courses` (`id`, `title`, `cover`, `video_url`, `content`, `type`, `subject`, `grade`, `status`, `price`, `is_svip_only`) VALUES
+('CRS001', '初中数学基础巩固', 'https://example.com/cover1.jpg', 'https://example.com/video1.mp4', '<p>这是初中数学基础巩固课程的详细介绍...</p>', 'general', NULL, NULL, 1, 0.00, 0),
+('CRS002', '中考物理冲刺班', 'https://example.com/cover2.jpg', 'https://example.com/video2.mp4', '<p>这是中考物理冲刺冲刺班的详细介绍...</p>', 'general', NULL, NULL, 1, 99.00, 1),
+('SYNC001', '七年级上册数学同步', 'https://example.com/sync1.jpg', 'https://example.com/video3.mp4', '<p>七年级数学同步讲解...</p>', 'sync', '数学', '七年级', 1, 0.00, 0),
+('FAM001', '如何与青春期孩子沟通', 'https://example.com/fam1.jpg', 'https://example.com/video4.mp4', '<p>家庭教育讲座...</p>', 'family', NULL, NULL, 1, 0.00, 0);
 
 -- 8. AI 自习室报名表数据
 INSERT INTO `study_room_enrollments` (`id`, `parent_name`, `student_name`, `phone`, `status`, `apply_time`) VALUES

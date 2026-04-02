@@ -37,6 +37,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 如果没有Authorization请求头，或者不以 Bearer 开头，则直接放行，交给 Security 处理拦截
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             jwt = authHeader.replace("Bearer ", "").trim();
+            
+            // 鲁棒性处理：如果前端传了 Bearer Bearer <token>
+            if (jwt.startsWith("Bearer ")) {
+                jwt = jwt.replace("Bearer ", "").trim();
+            }
 
             // 检查 Token 是否在黑名单中 (已退出登录)
             // 增加 try-catch 块，如果 Redis 连接失败，不要阻断正常的 Token 验证
