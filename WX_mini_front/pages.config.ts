@@ -65,6 +65,36 @@ export default defineUniPages({
       },
     },
     {
+      path: 'pages/resource/index',
+      style: {
+        navigationBarTitleText: '资源库',
+      },
+    },
+    {
+      path: 'pages/resource/paper',
+      style: {
+        navigationBarTitleText: '名校试卷',
+      },
+    },
+    {
+      path: 'pages/resource/family-edu',
+      style: {
+        navigationBarTitleText: '家庭教育',
+      },
+    },
+    {
+      path: 'pages/resource/student-talk',
+      style: {
+        navigationBarTitleText: '学霸说',
+      },
+    },
+    {
+      path: 'pages/resource/sync-course',
+      style: {
+        navigationBarTitleText: '同步/专题课',
+      },
+    },
+    {
       path: 'pages/mine/index',
       style: {
         navigationBarTitleText: '我的',
@@ -79,7 +109,25 @@ export default defineUniPages({
     {
       path: 'pages/score/index',
       style: {
-        navigationBarTitleText: '成绩分析',
+        navigationBarTitleText: '学情分析',
+      },
+    },
+    {
+      path: 'pages/score/composition',
+      style: {
+        navigationBarTitleText: '成绩构成分析',
+      },
+    },
+    {
+      path: 'pages/score/distribution',
+      style: {
+        navigationBarTitleText: '分数分布统计',
+      },
+    },
+    {
+      path: 'pages/score/trend',
+      style: {
+        navigationBarTitleText: '近六次考试趋势分析',
       },
     },
     {
@@ -127,13 +175,13 @@ export default defineUniPages({
 		list: [
 		  {
 			iconPath: 'static/tabbar/tabbar_home.png',
-			selectedIconPath: 'static/tabbar/tabbar_home.png',
+			selectedIconPath: 'static/tabbar/tabbar_home_active.png',
 			pagePath: 'pages/home/index',
 			text: '首页',
 		  },
 		  {
 			iconPath: 'static/tabbar/tabbar_resource.png',
-			selectedIconPath: 'static/tabbar/tabbar_resource.png',
+			selectedIconPath: 'static/tabbar/tabbar_resource_active.png',
 			pagePath: 'pages/resource/index',
 			text: '资源库',
 		  },

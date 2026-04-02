@@ -9,46 +9,53 @@
         title="请选择学期和考试" 
         @confirm="onPickerConfirm"
         :column-change="onPickerColumnChange"
+        v-if="pickerColumns[0].length > 0"
       >
         <view class="picker-inner">
           <text class="picker-text">{{ currentDisplayLabel }}</text>
           <wd-icon name="arrow-down" size="14px" color="#666" />
         </view>
       </wd-picker>
+      <view v-else class="loading-placeholder">
+        <text>{{ currentDisplayLabel }}</text>
+      </view>
     </view>
 
     <scroll-view scroll-y class="content" v-if="scoreData">
       <!-- 考试概览 -->
       <view class="overview-card">
         <view class="exam-info">
-          <text class="exam-name">{{ scoreData.examName }}</text>
-          <text class="exam-date">{{ scoreData.examDate }}</text>
+          <text class="exam-name">考试名称：{{ scoreData.examName }}</text>
+          <text class="exam-date">更新时间：{{ scoreData.examDate }}</text>
         </view>
-        <view class="total-score-box">
-          <view class="score-item">
-            <text class="label">总分</text>
-            <text class="value">{{ scoreData.totalScore }}</text>
-          </view>
-          <view class="divider"></view>
-          <view class="score-item">
-            <text class="label">综合等级</text>
-            <text class="value level">{{ scoreData.totalLevel }}</text>
-          </view>
+        <view class="score-main">
+          <text class="score-text">总分：{{ scoreData.totalScore }}分</text>
+          <text class="score-text">综合等级：{{ scoreData.totalLevel }}</text>
         </view>
       </view>
 
       <!-- 各科成绩 -->
-      <view class="section">
-        <view class="section-title">各科成绩</view>
+      <view class="section subject-section">
+        <view class="section-title">
+          <view class="blue-bar"></view>
+          <text>各科成绩</text>
+        </view>
         <view class="subject-grid">
-          <view class="subject-card" v-for="(sub, index) in scoreData.subjects" :key="index" @click="goToPaperDetail(sub)">
-            <view class="sub-header">
+          <view 
+            class="subject-card" 
+            v-for="(sub, index) in scoreData.subjects" 
+            :key="index" 
+            @click="goToPaperDetail(sub)"
+            :class="getSubjectThemeClass(index)"
+          >
+            <view class="sub-left">
               <text class="sub-name">{{ sub.name }}</text>
-              <text class="sub-level" :class="'level-' + sub.level">{{ sub.level }}</text>
+              <text class="sub-score">{{ sub.score }}/{{ sub.fullScore }}</text>
             </view>
-            <view class="sub-score-box">
-              <text class="sub-score">{{ sub.score }}</text>
-              <text class="full-score">/ {{ sub.fullScore }}</text>
+            <view class="sub-right">
+              <view class="sub-level-wrap">
+                <text class="sub-level">{{ sub.level }}</text>
+              </view>
             </view>
           </view>
         </view>
@@ -73,7 +80,7 @@
             :class="{ active: currentMainTab === 'wrong_book' }"
             @click="currentMainTab = 'wrong_book'"
           >
-            错题集
+            错题整理
             <view class="line" v-if="currentMainTab === 'wrong_book'"></view>
           </view>
           <view 
@@ -81,7 +88,7 @@
             :class="{ active: currentMainTab === 'wrong_push' }"
             @click="currentMainTab = 'wrong_push'"
           >
-            错题推送
+            错题举一反三
             <view class="line" v-if="currentMainTab === 'wrong_push'"></view>
           </view>
         </view>
@@ -100,75 +107,35 @@
             <view class="vip-analysis-content" :class="{ 'blurred': !isVIPUser }">
               
               <!-- 详细的成绩构成分析 -->
-              <view class="analysis-card detail-card" v-if="analysisData && analysisData.composition">
+              <view class="analysis-card detail-card" v-if="analysisData && analysisData.composition" @click="goToDetail('composition')">
                 <view class="card-header">
-                  <text class="card-title">成绩构成分析</text>
-                  <text class="vip-tag">VIP</text>
-                </view>
-                <view class="desc">各科成绩结构（基础 / 综合 / 难题）</view>
-                
-                <view class="pie-chart-mock">
-                  <view class="pie-slice" v-for="(item, index) in analysisData.composition" :key="index">
-                    <text class="label">{{ item.name }} ({{ item.level }})</text>
-                    <view class="bar-bg">
-                      <view class="bar-fill" :style="{ width: item.value + '%' }"></view>
-                    </view>
-                    <text class="value">{{ item.value }}%</text>
+                  <view class="header-left">
+                    <view class="blue-bar"></view>
+                    <text class="card-title">成绩构成分析</text>
                   </view>
+                  <wd-icon name="arrow-right" size="16px" color="#ccc" />
                 </view>
               </view>
 
               <!-- 详细的成绩分布统计 -->
-              <view class="analysis-card detail-card" v-if="analysisData && analysisData.distribution">
+              <view class="analysis-card detail-card" v-if="analysisData && analysisData.distribution" @click="goToDetail('distribution')">
                 <view class="card-header">
-                  <text class="card-title">成绩分布统计</text>
-                  <text class="vip-tag">VIP</text>
-                </view>
-                <view class="desc">
-                  班级相对位置：<text class="highlight">{{ analysisData.distribution.rankInfo }}</text> | 综合等级：<text class="highlight">{{ analysisData.distribution.overallLevel }}</text>
-                </view>
-                
-                <view class="dist-chart">
-                  <view class="dist-bar" v-for="(item, index) in analysisData.distribution.levels" :key="index">
-                    <view class="bar-val">{{ item.count }}人</view>
-                    <view class="bar-track">
-                      <view class="bar-fill" :style="{ height: (item.count / 20 * 100) + '%' }"></view>
-                    </view>
-                    <view class="bar-label">{{ item.level }}</view>
+                  <view class="header-left">
+                    <view class="blue-bar"></view>
+                    <text class="card-title">分数分布统计</text>
                   </view>
+                  <wd-icon name="arrow-right" size="16px" color="#ccc" />
                 </view>
               </view>
 
               <!-- 近6次考试趋势分析 -->
-              <view class="analysis-card detail-card">
+              <view class="analysis-card detail-card" @click="goToDetail('trend')">
                 <view class="card-header">
-                  <text class="card-title">近6次考试趋势分析</text>
-                  <text class="vip-tag">VIP</text>
-                </view>
-                
-                <view class="chart-tabs" style="margin-top: 20rpx;">
-                  <view 
-                    class="chart-tab" 
-                    :class="{ active: currentSubject === '总分' }"
-                    @click="currentSubject = '总分'"
-                  >总分</view>
-                  <view 
-                    class="chart-tab" 
-                    v-for="(sub, idx) in scoreData.subjects" 
-                    :key="idx"
-                    :class="{ active: currentSubject === sub.name }"
-                    @click="currentSubject = sub.name"
-                  >{{ sub.name }}</view>
-                </view>
-                
-                <view class="bar-chart-container" style="padding-top: 20rpx; height: 300rpx;">
-                  <view class="bar-item" v-for="(item, idx) in scoreData.history" :key="idx">
-                    <view class="bar-val">{{ getChartValue(item) }}</view>
-                    <view class="bar-track">
-                      <view class="bar-fill" :style="{ height: getChartHeight(item) }"></view>
-                    </view>
-                    <view class="bar-label">{{ item.period }}</view>
+                  <view class="header-left">
+                    <view class="blue-bar"></view>
+                    <text class="card-title">近六次考试趋势分析</text>
                   </view>
+                  <wd-icon name="arrow-right" size="16px" color="#ccc" />
                 </view>
               </view>
             </view>
@@ -331,8 +298,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { ref, computed, watch } from 'vue'
+import { onShow, onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { getStudentScoresApi, getSemesterListApi } from '@/api/score'
 import { getVipAnalysisDataApi, getVipWrongBookApi, submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
@@ -342,6 +309,11 @@ const toast = useToast()
 const scoreData = ref<any>(null)
 const currentSubject = ref('总分')
 const currentMainTab = ref('analysis')
+
+const getSubjectThemeClass = (index: number) => {
+  const themes = ['bg-theme-blue', 'bg-theme-green', 'bg-theme-yellow', 'bg-theme-yellow', 'bg-theme-blue', 'bg-theme-green']
+  return themes[index % 6]
+}
 
 // VIP 数据与权限
 const isVIPUser = ref(false)
@@ -360,9 +332,7 @@ const checkVipStatus = async () => {
   }
 }
 
-onShow(() => {
-  checkVipStatus()
-})
+
 const analysisData = ref<any>(null)
 const wrongBookData = ref<any[]>([])
 
@@ -458,6 +428,14 @@ const goToPaperDetail = (subjectInfo: any) => {
   })
 }
 
+const goToDetail = (type: string) => {
+  uni.setStorageSync('currentAnalysisData', analysisData.value)
+  uni.setStorageSync('currentScoreData', scoreData.value)
+  uni.navigateTo({
+    url: `/pages/score/${type}`
+  })
+}
+
 const getChartValue = (item: any) => {
   if (currentSubject.value === '总分') {
     return item.score
@@ -473,7 +451,7 @@ const getChartHeight = (item: any) => {
 
 const loadInitData = async () => {
   try {
-    toast.loading('初始化中...')
+    uni.showLoading({ title: '初始化中...', mask: true })
     const [semesterRes, printRes] = await Promise.all([
       getSemesterListApi(),
       getPrintConfigApi()
@@ -484,35 +462,51 @@ const loadInitData = async () => {
     }
     
     if (semesterRes.code === 200) {
-      semesters.value = semesterRes.data.semesters
-      semesterData.value = semesterRes.data.semesterData
+      semesters.value = semesterRes.data.semesters || []
+      semesterData.value = semesterRes.data.semesterData || {}
       
-      const firstSemester = semesters.value[0].value
-      const firstExam = semesterData.value[firstSemester][0].value
-      
-      pickerColumns.value = [
-        semesters.value,
-        semesterData.value[firstSemester]
-      ]
-      pickerValue.value = [firstSemester, firstExam]
-      currentDisplayLabel.value = `${semesters.value[0].label} - ${semesterData.value[firstSemester][0].label}`
-      
-      loadData(firstSemester, firstExam)
+      if (semesters.value.length > 0) {
+        const firstSemester = semesters.value[0].value
+        const exams = semesterData.value[firstSemester] || []
+        
+        if (exams.length > 0) {
+          const firstExam = exams[0].value
+          
+          pickerColumns.value = [
+            semesters.value,
+            exams
+          ]
+          pickerValue.value = [firstSemester, firstExam]
+          currentDisplayLabel.value = `${semesters.value[0].label} - ${exams[0].label}`
+          
+          loadData(firstSemester, firstExam)
+        } else {
+          currentDisplayLabel.value = '暂无考试数据'
+          uni.hideLoading()
+        }
+      } else {
+        currentDisplayLabel.value = '暂无学期数据'
+        uni.hideLoading()
+      }
+    } else {
+      uni.hideLoading()
+      uni.showToast({ title: semesterRes.msg || '获取列表失败', icon: 'none' })
     }
   } catch (error: any) {
-    toast.error('初始化失败')
+    uni.hideLoading()
+    uni.showToast({ title: '初始化失败', icon: 'none' })
   }
 }
 
 const loadData = async (semesterVal: string, examIdVal: string) => {
   try {
-    toast.loading('加载中...')
+    uni.showLoading({ title: '加载中...', mask: true })
     
     // VIP 权限已在 onShow 中通过 checkVipStatus 更新
 
     const p1 = getStudentScoresApi({ semester: semesterVal, examId: examIdVal })
     const p2 = isVIPUser.value ? getVipAnalysisDataApi() : Promise.resolve({ code: 200, data: null })
-    const p3 = getVipWrongBookApi({})
+    const p3 = isVIPUser.value ? getVipWrongBookApi({}) : Promise.resolve({ code: 200, data: [] })
 
     const [res, anaRes, wrongRes] = await Promise.all([p1, p2, p3])
     
@@ -520,7 +514,9 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
       scoreData.value = res.data
       currentSubject.value = '总分'
     } else {
-      toast.error(res.msg || '获取数据失败')
+      uni.hideLoading()
+      uni.showToast({ title: res.msg || '获取数据失败', icon: 'none' })
+      return // 发生错误时停止后续逻辑
     }
 
     if (anaRes.code === 200 && isVIPUser.value) {
@@ -531,9 +527,10 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
       wrongBookData.value = wrongRes.data
     }
 
-    toast.close()
+    uni.hideLoading()
   } catch (error: any) {
-    toast.error(error.msg || '网络错误')
+    uni.hideLoading()
+    uni.showToast({ title: error.msg || '网络错误', icon: 'none' })
   }
 }
 
@@ -573,26 +570,31 @@ const joinRoom = () => {
   }, 1500)
 }
 
-onMounted(() => {
+onLoad(async () => {
+  await checkVipStatus()
   loadInitData()
+})
+
+onShow(() => {
+  // 每次进入页面可以再次刷新状态，但 onLoad 里的那次保证了首次加载逻辑正确
+  checkVipStatus()
 })
 </script>
 
 <style lang="scss" scoped>
 .score-container {
   min-height: 100vh;
-  background-color: #f7f8fa;
+  background: linear-gradient(180deg, #e0effe 0%, #f7f8fa 500rpx, #f7f8fa 100%);
   display: flex;
   flex-direction: column;
 }
 
 .filter-bar {
-  background: #fff;
+  background: transparent;
   padding: 20rpx 30rpx;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.02);
   display: flex;
   justify-content: center;
 
@@ -600,7 +602,8 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f5f7fa;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(4px);
     padding: 16rpx 40rpx;
     border-radius: 40rpx;
     
@@ -620,12 +623,11 @@ onMounted(() => {
 }
 
 .overview-card {
-  background: linear-gradient(135deg, #1a5f8e 0%, #2b7aab 100%);
+  background: #ffffff;
   border-radius: 24rpx;
-  padding: 40rpx;
-  color: #fff;
-  margin-bottom: 40rpx;
-  box-shadow: 0 8rpx 24rpx rgba(26, 95, 142, 0.3);
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.02);
 
   .exam-info {
     margin-bottom: 30rpx;
@@ -633,110 +635,140 @@ onMounted(() => {
       display: block;
       font-size: 32rpx;
       font-weight: bold;
-      margin-bottom: 10rpx;
+      color: #333;
+      margin-bottom: 12rpx;
     }
     .exam-date {
-      font-size: 24rpx;
-      opacity: 0.8;
+      font-size: 26rpx;
+      color: #999;
     }
   }
 
   .score-main {
     display: flex;
     align-items: center;
-    justify-content: space-around;
-    background: rgba(255, 255, 255, 0.1);
+    justify-content: space-between;
+    background: #eaf4fe;
     border-radius: 16rpx;
-    padding: 30rpx 0;
+    padding: 24rpx 40rpx;
 
-    .score-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10rpx;
-
-      .label {
-        font-size: 26rpx;
-        opacity: 0.9;
-      }
-      .value {
-        font-size: 56rpx;
-        font-weight: bold;
-      }
-      .level {
-        color: #ffd700;
-      }
-    }
-
-    .divider {
-      width: 2rpx;
-      height: 80rpx;
-      background: rgba(255, 255, 255, 0.2);
+    .score-text {
+      font-size: 30rpx;
+      color: #1a5f8e;
+      font-weight: bold;
     }
   }
 }
 
-.section {
-  margin-bottom: 40rpx;
+.subject-section {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.02);
 
   .section-title {
+    display: flex;
+    align-items: center;
+    margin-bottom: 30rpx;
     font-size: 32rpx;
     font-weight: bold;
     color: #333;
-    margin-bottom: 20rpx;
-    padding-left: 10rpx;
-    border-left: 8rpx solid #1a5f8e;
+    
+    .blue-bar {
+      width: 8rpx;
+      height: 32rpx;
+      background: #1a5f8e;
+      border-radius: 4rpx;
+      margin-right: 12rpx;
+    }
   }
 }
 
 .subject-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 20rpx;
 
   .subject-card {
-    background: #fff;
     border-radius: 16rpx;
-    padding: 30rpx;
-    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+    padding: 24rpx 20rpx;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
 
-    .sub-header {
+    .sub-left {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20rpx;
+      flex-direction: column;
+      gap: 12rpx;
+      position: relative;
+      z-index: 2;
 
       .sub-name {
         font-size: 30rpx;
         font-weight: bold;
         color: #333;
       }
-      .sub-level {
+
+      .sub-score {
         font-size: 24rpx;
-        padding: 4rpx 12rpx;
-        border-radius: 8rpx;
         font-weight: bold;
-        
-        &.level-A { color: #00c853; background: rgba(0, 200, 83, 0.1); }
-        &.level-B { color: #2196f3; background: rgba(33, 150, 243, 0.1); }
-        &.level-C { color: #ff9800; background: rgba(255, 152, 0, 0.1); }
-        &.level-D { color: #f44336; background: rgba(244, 67, 54, 0.1); }
       }
     }
 
-    .sub-score {
-      display: flex;
-      align-items: baseline;
+    .sub-right {
+      position: relative;
+      z-index: 2;
       
-      .score {
-        font-size: 40rpx;
-        font-weight: bold;
-        color: #1a5f8e;
+      .sub-level-wrap {
+        width: 48rpx;
+        height: 48rpx;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255,255,255,0.6);
+        backdrop-filter: blur(4px);
+        
+        .sub-level {
+          font-size: 22rpx;
+          font-weight: bold;
+        }
       }
-      .full-score {
-        font-size: 24rpx;
-        color: #999;
-        margin-left: 8rpx;
+    }
+
+    /* 蓝色主题 */
+    &.bg-theme-blue {
+      background: linear-gradient(135deg, #eaf4fe 0%, #dcecfe 100%);
+      .sub-score { color: #4a90e2; }
+      .sub-level-wrap {
+        color: #fff;
+        background: #89c4f4;
+        box-shadow: 0 4rpx 12rpx rgba(137, 196, 244, 0.6);
+      }
+    }
+
+    /* 绿色主题 */
+    &.bg-theme-green {
+      background: linear-gradient(135deg, #eaf8f0 0%, #dcf1e4 100%);
+      .sub-score { color: #43a047; }
+      .sub-level-wrap {
+        color: #fff;
+        background: #81c784;
+        box-shadow: 0 4rpx 12rpx rgba(129, 199, 132, 0.6);
+      }
+    }
+
+    /* 黄色主题 */
+    &.bg-theme-yellow {
+      background: linear-gradient(135deg, #fdf5e6 0%, #fbead2 100%);
+      .sub-score { color: #d4a017; }
+      .sub-level-wrap {
+        color: #fff;
+        background: #e6c27a;
+        box-shadow: 0 4rpx 12rpx rgba(230, 194, 122, 0.6);
       }
     }
   }
@@ -749,16 +781,14 @@ onMounted(() => {
 .top-tabs {
   display: flex;
   justify-content: space-around;
-  background: #fff;
+  background: transparent;
   padding: 0 40rpx;
   margin-bottom: 30rpx;
-  border-radius: 16rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.02);
 
   .tab-item {
     position: relative;
     padding: 30rpx 0;
-    font-size: 30rpx;
+    font-size: 28rpx;
     color: #666;
     transition: all 0.3s;
 
@@ -770,7 +800,7 @@ onMounted(() => {
 
     .line {
       position: absolute;
-      bottom: 0;
+      bottom: 10rpx;
       left: 50%;
       transform: translateX(-50%);
       width: 40rpx;
@@ -926,23 +956,39 @@ onMounted(() => {
   background: #fff;
   border-radius: 16rpx;
   padding: 30rpx;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
 
   &.detail-card {
     display: block;
     .card-header {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      margin-bottom: 10rpx;
-    }
-    .card-title {
-      font-size: 30rpx;
-      font-weight: bold;
-      color: #333;
-      border-left: 8rpx solid #f6d365;
-      padding-left: 12rpx;
-      margin-bottom: 0;
+      margin-bottom: 20rpx;
+
+      .header-left {
+        display: flex;
+        align-items: center;
+
+        .blue-bar {
+          width: 11rpx;
+          height: 34rpx;
+          background: linear-gradient(180deg, #72C0FD 0%, #77CCFF 100%);
+          border-radius: 20rpx;
+          margin-right: 16rpx;
+        }
+        .card-title {
+          font-size: 32rpx;
+          font-weight: bold;
+          color: #333;
+        }
+      }
+
+      .header-icon {
+        width: 32rpx;
+        height: 32rpx;
+      }
     }
     .desc {
       font-size: 24rpx;
