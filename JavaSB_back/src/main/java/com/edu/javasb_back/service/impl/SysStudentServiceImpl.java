@@ -26,19 +26,20 @@ public class SysStudentServiceImpl implements SysStudentService {
     private SysStudentRepository sysStudentRepository;
 
     @Override
-    public Result<Map<String, Object>> getStudentList(int page, int size, String name, String studentNo, String schoolId) {
+    public Result<Map<String, Object>> getStudentList(int page, int size, String keyword) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createTime"));
 
         Specification<SysStudent> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            if (StringUtils.hasText(name)) {
-                predicates.add(cb.like(root.get("name"), "%" + name + "%"));
-            }
-            if (StringUtils.hasText(studentNo)) {
-                predicates.add(cb.like(root.get("studentNo"), "%" + studentNo + "%"));
-            }
-            if (StringUtils.hasText(schoolId)) {
-                predicates.add(cb.equal(root.get("schoolId"), schoolId));
+            if (StringUtils.hasText(keyword)) {
+                String likeKeyword = "%" + keyword + "%";
+                predicates.add(cb.or(
+                    cb.like(root.get("studentNo"), likeKeyword),
+                    cb.like(root.get("name"), likeKeyword),
+                    cb.like(root.get("school"), likeKeyword),
+                    cb.like(root.get("grade"), likeKeyword),
+                    cb.like(root.get("className"), likeKeyword)
+                ));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -101,7 +102,6 @@ public class SysStudentServiceImpl implements SysStudentService {
         existing.setSchool(student.getSchool());
         existing.setGrade(student.getGrade());
         existing.setClassName(student.getClassName());
-        existing.setParentPhone(student.getParentPhone());
 
         sysStudentRepository.save(existing);
         return Result.success("更新学生成功", null);

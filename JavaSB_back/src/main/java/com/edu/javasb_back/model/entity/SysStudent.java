@@ -37,9 +37,6 @@ public class SysStudent {
     @Column(name = "class_name", length = 50)
     private String className;
 
-    @Column(name = "parent_phone", length = 20)
-    private String parentPhone;
-
     @Column(name = "bound_count")
     private Integer boundCount = 0;
 
@@ -74,9 +71,6 @@ public class SysStudent {
 
     public String getClassName() { return className; }
     public void setClassName(String className) { this.className = className; }
-
-    public String getParentPhone() { return parentPhone; }
-    public void setParentPhone(String parentPhone) { this.parentPhone = parentPhone; }
 
     public Integer getBoundCount() { return boundCount; }
     public void setBoundCount(Integer boundCount) { this.boundCount = boundCount; }

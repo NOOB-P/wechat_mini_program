@@ -21,10 +21,8 @@ public class SysStudentController {
     public Result<Map<String, Object>> getStudentList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String studentNo,
-            @RequestParam(required = false) String schoolId) {
-        return sysStudentService.getStudentList(page, size, name, studentNo, schoolId);
+            @RequestParam(required = false) String keyword) {
+        return sysStudentService.getStudentList(page, size, keyword);
     }
 
     @LogOperation("新增学生")

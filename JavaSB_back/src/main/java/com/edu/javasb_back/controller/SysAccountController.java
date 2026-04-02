@@ -2,8 +2,13 @@ package com.edu.javasb_back.controller;
 
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.model.entity.StudentParentBinding;
 import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.model.entity.SysStudent;
+import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
+import com.edu.javasb_back.repository.SysStudentRepository;
+import com.edu.javasb_back.service.SysAccountService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,6 +32,15 @@ public class SysAccountController {
     @Autowired
     private SysAccountRepository sysAccountRepository;
     
+    @Autowired
+    private SysStudentRepository sysStudentRepository;
+
+    @Autowired
+    private StudentParentBindingRepository bindingRepository;
+
+    @Autowired
+    private SysAccountService sysAccountService;
+
     @Autowired
     private PasswordEncoder passwordEncoder;
 
@@ -104,9 +118,37 @@ public class SysAccountController {
                 map.put("userType", String.valueOf(account.getRoleId()));
                 map.put("isVip", account.getIsVip() != null ? account.getIsVip() : 0);
                 map.put("isSvip", account.getIsSvip() != null ? account.getIsSvip() : 0);
+                map.put("isBoundStudent", account.getIsBoundStudent() != null ? account.getIsBoundStudent() : 0);
                 // 前端的 status 期望 1在线 2离线，我们做个简单的转换
                 map.put("status", "online".equals(account.getOnlineStatus()) ? "1" : "2");
                 map.put("createTime", account.getCreateTime() != null ? account.getCreateTime().toString() : "");
+
+                // 获取绑定信息 (如果是家长)
+                if (account.getRoleId() != null && account.getRoleId() == 3) {
+                    List<StudentParentBinding> bindings = bindingRepository.findByParentUid(account.getUid());
+                    if (!bindings.isEmpty()) {
+                        // 取第一个绑定的学生信息（为了保持单学生绑定的向下兼容展示）
+                        Optional<SysStudent> studentOpt = sysStudentRepository.findById(bindings.get(0).getStudentId());
+                        if (studentOpt.isPresent()) {
+                            SysStudent student = studentOpt.get();
+                            map.put("schoolName", student.getSchool());
+                            map.put("className", student.getClassName());
+                            map.put("studentName", student.getName());
+                            // 还可以传一个完整的绑定学生列表，供前端做更复杂的展示
+                            map.put("boundStudents", bindings.stream().map(b -> {
+                                Optional<SysStudent> sOpt = sysStudentRepository.findById(b.getStudentId());
+                                return sOpt.map(s -> {
+                                    Map<String, Object> sMap = new HashMap<>();
+                                    sMap.put("id", s.getId());
+                                    sMap.put("name", s.getName());
+                                    sMap.put("school", s.getSchool());
+                                    sMap.put("className", s.getClassName());
+                                    return sMap;
+                                }).orElse(null);
+                            }).filter(java.util.Objects::nonNull).collect(Collectors.toList()));
+                        }
+                    }
+                }
                 return map;
             }).collect(Collectors.toList());
 
@@ -157,6 +199,16 @@ public class SysAccountController {
         account.setPassword(passwordEncoder.encode(rawPassword));
 
         sysAccountRepository.save(account);
+
+        // 如果是家长角色且传了 studentId，执行绑定逻辑
+        if (account.getRoleId() != null && account.getRoleId() == 3 && account.getStudentId() != null) {
+            Result<Void> bindRes = sysAccountService.bindStudentById(account.getUid(), account.getStudentId());
+            if (bindRes.getCode() != 200) {
+                // 如果绑定失败，虽然账户创建成功，但可以考虑是否要提示用户或回滚（此处简单提示）
+                return Result.error("账户创建成功，但绑定学生失败：" + bindRes.getMsg());
+            }
+        }
+
         return Result.success("添加成功", null);
     }
 
@@ -205,6 +257,23 @@ public class SysAccountController {
         }
 
         sysAccountRepository.save(account);
+
+        // 如果是家长角色且传了 studentId，处理绑定关系
+        if (account.getRoleId() != null && account.getRoleId() == 3) {
+            // 如果传了具体的 studentId，则更新绑定
+            if (updateData.getStudentId() != null && !updateData.getStudentId().isEmpty()) {
+                // 先尝试解绑旧的（如果有），再绑定新的
+                sysAccountService.unbindStudentByParentUid(uid);
+                Result<Void> bindRes = sysAccountService.bindStudentById(uid, updateData.getStudentId());
+                if (bindRes.getCode() != 200) {
+                    return Result.error("账户更新成功，但绑定学生失败：" + bindRes.getMsg());
+                }
+            } else if (updateData.getStudentId() != null && updateData.getStudentId().isEmpty()) {
+                // 如果传了空字符串，表示主动解绑
+                sysAccountService.unbindStudentByParentUid(uid);
+            }
+        }
+
         return Result.success("编辑成功", null);
     }
 

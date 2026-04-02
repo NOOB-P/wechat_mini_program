@@ -6,11 +6,7 @@ import com.edu.javasb_back.model.entity.SysSchool;
 import com.edu.javasb_back.model.vo.SchoolNodeVO;
 import com.edu.javasb_back.service.SysSchoolService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -29,13 +25,29 @@ public class SysSchoolController {
 
     @LogOperation("获取学校列表")
     @GetMapping("/list")
-    public Result<List<SysSchool>> getSchoolList() {
-        return sysSchoolService.getSchoolList();
+    public Result<List<SysSchool>> getSchoolList(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String province,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) String name) {
+        return sysSchoolService.getSchoolList(keyword, province, city, name);
     }
 
     @LogOperation("新增学校")
     @PostMapping("/add")
     public Result<Void> addSchool(@RequestBody SysSchool school) {
         return sysSchoolService.addSchool(school);
+    }
+
+    @LogOperation("更新学校")
+    @PutMapping("/edit")
+    public Result<Void> updateSchool(@RequestBody SysSchool school) {
+        return sysSchoolService.updateSchool(school);
+    }
+
+    @LogOperation("删除学校")
+    @DeleteMapping("/delete/{id}")
+    public Result<Void> deleteSchool(@PathVariable String id) {
+        return sysSchoolService.deleteSchool(id);
     }
 }

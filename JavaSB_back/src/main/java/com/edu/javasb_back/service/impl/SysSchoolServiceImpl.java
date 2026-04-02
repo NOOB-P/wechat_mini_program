@@ -5,7 +5,9 @@ import com.edu.javasb_back.model.entity.SysSchool;
 import com.edu.javasb_back.model.vo.SchoolNodeVO;
 import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.service.SysSchoolService;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -85,8 +87,68 @@ public class SysSchoolServiceImpl implements SysSchoolService {
     }
 
     @Override
-    public Result<List<SysSchool>> getSchoolList() {
-        List<SysSchool> allSchools = sysSchoolRepository.findByStatus(1);
-        return Result.success("获取成功", allSchools);
+    public Result<Void> updateSchool(SysSchool school) {
+        if (school.getId() == null || school.getId().isEmpty()) {
+            return Result.error("学校ID不能为空");
+        }
+        java.util.Optional<SysSchool> existing = sysSchoolRepository.findById(school.getId());
+        if (existing.isEmpty()) {
+            return Result.error("学校不存在");
+        }
+        SysSchool target = existing.get();
+        target.setProvince(school.getProvince());
+        target.setCity(school.getCity());
+        target.setName(school.getName());
+        sysSchoolRepository.save(target);
+        return Result.success("更新成功", null);
+    }
+
+    @Override
+    public Result<Void> deleteSchool(String id) {
+        if (id == null || id.isEmpty()) {
+            return Result.error("学校ID不能为空");
+        }
+        java.util.Optional<SysSchool> schoolOpt = sysSchoolRepository.findById(id);
+        if (schoolOpt.isEmpty()) {
+            return Result.error("学校不存在");
+        }
+        SysSchool school = schoolOpt.get();
+        school.setStatus(0); // 软删除
+        sysSchoolRepository.save(school);
+        return Result.success("删除成功", null);
+    }
+
+    @Override
+    public Result<List<SysSchool>> getSchoolList(String keyword, String province, String city, String name) {
+        Specification<SysSchool> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("status"), 1));
+
+            if (keyword != null && !keyword.isEmpty()) {
+                String likeKeyword = "%" + keyword + "%";
+                predicates.add(cb.or(
+                    cb.like(root.get("name"), likeKeyword),
+                    cb.like(root.get("province"), likeKeyword),
+                    cb.like(root.get("city"), likeKeyword)
+                ));
+            }
+
+            if (province != null && !province.isEmpty()) {
+                predicates.add(cb.equal(root.get("province"), province));
+            }
+
+            if (city != null && !city.isEmpty()) {
+                predicates.add(cb.equal(root.get("city"), city));
+            }
+
+            if (name != null && !name.isEmpty()) {
+                predicates.add(cb.like(root.get("name"), "%" + name + "%"));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        List<SysSchool> schools = sysSchoolRepository.findAll(spec);
+        return Result.success("获取成功", schools);
     }
 }
