@@ -6,6 +6,7 @@ import type { resultData } from '@/types/request'
  * @param {string} phone 手机号
  */
 export const sendSmsCode = (phone: string) => {
+  
   return request({
     url: '/api/app/auth/sendCode',
     method: 'POST',
