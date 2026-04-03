@@ -5,7 +5,7 @@
         <div class="flex justify-between items-center">
           <span class="font-bold">学生档案管理</span>
           <div class="header-actions">
-            <el-button type="primary" @click="importVisible = true">导入学生</el-button>
+            <el-button type="primary" @click="handleOpenImport">导入学生</el-button>
             <el-button type="success" @click="handleAdd">新增学生</el-button>
           </div>
         </div>
@@ -113,34 +113,105 @@
     </el-dialog>
 
     <!-- 导入弹窗 -->
-    <el-dialog v-model="importVisible" title="导入学生档案" width="450px">
-      <div class="import-container flex flex-col items-center">
-        <el-alert
-          title="导入说明"
-          type="info"
-          description="请按照模板格式填写学生信息。系统将自动根据学号进行匹配，若已存在则更新信息。"
-          show-icon
-          :closable="false"
-          class="mb-4"
-        />
+    <el-dialog v-model="importVisible" title="导入学生档案" width="550px">
+      <div class="import-container">
+        <div class="flex justify-start mb-4">
+          <el-tooltip placement="right" effect="light">
+            <template #content>
+              <div class="text-xs leading-6 text-gray-600 p-2">
+                <p>1. 请先<b>下载导入模板</b>，按照模板格式填写学生信息。</p>
+                <p>2. 支持<b>多文件批量上传</b>，系统将自动校验列标题及空数据。</p>
+                <p>3. 若学号已存在，系统将自动<b>更新</b>现有学生档案信息。</p>
+                <p>4. 若学校不存在，系统将根据填写的省市区及名称<b>自动创建</b>学校并绑定。</p>
+              </div>
+            </template>
+            <div class="instructions-trigger">
+              <el-icon class="mr-1"><info-filled /></el-icon>
+              <span>导入操作说明 (鼠标悬停查看)</span>
+            </div>
+          </el-tooltip>
+        </div>
+        
         <el-upload
+          ref="uploadRef"
           class="upload-demo"
           drag
           action="#"
+          multiple
           :auto-upload="false"
           :on-change="handleFileChange"
+          :file-list="fileList"
+          :on-remove="handleRemove"
+          :show-file-list="false"
           accept=".xlsx, .xls"
         >
-          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-          <div class="el-upload__text">
-            将文件拖到此处，或<em>点击上传</em>
+          <div v-if="fileList.length === 0" class="upload-empty-content">
+            <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+            <div class="el-upload__text">
+              将文件拖到此处，或<em>点击上传</em>
+            </div>
+            <div class="el-upload__tip mt-2">
+              仅支持 .xlsx / .xls 格式文件
+            </div>
+          </div>
+          
+          <div v-else class="upload-list-content" @click.stop>
+            <div class="flex justify-between items-center mb-2 px-2">
+              <span class="text-xs font-bold text-gray-500">待处理队列 ({{ fileList.length }})</span>
+              <el-button link type="danger" size="small" @click="fileList = []">清空</el-button>
+            </div>
+            <el-table :data="fileList" size="small" border max-height="180" class="import-table">
+              <el-table-column prop="name" label="文件名" show-overflow-tooltip />
+              <el-table-column label="状态" width="90" align="center">
+                <template #default="{ row }">
+                  <div class="status-cell">
+                    <el-tag v-if="row.status === 'ready'" type="info" size="small" class="status-tag-mini">等待中</el-tag>
+                    <el-tag v-else-if="row.status === 'success'" type="success" size="small" class="status-tag-mini tag-success-simple">已导入</el-tag>
+                    <el-tag v-else-if="row.status === 'fail'" type="danger" size="small" class="status-tag-mini">
+                      <el-tooltip v-if="row.errorMsg" :content="row.errorMsg" placement="top">
+                        <span>失败</span>
+                      </el-tooltip>
+                      <span v-else>失败</span>
+                    </el-tag>
+                    <el-tag v-else type="primary" size="small" class="status-tag-mini rotating">
+                      <el-icon><loading-icon /></el-icon>
+                    </el-tag>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="50" align="center">
+                <template #default="{ $index }">
+                  <el-button link type="danger" :icon="Delete" @click="fileList.splice($index, 1)" />
+                </template>
+              </el-table-column>
+            </el-table>
+            <div class="mt-2 text-center">
+              <el-button link type="primary" size="small" @click="handleContinueUpload">
+                <el-icon class="mr-1"><plus /></el-icon>继续添加文件
+              </el-button>
+            </div>
           </div>
         </el-upload>
-        <div class="mt-4 w-full flex flex-col gap-2">
-          <el-button type="primary" class="w-full" :loading="importLoading" @click="submitImport">
-            开始导入
+
+        <div class="mt-8 flex flex-col gap-3">
+          <el-button 
+            type="primary" 
+            size="large"
+            class="w-full start-import-btn" 
+            :loading="importLoading" 
+            :disabled="fileList.length === 0"
+            @click="submitImport"
+          >
+            <template #icon v-if="!importLoading">
+              <el-icon><upload /></el-icon>
+            </template>
+            {{ importLoading ? '正在解析并写入数据库...' : '确认开始批量导入' }}
           </el-button>
-          <el-button link @click="downloadTemplate">下载导入模板</el-button>
+          <div class="flex justify-center mt-1">
+            <el-button link type="primary" @click="downloadTemplate" class="download-link">
+              <el-icon class="mr-1"><document /></el-icon>还没有模板？点击下载学生上传模板.xlsx
+            </el-button>
+          </div>
         </div>
       </div>
     </el-dialog>
@@ -155,11 +226,22 @@ import {
   fetchUpdateStudent, 
   fetchDeleteStudent,
   fetchBatchUpdateStatus,
-  fetchImportStudents 
+  fetchImportStudents,
+  fetchDownloadTemplate
 } from '@/api/core-business/student/index'
 import { fetchGetSchoolList } from '@/api/core-business/school/index'
 import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
-import { UploadFilled } from '@element-plus/icons-vue'
+import { 
+  UploadFilled, 
+  Check, 
+  Close, 
+  Loading as LoadingIcon, 
+  Delete,
+  Upload,
+  Document,
+  InfoFilled,
+  Plus
+} from '@element-plus/icons-vue'
 import BindingStatus from './components/binding-status.vue'
 
 // 表格数据相关
@@ -197,7 +279,9 @@ const rules = {
 
 const importVisible = ref(false)
 const importLoading = ref(false)
-const selectedFile = ref<File | null>(null)
+const fileList = ref<any[]>([])
+const activeNames = ref(['1'])
+const uploadRef = ref<any>()
 
 const loadData = async () => {
   loading.value = true
@@ -336,31 +420,73 @@ const submitForm = async () => {
   })
 }
 
+const handleOpenImport = () => {
+  fileList.value = []
+  importVisible.value = true
+}
+
 // 导入相关
-const handleFileChange = (uploadFile: any) => {
-  selectedFile.value = uploadFile.raw
+const handleFileChange = (uploadFile: any, uploadFiles: any) => {
+  fileList.value = uploadFiles
+}
+
+const handleRemove = (file: any, uploadFiles: any) => {
+  fileList.value = uploadFiles
+}
+
+const handleContinueUpload = () => {
+  if (uploadRef.value) {
+    // 触发 el-upload 内部的 input 点击
+    const input = uploadRef.value.$el.querySelector('input[type="file"]')
+    if (input) {
+      input.click()
+    }
+  }
 }
 
 const submitImport = async () => {
-  if (!selectedFile.value) {
-    ElMessage.warning('请先选择文件')
+  const readyFiles = fileList.value.filter(f => f.status === 'ready' || f.status === 'fail')
+  if (readyFiles.length === 0) {
+    ElMessage.warning('没有待导入的文件')
     return
   }
+  
   importLoading.value = true
-  try {
-    const res = await fetchImportStudents(selectedFile.value)
-    if (res.code === 200) {
-      ElMessage.success('导入成功')
-      importVisible.value = false
-      loadData()
+  let successCount = 0
+  let failCount = 0
+
+  for (const fileItem of readyFiles) {
+    fileItem.status = 'uploading'
+    fileItem.errorMsg = ''
+    
+    try {
+      await fetchImportStudents(fileItem.raw)
+      fileItem.status = 'success'
+      successCount++
+    } catch (error: any) {
+      fileItem.status = 'fail'
+      fileItem.errorMsg = error.message || '导入失败'
+      failCount++
     }
-  } finally {
-    importLoading.value = false
   }
+
+  if (failCount === 0) {
+    ElMessage.success(`成功导入 ${successCount} 个文件`)
+    setTimeout(() => {
+      importVisible.value = false
+      fileList.value = []
+      loadData()
+    }, 1500)
+  } else {
+    ElMessage.warning(`导入完成：${successCount} 个成功，${failCount} 个失败`)
+    loadData() // 部分成功也要刷新列表
+  }
+  importLoading.value = false
 }
 
+
 const downloadTemplate = () => {
-  ElMessage.info('正在下载学生档案导入模板...')
+  fetchDownloadTemplate()
 }
 
 onMounted(() => {
@@ -397,5 +523,111 @@ onMounted(() => {
 }
 :deep(.el-upload-dragger) {
   width: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 180px;
+}
+.upload-empty-content {
+  padding: 30px 0;
+}
+.upload-list-content {
+  padding: 15px;
+  cursor: default;
+}
+.import-container {
+  padding: 0 10px;
+}
+.import-table {
+  border-radius: 4px;
+  overflow: hidden;
+}
+.status-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.status-tag-mini {
+  min-width: 60px;
+  height: 24px;
+  line-height: 22px;
+  padding: 0 8px;
+  border-radius: 12px;
+}
+.start-import-btn {
+  height: 48px;
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+.download-link {
+  font-size: 13px;
+  color: #409eff;
+}
+.mr-1 {
+  margin-right: 4px;
+}
+
+/* 动画效果 */
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(103, 194, 58, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(103, 194, 58, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(103, 194, 58, 0); }
+}
+.pulse-success {
+  animation: pulse 2s infinite;
+  background-color: #f0f9eb;
+  border-color: #e1f3d8;
+  color: #67c23a;
+}
+.tag-success-simple {
+  background-color: #f0f9eb;
+  border-color: #e1f3d8;
+  color: #67c23a;
+}
+.instructions-trigger {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: #409eff;
+  cursor: help;
+  padding: 4px 8px;
+  background-color: #ecf5ff;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+.instructions-trigger:hover {
+  background-color: #d9ecff;
+}
+.instructions-collapse {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+:deep(.instructions-collapse .el-collapse-item__header) {
+  padding: 0 15px;
+  height: 40px;
+  background-color: #f8f9fb;
+  border-bottom: none;
+}
+:deep(.instructions-collapse .el-collapse-item__wrap) {
+  border-bottom: none;
+  background-color: #fcfdfe;
+}
+:deep(.instructions-collapse .el-collapse-item__content) {
+  padding: 10px 15px 15px;
+}
+.text-primary {
+  color: #409eff;
+}
+
+:deep(.el-alert__description) {
+  margin-top: 5px;
 }
 </style>

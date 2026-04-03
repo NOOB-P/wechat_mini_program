@@ -29,6 +29,18 @@ git pull https://github.com/NOOB-P/wechat_mini_program.git master
 #上传
 git push https://github.com/NOOB-P/wechat_mini_program.git master
 ```
+# github 问题解决
+```bash
+pull时报错
+error: You have not concluded your merge (MERGE_HEAD exists).
+hint: Please, commit your changes before merging.
+fatal: Exiting because of unfinished merge.
+
+git status
+git add .
+git commit -m "合并冲突"
+git pull https://github.com/NOOB-P/wechat_mini_program.git master
+```
 
 # 文件夹目录说明
 

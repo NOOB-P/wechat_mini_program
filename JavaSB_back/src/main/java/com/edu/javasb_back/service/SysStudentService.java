@@ -13,4 +13,6 @@ public interface SysStudentService {
     Result<Void> updateStudent(SysStudent student);
     
     Result<Void> deleteStudent(String id);
+
+    Result<Void> importStudents(java.util.List<com.edu.javasb_back.model.dto.StudentImportDTO> students);
 }
