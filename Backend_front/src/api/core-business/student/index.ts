@@ -46,9 +46,22 @@ export function fetchBatchUpdateStatus(params: Api.Student.BatchOpParams) {
 
 /** 导入学生 Excel */
 export function fetchImportStudents(file: File) {
-  return Promise.resolve({
-    code: 200,
-    msg: '导入成功',
-    data: null
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return api.post<any>({
+    url: '/api/students/import',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
   })
+}
+
+/** 下载导入模板 */
+export function fetchDownloadTemplate() {
+  const token = localStorage.getItem('token') || ''
+  // 修正下载链接
+  const baseUrl = import.meta.env.VITE_API_URL || ''
+  window.open(`${baseUrl}/api/students/download-template?token=${token}`, '_blank')
 }

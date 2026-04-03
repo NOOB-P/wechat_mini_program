@@ -1,7 +1,10 @@
 package com.edu.javasb_back.service.impl;
 
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.model.dto.StudentImportDTO;
+import com.edu.javasb_back.model.entity.SysSchool;
 import com.edu.javasb_back.model.entity.SysStudent;
+import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.service.SysStudentService;
 import jakarta.persistence.criteria.Predicate;
@@ -12,18 +15,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class SysStudentServiceImpl implements SysStudentService {
 
     @Autowired
     private SysStudentRepository sysStudentRepository;
+
+    @Autowired
+    private SysSchoolRepository sysSchoolRepository;
 
     @Override
     public Result<Map<String, Object>> getStudentList(int page, int size, String keyword) {
@@ -57,18 +61,64 @@ public class SysStudentServiceImpl implements SysStudentService {
     }
 
     @Override
+    @Transactional
+    public Result<Void> importStudents(List<StudentImportDTO> students) {
+        for (StudentImportDTO dto : students) {
+            // 1. 处理学校
+            Optional<SysSchool> schoolOpt = sysSchoolRepository.findByProvinceAndCityAndName(
+                    dto.getProvince(), dto.getCity(), dto.getSchool());
+            
+            String schoolId;
+            if (schoolOpt.isPresent()) {
+                schoolId = schoolOpt.get().getId();
+            } else {
+                // 创建新学校
+                SysSchool newSchool = new SysSchool();
+                schoolId = UUID.randomUUID().toString();
+                newSchool.setId(schoolId);
+                newSchool.setProvince(dto.getProvince());
+                newSchool.setCity(dto.getCity());
+                newSchool.setName(dto.getSchool());
+                newSchool.setStatus(1);
+                sysSchoolRepository.save(newSchool);
+            }
+
+            // 2. 处理学生
+            Optional<SysStudent> studentOpt = sysStudentRepository.findByStudentNo(dto.getStudentNo());
+            SysStudent student;
+            if (studentOpt.isPresent()) {
+                student = studentOpt.get();
+            } else {
+                student = new SysStudent();
+                student.setId(UUID.randomUUID().toString());
+                student.setStudentNo(dto.getStudentNo());
+            }
+
+            student.setName(dto.getName());
+            student.setGender(dto.getGender());
+            student.setSchoolId(schoolId);
+            student.setSchool(dto.getSchool()); // 冗余
+            student.setGrade(dto.getGrade());
+            student.setClassName(dto.getClassName());
+            
+            sysStudentRepository.save(student);
+        }
+        return Result.success("批量导入学生成功", null);
+    }
+
+    @Override
     public Result<Void> addStudent(SysStudent student) {
         if (!StringUtils.hasText(student.getStudentNo()) || !StringUtils.hasText(student.getName())) {
             return Result.error("学号和姓名不能为空");
         }
 
         // 检查学号是否已存在
-        long count = sysStudentRepository.count((root, query, cb) -> cb.equal(root.get("studentNo"), student.getStudentNo()));
-        if (count > 0) {
+        Optional<SysStudent> existingOpt = sysStudentRepository.findByStudentNo(student.getStudentNo());
+        if (existingOpt.isPresent()) {
             return Result.error("该学号已存在，请勿重复添加");
         }
 
-        String id = "STU" + System.currentTimeMillis();
+        String id = UUID.randomUUID().toString();
         student.setId(id);
         if (student.getBoundCount() == null) {
             student.setBoundCount(0);
@@ -89,9 +139,9 @@ public class SysStudentServiceImpl implements SysStudentService {
 
         // 如果修改了学号，需检查是否冲突
         if (!existing.getStudentNo().equals(student.getStudentNo())) {
-            long count = sysStudentRepository.count((root, query, cb) -> cb.equal(root.get("studentNo"), student.getStudentNo()));
-            if (count > 0) {
-                return Result.error("该学号已存在，无法修改");
+            Optional<SysStudent> conflictOpt = sysStudentRepository.findByStudentNo(student.getStudentNo());
+            if (conflictOpt.isPresent()) {
+                return Result.error("该学号已存在，请更换其他学号");
             }
         }
 
@@ -104,22 +154,15 @@ public class SysStudentServiceImpl implements SysStudentService {
         existing.setClassName(student.getClassName());
 
         sysStudentRepository.save(existing);
-        return Result.success("更新学生成功", null);
+        return Result.success("更新学生信息成功", null);
     }
 
     @Override
     public Result<Void> deleteStudent(String id) {
-        SysStudent existing = sysStudentRepository.findById(id).orElse(null);
-        if (existing == null) {
+        if (!sysStudentRepository.existsById(id)) {
             return Result.error("学生不存在");
         }
-        
-        try {
-            sysStudentRepository.deleteById(id);
-        } catch (Exception e) {
-            return Result.error("删除失败：该学生可能有绑定的成绩或其它关联数据");
-        }
-        
-        return Result.success("删除成功", null);
+        sysStudentRepository.deleteById(id);
+        return Result.success("删除学生成功", null);
     }
 }
