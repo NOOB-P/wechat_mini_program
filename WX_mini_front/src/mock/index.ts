@@ -348,7 +348,204 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   },
-  '/api/app/paper/detail': (data) => {
+  '/api/app/score/composition': (data) => {
+    const subject = data?.subject || '数学';
+    const compositions: Record<string, any> = {
+      '数学': {
+        score: 140,
+        fullScore: 150,
+        rank: 5,
+        totalStudents: 1000,
+        composition: [
+          { name: '基础知识', value: 95, level: '优', color: '#4facfe' },
+          { name: '逻辑推理', value: 88, level: '优', color: '#00f2fe' },
+          { name: '综合应用', value: 82, level: '良', color: '#764ba2' },
+          { name: '创新思维', value: 75, level: '良', color: '#667eea' }
+        ],
+        knowledgePoints: [
+          { name: '函数与导数', mastery: 92, status: 'mastered' },
+          { name: '立体几何', mastery: 85, status: 'mastered' },
+          { name: '概率统计', mastery: 78, status: 'warning' },
+          { name: '解析几何', mastery: 65, status: 'danger' }
+        ],
+        analysis: '本次数学考试表现优异，基础题和中档题失分极少。但在解析几何的综合大题上，计算过程略显繁琐，导致耗时较长，影响了最后一题的思考时间。建议加强解析几何的技巧训练，提高运算效率。',
+        advice: [
+          '每日坚持3道解析几何中高难度题目练习',
+          '整理错题本，分析计算错误的根源',
+          '复习概率统计中的易错概念'
+        ]
+      },
+      '语文': {
+        score: 125,
+        fullScore: 150,
+        rank: 45,
+        totalStudents: 1000,
+        composition: [
+          { name: '基础积累', value: 90, level: '优', color: '#ff9a9e' },
+          { name: '阅读理解', value: 78, level: '良', color: '#fecfef' },
+          { name: '文言文', value: 85, level: '优', color: '#a18cd1' },
+          { name: '写作表达', value: 82, level: '良', color: '#fbc2eb' }
+        ],
+        knowledgePoints: [
+          { name: '古诗词鉴赏', mastery: 88, status: 'mastered' },
+          { name: '现代文阅读', mastery: 72, status: 'warning' },
+          { name: '文言虚词', mastery: 85, status: 'mastered' },
+          { name: '作文立意', mastery: 80, status: 'mastered' }
+        ],
+        analysis: '语文整体发挥平稳，古诗词和文言文部分得分率较高。现代文阅读部分对文本深层含义的挖掘不够，得分稍显薄弱。作文逻辑清晰，但辞藻修饰尚有提升空间。',
+        advice: [
+          '增加深度阅读量，每周至少精读两篇深度社评',
+          '积累优秀作文素材和精妙表达',
+          '强化现代文阅读的答题模板和技巧'
+        ]
+      },
+      '英语': {
+        score: 130,
+        fullScore: 150,
+        rank: 28,
+        totalStudents: 1000,
+        composition: [
+          { name: '听力理解', value: 96, level: '优', color: '#84fab0' },
+          { name: '阅读完型', value: 88, level: '优', color: '#8fd3f4' },
+          { name: '语法填空', value: 82, level: '良', color: '#cfd9df' },
+          { name: '短文写作', value: 85, level: '优', color: '#e2ebf0' }
+        ],
+        knowledgePoints: [
+          { name: '词汇掌握', mastery: 90, status: 'mastered' },
+          { name: '从句运用', mastery: 82, status: 'mastered' },
+          { name: '长难句分析', mastery: 75, status: 'warning' },
+          { name: '阅读速度', mastery: 95, status: 'mastered' }
+        ],
+        analysis: '英语听力和阅读表现抢眼。语法部分仍存在个别细节失分，如非谓语动词的使用不够熟练。写作部分句子结构较为单一，建议尝试使用更多高级词汇和复杂句式。',
+        advice: [
+          '背诵范文中的高级句式并尝试仿写',
+          '专项复习非谓语动词及虚拟语气',
+          '保持每日听力磨耳朵，练习听写'
+        ]
+      }
+    };
+    
+    return {
+       code: 200,
+       msg: '获取构成分析成功 (Mock)',
+       data: compositions[subject] || compositions['数学']
+     };
+   },
+   '/api/app/score/distribution': (data) => {
+      const subject = data?.subject || '数学';
+      // 模拟更丰富的分布和对比数据
+      const distributions: Record<string, any> = {
+        '数学': {
+          rankInfo: '年级前5%',
+          overallLevel: 'A+',
+          averageScore: 112,
+          highestScore: 148,
+          studentCount: 1000,
+          previousAverageScore: 105, // 上次平均分
+          gradeAverageScore: 98,    // 年级平均分
+          levels: [
+            { level: 'A', count: 15, label: '135-150', color: 'linear-gradient(to top, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)' },
+            { level: 'B', count: 35, label: '120-134', color: 'linear-gradient(120deg, #f6d365 0%, #fda085 100%)' },
+            { level: 'C', count: 45, label: '105-119', color: 'linear-gradient(to top, #a18cd1 0%, #fbc2eb 100%)' },
+            { level: 'D', count: 20, label: '90-104', color: 'linear-gradient(to top, #84fab0 0%, #8fd3f4 100%)' },
+            { level: 'E', count: 5, label: '0-89', color: 'linear-gradient(to top, #cfd9df 0%, #e2ebf0 100%)' }
+          ],
+          stats: [
+            { name: '平均分', value: 112, icon: 'chart-bar', compare: '+7' },
+            { name: '最高分', value: 148, icon: 'award', compare: '+3' },
+            { name: '中位数', value: 115, icon: 'filter', compare: '+5' }
+          ],
+          comparisons: [
+            { name: '个人成绩', value: 140, color: '#4364f7' },
+            { name: '班级平均', value: 112, color: '#ff9a9e' },
+            { name: '年级平均', value: 98, color: '#a18cd1' }
+          ]
+        },
+        '语文': {
+          rankInfo: '年级前15%',
+          overallLevel: 'A',
+          averageScore: 105,
+          highestScore: 132,
+          studentCount: 1000,
+          previousAverageScore: 102,
+          gradeAverageScore: 95,
+          levels: [
+            { level: 'A', count: 12, label: '120-150', color: 'linear-gradient(to top, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)' },
+            { level: 'B', count: 42, label: '105-119', color: 'linear-gradient(120deg, #f6d365 0%, #fda085 100%)' },
+            { level: 'C', count: 38, label: '90-104', color: 'linear-gradient(to top, #a18cd1 0%, #fbc2eb 100%)' },
+            { level: 'D', count: 15, label: '75-89', color: 'linear-gradient(to top, #84fab0 0%, #8fd3f4 100%)' },
+            { level: 'E', count: 3, label: '0-74', color: 'linear-gradient(to top, #cfd9df 0%, #e2ebf0 100%)' }
+          ],
+          stats: [
+            { name: '平均分', value: 105, icon: 'chart-bar', compare: '+3' },
+            { name: '最高分', value: 132, icon: 'award', compare: '+2' },
+            { name: '中位数', value: 108, icon: 'filter', compare: '+4' }
+          ],
+          comparisons: [
+            { name: '个人成绩', value: 125, color: '#4364f7' },
+            { name: '班级平均', value: 105, color: '#ff9a9e' },
+            { name: '年级平均', value: 95, color: '#a18cd1' }
+          ]
+        }
+      };
+ 
+      return {
+        code: 200,
+        msg: '获取分数分布成功 (Mock)',
+        data: distributions[subject] || distributions['数学']
+      };
+    },
+    '/api/app/score/trend': (data) => {
+      const isNextSemester = data?.semester === '2023-2024-2';
+      
+      const historyNext = [
+        { period: '开学考', score: 610, classAvg: 580, rank: 120, subjects: { '语文': 115, '数学': 130, '英语': 110, '物理': 85, '化学': 85, '生物': 85 } },
+        { period: '三月月考', score: 630, classAvg: 595, rank: 95, subjects: { '语文': 118, '数学': 132, '英语': 115, '物理': 88, '化学': 88, '生物': 89 } },
+        { period: '期中考试', score: 650, classAvg: 610, rank: 60, subjects: { '语文': 120, '数学': 135, '英语': 120, '物理': 90, '化学': 92, '生物': 93 } },
+        { period: '五月月考', score: 645, classAvg: 615, rank: 65, subjects: { '语文': 119, '数学': 138, '英语': 118, '物理': 89, '化学': 90, '生物': 91 } },
+        { period: '六月模拟', score: 670, classAvg: 630, rank: 40, subjects: { '语文': 122, '数学': 140, '英语': 125, '物理': 93, '化学': 95, '生物': 95 } },
+        { period: '期末考试', score: 680, classAvg: 640, rank: 25, subjects: { '语文': 125, '数学': 140, '英语': 130, '物理': 95, '化学': 95, '生物': 95 } }
+      ];
+      
+      const historyPrev = [
+        { period: '一月月考', score: 580, classAvg: 560, rank: 180, subjects: { '语文': 110, '数学': 120, '英语': 100, '物理': 80, '化学': 85, '生物': 85 } },
+        { period: '期中考试', score: 620, classAvg: 590, rank: 110, subjects: { '语文': 120, '数学': 135, '英语': 110, '物理': 85, '化学': 90, '生物': 80 } },
+        { period: '三月月考', score: 590, classAvg: 585, rank: 150, subjects: { '语文': 115, '数学': 125, '英语': 105, '物理': 82, '化学': 86, '生物': 77 } },
+        { period: '四月模拟', score: 605, classAvg: 595, rank: 135, subjects: { '语文': 118, '数学': 130, '英语': 108, '物理': 84, '化学': 88, '生物': 77 } },
+        { period: '五月模拟', score: 650, classAvg: 620, rank: 60, subjects: { '语文': 125, '数学': 138, '英语': 115, '物理': 90, '化学': 92, '生物': 90 } },
+        { period: '期末考试', score: 680, classAvg: 645, rank: 28, subjects: { '语文': 128, '数学': 145, '英语': 120, '物理': 95, '化学': 96, '生物': 96 } }
+      ];
+
+      const history = isNextSemester ? historyNext : historyPrev;
+      
+      // 计算趋势洞察
+      const latest = history[history.length - 1].score;
+      const previous = history[history.length - 2].score;
+      const diff = latest - previous;
+      const trend = diff >= 0 ? '上升' : '下降';
+
+      return {
+        code: 200,
+        msg: '获取考试趋势成功 (Mock)',
+        data: {
+          history: history,
+          subjects: ['语文', '数学', '英语', '物理', '化学', '生物'],
+          volatility: '数学', // 波动最大的学科
+          strengths: ['英语', '物理'], // 优势学科
+          improvements: ['数学'], // 待提升学科
+          milestones: [
+            { name: '总分突破650', status: 'completed', date: '2024-03' },
+            { name: '数学进入级前10', status: 'completed', date: '2024-05' },
+            { name: '总分年级排名进前20', status: 'pending', date: '冲刺中' }
+          ],
+          insight: {
+            text: `近六次考试总分呈现稳步${trend}趋势，较上次考试${trend}了 ${Math.abs(diff)} 分。整体表现稳健，优势学科保持领先。`,
+            status: diff >= 0 ? 'positive' : 'negative'
+          }
+        }
+      };
+    },
+    '/api/app/paper/detail': (data) => {
     return {
       code: 200,
       msg: '获取试卷详情成功 (Mock)',
@@ -373,6 +570,56 @@ const mocks: Record<string, (data: any) => MockResponse> = {
         ],
         downloadUrl: 'https://example.com/download/paper.pdf'
       }
+    };
+  },
+  '/api/app/vip/wrongbook/list': (data) => {
+    return {
+      code: 200,
+      msg: '获取错题本成功 (Mock)',
+      data: [
+        {
+          id: 1,
+          subject: '数学',
+          time: '2024-03-20',
+          question: '已知函数 f(x) = x^2 - 4x + 3，求函数在 [0, 3] 上的最值。',
+          tags: ['二次函数', '最值问题'],
+          difficulty: '简单',
+          mastery: 80,
+          studentAnswer: '最小值为-1，最大值为3',
+          correctAnswer: '最小值为-1，最大值为3',
+          explanation: '函数对称轴为x=2，在区间内。f(2)=-1为极小值也是最小值。端点f(0)=3, f(3)=0，故最大值为3。',
+          wrongReason: '计算粗心',
+          source: '期中考试'
+        },
+        {
+          id: 2,
+          subject: '物理',
+          time: '2024-03-21',
+          question: '一个物体从静止开始做匀加速直线运动，第1s内的位移是2m，则物体的加速度是多少？',
+          tags: ['运动学', '匀加速直线运动'],
+          difficulty: '中等',
+          mastery: 40,
+          studentAnswer: '2m/s²',
+          correctAnswer: '4m/s²',
+          explanation: '由位移公式 s = 1/2at²，得 2 = 1/2 * a * 1²，解得 a = 4m/s²。',
+          wrongReason: '公式记错',
+          source: '随堂测试'
+        },
+        {
+          id: 3,
+          subject: '英语',
+          time: '2024-03-22',
+          question: 'It is _______ that he has made such great progress in a short time.',
+          tags: ['语法', '强调句型'],
+          difficulty: '困难',
+          mastery: 20,
+          studentAnswer: 'amazed',
+          correctAnswer: 'amazing',
+          explanation: '句意为“他在短时间内取得如此大的进步令人惊讶”。amazing 修饰事物，amazed 修饰人。',
+          wrongReason: '词义辨析不清',
+          source: '课后作业'
+        }
+      ]
     };
   },
   /*

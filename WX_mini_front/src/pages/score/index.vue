@@ -1,6 +1,6 @@
 <template>
   <view class="score-container">
-    <view class="filter-bar">
+    <view class="filter-bar" v-if="!showPrintDialog">
       <!-- 使用 wd-picker 实现学期和考试的联动选择 -->
       <wd-picker 
         :columns="pickerColumns" 
@@ -154,24 +154,51 @@
               <wd-button custom-class="upgrade-btn" @click="goToRecharge">立即升级 VIP</wd-button>
             </view>
             
-            <scroll-view scroll-y class="wrong-list" style="height: 600rpx;" v-else>
+            <scroll-view scroll-y class="wrong-list" style="height: 700rpx;" v-else>
               <view class="wrong-item" v-for="item in wrongBookData" :key="item.id">
                 <view class="w-header">
-                  <text class="subject">{{ item.subject }}</text>
+                  <view class="w-subject-box">
+                    <text class="subject">{{ item.subject }}</text>
+                    <text class="source" v-if="item.source">来源：{{ item.source }}</text>
+                  </view>
                   <text class="time">{{ item.time }}</text>
                 </view>
-                <view class="w-question">{{ item.question }}</view>
-                <view class="w-tags">
-                  <text class="tag" v-for="(tag, idx) in item.tags" :key="idx">{{ tag }}</text>
+                
+                <view class="w-body">
+                  <view class="w-question">{{ item.question }}</view>
+                  <view class="w-tags">
+                    <text class="tag" v-for="(tag, idx) in item.tags" :key="idx">{{ tag }}</text>
+                    <text class="difficulty" :class="getDifficultyClass(item.difficulty)">{{ item.difficulty }}</text>
+                  </view>
+                  
+                  <view class="w-analysis-box">
+                    <view class="ans-row">
+                      <text class="label">你的回答</text>
+                      <text class="val wrong">{{ item.studentAnswer }}</text>
+                    </view>
+                    <view class="ans-row">
+                      <text class="label">正确答案</text>
+                      <text class="val correct">{{ item.correctAnswer }}</text>
+                    </view>
+                    <view class="ans-row reason" v-if="item.wrongReason">
+                      <text class="label">错误原因</text>
+                      <text class="val">{{ item.wrongReason }}</text>
+                    </view>
+                    <view class="ans-row explanation">
+                      <text class="label">名师解析</text>
+                      <text class="val">{{ item.explanation }}</text>
+                    </view>
+                  </view>
+                  
+                  <view class="mastery-box">
+                    <text class="m-label">掌握程度</text>
+                    <wd-progress :percentage="item.mastery" :color="getMasteryColor(item.mastery)" />
+                  </view>
                 </view>
-                <view class="w-ans">
-                  <view class="row"><text class="label">你的答案：</text><text class="wrong">{{ item.studentAnswer }}</text></view>
-                  <view class="row"><text class="label">正确答案：</text><text class="correct">{{ item.correctAnswer }}</text></view>
-                  <view class="row"><text class="label">解析：</text><text class="exp">{{ item.explanation }}</text></view>
-                </view>
+                
                 <view class="w-actions">
-                  <wd-button size="small" plain @click="handleExport">导出 PDF/Word</wd-button>
-                  <wd-button size="small" plain type="success" @click="showPrintDialog = true">纸质打印下单</wd-button>
+                  <wd-button size="small" plain custom-class="action-btn" @click="handleExport">导出 PDF/Word</wd-button>
+                  <wd-button size="small" plain type="success" custom-class="action-btn" @click="showPrintDialog = true">纸质打印下单</wd-button>
                 </view>
               </view>
             </scroll-view>
@@ -330,6 +357,21 @@ const checkVipStatus = async () => {
   } catch (error) {
     console.error('获取VIP状态失败:', error)
   }
+}
+
+const getDifficultyClass = (diff: string) => {
+  switch (diff) {
+    case '简单': return 'diff-easy'
+    case '中等': return 'diff-medium'
+    case '困难': return 'diff-hard'
+    default: return ''
+  }
+}
+
+const getMasteryColor = (val: number) => {
+  if (val >= 80) return '#07c160'
+  if (val >= 40) return '#fa9d3b'
+  return '#ee0a24'
 }
 
 
@@ -590,22 +632,26 @@ onShow(() => {
 }
 
 .filter-bar {
-  background: transparent;
+  background: #e0effe;
   padding: 20rpx 30rpx;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 99; // 降低层级，确保低于弹窗的遮罩层（通常为1000+）
   display: flex;
   justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.02);
 
   .picker-inner {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(4px);
+    background: #fff;
     padding: 16rpx 40rpx;
     border-radius: 40rpx;
+    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08); // 阴影稍微重一点，更显眼
+    border: 1px solid rgba(67, 100, 247, 0.1); // 增加淡蓝色边框
     
     .picker-text {
       font-size: 28rpx;
@@ -1072,59 +1118,123 @@ onShow(() => {
 
 .wrong-item {
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: 24rpx;
   padding: 30rpx;
-  margin-bottom: 20rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03);
-  
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+  border: 1px solid #f0f2f5;
+
   .w-header {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 16rpx;
-    .subject { font-weight: bold; color: #1a5f8e; }
-    .time { font-size: 24rpx; color: #999; }
-  }
-  
-  .w-question {
-    font-size: 30rpx;
-    color: #333;
-    margin-bottom: 16rpx;
-    line-height: 1.5;
-  }
-  
-  .w-tags {
-    display: flex;
-    gap: 10rpx;
-    margin-bottom: 20rpx;
-    .tag {
-      font-size: 22rpx;
-      padding: 4rpx 12rpx;
-      background: #e3f2fd;
-      color: #0288d1;
-      border-radius: 8rpx;
+    align-items: flex-start;
+    margin-bottom: 24rpx;
+    border-bottom: 1rpx solid #f8fafc;
+    padding-bottom: 16rpx;
+
+    .w-subject-box {
+      .subject {
+        font-size: 32rpx;
+        font-weight: bold;
+        color: #4364f7;
+        margin-right: 16rpx;
+      }
+      .source {
+        font-size: 22rpx;
+        color: #999;
+        background: #f4f6f9;
+        padding: 2rpx 12rpx;
+        border-radius: 6rpx;
+      }
+    }
+    .time {
+      font-size: 24rpx;
+      color: #bbb;
     }
   }
-  
-  .w-ans {
-    background: #f9f9f9;
-    padding: 20rpx;
-    border-radius: 12rpx;
-    margin-bottom: 20rpx;
-    
-    .row {
-      margin-bottom: 10rpx;
-      font-size: 26rpx;
-      .label { color: #666; }
-      .wrong { color: #f44336; }
-      .correct { color: #00c853; font-weight: bold; }
-      .exp { color: #555; }
+
+  .w-body {
+    .w-question {
+      font-size: 28rpx;
+      color: #333;
+      line-height: 1.6;
+      margin-bottom: 20rpx;
+      font-weight: 500;
+    }
+
+    .w-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12rpx;
+      margin-bottom: 24rpx;
+
+      .tag {
+        font-size: 22rpx;
+        color: #666;
+        background: #f0f4ff;
+        padding: 4rpx 16rpx;
+        border-radius: 8rpx;
+      }
+      .difficulty {
+        font-size: 22rpx;
+        padding: 4rpx 16rpx;
+        border-radius: 8rpx;
+        &.diff-easy { color: #07c160; background: #e6f7ef; }
+        &.diff-medium { color: #fa9d3b; background: #fff7e6; }
+        &.diff-hard { color: #ee0a24; background: #fff1f0; }
+      }
+    }
+
+    .w-analysis-box {
+      background: #f8fafc;
+      border-radius: 16rpx;
+      padding: 24rpx;
+      margin-bottom: 24rpx;
+
+      .ans-row {
+        margin-bottom: 16rpx;
+        display: flex;
+        flex-direction: column;
+        &:last-child { margin-bottom: 0; }
+
+        .label {
+          font-size: 22rpx;
+          color: #999;
+          margin-bottom: 4rpx;
+        }
+        .val {
+          font-size: 26rpx;
+          color: #444;
+          line-height: 1.5;
+          &.wrong { color: #ee0a24; font-weight: 500; }
+          &.correct { color: #07c160; font-weight: 500; }
+        }
+      }
+    }
+
+    .mastery-box {
+      margin-bottom: 30rpx;
+      .m-label {
+        font-size: 22rpx;
+        color: #666;
+        margin-bottom: 12rpx;
+        display: block;
+      }
     }
   }
-  
+
   .w-actions {
     display: flex;
     justify-content: flex-end;
     gap: 20rpx;
+    border-top: 1rpx solid #f8fafc;
+    padding-top: 24rpx;
+    
+    .action-btn {
+      margin: 0 !important;
+      border-radius: 30rpx;
+      font-size: 24rpx;
+    }
   }
 }
 
