@@ -38,7 +38,7 @@ const loadData = async () => {
 
 const handleItemClick = (item: any) => {
   uni.navigateTo({
-    url: `/pages/course/detail?name=${encodeURIComponent(item.title)}&price=${item.price === '免费' ? '' : item.price}&image=${encodeURIComponent(item.cover)}`
+    url: `/pages/course/detail?id=${item.id}`
   })
 }
 

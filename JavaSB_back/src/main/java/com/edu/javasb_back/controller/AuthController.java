@@ -29,6 +29,7 @@ public class AuthController {
     public Result<SysAccount> getCurrentUserInfo() {
         // 从 SecurityContext 获取用户ID (String形式存入的uid)
         String uidStr = SecurityContextHolder.getContext().getAuthentication().getName();
+        System.out.println(uidStr);
         if (uidStr == null || "anonymousUser".equals(uidStr)) {
             return Result.error(401, "未登录");
         }

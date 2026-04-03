@@ -1,44 +1,40 @@
-import { mockCourseList } from '@/mock/course-study/course'
+import request from '@/utils/http'
 
-export function fetchGetCourseList(params: any) {
-  return Promise.resolve({
-    code: 200,
-    msg: '获取成功',
-    data: {
-      list: mockCourseList,
-      total: mockCourseList.length
-    }
+/** 获取课程列表 */
+export function getCourseList(params?: { isSvipOnly?: boolean; isFree?: boolean; current?: number; size?: number }) {
+  return request.get<{ list: any[]; total: number }>({
+    url: '/api/system/course/list',
+    params
   })
 }
 
-export function fetchAddCourse(params: any) {
-  return Promise.resolve({
-    code: 200,
-    msg: '添加成功',
-    data: null
+/** 新增课程 */
+export function addCourse(data: any) {
+  return request.post({
+    url: '/api/system/course/add',
+    data
   })
 }
 
-export function fetchUpdateCourse(params: any) {
-  return Promise.resolve({
-    code: 200,
-    msg: '更新成功',
-    data: null
+/** 更新课程 */
+export function updateCourse(data: any) {
+  return request.put({
+    url: '/api/system/course/update',
+    data
   })
 }
 
-export function fetchDeleteCourse(id: string) {
-  return Promise.resolve({
-    code: 200,
-    msg: '删除成功',
-    data: null
+/** 删除课程 */
+export function deleteCourse(id: string) {
+  return request.del({
+    url: `/api/system/course/delete/${id}`
   })
 }
 
-export function fetchChangeCourseStatus(id: string, status: number) {
-  return Promise.resolve({
-    code: 200,
-    msg: status === 1 ? '上架成功' : '下架成功',
-    data: null
+/** 修改课程状态 */
+export function changeCourseStatus(id: string, status: number) {
+  return request.post({
+    url: '/api/system/course/status',
+    data: { id, status }
   })
 }

@@ -8,13 +8,13 @@
         v-if="courseInfo.videoUrl"
         class="course-video"
         :src="courseInfo.videoUrl"
-        :poster="courseInfo.image"
+        :poster="courseInfo.cover"
         controls
         object-fit="cover"
         @error="onVideoError"
       ></video>
       <view v-else class="video-placeholder">
-        <wd-img :src="courseInfo.image" width="100%" height="100%" mode="aspectFill" />
+        <wd-img :src="courseInfo.cover || 'https://img.yzcdn.cn/vant/cat.jpeg'" width="100%" height="100%" mode="aspectFill" />
         <view class="play-icon-mask">
           <wd-icon name="play-circle-filled" size="64px" color="rgba(255,255,255,0.8)" />
         </view>
@@ -24,8 +24,8 @@
     <!-- 课程信息区 -->
     <view class="info-section">
       <view class="title-row">
-        <text class="c-title">{{ courseInfo.name || '加载中...' }}</text>
-        <text class="c-price" v-if="courseInfo.price">￥{{ courseInfo.price }}</text>
+        <text class="c-title">{{ courseInfo.title || '加载中...' }}</text>
+        <text class="c-price" v-if="courseInfo.price > 0">￥{{ courseInfo.price }}</text>
         <text class="c-price free" v-else>免费</text>
       </view>
       <view class="meta-row">
@@ -40,8 +40,11 @@
         <wd-tab title="课程简介" name="intro">
           <view class="intro-content">
             <view class="intro-title">课程概述</view>
-            <view class="intro-text">
-              {{ courseInfo.desc || '这是一门精心打磨的高质量课程，由资深名师亲自授课，深入浅出地剖析核心知识点。无论你是基础薄弱想要稳扎稳打，还是寻求突破冲击高分，这门课程都能为你提供针对性的指导与帮助。' }}
+            <view class="intro-text" v-if="courseInfo.content">
+              <rich-text :nodes="courseInfo.content"></rich-text>
+            </view>
+            <view class="intro-text" v-else>
+              这是一门精心打磨的高质量课程，由资深名师亲自授课，深入浅出地剖析核心知识点。无论你是基础薄弱想要稳扎稳打，还是寻求突破冲击高分，这门课程都能为你提供针对性的指导与帮助。
             </view>
             
             <view class="intro-title" style="margin-top: 30rpx;">适合人群</view>
@@ -92,7 +95,7 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { getCourseDetailApi } from '@/api/course'
+import { getCourseDetailApi, collectCourseApi, recordLearningApi } from '@/api/course'
 
 const toast = useToast()
 
@@ -100,22 +103,24 @@ const courseInfo = ref<any>({})
 const currentTab = ref('intro')
 const isCollected = ref(false)
 const currentChapter = ref(0)
-const chapters = ref<any[]>([])
+const chapters = ref<any[]>([
+  { title: '课程介绍与学习指南' },
+  { title: '核心知识点深度解析' },
+  { title: '实战案例演练' },
+  { title: '总结与提升' }
+])
 
-const loadCourseDetail = async (courseName: string) => {
+const loadCourseDetail = async (id: string) => {
   try {
     toast.loading('加载中...')
-    const res = await getCourseDetailApi(courseName)
+    const res = await getCourseDetailApi(id)
     if (res.code === 200) {
       const data = res.data
-      courseInfo.value = {
-        ...courseInfo.value,
-        desc: data.desc,
-        studentCount: data.studentCount,
-        videoUrl: data.videoUrl,
-        chapterCount: data.chapters.length
-      }
-      chapters.value = data.chapters
+      courseInfo.value = data
+      isCollected.value = !!data.isCollected
+      // 模拟一些详情页需要的数据，如果后端没有的话
+      if (!courseInfo.value.studentCount) courseInfo.value.studentCount = Math.floor(Math.random() * 1000)
+      if (!courseInfo.value.chapterCount) courseInfo.value.chapterCount = chapters.value.length
     }
     toast.close()
   } catch (e) {
@@ -124,17 +129,8 @@ const loadCourseDetail = async (courseName: string) => {
 }
 
 onLoad((options: any) => {
-  if (options.name) {
-    const courseName = decodeURIComponent(options.name)
-    // 接收上个页面传来的基本信息
-    courseInfo.value = {
-      name: courseName,
-      price: options.price || '',
-      image: decodeURIComponent(options.image || 'https://img.yzcdn.cn/vant/cat.jpeg')
-    }
-    
-    // 调用 API 获取详细信息（视频、大纲、描述等）
-    loadCourseDetail(courseName)
+  if (options.id) {
+    loadCourseDetail(options.id)
   }
 })
 
@@ -143,19 +139,40 @@ const onVideoError = (e: any) => {
   toast.show('视频加载失败，请稍后重试')
 }
 
-const handleCollect = () => {
-  isCollected.value = !isCollected.value
-  toast.success(isCollected.value ? '已收藏' : '已取消收藏')
+const handleCollect = async () => {
+  try {
+    const nextStatus = !isCollected.value
+    const res = await collectCourseApi({
+      courseId: courseInfo.value.id,
+      isCollect: nextStatus
+    })
+    if (res.code === 200) {
+      isCollected.value = nextStatus
+      toast.success(isCollected.value ? '已收藏' : '已取消收藏')
+    }
+  } catch (e) {
+    toast.error('操作失败')
+  }
 }
 
 const playChapter = (index: number) => {
   currentChapter.value = index
   toast.show(`正在切换至：${chapters.value[index].title}`)
+  // 点击具体章节也算开始学习
+  startLearning()
 }
 
-const startLearning = () => {
+const startLearning = async () => {
   currentTab.value = 'outline'
-  toast.success('开始学习！')
+  try {
+    // 记录学习进度，简单传个 10 表示已开始
+    await recordLearningApi({
+      courseId: courseInfo.value.id,
+      progress: 10
+    })
+  } catch (e) {
+    console.error('记录学习失败:', e)
+  }
 }
 </script>
 

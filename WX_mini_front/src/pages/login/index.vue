@@ -227,12 +227,19 @@ const handleLogin = async () => {
       }
       toast.success('登录成功')
       
-      // 修改点：因为登录页是启动页，跳转到绑定页必须使用 redirectTo
-      // 这样跳转后页面栈会替换，用户在绑定页按返回键不会回到登录页
+      // 判断是否已经绑定学生
+      const isBound = res.data && res.data.isBoundStudent
+      
       setTimeout(() => {
-        uni.redirectTo({ 
-          url: `/pages/auth/bind-student?phone=${phone.value}` 
-        })
+        if (isBound) {
+          // 已绑定学生，直接进入首页
+          uni.switchTab({ url: '/pages/home/index' })
+        } else {
+          // 未绑定学生，跳转到绑定页面
+          uni.redirectTo({ 
+            url: `/pages/auth/bind-student?phone=${phone.value}` 
+          })
+        }
       }, 1500)
     } else {
       toast.error(res.msg || '登录失败')
@@ -357,10 +364,17 @@ const handleBindPhone = async () => {
       }
       toast.success('绑定成功')
       showBindPhonePopup.value = false
+      
+      const isBound = res.data && res.data.isBoundStudent
+      
       setTimeout(() => {
-        uni.redirectTo({ 
-          url: `/pages/auth/bind-student?phone=${bindPhoneForm.value.phone}` 
-        })
+        if (isBound) {
+          uni.switchTab({ url: '/pages/home/index' })
+        } else {
+          uni.redirectTo({ 
+            url: `/pages/auth/bind-student?phone=${bindPhoneForm.value.phone}` 
+          })
+        }
       }, 1500)
     } else {
       toast.error(res.msg || '绑定失败')
@@ -379,8 +393,15 @@ const handleThirdPartySuccess = (res: any, type: string) => {
   } else if (res.data && res.data.token) {
     uni.setStorageSync('token', res.data.token)
     toast.success(`${type === 'wechat' ? '微信' : 'QQ'}登录成功`)
+    
+    const isBound = res.data && res.data.isBoundStudent
+    
     setTimeout(() => {
-      uni.switchTab({ url: '/pages/home/index' })
+      if (isBound) {
+        uni.switchTab({ url: '/pages/home/index' })
+      } else {
+        uni.redirectTo({ url: '/pages/auth/bind-student' })
+      }
     }, 1500)
   }
 }

@@ -5,7 +5,7 @@ import request from '@/utils/request'
  */
 export const getSemesterListApi = () => {
   return request({
-    url: '/score/semester/list',
+    url: '/api/app/score/semester/list',
     method: 'GET'
   })
 }
@@ -16,7 +16,7 @@ export const getSemesterListApi = () => {
  */
 export const getStudentScoresApi = (params: any) => {
   return request({
-    url: '/score/list',
+    url: '/api/app/score/list',
     method: 'GET',
     data: params
   })

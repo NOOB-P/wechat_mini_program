@@ -1,11 +1,18 @@
 package com.edu.javasb_back.model.entity;
 
-import jakarta.persistence.*;
-import lombok.Data;
+import java.time.LocalDateTime;
+
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import lombok.Data;
 
 @Data
 @Entity
@@ -20,6 +27,9 @@ public class SysAccount {
 
     @Column(nullable = false, length = 100)
     private String nickname = "新用户";
+
+    @Column(length = 255)
+    private String avatar;
 
     @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(length = 255)
@@ -49,6 +59,9 @@ public class SysAccount {
     @Column(name = "online_status")
     private String onlineStatus = "offline"; // online, offline, banned
 
+    @Column(name = "is_bound_student")
+    private Integer isBoundStudent = 0; // 1-是, 0-否
+
     @Column(name = "is_enabled")
     private Integer isEnabled = 1;
 
@@ -63,6 +76,10 @@ public class SysAccount {
     @Column(name = "update_time")
     private LocalDateTime updateTime;
 
+    // Transient fields for request handling
+     @Transient
+    private String studentId;
+
     // 手动添加 Getter/Setter 解决部分环境 Lombok 未生效问题
     public Long getUid() { return uid; }
     public void setUid(Long uid) { this.uid = uid; }
@@ -72,6 +89,9 @@ public class SysAccount {
 
     public String getNickname() { return nickname; }
     public void setNickname(String nickname) { this.nickname = nickname; }
+
+    public String getAvatar() { return avatar; }
+    public void setAvatar(String avatar) { this.avatar = avatar; }
 
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
@@ -99,6 +119,12 @@ public class SysAccount {
 
     public String getOnlineStatus() { return onlineStatus; }
     public void setOnlineStatus(String onlineStatus) { this.onlineStatus = onlineStatus; }
+
+    public Integer getIsBoundStudent() { return isBoundStudent; }
+    public void setIsBoundStudent(Integer isBoundStudent) { this.isBoundStudent = isBoundStudent; }
+
+    public String getStudentId() { return studentId; }
+    public void setStudentId(String studentId) { this.studentId = studentId; }
 
     public Integer getIsEnabled() { return isEnabled; }
     public void setIsEnabled(Integer isEnabled) { this.isEnabled = isEnabled; }
