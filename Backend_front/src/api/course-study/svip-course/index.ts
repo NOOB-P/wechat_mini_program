@@ -1,51 +1,42 @@
-import { mockSvipCourseList } from '@/mock/course-study/svip-course'
+import request from '@/utils/http'
 
 /**
  * 获取 SVIP 课程列表
  */
-export async function fetchGetSvipCourseList(params: any) {
-  // 模拟请求延迟
-  await new Promise((resolve) => setTimeout(resolve, 500))
-  
-  return {
-    code: 200,
-    msg: '获取成功',
-    data: {
-      list: mockSvipCourseList,
-      total: mockSvipCourseList.length
-    }
-  }
+export function fetchGetSvipCourseList(params: any) {
+  return request.get<{ list: any[]; total: number }>({
+    url: '/api/system/course/list',
+    params: { ...params, isSvipOnly: true }
+  })
 }
 
 /**
  * 删除 SVIP 课程
  */
-export async function fetchDeleteSvipCourse(id: string) {
-  return {
-    code: 200,
-    msg: '删除成功',
-    data: null
-  }
+export function fetchDeleteSvipCourse(id: string) {
+  return request.del({
+    url: `/api/system/course/delete/${id}`
+  })
 }
 
 /**
  * 修改 SVIP 课程状态
  */
-export async function fetchChangeSvipCourseStatus(id: string, status: number) {
-  return {
-    code: 200,
-    msg: status === 1 ? '上架成功' : '下架成功',
-    data: null
-  }
+export function fetchChangeSvipCourseStatus(id: string, status: number) {
+  return request.post({
+    url: '/api/system/course/status',
+    data: { id, status }
+  })
 }
 
 /**
  * 新增/更新 SVIP 课程
  */
-export async function fetchSaveSvipCourse(data: any) {
-  return {
-    code: 200,
-    msg: data.id ? '更新成功' : '添加成功',
-    data: null
-  }
+export function fetchSaveSvipCourse(data: any) {
+  const isEdit = !!data.id
+  return request({
+    url: isEdit ? '/api/system/course/update' : '/api/system/course/add',
+    method: isEdit ? 'PUT' : 'POST',
+    data: { ...data, isSvipOnly: true }
+  })
 }

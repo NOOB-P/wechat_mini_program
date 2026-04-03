@@ -29,20 +29,15 @@ export const getSyncCourseOptionsApi = () => {
   })
 }
 
-/**
- * @Description: 获取历年真题列表
- */
-export const getPaperListApi = (params?: any) => {
+export const getPaperListApi = (params: any) => {
   return request({
     url: '/api/app/resource/paper/list',
-    method: 'GET', // 改为 GET 以配合后端逻辑（如果需要实现）
+    method: 'GET',
     data: params
   })
 }
 
-/**
- * @Description: 获取历年真题的科目列表
- */
+/** 获取名校试卷科目 */
 export const getPaperSubjectsApi = () => {
   return request({
     url: '/api/app/resource/paper/subjects',

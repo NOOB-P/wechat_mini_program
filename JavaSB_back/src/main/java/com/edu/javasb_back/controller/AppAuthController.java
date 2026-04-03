@@ -3,9 +3,11 @@ package com.edu.javasb_back.controller;
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.AccountLoginDTO;
+import com.edu.javasb_back.model.dto.BindStudentDTO;
 import com.edu.javasb_back.model.vo.LoginVO;
 import com.edu.javasb_back.service.SysAccountService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -46,5 +48,18 @@ public class AppAuthController {
     @PostMapping("/login/phone")
     public Result<LoginVO> loginByPhone(@RequestBody AccountLoginDTO loginDTO) {
         return sysAccountService.loginByPhone(loginDTO);
+    }
+
+    /**
+     * 确认绑定学生账号 (小程序端使用)
+     */
+    @LogOperation("确认绑定学生账号")
+    @PostMapping("/bind-student/confirm")
+    public Result<Void> bindStudentConfirm(@RequestBody BindStudentDTO bindDTO) {
+        String uidStr = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (uidStr == null || "anonymousUser".equals(uidStr)) {
+            return Result.error(401, "未登录");
+        }
+        return sysAccountService.bindStudent(Long.parseLong(uidStr), bindDTO.getStudentName(), bindDTO.getStudentId());
     }
 }

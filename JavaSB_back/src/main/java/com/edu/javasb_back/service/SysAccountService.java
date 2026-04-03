@@ -52,4 +52,28 @@ public interface SysAccountService {
      * 修改密码
      */
     Result<Void> updatePassword(Long uid, String oldPassword, String newPassword);
+
+    /**
+     * 绑定学生账号
+     * @param uid 家长用户UID
+     * @param studentName 学生姓名
+     * @param studentNo 学生学号/准考证号
+     * @return 结果
+     */
+    Result<Void> bindStudent(Long uid, String studentName, String studentNo);
+
+    /**
+     * 绑定学生账号 (通过学生ID)
+     * @param uid 家长用户UID
+     * @param studentId 学生ID
+     * @return 结果
+     */
+    Result<Void> bindStudentById(Long uid, String studentId);
+
+    /**
+     * 解绑学生账号 (通过家长UID)
+     * @param uid 家长用户UID
+     * @return 结果
+     */
+    Result<Void> unbindStudentByParentUid(Long uid);
 }

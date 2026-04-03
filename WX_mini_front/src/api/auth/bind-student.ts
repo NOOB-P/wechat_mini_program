@@ -6,7 +6,7 @@ import request from '@/utils/request'
  */
 export const sendBindStudentCode = (phone: string) => {
   return request({
-    url: '/auth/bind-student/sendCode',
+    url: '/api/app/auth/sendCode',
     method: 'POST',
     data: { phone }
   })
@@ -24,7 +24,7 @@ export const bindStudentAccount = (data: {
   code: string
 }) => {
   return request({
-    url: '/auth/bind-student/confirm',
+    url: '/api/app/auth/bind-student/confirm',
     method: 'POST',
     data
   })

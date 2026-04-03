@@ -6,9 +6,79 @@
     @close="handleClose"
   >
     <el-form :model="form" label-width="100px" :rules="rules" ref="formRef">
-      <el-form-item label="课程名称" prop="title">
-        <el-input v-model="form.title" placeholder="请输入课程名称" />
-      </el-form-item>
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-form-item label="课程名称" prop="title">
+            <el-input v-model="form.title" placeholder="请输入课程名称" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="课程类型" prop="type">
+            <el-select v-model="form.type" placeholder="请选择课程类型" style="width: 100%">
+              <el-option label="常规课程" value="general" />
+              <el-option label="同步课程" value="sync" />
+              <el-option label="家庭教育" value="family" />
+              <el-option label="学霸说" value="talk" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="今日推荐" prop="isRecommend">
+            <el-switch
+              v-model="form.isRecommend"
+              :active-value="1"
+              :inactive-value="0"
+              active-text="是"
+              inactive-text="否"
+            />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-form-item label="科目" prop="subject">
+            <el-input v-model="form.subject" placeholder="如：数学、英语" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="年级" prop="grade">
+            <el-input v-model="form.grade" placeholder="如：七年级、八年级" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-form-item label="价格" prop="price">
+            <el-input-number v-model="form.price" :precision="2" :step="0.1" :min="0" style="width: 100%" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="SVIP专享" prop="isSvipOnly">
+            <el-switch v-model="form.isSvipOnly" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-form-item label="作者/讲师" prop="author">
+            <el-input v-model="form.author" placeholder="请输入作者或讲师名称" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="6">
+          <el-form-item label="已学人数" prop="buyers">
+            <el-input-number v-model="form.buyers" :min="0" style="width: 100%" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="6">
+          <el-form-item label="总节数" prop="episodes">
+            <el-input-number v-model="form.episodes" :min="0" style="width: 100%" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
       <el-form-item label="视频链接" prop="videoUrl">
         <el-input v-model="form.videoUrl" placeholder="请输入视频链接" />
       </el-form-item>
@@ -41,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, shallowRef, onBeforeUnmount } from 'vue'
+import { ref, computed, shallowRef, onBeforeUnmount, watch } from 'vue'
 import '@wangeditor/editor/dist/css/style.css'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import { ElMessage } from 'element-plus'
@@ -65,7 +135,16 @@ const form = ref({
   title: '',
   cover: '',
   videoUrl: '',
-  content: ''
+  content: '',
+  type: 'general',
+  subject: '',
+  grade: '',
+  price: 0,
+  isSvipOnly: false,
+  status: 1,
+  author: '',
+  buyers: 0,
+  episodes: 0
 })
 
 const rules = {
@@ -80,10 +159,26 @@ const editorConfig = { placeholder: '请输入内容...' }
 
 const handleCreated = (editor: any) => {
   editorRef.value = editor
-  if (props.isEdit && props.data) {
-    form.value = { ...props.data }
+  // 确保在编辑器创建后加载数据，否则 content 可能无法正确显示
+  if (props.visible && props.data) {
+    form.value = { ...form.value, ...props.data }
+    if (form.value.content) {
+      editor.setHtml(form.value.content)
+    }
   }
 }
+
+// 监听 visible 和 data 的变化，以便在编辑时更新表单
+watch(() => [props.visible, props.data], ([visible, data]) => {
+  if (visible && data) {
+    form.value = { ...form.value, ...data }
+    if (editorRef.value && data.content) {
+      editorRef.value.setHtml(data.content)
+    }
+  } else if (!visible) {
+    handleClose()
+  }
+}, { immediate: true })
 
 onBeforeUnmount(() => {
   const editor = editorRef.value
@@ -92,7 +187,23 @@ onBeforeUnmount(() => {
 })
 
 const handleClose = () => {
-  form.value = { id: '', title: '', cover: '', videoUrl: '', content: '' }
+  form.value = {
+    id: '',
+    title: '',
+    cover: '',
+    videoUrl: '',
+    content: '',
+    type: 'general',
+    subject: '',
+    grade: '',
+    price: 0,
+    isSvipOnly: false,
+    status: 1,
+    author: '',
+    buyers: 0,
+    episodes: 0,
+    isRecommend: 0
+  }
   if (editorRef.value) {
     editorRef.value.setHtml('')
   }

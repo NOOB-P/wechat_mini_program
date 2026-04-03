@@ -13,18 +13,14 @@
 
       <!-- 搜索栏 -->
       <el-form :inline="true" :model="searchForm" class="search-form">
-        <el-form-item label="姓名">
-          <el-input v-model="searchForm.name" placeholder="请输入姓名" clearable @keyup.enter="handleSearch" />
-        </el-form-item>
-        <el-form-item label="学号">
-          <el-input v-model="searchForm.studentNo" placeholder="请输入学号" clearable @keyup.enter="handleSearch" />
-        </el-form-item>
-        <el-form-item label="学校">
-          <el-select v-model="searchForm.school" placeholder="请选择学校" clearable style="width: 180px">
-            <el-option label="第一中学" value="第一中学" />
-            <el-option label="第二中学" value="第二中学" />
-            <el-option label="第三实验学校" value="第三实验学校" />
-          </el-select>
+        <el-form-item label="综合搜索">
+          <el-input 
+            v-model="searchForm.keyword" 
+            placeholder="搜索姓名/学号/学校/年级/班级" 
+            clearable 
+            @keyup.enter="handleSearch" 
+            style="width: 300px"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
@@ -48,9 +44,11 @@
         <el-table-column prop="grade" label="年级" width="100" align="center" />
         <el-table-column prop="className" label="班级" width="80" align="center" />
 
-        <el-table-column label="绑定状态" width="100" align="center">
+        <el-table-column label="绑定数量" width="100" align="center">
           <template #default="{ row }">
-            <BindingStatus :isBound="row.isBound" />
+            <el-tag :type="row.boundCount > 0 ? 'success' : 'info'" size="small">
+              {{ row.boundCount }}
+            </el-tag>
           </template>
         </el-table-column>
 
@@ -91,11 +89,14 @@
             <el-radio label="女">女</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="学校" prop="school">
-          <el-select v-model="form.school" placeholder="请选择学校" class="w-full">
-            <el-option label="第一中学" value="第一中学" />
-            <el-option label="第二中学" value="第二中学" />
-            <el-option label="第三实验学校" value="第三实验学校" />
+        <el-form-item label="所在学校" prop="schoolId">
+          <el-select v-model="form.schoolId" placeholder="请选择学校" class="w-full">
+            <el-option 
+              v-for="item in schoolList" 
+              :key="item.id" 
+              :label="item.name" 
+              :value="item.id" 
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="年级" prop="grade">
@@ -103,9 +104,6 @@
         </el-form-item>
         <el-form-item label="班级" prop="className">
           <el-input v-model="form.className" placeholder="如：1班" />
-        </el-form-item>
-        <el-form-item label="家长手机" prop="parentPhone">
-          <el-input v-model="form.parentPhone" placeholder="请输入手机号" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -156,23 +154,25 @@ import {
   fetchAddStudent, 
   fetchUpdateStudent, 
   fetchDeleteStudent,
-  fetchImportStudents
+  fetchBatchUpdateStatus,
+  fetchImportStudents 
 } from '@/api/core-business/student/index'
+import { fetchGetSchoolList } from '@/api/core-business/school/index'
 import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
-import BindingStatus from './components/BindingStatus.vue'
+import BindingStatus from './components/binding-status.vue'
 
+// 表格数据相关
 const loading = ref(false)
 const tableData = ref<Api.Student.StudentItem[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const selectedIds = ref<string[]>([])
+const schoolList = ref<any[]>([])
 
 const searchForm = ref({
-  name: '',
-  studentNo: '',
-  school: ''
+  keyword: ''
 })
 
 const dialogVisible = ref(false)
@@ -186,14 +186,13 @@ const form = ref<Partial<Api.Student.StudentItem>>({
   gender: '男',
   school: '',
   grade: '',
-  className: '',
-  parentPhone: ''
+  className: ''
 })
 
 const rules = {
   studentNo: [{ required: true, message: '请输入学号', trigger: 'blur' }],
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  school: [{ required: true, message: '请选择学校', trigger: 'change' }]
+  schoolId: [{ required: true, message: '请选择学校', trigger: 'change' }]
 }
 
 const importVisible = ref(false)
@@ -208,12 +207,35 @@ const loadData = async () => {
       size: pageSize.value,
       ...searchForm.value
     })
-    if (res.code === 200) {
+    
+    // 处理 axios 拦截器解包的情况
+    if (res && res.records) {
+      tableData.value = res.records
+      total.value = res.total
+    } else if (res && res.code === 200) {
       tableData.value = res.data.records
       total.value = res.data.total
+    } else {
+      tableData.value = []
+      total.value = 0
     }
+  } catch (error) {
+    console.error('获取学生列表失败:', error)
   } finally {
     loading.value = false
+  }
+}
+
+const loadSchools = async () => {
+  try {
+    const res = await fetchGetSchoolList()
+    if (Array.isArray(res)) {
+      schoolList.value = res
+    } else if (res && res.code === 200) {
+      schoolList.value = res.data
+    }
+  } catch (error) {
+    console.error('获取学校列表失败:', error)
   }
 }
 
@@ -223,7 +245,7 @@ const handleSearch = () => {
 }
 
 const resetSearch = () => {
-  searchForm.value = { name: '', studentNo: '', school: '' }
+  searchForm.value = { keyword: '' }
   handleSearch()
 }
 
@@ -243,26 +265,41 @@ const handleSelectionChange = (selection: Api.Student.StudentItem[]) => {
 
 const handleAdd = () => {
   isEdit.value = false
-  form.value = { id: '', studentNo: '', name: '', gender: '男', school: '', grade: '', className: '', parentPhone: '' }
+  form.value = {
+    id: '',
+    studentNo: '',
+    name: '',
+    gender: '男',
+    schoolId: '',
+    grade: '',
+    className: ''
+  }
   dialogVisible.value = true
 }
 
 const handleEdit = (row: Api.Student.StudentItem) => {
   isEdit.value = true
   form.value = { ...row }
+  // 处理后端返回字段匹配问题，给 schoolId 赋值
+  if (row.school && !form.value.schoolId) {
+    const matchedSchool = schoolList.value.find(s => s.name === row.school)
+    if (matchedSchool) {
+      form.value.schoolId = matchedSchool.id
+    }
+  }
   dialogVisible.value = true
 }
 
 const handleDelete = (row: Api.Student.StudentItem) => {
-  ElMessageBox.confirm(`确定要删除学生 ${row.name} 吗?`, '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
+  ElMessageBox.confirm(`确认删除学生 [${row.name}] 吗？`, '警告', {
     type: 'warning'
   }).then(async () => {
-    const res = await fetchDeleteStudent(row.id)
-    if (res.code === 200) {
+    try {
+      await fetchDeleteStudent(row.id)
       ElMessage.success('删除成功')
       loadData()
+    } catch (error) {
+      ElMessage.error((error as any).message || '删除失败')
     }
   })
 }
@@ -271,15 +308,27 @@ const submitForm = async () => {
   if (!formRef.value) return
   await formRef.value.validate(async (valid) => {
     if (valid) {
-      submitLoading.value = true
       try {
-        const api = isEdit.value ? fetchUpdateStudent : fetchAddStudent
-        const res = await api(form.value)
-        if (res.code === 200) {
-          ElMessage.success(isEdit.value ? '更新成功' : '添加成功')
-          dialogVisible.value = false
-          loadData()
+        submitLoading.value = true
+        
+        // 获取选中学校的名称（为了冗余字段 school 赋值）
+        const matchedSchool = schoolList.value.find(s => s.id === form.value.schoolId)
+        if (matchedSchool) {
+          form.value.school = matchedSchool.name
         }
+
+        if (isEdit.value) {
+          await fetchUpdateStudent(form.value)
+          ElMessage.success('更新成功')
+        } else {
+          await fetchAddStudent(form.value)
+          ElMessage.success('添加成功')
+        }
+        dialogVisible.value = false
+        loadData()
+      } catch (error) {
+        // Axios 拦截器会抛出错误，我们在 catch 里不用自己提示了或者可以通过 error.message 提示
+        ElMessage.error((error as any).message || '操作失败')
       } finally {
         submitLoading.value = false
       }
@@ -315,6 +364,7 @@ const downloadTemplate = () => {
 }
 
 onMounted(() => {
+  loadSchools()
   loadData()
 })
 </script>

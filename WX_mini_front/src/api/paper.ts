@@ -6,7 +6,7 @@ import request from '@/utils/request'
  */
 export const getPaperDetailApi = (examId?: string) => {
   return request({
-    url: '/paper/detail',
+    url: '/api/app/paper/detail',
     method: 'GET',
     data: { examId }
   })

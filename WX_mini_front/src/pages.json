@@ -87,13 +87,7 @@
 			}
 		},
 		{
-			"path": "pages/mine/course-list",
-			"style": {
-				"navigationBarTitleText": "课程列表"
-			}
-		},
-		{
-			"path": "pages/mine/edit-profile",
+			"path": "pages/paper/index",
 			"type": "page",
 			"style": {
 				"navigationBarTitleText": "试卷报告"

@@ -10,9 +10,31 @@
 
       <el-table :data="tableData" border v-loading="loading">
         <el-table-column prop="title" label="课程名称" min-width="180" />
+        <el-table-column prop="type" label="类型" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.type === 'general'">常规</el-tag>
+            <el-tag v-else-if="row.type === 'sync'" type="success">同步</el-tag>
+            <el-tag v-else-if="row.type === 'family'" type="warning">家教</el-tag>
+            <el-tag v-else-if="row.type === 'talk'" type="danger">学霸说</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="subject" label="科目" width="80" />
+        <el-table-column prop="grade" label="年级" width="100" />
+        <el-table-column prop="price" label="价格" width="100">
+          <template #default="{ row }">
+            <span style="color: #f56c6c; font-weight: bold">￥{{ row.price?.toFixed(2) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="封面" width="120">
           <template #default="{ row }">
             <el-image :src="row.cover" class="w-20 h-12 rounded" fit="cover" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="isRecommend" label="今日推荐" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.isRecommend === 1 ? 'success' : 'info'">
+              {{ row.isRecommend === 1 ? '是' : '否' }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="100">
@@ -43,14 +65,14 @@
       v-model:visible="dialogVisible" 
       :isEdit="isEdit" 
       :data="editData" 
-      @success="loadData"
+      @success="handleSuccess"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { fetchGetSvipCourseList, fetchDeleteSvipCourse, fetchChangeSvipCourseStatus } from '@/api/course-study/svip-course/index'
+import { fetchGetSvipCourseList, fetchDeleteSvipCourse, fetchChangeSvipCourseStatus, fetchSaveSvipCourse } from '@/api/course-study/svip-course/index'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import CourseDialog from '../course/modules/course-dialog.vue'
 
@@ -62,16 +84,31 @@ const editData = ref(null)
 
 const loadData = async () => {
   loading.value = true
-  const res = await fetchGetSvipCourseList({})
-  if (res.code === 200) {
-    tableData.value = res.data.list
+  try {
+    const data = await fetchGetSvipCourseList({ isSvipOnly: true })
+    // 这里的 data 已经是后端返回的 res.data.data 了
+    if (data) {
+      if (Array.isArray(data)) {
+        tableData.value = data
+      } else if (Array.isArray(data.list)) {
+        tableData.value = data.list
+      }
+    }
+  } catch (error) {
+    console.error('加载 SVIP 课程数据失败:', error)
+  } finally {
+    loading.value = false
   }
-  loading.value = false
 }
 
 const handleAdd = () => {
   isEdit.value = false
-  editData.value = null
+  editData.value = {
+    type: 'general',
+    isSvipOnly: true,
+    price: 0,
+    status: 1
+  }
   dialogVisible.value = true
 }
 
@@ -81,24 +118,38 @@ const handleEdit = (row: any) => {
   dialogVisible.value = true
 }
 
+const handleSuccess = async (formData: any) => {
+  try {
+    await fetchSaveSvipCourse(formData)
+    ElMessage.success(isEdit.value ? '更新成功' : '新增成功')
+    loadData()
+  } catch (error) {
+    // 错误已由请求拦截器处理
+  }
+}
+
 const handleDelete = (row: any) => {
   ElMessageBox.confirm('确定要删除该 SVIP 课程吗?', '提示', {
     type: 'warning'
   }).then(async () => {
-    const res = await fetchDeleteSvipCourse(row.id)
-    if (res.code === 200) {
+    try {
+      await fetchDeleteSvipCourse(row.id)
       ElMessage.success('删除成功')
       loadData()
+    } catch (error) {
+      // 拦截器已处理
     }
   })
 }
 
 const handleStatus = async (row: any) => {
   const newStatus = row.status === 1 ? 0 : 1
-  const res = await fetchChangeSvipCourseStatus(row.id, newStatus)
-  if (res.code === 200) {
-    ElMessage.success(res.msg)
+  try {
+    await fetchChangeSvipCourseStatus(row.id, newStatus)
+    ElMessage.success('操作成功')
     loadData()
+  } catch (error) {
+    // 拦截器已处理
   }
 }
 

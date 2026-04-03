@@ -80,8 +80,8 @@
 </template>
 
 <script setup lang="ts">
-  import { fetchPrintOrderList } from '@/api/order'
-  import { ElMessage } from 'element-plus'
+  import { fetchPrintOrderList, updatePrintOrderStatus } from '@/api/order'
+  import { ElMessage, ElMessageBox } from 'element-plus'
 
   const loading = ref(false)
   const orderList = ref([])
@@ -99,10 +99,8 @@
     loading.value = true
     try {
       const res = await fetchPrintOrderList(queryParams)
-      if (res.code === 200) {
-        orderList.value = res.data.records
-        total.value = res.data.total
-      }
+      orderList.value = res.records
+      total.value = res.total
     } finally {
       loading.value = false
     }
@@ -125,7 +123,25 @@
   }
 
   const handlePrint = (row: any) => {
-    ElMessage.success(`订单 ${row.orderNo} 已标记为完成打印`)
+    ElMessageBox.confirm(
+      `确定订单 ${row.orderNo} 已完成打印吗？完成后将进入待配送状态。`,
+      '确认提示',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    ).then(async () => {
+      try {
+        loading.value = true
+        // 2 (待打印) -> 3 (待配送)
+        await updatePrintOrderStatus(row.id, 3)
+        ElMessage.success('订单已标记为待配送')
+        getList()
+      } finally {
+        loading.value = false
+      }
+    }).catch(() => {})
   }
 
   const getStatusTag = (status: number) => {
