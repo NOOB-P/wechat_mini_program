@@ -104,6 +104,12 @@
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- EasyExcel 依赖 -->
+		<dependency>
+			<groupId>com.alibaba</groupId>
+			<artifactId>easyexcel</artifactId>
+			<version>3.3.2</version> 
+		</dependency>
 	</dependencies>
 
 	<build>

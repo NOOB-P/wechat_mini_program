@@ -10,4 +10,6 @@ import java.util.List;
 @Repository
 public interface SysSchoolRepository extends JpaRepository<SysSchool, String>, JpaSpecificationExecutor<SysSchool> {
     List<SysSchool> findByStatus(Integer status);
+    
+    java.util.Optional<SysSchool> findByProvinceAndCityAndName(String province, String city, String name);
 }
