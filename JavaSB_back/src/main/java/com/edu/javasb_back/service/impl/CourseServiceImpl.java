@@ -52,7 +52,12 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Result<List<Course>> getFamilyEduList() {
-        return Result.success(courseRepository.findFamilyEduCoursesSql());
+        return Result.success(courseRepository.findFamilyEduListSql());
+    }
+
+    @Override
+    public Result<List<Course>> getStudentTalkList() {
+        return Result.success(courseRepository.findStudentTalkListSql());
     }
 
     @Override
@@ -92,5 +97,46 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public Result<List<Map<String, Object>>> getMyStudyRecords(Long uid) {
         return Result.success(courseRepository.findStudyRecordsSql(uid));
+    }
+
+    @Override
+    public Result<List<Course>> getAllCourses(String type, Boolean isSvipOnly, Boolean isFree, Integer isRecommend) {
+        return Result.success(courseRepository.findAllCoursesFilteredSql(type, isSvipOnly, isFree, isRecommend));
+    }
+
+    @Override
+    public Result<Void> addCourse(Course course) {
+        if (course.getId() == null || course.getId().isEmpty()) {
+            course.setId("CRS" + System.currentTimeMillis());
+        }
+        courseRepository.save(course);
+        return Result.success("添加成功", null);
+    }
+
+    @Override
+    public Result<Void> updateCourse(Course course) {
+        if (course.getId() == null || !courseRepository.existsById(course.getId())) {
+            return Result.error("课程不存在");
+        }
+        courseRepository.save(course);
+        return Result.success("更新成功", null);
+    }
+
+    @Override
+    public Result<Void> deleteCourse(String id) {
+        courseRepository.deleteById(id);
+        return Result.success("删除成功", null);
+    }
+
+    @Override
+    public Result<Void> changeStatus(String id, Integer status) {
+        Optional<Course> courseOpt = courseRepository.findById(id);
+        if (courseOpt.isPresent()) {
+            Course course = courseOpt.get();
+            course.setStatus(status);
+            courseRepository.save(course);
+            return Result.success("操作成功", null);
+        }
+        return Result.error("课程不存在");
     }
 }

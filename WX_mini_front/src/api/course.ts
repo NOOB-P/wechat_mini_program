@@ -3,8 +3,8 @@ import request from '@/utils/request'
 /**
  * 获取常规课程列表
  */
-export const getCourseListApi = () => {
-  return request({ url: '/api/app/course/list', method: 'GET' })
+export const getCourseListApi = (params?: any) => {
+  return request({ url: '/api/app/course/list', method: 'GET', data: params })
 }
 
 /**

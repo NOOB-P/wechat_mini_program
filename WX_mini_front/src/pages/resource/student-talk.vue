@@ -5,12 +5,12 @@
         <wd-img :src="item.cover" width="200rpx" height="150rpx" radius="12rpx" mode="aspectFill" />
         <view class="item-info">
           <text class="item-title">{{ item.title }}</text>
-          <text class="item-author">{{ item.author }}</text>
+          <text class="item-author">{{ item.author || '资深学霸' }}</text>
           <view class="item-bottom">
-            <text class="item-buyers">{{ item.buyers }}人已购买</text>
+            <text class="item-buyers">{{ item.buyers || 0 }}人已学习</text>
             <view class="item-price-wrap">
-              <text class="item-episodes">{{ item.episodes }}节 / </text>
-              <text class="item-price">{{ item.price }}</text>
+              <text class="item-episodes">{{ item.episodes || 1 }}节 / </text>
+              <text class="item-price">{{ item.price > 0 ? '￥' + item.price : '免费' }}</text>
             </view>
           </view>
         </view>
@@ -38,7 +38,7 @@ const loadData = async () => {
 
 const handleItemClick = (item: any) => {
   uni.navigateTo({
-    url: `/pages/course/detail?name=${encodeURIComponent(item.title)}&price=${item.price === '免费' ? '' : item.price}&image=${encodeURIComponent(item.cover)}`
+    url: `/pages/course/detail?id=${item.id}`
   })
 }
 

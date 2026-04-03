@@ -8,6 +8,7 @@ export interface MockResponse {
 
 const mocks: Record<string, (data: any) => MockResponse> = {
   ...mineMocks,
+  /*
   '/auth/bind-student/sendCode': (data) => {
     return {
       code: 200,
@@ -242,6 +243,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       ]
     };
   },
+  */
   /*
   '/course/list': (data) => {
     return {
@@ -256,8 +258,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
     };
   },
   */
-  /*
-  '/score/semester/list': (data) => {
+  '/api/app/score/semester/list': (data) => {
     return {
       code: 200,
       msg: '获取学期考试列表成功 (Mock)',
@@ -287,7 +288,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     }
   },
-  '/score/list': (data) => {
+  '/api/app/score/list': (data) => {
     // 模拟根据不同学期和考试返回不同数据
     const isNextSemester = data?.semester === '2023-2024-2';
     const examId = data?.examId || 'final';
@@ -347,7 +348,34 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   },
-  */
+  '/api/app/paper/detail': (data) => {
+    return {
+      code: 200,
+      msg: '获取试卷详情成功 (Mock)',
+      data: {
+        examName: '2023-2024学年第一学期期中考试 - 数学',
+        score: 135,
+        fullScore: 150,
+        teacherComment: '本次考试基础题掌握得很好，但在最后一道压轴大题上计算出现了失误。继续保持，注意做题时的计算细节！',
+        originalPaperImages: [
+          'https://via.placeholder.com/600x800.png?text=Original+Paper+Page+1',
+          'https://via.placeholder.com/600x800.png?text=Original+Paper+Page+2'
+        ],
+        electronicPaperImages: [
+          'https://via.placeholder.com/600x800.png?text=Electronic+Paper+Page+1',
+          'https://via.placeholder.com/600x800.png?text=Electronic+Paper+Page+2'
+        ],
+        answers: [
+          { questionNo: '1', type: '选择题', studentAnswer: 'A', correctAnswer: 'A', isRight: true },
+          { questionNo: '2', type: '选择题', studentAnswer: 'C', correctAnswer: 'B', isRight: false },
+          { questionNo: '3', type: '填空题', studentAnswer: '15', correctAnswer: '15', isRight: true },
+          { questionNo: '15', type: '解答题', studentAnswer: '见试卷原卷', correctAnswer: '参考答案详见电子版解析...', isRight: true }
+        ],
+        downloadUrl: 'https://example.com/download/paper.pdf'
+      }
+    };
+  },
+  /*
   '/paper/detail': (data) => {
     return {
       code: 200,
@@ -455,6 +483,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   },
+  */
   /*
   '/resource/student-talk/list': () => ({
     code: 200,
@@ -490,19 +519,21 @@ const mocks: Record<string, (data: any) => MockResponse> = {
     }
   },
   */
-  '/resource/paper/list': (data) => {
+  '/api/app/resource/paper/list': (data) => {
     const kw = data?.keyword || ''
     return {
       code: 200,
       msg: '获取试卷列表成功 (Mock)',
       data: [
-        { id: 1, title: `2020-2限时练1 (七年级) ${kw}`, tags: ['名校', '松阳三中', kw || '语文', 'PDF版'], year: '2021年', grade: '七年级', downloads: 101 },
-        { id: 2, title: `2020-2限时练2 (七年级) ${kw}`, tags: ['名校', '松阳三中', kw || '语文', 'PDF版'], year: '2021年', grade: '七年级', downloads: 88 },
-        { id: 3, title: `期中模拟卷 (八年级) ${kw}`, tags: ['名校', '附中', kw || '数学', 'PDF版'], year: '2022年', grade: '八年级', downloads: 342 }
+        { id: 'P001', title: `2023年杭州二中高三仿真模拟卷 (一) ${kw}`, tags: ['名校', '重点', kw || '综合', 'PDF'], year: '2023年', grade: '高三', downloads: 1250 },
+        { id: 'P002', title: `2024年北京人大附中初三二模真题 ${kw}`, tags: ['真题', '必刷', kw || '全科', '解析'], year: '2024年', grade: '初三', downloads: 3400 },
+        { id: 'P003', title: `上海中学2023-2024学年高一期末考试卷 ${kw}`, tags: ['名校', '期末', kw || '数学', '精品'], year: '2024年', grade: '高一', downloads: 890 },
+        { id: 'P004', title: `2023年西安西工大附中初一入学摸底测试 ${kw}`, tags: ['摸底', kw || '语文', 'PDF版'], year: '2023年', grade: '初一', downloads: 2100 },
+        { id: 'P005', title: `2024年成都七中高二联考物理压轴卷 ${kw}`, tags: ['联考', '名校', kw || '物理', '解析'], year: '2024年', grade: '高二', downloads: 1560 }
       ]
     };
   },
-  '/resource/paper/subjects': () => {
+  '/api/app/resource/paper/subjects': () => {
     return {
       code: 200,
       msg: '获取试卷科目成功 (Mock)',
@@ -512,10 +543,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
         { name: '英语', icon: 'edit', color: '#2196f3' },
         { name: '物理', icon: 'setting', color: '#00bcd4' },
         { name: '化学', icon: 'filter', color: '#ff9800' },
-        { name: '生物', icon: 'share', color: '#3f51b5' },
-        { name: '历史', icon: 'time', color: '#ffc107' },
-        { name: '地理', icon: 'location', color: '#03a9f4' },
-        { name: '道德与法治', icon: 'star', color: '#f44336' }
+        { name: '生物', icon: 'share', color: '#3f51b5' }
       ]
     };
   },
@@ -531,6 +559,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
     };
   },
   */
+  /*
   '/user/info': (data) => {
     // 根据请求头中的 token 区分角色
     const token = uni.getStorageSync('token') || '';
@@ -561,6 +590,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   }
+  */
 };
 
 export const getMockData = (url: string, data: any): MockResponse | null => {

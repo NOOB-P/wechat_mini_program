@@ -36,6 +36,7 @@ CREATE TABLE `sys_accounts` (
     `is_vip` TINYINT DEFAULT NULL COMMENT '是否VIP: 1-是, 0-否 (仅家长角色有效)',
     `is_svip` TINYINT DEFAULT NULL COMMENT '是否SVIP: 1-是, 0-否 (仅家长角色有效)',
     `online_status` ENUM('online', 'offline', 'banned') DEFAULT 'offline' COMMENT '在线状态: online-在线, offline-离线, banned-封禁',
+    `is_bound_student` TINYINT DEFAULT 0 COMMENT '是否已绑定学生: 1-是, 0-否',
     `is_enabled` TINYINT DEFAULT 1 COMMENT '是否启用: 1-启用, 0-禁用',
     `last_login_time` DATETIME COMMENT '最后登录时间',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建日期',
@@ -52,6 +53,8 @@ CREATE TABLE `sys_accounts` (
 DROP TABLE IF EXISTS `schools`;
 CREATE TABLE `schools` (
     `id` VARCHAR(50) PRIMARY KEY COMMENT '学校唯一标识',
+    `province` VARCHAR(50) COMMENT '省份',
+    `city` VARCHAR(50) COMMENT '城市',
     `name` VARCHAR(100) NOT NULL COMMENT '学校名称',
     `type` VARCHAR(20) DEFAULT 'school' COMMENT '节点类型',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
@@ -66,14 +69,27 @@ CREATE TABLE `students` (
     `student_no` VARCHAR(50) NOT NULL UNIQUE COMMENT '学号',
     `name` VARCHAR(50) NOT NULL COMMENT '学生姓名',
     `gender` ENUM('男', '女', '未知') DEFAULT '未知' COMMENT '性别',
+    `school_id` VARCHAR(50) COMMENT '关联的学校ID',
     `school` VARCHAR(100) COMMENT '所在学校(冗余)',
     `grade` VARCHAR(50) COMMENT '所在年级(冗余)',
     `class_name` VARCHAR(50) COMMENT '所在班级(冗余)',
-    `parent_phone` VARCHAR(20) COMMENT '家长联系电话',
-    `is_bound` BOOLEAN DEFAULT FALSE COMMENT '是否已绑定家长',
+    `bound_count` INT DEFAULT 0 COMMENT '绑定家长数量',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='学生档案表';
+
+-- 4.1 学生-家长绑定表 (多对多)
+DROP TABLE IF EXISTS `student_parent_bindings`;
+CREATE TABLE `student_parent_bindings` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '绑定ID',
+    `student_id` VARCHAR(50) NOT NULL COMMENT '学生唯一ID',
+    `parent_uid` BIGINT NOT NULL COMMENT '家长用户唯一ID (sys_accounts.uid)',
+    `binding_type` VARCHAR(20) DEFAULT 'parent' COMMENT '绑定类型',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '绑定时间',
+    UNIQUE KEY `uk_parent_single` (`parent_uid`), -- 一个家长只能绑定一个学生
+    CONSTRAINT `fk_binding_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
+    CONSTRAINT `fk_binding_parent` FOREIGN KEY (`parent_uid`) REFERENCES `sys_accounts` (`uid`)
+) ENGINE=InnoDB COMMENT='学生与家长账号绑定关系表 (一个家长只能绑1个学生，一个学生最多绑5个家长)';
 
 -- 5. 考试信息与成绩表
 DROP TABLE IF EXISTS `exams`;
@@ -122,12 +138,16 @@ CREATE TABLE `courses` (
     `cover` VARCHAR(255) COMMENT '封面图URL',
     `video_url` VARCHAR(500) COMMENT '视频URL',
     `content` TEXT COMMENT '课程详细富文本内容',
-    `type` ENUM('general', 'sync', 'family') DEFAULT 'general' COMMENT '课程类型: general-常规, sync-同步, family-家庭教育',
+    `type` ENUM('general', 'sync', 'family', 'talk') DEFAULT 'general' COMMENT '课程类型: general-常规, sync-同步, family-家庭教育, talk-学霸说',
     `subject` VARCHAR(50) COMMENT '科目 (仅同步课程有效)',
     `grade` VARCHAR(50) COMMENT '年级 (仅同步课程有效)',
-    `status` TINYINT DEFAULT 1 COMMENT '状态: 1-上架, 0-下架',
     `price` DECIMAL(10,2) DEFAULT 0.00 COMMENT '价格',
-    `is_svip_only` BOOLEAN DEFAULT FALSE COMMENT '是否SVIP专属',
+    `is_svip_only` TINYINT(1) DEFAULT 0 COMMENT '是否仅SVIP可见',
+    `author` VARCHAR(100) DEFAULT NULL COMMENT '作者/讲师',
+    `buy_count` INT DEFAULT 0 COMMENT '购买/学习人数',
+    `episodes` INT DEFAULT 0 COMMENT '总节数',
+    `status` TINYINT DEFAULT 1 COMMENT '状态: 1-上架, 0-下架',
+    `is_recommend` TINYINT(1) DEFAULT 0 COMMENT '是否今日推荐: 0-否, 1-是',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='课程与学习资源表';
@@ -281,75 +301,150 @@ INSERT INTO `sys_roles` (`id`, `role_name`, `role_code`, `description`, `status`
 (3, '家长', 'parent', '小程序端家长用户', 1);
 
 -- 2. 统一账号表数据 (密码默认设为123456)
-INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `avatar`, `password`, `phone`, `email`, `role_id`, `is_vip`, `is_svip`, `online_status`, `is_enabled`) VALUES
-(1, 'admin', '超级管理员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000000', 'admin@example.com', 1, NULL, NULL, 'offline', 1),
-(2, 'manager', '运营人员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000001', 'manager@example.com', 2, NULL, NULL, 'offline', 1),
-(3, 'parent01', '张三爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000002', 'parent01@example.com', 3, 1, 0, 'offline', 1),
-(4, 'parent02', '李四妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000003', 'parent02@example.com', 3, 0, 0, 'offline', 1);
+INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `avatar`, `password`, `phone`, `email`, `role_id`, `is_vip`, `is_svip`, `online_status`, `is_bound_student`, `is_enabled`) VALUES
+(1, 'admin', '超级管理员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000000', 'admin@example.com', 1, NULL, NULL, 'offline', 0, 1),
+(2, 'manager', '运营人员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000001', 'manager@example.com', 2, NULL, NULL, 'offline', 0, 1),
+(3, 'parent01', '张三爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000002', 'parent01@example.com', 3, 1, 0, 'offline', 1, 1),
+(4, 'parent02', '李四妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000003', 'parent02@example.com', 3, 0, 0, 'offline', 1, 1),
+(5, 'parent03', '王五妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000004', 'parent03@example.com', 3, 1, 1, 'offline', 1, 1),
+(6, 'parent04', '赵六爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000005', 'parent04@example.com', 3, 0, 0, 'offline', 1, 1),
+(7, 'manager02', '财务人员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000006', 'finance@example.com', 2, NULL, NULL, 'offline', 0, 1),
+(8, 'parent05', '孙七妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000007', 'parent05@example.com', 3, 1, 0, 'offline', 1, 1),
+(9, 'parent06', '周八爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000008', 'parent06@example.com', 3, 0, 0, 'offline', 1, 1),
+(10, 'parent07', '吴九妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000009', 'parent07@example.com', 3, 1, 1, 'offline', 1, 1);
 
 -- 3. 学校结构表数据
-INSERT INTO `schools` (`id`, `name`, `type`, `status`) VALUES
-('SCH001', '第一中学', 'school', 1),
-('SCH002', '实验小学', 'school', 1);
+INSERT INTO `schools` (`id`, `province`, `city`, `name`, `type`, `status`) VALUES
+('SCH001', '广东省', '广州市', '第一中学', 'school', 1),
+('SCH002', '广东省', '深圳市', '实验小学', 'school', 1),
+('SCH003', '广东省', '东莞市', '育才中学', 'school', 1),
+('SCH004', '浙江省', '杭州市', '杭州高级中学', 'school', 1),
+('SCH005', '江苏省', '南京市', '南京外国语学校', 'school', 1),
+('SCH006', '北京市', '北京市', '北京四中', 'school', 1),
+('SCH007', '上海市', '上海市', '上海建平中学', 'school', 1),
+('SCH008', '湖北省', '武汉市', '武汉外国语学校', 'school', 1),
+('SCH009', '四川省', '成都市', '成都七中', 'school', 1),
+('SCH010', '广东省', '广州市', '执信中学', 'school', 1);
 
 -- 4. 学生档案表数据
-INSERT INTO `students` (`id`, `student_no`, `name`, `gender`, `school`, `grade`, `class_name`, `parent_phone`, `is_bound`) VALUES
-('STU001', '20230001', '张三', '男', '第一中学', '初一', '1班', '13800000002', 1),
-('STU002', '20230002', '李四', '女', '实验小学', '六年级', '2班', '13800000003', 0);
+INSERT INTO `students` (`id`, `student_no`, `name`, `gender`, `school_id`, `school`, `grade`, `class_name`, `bound_count`) VALUES
+('STU001', '20230001', '张三', '男', 'SCH001', '第一中学', '初一', '1班', 2),
+('STU002', '20230002', '李四', '女', 'SCH002', '实验小学', '六年级', '2班', 1),
+('STU003', '20230003', '王五', '男', 'SCH003', '育才中学', '高一', '3班', 1),
+('STU004', '20230004', '赵六', '女', 'SCH004', '杭州高级中学', '高二', '理科班', 1),
+('STU005', '20230005', '孙七', '男', 'SCH005', '南京外国语学校', '初三', '英语强化班', 1),
+('STU006', '20230006', '周八', '男', 'SCH006', '北京四中', '初一', '2班', 1),
+('STU007', '20230007', '吴九', '女', 'SCH007', '上海建平中学', '高一', '1班', 1),
+('STU008', '20230008', '郑十', '男', 'SCH008', '武汉外国语学校', '初二', '3班', 0),
+('STU009', '20230009', '张小三', '女', 'SCH001', '第一中学', '初三', '1班', 1),
+('STU010', '20230010', '李小四', '男', 'SCH002', '实验小学', '四年级', '1班', 1);
+
+-- 4.1 学生-家长绑定表数据 (体现新规则：一个家长账号只能绑定一个学生，但一个学生可以被多个家长绑定)
+INSERT INTO `student_parent_bindings` (`student_id`, `parent_uid`, `binding_type`) VALUES
+('STU001', 3, 'parent'), -- 张三爸爸绑定张三
+('STU001', 4, 'parent'), -- 李四妈妈绑定张三 (共同监护)
+('STU009', 5, 'parent'), -- 王五妈妈绑定张小三
+('STU002', 6, 'parent'), -- 赵六爸爸绑定李四
+('STU003', 8, 'parent'), -- 孙七妈妈绑定王五
+('STU004', 9, 'parent'), -- 周八爸爸绑定赵六
+('STU005', 10, 'parent'), -- 吴九妈妈绑定孙七
+('STU006', 11, 'parent'), -- 假设还有其他家长账号... (此处保持逻辑一致即可)
+('STU007', 12, 'parent'); -- 提示：此处仅为示例，实际账号UID需存在于 sys_accounts 中
 
 -- 5. 考试信息与成绩表数据
 INSERT INTO `exams` (`id`, `name`, `school`, `grade`, `class_name`, `exam_date`, `status`, `success_count`, `fail_count`) VALUES
 ('EXAM001', '2023-2024学年第一学期期中考试', '第一中学', '初一', '1班', '2023-11-10', '已解析', 45, 0),
-('EXAM002', '2023-2024学年第一学期期末考试', '实验小学', '六年级', '2班', '2024-01-15', '已解析', 40, 2);
+('EXAM002', '2023-2024学年第一学期期末考试', '实验小学', '六年级', '2班', '2024-01-15', '已解析', 40, 2),
+('EXAM003', '2024年春季月考一', '育才中学', '高一', '3班', '2024-03-20', '解析中', 0, 0),
+('EXAM004', '2024年中考一模', '第一中学', '初三', '全级', '2024-04-10', '待解析', 0, 0),
+('EXAM005', '2024年春季月考二', '北京四中', '初一', '2班', '2024-04-15', '已解析', 50, 0);
 
 -- 6. 成绩与错题明细表数据
 INSERT INTO `exam_results` (`exam_id`, `student_no`, `student_name`, `school`, `grade`, `class_name`, `total_score`, `question_scores`) VALUES
 ('EXAM001', '20230001', '张三', '第一中学', '初一', '1班', 95.5, '{"q1": 5, "q2": 10, "q3": 0}'),
-('EXAM002', '20230002', '李四', '实验小学', '六年级', '2班', 88.0, '{"q1": 5, "q2": 5, "q3": 5}');
+('EXAM002', '20230002', '李四', '实验小学', '六年级', '2班', 88.0, '{"q1": 5, "q2": 5, "q3": 5}'),
+('EXAM001', '20230005', '孙七', '南京外国语学校', '初三', '英语强化班', 76.5, '{"q1": 5, "q2": 0, "q3": 5}'),
+('EXAM002', '20230004', '赵六', '杭州高级中学', '高二', '理科班', 92.0, '{"q1": 10, "q2": 10, "q3": 5}'),
+('EXAM005', '20230006', '周八', '北京四中', '初一', '2班', 98.0, '{"q1": 10, "q2": 10, "q3": 10}'),
+('EXAM001', '20230009', '张小三', '第一中学', '初三', '1班', 85.0, '{"q1": 5, "q2": 5, "q3": 5}');
 
 -- 7. 课程资源表数据
-INSERT INTO `courses` (`id`, `title`, `cover`, `video_url`, `content`, `type`, `subject`, `grade`, `status`, `price`, `is_svip_only`) VALUES
-('CRS001', '初中数学基础巩固', 'https://example.com/cover1.jpg', 'https://example.com/video1.mp4', '<p>这是初中数学基础巩固课程的详细介绍...</p>', 'general', NULL, NULL, 1, 0.00, 0),
-('CRS002', '中考物理冲刺班', 'https://example.com/cover2.jpg', 'https://example.com/video2.mp4', '<p>这是中考物理冲刺冲刺班的详细介绍...</p>', 'general', NULL, NULL, 1, 99.00, 1),
-('SYNC001', '七年级上册数学同步', 'https://example.com/sync1.jpg', 'https://example.com/video3.mp4', '<p>七年级数学同步讲解...</p>', 'sync', '数学', '七年级', 1, 0.00, 0),
-('FAM001', '如何与青春期孩子沟通', 'https://example.com/fam1.jpg', 'https://example.com/video4.mp4', '<p>家庭教育讲座...</p>', 'family', NULL, NULL, 1, 0.00, 0);
+INSERT INTO `courses` (`id`, `title`, `cover`, `video_url`, `content`, `type`, `subject`, `grade`, `status`, `price`, `is_svip_only`, `author`, `buy_count`, `episodes`, `is_recommend`) VALUES
+('CRS001', '初中数学基础巩固', 'https://example.com/cover1.jpg', 'https://example.com/video1.mp4', '<p>这是初中数学基础巩固课程的详细介绍...</p>', 'general', NULL, NULL, 1, 0.00, 0, '教研组', 1200, 24, 1),
+('CRS002', '中考物理冲刺班', 'https://example.com/cover2.jpg', 'https://example.com/video2.mp4', '<p>这是中考物理冲刺冲刺班的详细介绍...</p>', 'general', NULL, NULL, 1, 99.00, 1, '张老师', 850, 12, 1),
+('CRS003', '小学英语启蒙课', 'https://example.com/cover3.jpg', 'https://example.com/video3.mp4', '<p>英语启蒙...</p>', 'general', NULL, NULL, 1, 0.00, 0, 'Emma', 3000, 30, 0),
+('CRS004', '高中化学难点解析', 'https://example.com/cover4.jpg', 'https://example.com/video4.mp4', '<p>化学难点...</p>', 'general', NULL, NULL, 1, 199.00, 1, '李博士', 420, 15, 0),
+('CRS005', '初中生物实验视频', 'https://example.com/cover5.jpg', 'https://example.com/video5.mp4', '<p>生物实验...</p>', 'general', NULL, NULL, 1, 0.00, 0, '王老师', 1500, 10, 0),
+('CRS006', '公益课程：趣味数学', 'https://example.com/cover6.jpg', 'https://example.com/video6.mp4', '<p>趣味数学公益讲座...</p>', 'general', '数学', '全级', 1, 0.00, 0, '陈教授', 5000, 1, 0),
+('CRS007', '公益课程：文学鉴赏', 'https://example.com/cover7.jpg', 'https://example.com/video7.mp4', '<p>经典文学名著鉴赏公益课...</p>', 'general', '语文', '全级', 1, 0.00, 0, '林博士', 2800, 5, 0),
+('SYNC001', '七年级上册数学同步', 'https://example.com/sync1.jpg', 'https://example.com/video3.mp4', '<p>七年级数学同步讲解...</p>', 'sync', '数学', '七年级', 1, 0.00, 0, '张老师', 12000, 48, 1),
+('SYNC002', '八年级下册物理同步', 'https://example.com/sync2.jpg', 'https://example.com/video_sync2.mp4', '<p>八年级物理同步辅导...</p>', 'sync', '物理', '八年级', 1, 0.00, 0, '王老师', 8000, 36, 0),
+('SYNC003', '九年级英语中考总复习', 'https://example.com/sync3.jpg', 'https://example.com/video_sync3.mp4', '<p>中考英语重点难点突破...</p>', 'sync', '英语', '九年级', 1, 0.00, 0, 'Sarah', 15000, 60, 0),
+('SYNC004', '小学五年级语文同步', 'https://example.com/sync4.jpg', 'https://example.com/video_sync4.mp4', '<p>小学语文阅读与写作...</p>', 'sync', '语文', '五年级', 1, 0.00, 0, '林老师', 5000, 40, 0),
+('SYNC005', '高一数学必修一精品课', 'https://example.com/sync5.jpg', 'https://example.com/video_sync5.mp4', '<p>高中数学衔接与提高...</p>', 'sync', '数学', '高一', 1, 0.00, 0, '陈教授', 9000, 52, 0),
+('FAM001', '如何与青春期孩子沟通', 'https://example.com/fam1.jpg', 'https://example.com/video4.mp4', '<p>家庭教育讲座...</p>', 'family', NULL, NULL, 1, 0.00, 0, '心连心工作室', 6000, 8, 1),
+('FAM002', '考前家长心理疏导指南', 'https://example.com/fam2.jpg', 'https://example.com/video_fam2.mp4', '<p>如何陪伴孩子度过备考期...</p>', 'family', NULL, NULL, 1, 0.00, 0, '心理专家李老师', 4500, 5, 0),
+('FAM003', '小学生行为习惯养成方案', 'https://example.com/fam3.jpg', 'https://example.com/video_fam3.mp4', '<p>从小培养良好的学习习惯...</p>', 'family', NULL, NULL, 1, 0.00, 0, '资深教育者张老师', 3200, 12, 0),
+('SVIP001', 'SVIP 特权课程：奥数思维突破', 'https://example.com/svip1.jpg', 'https://example.com/video_svip1.mp4', '<p>高级奥数解题技巧...</p>', 'general', '数学', '初中', 1, 0.00, 1, '金牌教练', 150, 20, 0),
+('SVIP002', 'SVIP 特权课程：英语口语大师课', 'https://example.com/svip2.jpg', 'https://example.com/video_svip2.mp4', '<p>外教母语级口语训练...</p>', 'general', '英语', '全级', 1, 0.00, 1, 'Steven', 300, 10, 0),
+('SVIP003', 'SVIP 特权课程：物理竞赛培优', 'https://example.com/svip3.jpg', 'https://example.com/video_svip3.mp4', '<p>全国物理竞赛重难点解析...</p>', 'general', '物理', '高中', 1, 0.00, 1, '物理特级教师', 100, 15, 0),
+('SVIP004', 'SVIP 特权课程：考研数学提分营', 'https://example.com/svip4.jpg', 'https://example.com/video_svip4.mp4', '<p>考研数学核心考点串讲...</p>', 'general', '数学', '考研', 1, 0.00, 1, '数学名师', 80, 45, 0),
+('TALK001', '清华学霸分享：我的高效学习法', 'https://example.com/talk1.jpg', 'https://example.com/video_talk1.mp4', '<p>如何制定计划，如何保持专注...</p>', 'talk', NULL, NULL, 1, 0.00, 0, '张学霸', 15000, 1, 1),
+('TALK002', '北大才女谈：语文阅读理解提分秘籍', 'https://example.com/talk2.jpg', 'https://example.com/video_talk2.mp4', '<p>阅读理解不丢分的技巧分享...</p>', 'talk', NULL, NULL, 1, 9.90, 0, '李学霸', 8000, 3, 0),
+('TALK003', '中考状元：物理考前冲刺心态调节', 'https://example.com/talk3.jpg', 'https://example.com/video_talk3.mp4', '<p>考前如何调整心态，发挥超常...</p>', 'talk', NULL, NULL, 1, 0.00, 1, '王学霸', 5000, 1, 0),
+('TALK004', '学霸笔记展示：数学错题本怎么做', 'https://example.com/talk4.jpg', 'https://example.com/video_talk4.mp4', '<p>手把手教你整理最高效的错题本...</p>', 'talk', NULL, NULL, 1, 0.00, 0, '刘学霸', 12000, 2, 0),
+('TALK005', '英语大神：如何在一个月内词汇量翻倍', 'https://example.com/talk5.jpg', 'https://example.com/video_talk5.mp4', '<p>科学背单词法，告别死记硬背...</p>', 'talk', NULL, NULL, 1, 19.90, 0, '陈学霸', 6500, 5, 0),
+('TALK006', '浙大学霸：理综解题套路大公开', 'https://example.com/talk6.jpg', 'https://example.com/video_talk6.mp4', '<p>物理化学生物联动的解题思路...</p>', 'talk', NULL, NULL, 1, 0.00, 1, '赵学霸', 4000, 10, 0);
 
 -- 8. AI 自习室报名表数据
 INSERT INTO `study_room_enrollments` (`id`, `parent_name`, `student_name`, `phone`, `status`, `apply_time`) VALUES
 ('ENR001', '张三爸爸', '张三', '13800000002', 'confirmed', '2023-10-01 10:00:00'),
-('ENR002', '王五妈妈', '王小五', '13800000004', 'pending', '2023-10-02 11:30:00');
+('ENR002', '王五妈妈', '王小五', '13800000004', 'pending', '2023-10-02 11:30:00'),
+('ENR003', '赵六爸爸', '赵小六', '13800000005', 'rejected', '2023-10-03 09:15:00'),
+('ENR004', '吴九妈妈', '吴九', '13800000009', 'confirmed', '2024-04-01 14:00:00');
 
 -- 9. FAQ 分类表数据
 INSERT INTO `faq_categories` (`id`, `name`, `sort`, `status`) VALUES
 (1, '注册绑定', 1, 1),
 (2, '成绩查询', 2, 1),
 (3, 'VIP服务', 3, 1),
-(4, '课程报名', 4, 1);
+(4, '课程报名', 4, 1),
+(5, '技术支持', 5, 1);
 
 -- 10. 常见问题 FAQ 表数据
 INSERT INTO `faqs` (`id`, `category_name`, `category_id`, `question`, `answer`, `status`) VALUES
 ('FAQ001', '注册绑定', 1, '如何绑定学生？', '在小程序“我的”页面，点击“绑定学生”，输入学号和姓名即可完成绑定。', 1),
 ('FAQ002', '成绩查询', 2, '错题本怎么打印？', '进入错题本页面，选择需要打印的题目，点击“生成打印PDF”，然后可以选择云打印服务。', 1),
-('FAQ003', 'VIP服务', 3, 'VIP和SVIP有什么区别？', 'VIP可查看详细成绩分析与基础错题本；SVIP享有额外特权，包括AI专属课程、智能自习室以及个性化学习计划生成。', 1);
+('FAQ003', 'VIP服务', 3, 'VIP和SVIP有什么区别？', 'VIP可查看详细成绩分析与基础错题本；SVIP享有额外特权，包括AI专属课程、智能自习室以及个性化学习计划生成。', 1),
+('FAQ004', '账号问题', 1, '忘记密码怎么办？', '在登录页面点击“忘记密码”，通过绑定的手机号验证后即可重置。', 1),
+('FAQ005', '技术支持', 5, 'APP闪退怎么办？', '请尝试清理缓存或更新到最新版本。如果问题依旧，请联系客服。', 1);
 
 -- 11. 微信群配置表数据
 INSERT INTO `wechat_configs` (`group_name`, `qr_code_path`, `status`) VALUES
 ('官方家长交流1群', '/uploads/qrcode1.png', 1),
-('初一学习辅导群', '/uploads/qrcode2.png', 1);
+('初一学习辅导群', '/uploads/qrcode2.png', 1),
+('北京家长备考群', '/uploads/qrcode3.png', 1);
 
 -- 12. 错题打印订单表数据
 INSERT INTO `print_orders` (`order_no`, `user_name`, `user_phone`, `document_name`, `pages`, `print_type`, `delivery_method`, `total_price`, `order_status`) VALUES
 ('POD202310010001', '张三爸爸', '13800000002', '张三数学错题本_10月', 15, '黑白双面', '快递配送', 12.50, 4),
-('POD202310050002', '李四妈妈', '13800000003', '李四英语复习资料', 30, '彩色单面', '门店自提', 45.00, 1);
+('POD202310050002', '李四妈妈', '13800000003', '李四英语复习资料', 30, '彩色单面', '门店自提', 45.00, 1),
+('POD202311020003', '王五妈妈', '13800000004', '王五物理错题集', 10, '黑白单面', '快递配送', 8.00, 2),
+('POD202404010004', '吴九妈妈', '13800000009', '吴九化学重点', 20, '彩色双面', '标准快递', 30.00, 1);
 
 -- 13. VIP套餐订单表数据
 INSERT INTO `vip_orders` (`order_no`, `user_uid`, `user_name`, `user_phone`, `package_type`, `period`, `price`, `payment_status`, `payment_method`) VALUES
 ('VOD202309010001', 3, '张三爸爸', '13800000002', 'SVIP专业版', '年包', 365.00, 1, '微信支付'),
-('VOD202309150002', 4, '李四妈妈', '13800000003', 'VIP基础版', '季包', 99.00, 1, '支付宝');
+('VOD202309150002', 4, '李四妈妈', '13800000003', 'VIP基础版', '季包', 99.00, 1, '支付宝'),
+('VOD202310010003', 5, '王五妈妈', '13800000004', 'SVIP专业版', '月包', 39.00, 1, '微信支付'),
+('VOD202404010004', 10, '吴九妈妈', '13800000009', 'SVIP专业版', '年包', 365.00, 1, '微信支付');
 
 -- 14. 系统操作日志表数据
 INSERT INTO `sys_logs` (`uid`, `user_name`, `nick_name`, `operation`, `method`, `url`, `ip`, `location`, `status`) VALUES
 (1, 'admin', '超级管理员', '登录系统', 'POST', '/api/auth/login/password', '192.168.1.100', '局域网', 200),
-(2, 'manager', '运营人员', '查询学生列表', 'GET', '/api/students/list', '192.168.1.101', '局域网', 200);
+(2, 'manager', '运营人员', '查询学生列表', 'GET', '/api/students/list', '192.168.1.101', '局域网', 200),
+(1, 'admin', '超级管理员', '新增学校', 'POST', '/api/school/add', '192.168.1.100', '局域网', 200),
+(3, 'parent01', '张三爸爸', '查看错题', 'GET', '/api/exams/mistakes', '10.0.0.1', '外网', 200),
+(10, 'parent07', '吴九妈妈', '报名自习室', 'POST', '/api/study-room/enroll', '172.16.0.1', '外网', 200);
 
 SET FOREIGN_KEY_CHECKS = 1;

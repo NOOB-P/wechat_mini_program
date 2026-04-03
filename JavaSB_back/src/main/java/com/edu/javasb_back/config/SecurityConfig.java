@@ -30,6 +30,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/app/auth/**").permitAll() // 小程序端登录、验证码
                 .requestMatchers("/api/log/**").permitAll() // 临时放行日志接口
                 .requestMatchers("/api/app/vip/**").permitAll() // 小程序端 VIP 相关接口
+                .requestMatchers("/api/students/**").permitAll() // 临时放行学生管理接口
                 .requestMatchers("/uploads/**").permitAll() // 放行上传的静态资源图片
                 
 

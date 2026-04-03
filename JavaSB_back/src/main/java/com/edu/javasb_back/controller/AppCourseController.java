@@ -64,6 +64,12 @@ public class AppCourseController {
         return courseService.getFamilyEduList();
     }
 
+    @LogOperation("获取学霸说列表")
+    @GetMapping("/resource/student-talk/list")
+    public Result<List<Course>> getStudentTalkList() {
+        return courseService.getStudentTalkList();
+    }
+
     @LogOperation("获取同步课程筛选选项")
     @GetMapping("/resource/sync-course/options")
     public Result<Map<String, List<Map<String, Object>>>> getSyncCourseOptions() {

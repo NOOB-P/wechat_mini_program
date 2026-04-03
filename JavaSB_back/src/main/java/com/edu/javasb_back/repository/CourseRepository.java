@@ -32,10 +32,16 @@ public interface CourseRepository extends JpaRepository<Course, String> {
      * 使用 SQL 原生语句查询家庭教育列表
      */
     @Query(value = "SELECT * FROM courses WHERE type = 'family' AND status = 1 ORDER BY create_time DESC", nativeQuery = true)
-    List<Course> findFamilyEduCoursesSql();
+    List<Course> findFamilyEduListSql();
 
     /**
-     * 使用 SQL 原生语句查询课程详情
+     * 使用 SQL 原生语句查询所有学霸说列表
+     */
+    @Query(value = "SELECT * FROM courses WHERE type = 'talk' AND status = 1 ORDER BY create_time DESC", nativeQuery = true)
+    List<Course> findStudentTalkListSql();
+
+    /**
+     * 详情查询
      */
     @Query(value = "SELECT * FROM courses WHERE id = :id", nativeQuery = true)
     Optional<Course> findByIdSql(@Param("id") String id);
@@ -66,4 +72,15 @@ public interface CourseRepository extends JpaRepository<Course, String> {
      */
     @Query(value = "SELECT c.*, usr.progress FROM courses c JOIN user_study_records usr ON c.id = usr.course_id WHERE usr.user_uid = :uid ORDER BY usr.last_study_time DESC", nativeQuery = true)
     List<Map<String, Object>> findStudyRecordsSql(@Param("uid") Long uid);
+
+    /**
+     * 管理端：按条件查询课程
+     */
+    @Query(value = "SELECT * FROM courses WHERE " +
+                   "(:type IS NULL OR type = :type) AND " +
+                   "(:isSvipOnly IS NULL OR is_svip_only = :isSvipOnly) AND " +
+                   "(:isFree IS NULL OR (price = 0) = :isFree) AND " +
+                   "(:isRecommend IS NULL OR is_recommend = :isRecommend) " +
+                   "ORDER BY create_time DESC", nativeQuery = true)
+    List<Course> findAllCoursesFilteredSql(@Param("type") String type, @Param("isSvipOnly") Boolean isSvipOnly, @Param("isFree") Boolean isFree, @Param("isRecommend") Integer isRecommend);
 }

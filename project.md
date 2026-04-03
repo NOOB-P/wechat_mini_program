@@ -62,3 +62,5 @@ database.sql
   - Windows (PowerShell): `Stop-Process -Id (Get-NetTCPConnection -LocalPort 8080).OwningProcess -Force`
   - macOS/Linux: `kill -9 $(lsof -t -i:8080)`
 
+  现在可修改后端端口，现在默认为 `8082`，与前端端口对应。
+

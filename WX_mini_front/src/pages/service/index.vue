@@ -17,7 +17,7 @@ const loadFaqData = async () => {
   try {
     const res = await getFaqListApi({
       categoryName: currentTab.value === '全部' ? undefined : currentTab.value,
-      keyword: searchValue.value
+      question: searchValue.value
     })
     if (res.code === 200) {
       // 后端返回的是分页对象，records 是列表
@@ -56,8 +56,8 @@ const handleSearch = () => {
 
 // Tab 切换处理：由组件事件显式触发
 const onTabChange = (e: any) => {
-  // e.value 是 wd-tabs 传出的当前选中项的 name (即我们的 cat.id)
-  const newId = e.value
+  // 修正：wd-tabs 的 change 事件返回的是对象 { name, index }
+  const newId = e.name
   if (currentTab.value !== newId) {
     currentTab.value = newId
     loadFaqData()

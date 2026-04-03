@@ -13,10 +13,10 @@ export const getFaqCategoryApi = () => {
 /**
  * @Description: 获取 FAQ 问题列表
  */
-export const getFaqListApi = (data: { categoryName?: string; keyword?: string }) => {
+export const getFaqListApi = (data: { categoryName?: string; question?: string }) => {
   return request({
     url: '/api/customer/faq/list',
     method: 'GET',
-    params: data
+    data: data
   })
 }

@@ -47,6 +47,18 @@ public class Course {
     @Column(name = "is_svip_only")
     private Boolean isSvipOnly = false;
 
+    @Column(length = 100)
+    private String author; // 讲师/作者
+
+    @Column(name = "buy_count")
+    private Integer buyers = 0; // 购买/学习人数
+
+    @Column
+    private Integer episodes = 0; // 总节数
+
+    @Column(name = "is_recommend")
+    private Integer isRecommend = 0;
+
     @Transient
     private Boolean isCollected = false;
 
@@ -82,6 +94,12 @@ public class Course {
     public void setPrice(BigDecimal price) { this.price = price; }
     public Boolean getIsSvipOnly() { return isSvipOnly; }
     public void setIsSvipOnly(Boolean isSvipOnly) { this.isSvipOnly = isSvipOnly; }
+    public String getAuthor() { return author; }
+    public void setAuthor(String author) { this.author = author; }
+    public Integer getBuyers() { return buyers; }
+    public void setBuyers(Integer buyers) { this.buyers = buyers; }
+    public Integer getEpisodes() { return episodes; }
+    public void setEpisodes(Integer episodes) { this.episodes = episodes; }
     public Boolean getIsCollected() { return isCollected; }
     public void setIsCollected(Boolean isCollected) { this.isCollected = isCollected; }
     public Integer getProgress() { return progress; }
