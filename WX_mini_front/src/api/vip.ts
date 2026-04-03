@@ -1,6 +1,16 @@
 import request from '@/utils/request'
 
 /**
+ * @Description: 获取已启用的会员配置和价格
+ */
+export const getVipOptionsApi = () => {
+  return request({
+    url: '/api/vip/options',
+    method: 'GET'
+  })
+}
+
+/**
  * @Description: 获取 VIP 数据分析数据
  */
 export const getVipAnalysisDataApi = () => {

@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { getHomeStatsApi, getHomeBannersApi, getHomePublicCoursesApi } from '@/api/index'
+import { getHomeStatsApi, getHomeBannersApi, getHomePublicCoursesApi, getWechatQrByLocationApi } from '@/api/index'
 import { getCourseListApi } from '@/api/course'
 import { getUserInfoApi } from '@/api/mine'
 
@@ -19,6 +19,31 @@ const publicCourses = ref<any[]>([])
 const recommendCourses = ref<any[]>([])
 const isSVIPUser = ref(false)
 const userInfo = ref<any>({})
+
+// 二维码弹窗相关
+const showQrPopup = ref(false)
+const currentQrCode = ref('')
+const qrGroupName = ref('')
+
+const handleBannerClick = async (img: string) => {
+  try {
+    toast.loading('请稍后...')
+    const res = await getWechatQrByLocationApi('HOME_BANNER')
+    if (res.code === 200) {
+      // 修正：拼接服务器 BaseURL
+      const path = res.data.qrCodePath
+      currentQrCode.value = path.startsWith('http') ? path : __VITE_SERVER_BASEURL__ + path
+      qrGroupName.value = res.data.groupName
+      showQrPopup.value = true
+    } else {
+      toast.show(res.msg || '暂无微信咨询')
+    }
+  } catch (e) {
+    toast.error('获取信息失败')
+  } finally {
+    toast.close()
+  }
+}
 
 // 获取系统状态栏高度，用于自定义导航栏适配
 const systemInfo = uni.getSystemInfoSync()
@@ -42,7 +67,7 @@ const loadData = async () => {
       recommendCourses.value = coursesRes.data.map((item: any) => ({
         ...item,
         name: item.title,
-        image: item.cover
+        image: item.cover && !item.cover.startsWith('http') ? __VITE_SERVER_BASEURL__ + item.cover : item.cover
       }))
     }
     if (userRes.code === 200) {
@@ -88,7 +113,7 @@ const handleCourseClick = (course: any) => {
       confirmText: '去开通',
       success: (res) => {
         if (res.confirm) {
-          uni.navigateTo({ url: '/pages/vip/recharge' })
+          uni.navigateTo({ url: '/pages/vip/recharge?type=SVIP' })
         }
       }
     })
@@ -143,8 +168,8 @@ const handleCourseClick = (course: any) => {
           indicator-color="rgba(255, 255, 255, 0.5)"
           indicator-active-color="#ffffff"
         >
-          <swiper-item v-for="i in 3" :key="i">
-            <image class="swiper-img" src="/static/home/banner_bg.png" mode="aspectFill" />
+          <swiper-item v-for="(img, index) in ['/static/home/广告位.jpg', '/static/home/banner_bg.png']" :key="index">
+            <image class="swiper-img" :src="img" mode="aspectFill" @click="handleBannerClick(img)" />
           </swiper-item>
         </swiper>
       </view>
@@ -191,6 +216,16 @@ const handleCourseClick = (course: any) => {
         </view>
       </view>
     </view>
+
+    <!-- 微信二维码弹窗 -->
+    <wd-popup v-model="showQrPopup" custom-style="padding: 40rpx; border-radius: 32rpx; width: 80%;" position="center">
+      <view class="qr-popup-content">
+        <view class="qr-title">{{ qrGroupName || '添加微信咨询' }}</view>
+        <view class="qr-tip">长按识别二维码或保存到相册</view>
+        <image :src="currentQrCode" mode="widthFix" class="qr-image" show-menu-by-longpress />
+        <wd-button block @click="showQrPopup = false" custom-style="margin-top: 30rpx;">关闭</wd-button>
+      </view>
+    </wd-popup>
   </view>
 </template>
 
@@ -465,6 +500,32 @@ const handleCourseClick = (course: any) => {
         }
       }
     }
+  }
+}
+
+.qr-popup-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+  .qr-title {
+    font-size: 34rpx;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10rpx;
+  }
+  
+  .qr-tip {
+    font-size: 24rpx;
+    color: #999;
+    margin-bottom: 30rpx;
+  }
+  
+  .qr-image {
+    width: 400rpx;
+    height: 400rpx;
+    border-radius: 12rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.05);
   }
 }
 </style>

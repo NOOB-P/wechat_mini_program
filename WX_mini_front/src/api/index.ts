@@ -21,12 +21,23 @@ export const getHomeBannersApi = () => {
 }
 
 /**
- * @Description: 获取首页 AI 公益课程数据
+ * @Description: 获取首页公共课程
  */
 export const getHomePublicCoursesApi = () => {
   return request({
-    url: '/home/publicCourses',
+    url: '/api/app/home/courses/public',
     method: 'GET'
+  })
+}
+
+/**
+ * @Description: 根据位置获取微信二维码
+ */
+export const getWechatQrByLocationApi = (location: string) => {
+  return request({
+    url: '/api/customer/wechat/get-by-location',
+    method: 'GET',
+    data: { location }
   })
 }
 

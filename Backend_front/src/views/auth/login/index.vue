@@ -77,9 +77,6 @@
               <ElCheckbox v-model="formData.rememberPassword">{{
                 $t('login.rememberPwd')
               }}</ElCheckbox>
-              <RouterLink class="text-theme" :to="{ name: 'ForgetPassword' }">{{
-                $t('login.forgetPwd')
-              }}</RouterLink>
             </div>
 
             <div style="margin-top: 30px">
@@ -93,13 +90,6 @@
                 {{ $t('login.btnText') }}
               </ElButton>
             </div>
-
-            <div class="mt-5 text-sm text-gray-600">
-              <span>{{ $t('login.noAccount') }}</span>
-              <RouterLink class="text-theme" :to="{ name: 'Register' }">{{
-                $t('login.register')
-              }}</RouterLink>
-            </div>
           </ElForm>
         </div>
       </div>
@@ -112,7 +102,7 @@
   import { useUserStore } from '@/store/modules/user'
   import { useI18n } from 'vue-i18n'
   import { HttpError } from '@/utils/http/error'
-  import { fetchLogin } from '@/api/auth/login'
+  import { fetchLogin, fetchGetRoles } from '@/api/auth/login'
   import { ElNotification, ElMessage, type FormInstance, type FormRules } from 'element-plus'
   import { useSettingStore } from '@/store/modules/setting'
 
@@ -128,32 +118,37 @@
     formKey.value++
   })
 
-  type AccountKey = 'admin' | 'school'
-
   export interface Account {
-    key: AccountKey
+    key: string
     label: string
     userName: string
     password: string
-    roles: string[]
+    roleId: number
   }
 
-  const accounts = computed<Account[]>(() => [
-    {
-      key: 'admin',
-      label: t('login.roles.admin'),
-      userName: 'admin',
-      password: '123456',
-      roles: ['R_ADMIN']
-    },
-    {
-      key: 'school',
-      label: '学校',
-      userName: 'School',
-      password: '123456',
-      roles: ['R_SCHOOL']
+  const roleList = ref<any[]>([])
+
+  const accounts = computed<Account[]>(() => {
+    if (roleList.value.length === 0) {
+      return [
+        {
+          key: 'admin',
+          label: t('login.roles.admin'),
+          userName: 'admin',
+          password: '',
+          roleId: 1
+        }
+      ]
     }
-  ])
+
+    return roleList.value.map((role) => ({
+      key: role.roleCode,
+      label: role.roleName,
+      userName: role.roleCode === 'super_admin' ? 'admin' : '',
+      password: '',
+      roleId: role.id
+    }))
+  })
 
   const dragVerify = ref()
 
@@ -180,12 +175,24 @@
 
   const loading = ref(false)
 
-  onMounted(() => {
-    setupAccount('admin')
+  onMounted(async () => {
+    try {
+      const res = await fetchGetRoles()
+      if (res) {
+        roleList.value = res
+        // 默认选中第一个角色
+        if (roleList.value.length > 0) {
+          setupAccount(roleList.value[0].roleCode)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch roles:', error)
+      setupAccount('admin')
+    }
   })
 
   // 设置账号
-  const setupAccount = (key: AccountKey) => {
+  const setupAccount = (key: string) => {
     const selectedAccount = accounts.value.find((account: Account) => account.key === key)
     formData.account = key
     formData.username = selectedAccount?.userName ?? ''
@@ -210,14 +217,16 @@
       loading.value = true
 
       // 登录请求
-      const { username, password } = formData
+      const { username, password, account: roleCode } = formData
+      const selectedAccount = accounts.value.find((a: Account) => a.key === roleCode)
 
       // 后端返回的结构是 Result<LoginVO>，其中包含 data
       // 前端 api.post 已经做了一层解包，但根据 axiosInstance.interceptors.response 来看
       // 它可能返回的是 response，我们需要取出 data。
       const res: any = await fetchLogin({
         userName: username,
-        password
+        password,
+        roleId: selectedAccount?.roleId
       })
 
       // 提取后端的 token 和 refreshToken（从后端的 LoginVO 对象中获取）

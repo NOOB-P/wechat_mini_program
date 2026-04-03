@@ -1,10 +1,13 @@
 package com.edu.javasb_back.service.impl;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -18,11 +21,15 @@ import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.edu.javasb_back.model.dto.AccountLoginDTO;
 import com.edu.javasb_back.model.entity.StudentParentBinding;
 import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.model.entity.SysRole;
 import com.edu.javasb_back.model.entity.SysStudent;
 import com.edu.javasb_back.model.vo.LoginVO;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
+import com.edu.javasb_back.repository.SysRoleRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
+import com.edu.javasb_back.model.entity.SysUserModule;
+import com.edu.javasb_back.repository.SysUserModuleRepository;
 import com.edu.javasb_back.service.SysAccountService;
 import com.edu.javasb_back.utils.JwtUtils;
 
@@ -37,6 +44,12 @@ public class SysAccountServiceImpl implements SysAccountService {
 
     @Autowired
     private StudentParentBindingRepository bindingRepository;
+
+    @Autowired
+    private SysUserModuleRepository sysUserModuleRepository;
+
+    @Autowired
+    private SysRoleRepository sysRoleRepository;
 
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
@@ -65,7 +78,19 @@ public class SysAccountServiceImpl implements SysAccountService {
     }
 
     @Override
+    public Result<List<SysRole>> getLoginRoles() {
+        // 通过 roleCode 获取超级管理员和后台管理角色，比 ID 更稳健
+        List<SysRole> roles = new ArrayList<>();
+        sysRoleRepository.findByRoleCode("super_admin").ifPresent(roles::add);
+        sysRoleRepository.findByRoleCode("admin").ifPresent(roles::add);
+        return Result.success("获取成功", roles);
+    }
+
+    @Override
     public Result<LoginVO> adminLogin(AccountLoginDTO loginDTO) {
+        if (loginDTO.getRoleId() == null) {
+            return Result.error("请选择登录角色身份");
+        }
         if (!StringUtils.hasText(loginDTO.getUsername())) {
             return Result.error("账号不能为空");
         }
@@ -81,6 +106,11 @@ public class SysAccountServiceImpl implements SysAccountService {
         }
 
         SysAccount account = accountOpt.get();
+
+        // 校验选择的角色是否与账号实际角色匹配
+        if (!loginDTO.getRoleId().equals(account.getRoleId())) {
+            return Result.error("所选角色与账号实际角色不匹配");
+        }
 
         if (account.getRoleId() == null || (account.getRoleId() != 1 && account.getRoleId() != 2)) {
             return Result.error("该账号没有后台登录权限");
@@ -206,6 +236,16 @@ public class SysAccountServiceImpl implements SysAccountService {
         Optional<SysAccount> accountOpt = accountRepository.findByUidSql(uid);
         if (accountOpt.isPresent()) {
             SysAccount account = accountOpt.get();
+            
+            // 如果是后台管理人员，下发允许访问的模块列表
+            if (account.getRoleId() != null && account.getRoleId() == 2) {
+                List<String> allowedModules = sysUserModuleRepository.findByUid(account.getUid())
+                        .stream()
+                        .map(SysUserModule::getModulePath)
+                        .collect(Collectors.toList());
+                account.setAllowedModules(allowedModules);
+            }
+            
             return Result.success("获取成功", account);
         }
         return Result.error("用户不存在");
@@ -217,6 +257,16 @@ public class SysAccountServiceImpl implements SysAccountService {
         Optional<SysAccount> accountOpt = accountRepository.findByUsernameSql(username);
         if (accountOpt.isPresent()) {
             SysAccount account = accountOpt.get();
+            
+            // 如果是后台管理人员，下发允许访问的模块列表
+            if (account.getRoleId() != null && account.getRoleId() == 2) {
+                List<String> allowedModules = sysUserModuleRepository.findByUid(account.getUid())
+                        .stream()
+                        .map(SysUserModule::getModulePath)
+                        .collect(Collectors.toList());
+                account.setAllowedModules(allowedModules);
+            }
+            
             return Result.success("获取成功", account);
         }
         return Result.error("用户不存在");
@@ -225,6 +275,15 @@ public class SysAccountServiceImpl implements SysAccountService {
     private Result<LoginVO> generateLoginResult(SysAccount account) {
         // 使用原生 SQL 更新最后登录时间和状态
         accountRepository.updateLoginStatusSql(account.getUid(), "online");
+
+        // 如果是后台管理人员，下发允许访问的模块列表
+        if (account.getRoleId() != null && account.getRoleId() == 2) {
+            List<String> allowedModules = sysUserModuleRepository.findByUid(account.getUid())
+                    .stream()
+                    .map(SysUserModule::getModulePath)
+                    .collect(Collectors.toList());
+            account.setAllowedModules(allowedModules);
+        }
 
         // 生成真实 JWT Token (由前端统一加 Bearer 前缀)
         String token = jwtUtils.generateToken(account.getUid(), account.getUsername(), account.getRoleId());

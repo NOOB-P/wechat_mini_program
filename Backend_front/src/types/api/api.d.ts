@@ -64,8 +64,12 @@ declare namespace Api {
   namespace Auth {
     /** 登录参数 */
     interface LoginParams {
-      userName: string
-      password: string
+      userName?: string
+      phone?: string
+      password?: string
+      code?: string
+      loginType?: string
+      roleId?: number
     }
 
     /** 登录响应 */
@@ -85,6 +89,32 @@ declare namespace Api {
       schoolName?: string
       email: string
       avatar?: string
+      allowedModules?: string[]
+    }
+  }
+
+  /** 内容管理相关类型 */
+  namespace ContentManage {
+    /** 模块项 */
+    interface ModuleItem {
+      title: string
+      path: string
+      icon?: string
+    }
+
+    /** 用户模块权限 */
+    interface UserModulePermission {
+      uid: number
+      userName: string
+      nickName: string
+      userRoles: string[]
+      allowedModules: string[]
+    }
+
+    /** 权限搜索参数 */
+    interface PermissionSearchParams extends Api.Common.CommonSearchParams {
+      userName?: string
+      nickName?: string
     }
   }
 

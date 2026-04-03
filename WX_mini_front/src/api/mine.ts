@@ -49,7 +49,7 @@ export const uploadAvatarApi = (filePath: string) => {
   const token = uni.getStorageSync('token')
   return new Promise((resolve, reject) => {
     uni.uploadFile({
-      url: 'http://127.0.0.1:8080/api/app/mine/upload', // 后端地址
+      url: `${__VITE_SERVER_BASEURL__}/api/app/mine/upload`, // 使用全局配置的地址
       filePath: filePath,
       name: 'file',
       header: {

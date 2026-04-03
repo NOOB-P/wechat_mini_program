@@ -116,6 +116,14 @@ const loadCourseDetail = async (id: string) => {
     const res = await getCourseDetailApi(id)
     if (res.code === 200) {
       const data = res.data
+      // 修正：处理图片和视频的服务器 BaseURL
+      if (data.cover && !data.cover.startsWith('http')) {
+        data.cover = __VITE_SERVER_BASEURL__ + data.cover
+      }
+      if (data.videoUrl && !data.videoUrl.startsWith('http')) {
+        data.videoUrl = __VITE_SERVER_BASEURL__ + data.videoUrl
+      }
+      
       courseInfo.value = data
       isCollected.value = !!data.isCollected
       // 模拟一些详情页需要的数据，如果后端没有的话

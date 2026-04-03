@@ -2,6 +2,15 @@ import api from '@/utils/http'
 import { mockLoginData } from '@/mock/auth/login'
 
 /**
+ * 获取登录可选角色列表
+ */
+export async function fetchGetRoles() {
+  return api.get<any>({
+    url: '/api/admin/auth/roles'
+  })
+}
+
+/**
  * 登录接口
  * @param params 登录参数
  * @returns 登录响应
@@ -12,7 +21,8 @@ export async function fetchLogin(params: Api.Auth.LoginParams) {
     url: '/api/admin/auth/login',
     data: {
       username: params.userName,
-      password: params.password
+      password: params.password,
+      roleId: params.roleId
     }
   })
 }
@@ -43,6 +53,8 @@ export async function fetchGetUserInfo() {
   const userInfo = await api.get<any>({
     url: '/api/auth/info'
   })
+
+  console.log('后端原始返回用户信息:', userInfo);
   
   if (userInfo) {
     // 为了兼容前端已有的 mock 数据结构，我们将获取到的信息与 mock 数据合并
@@ -55,7 +67,8 @@ export async function fetchGetUserInfo() {
       phone: userInfo.phone,
       userPhone: userInfo.phone,
       email: userInfo.email,
-      roles: userInfo.roleId === 1 ? ['R_SUPER'] : userInfo.roleId === 2 ? ['R_ADMIN'] : ['R_USER']
+      allowedModules: userInfo.allowedModules,
+      roles: userInfo.roleId === 1 ? ['R_SUPER'] : userInfo.roleId === 2 ? ['admin'] : ['R_USER']
     }
     return mergedUserInfo
   }

@@ -13,6 +13,7 @@ public class AccountLoginDTO {
     private String password;
     private String code;     // 手机号验证码登录使用
     private String loginType; // 登录类型：password, phone
+    private Integer roleId;   // 后台登录所选角色ID
 
     // 手动添加 Getter/Setter 解决部分环境 Lombok 未生效问题
     public String getUsername() {
@@ -53,5 +54,13 @@ public class AccountLoginDTO {
 
     public void setLoginType(String loginType) {
         this.loginType = loginType;
+    }
+
+    public Integer getRoleId() {
+        return roleId;
+    }
+
+    public void setRoleId(Integer roleId) {
+        this.roleId = roleId;
     }
 }

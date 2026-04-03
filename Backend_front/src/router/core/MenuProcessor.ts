@@ -64,15 +64,33 @@ export class MenuProcessor {
   /**
    * 根据角色过滤菜单
    */
-  private filterMenuByRoles(menu: AppRouteRecord[], roles: string[]): AppRouteRecord[] {
-    return menu.reduce((acc: AppRouteRecord[], item) => {
-      const itemRoles = item.meta?.roles
-      const hasPermission = !itemRoles || itemRoles.some((role) => roles?.includes(role))
+  private filterMenuByRoles(menu: AppRouteRecord[], roles: string[], isParentAllowed: boolean = false): AppRouteRecord[] {
+    const userStore = useUserStore()
+    const allowedModules = userStore.info?.allowedModules
 
-      if (hasPermission) {
+    // 确定是否需要进行模块过滤：仅针对 'admin' 角色且配置了允许模块的情况
+    const isModuleFilteringEnabled = roles.includes('admin') && allowedModules && allowedModules.length > 0
+
+    return menu.reduce((acc: AppRouteRecord[], item) => {
+      // 1. 基础角色校验
+      const itemRoles = item.meta?.roles
+      const hasRolePermission = !itemRoles || itemRoles.some((role) => roles?.includes(role))
+
+      // 2. 模块路径校验
+      let isCurrentAllowed = true // 默认允许（走角色权限）
+
+      if (isModuleFilteringEnabled) {
+        // 如果开启了模块过滤，则检查当前项是否已被父级允许，或匹配允许列表
+        isCurrentAllowed = isParentAllowed || allowedModules.some(path => 
+          item.path === path || item.path?.startsWith(`${path}/`)
+        )
+      }
+
+      if (hasRolePermission && isCurrentAllowed) {
         const filteredItem = { ...item }
         if (filteredItem.children?.length) {
-          filteredItem.children = this.filterMenuByRoles(filteredItem.children, roles)
+          // 递归处理子菜单，传递当前允许状态
+          filteredItem.children = this.filterMenuByRoles(filteredItem.children, roles, isCurrentAllowed)
         }
         acc.push(filteredItem)
       }

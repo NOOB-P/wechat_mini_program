@@ -62,6 +62,16 @@ public class WechatConfigController {
         return Result.success("获取成功", wechatConfigRepository.findByStatusOrderByUpdateTimeDesc(1));
     }
 
+    @LogOperation("根据位置获取二维码")
+    @GetMapping("/get-by-location")
+    public Result<WechatConfig> getByLocation(@RequestParam String location) {
+        List<WechatConfig> list = wechatConfigRepository.findByDisplayLocationAndStatusOrderByUpdateTimeDesc(location, 1);
+        if (list.isEmpty()) {
+            return Result.error("暂无配置");
+        }
+        return Result.success("获取成功", list.get(0));
+    }
+
     @LogOperation("上传二维码图片")
     @PostMapping("/upload")
     public Result<String> upload(@RequestParam("file") MultipartFile file) {
@@ -108,6 +118,7 @@ public class WechatConfigController {
         if (updateData.getGroupName() != null) config.setGroupName(updateData.getGroupName());
         if (updateData.getQrCodePath() != null) config.setQrCodePath(updateData.getQrCodePath());
         if (updateData.getStatus() != null) config.setStatus(updateData.getStatus());
+        if (updateData.getDisplayLocation() != null) config.setDisplayLocation(updateData.getDisplayLocation());
 
         wechatConfigRepository.save(config);
         return Result.success("修改成功", null);

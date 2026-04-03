@@ -80,6 +80,9 @@ public class SysAccount {
      @Transient
     private String studentId;
 
+    @Transient
+    private java.util.List<String> allowedModules;
+
     // 手动添加 Getter/Setter 解决部分环境 Lombok 未生效问题
     public Long getUid() { return uid; }
     public void setUid(Long uid) { this.uid = uid; }
@@ -98,6 +101,9 @@ public class SysAccount {
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    public java.util.List<String> getAllowedModules() { return allowedModules; }
+    public void setAllowedModules(java.util.List<String> allowedModules) { this.allowedModules = allowedModules; }
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
