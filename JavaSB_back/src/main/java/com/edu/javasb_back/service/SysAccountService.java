@@ -18,7 +18,12 @@ public interface SysAccountService {
     Result<LoginVO> adminLogin(AccountLoginDTO loginDTO);
 
     /**
-     * 小程序家长端手机号密码登录
+     * 获取后台登录可选角色
+     */
+    Result<java.util.List<com.edu.javasb_back.model.entity.SysRole>> getLoginRoles();
+
+    /**
+     * 密码登录 (家长端)
      */
     Result<LoginVO> appLoginByPassword(AccountLoginDTO loginDTO);
 

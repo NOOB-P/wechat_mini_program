@@ -25,6 +25,13 @@
             />
           </template>
         </el-table-column>
+        <el-table-column label="展示位置" width="150" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.displayLocation === 'HOME_BANNER'" type="warning">首页轮播图</el-tag>
+            <el-tag v-else-if="row.displayLocation === 'HELP_SERVICE'" type="success">帮助与客服</el-tag>
+            <el-tag v-else type="info">不展示</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'info'">
@@ -51,6 +58,14 @@
       <el-form :model="form" label-width="80px" :rules="rules" ref="formRef">
         <el-form-item label="群名称" prop="groupName">
           <el-input v-model="form.groupName" placeholder="请输入微信群名称" />
+        </el-form-item>
+
+        <el-form-item label="展示位置" prop="displayLocation">
+          <el-select v-model="form.displayLocation" placeholder="请选择展示位置" class="w-full">
+            <el-option label="不展示" value="NONE" />
+            <el-option label="首页轮播图" value="HOME_BANNER" />
+            <el-option label="帮助与客服" value="HELP_SERVICE" />
+          </el-select>
         </el-form-item>
 
         <el-form-item label="二维码" prop="qrCodePath">
@@ -117,6 +132,7 @@ const form = ref({
   id: undefined,
   groupName: '',
   qrCodePath: '',
+  displayLocation: 'NONE',
   status: 1
 })
 
@@ -144,7 +160,7 @@ const loadData = async () => {
 
 const handleAdd = () => {
   isEdit.value = false
-  form.value = { id: undefined, groupName: '', qrCodePath: '', status: 1 }
+  form.value = { id: undefined, groupName: '', qrCodePath: '', displayLocation: 'NONE', status: 1 }
   dialogVisible.value = true
 }
 

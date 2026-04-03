@@ -61,7 +61,7 @@ const fetchProfile = async () => {
     const res = await getMineInfoApi()
     if (res.code === 200) {
       profileForm.nickname = res.data.nickname
-      profileForm.avatar = res.data.avatar
+      profileForm.avatar = res.data.avatar && !res.data.avatar.startsWith('http') ? __VITE_SERVER_BASEURL__ + res.data.avatar : res.data.avatar
       profileForm.email = res.data.email
       profileForm.phone = res.data.phone
     }
@@ -82,7 +82,8 @@ const chooseAvatar = () => {
         toast.loading('上传中...')
         const uploadRes: any = await uploadAvatarApi(tempFilePath)
         if (uploadRes.code === 200) {
-          profileForm.avatar = uploadRes.data
+          const path = uploadRes.data
+          profileForm.avatar = path.startsWith('http') ? path : __VITE_SERVER_BASEURL__ + path
           toast.success('头像上传成功')
         }
       } catch (error) {
@@ -105,10 +106,17 @@ const handleSave = async () => {
   
   try {
     toast.loading('保存中...')
+    
+    // 修正：保存时去除 BaseURL 前缀，只存相对路径
+    let avatarPath = profileForm.avatar
+    if (avatarPath && avatarPath.startsWith(__VITE_SERVER_BASEURL__)) {
+      avatarPath = avatarPath.replace(__VITE_SERVER_BASEURL__, '')
+    }
+
     const res = await updateMineInfoApi({
       nickname: profileForm.nickname,
       email: profileForm.email,
-      avatar: profileForm.avatar
+      avatar: avatarPath
     })
     
     if (res.code === 200) {

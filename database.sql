@@ -44,6 +44,60 @@ CREATE TABLE `sys_accounts` (
     CONSTRAINT `fk_account_role` FOREIGN KEY (`role_id`) REFERENCES `sys_roles` (`id`)
 ) ENGINE=InnoDB COMMENT='系统统一账号表';
 
+-- 2.1 用户管理模块分配表
+DROP TABLE IF EXISTS `sys_user_modules`;
+CREATE TABLE `sys_user_modules` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `uid` BIGINT NOT NULL COMMENT '关联 sys_accounts.uid',
+    `module_path` VARCHAR(255) NOT NULL COMMENT '模块路由路径 (例如: /order)',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_uid` (`uid`),
+    CONSTRAINT `fk_user_module_uid` FOREIGN KEY (`uid`) REFERENCES `sys_accounts` (`uid`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='用户管理模块分配表';
+
+-- 3. 会员等级配置表
+DROP TABLE IF EXISTS `sys_vip_config`;
+CREATE TABLE `sys_vip_config` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `tier_code` VARCHAR(20) NOT NULL COMMENT '等级标识：VIP, SVIP',
+    `title` VARCHAR(50) NOT NULL COMMENT '显示标题',
+    `sub_title` VARCHAR(100) COMMENT '副标题',
+    `benefits` TEXT COMMENT '权益列表 (JSON)',
+    `is_enabled` TINYINT DEFAULT 1 COMMENT '是否启用：0-禁用, 1-启用',
+    `sort_order` INT DEFAULT 0 COMMENT '排序',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB COMMENT='会员等级配置表';
+
+-- 4. 会员价格套餐表
+DROP TABLE IF EXISTS `sys_vip_pricing`;
+CREATE TABLE `sys_vip_pricing` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `vip_id` INT NOT NULL COMMENT '关联 sys_vip_config.id',
+    `pkg_name` VARCHAR(20) NOT NULL COMMENT '套餐名称：月包, 季包, 年包',
+    `pkg_desc` VARCHAR(50) COMMENT '套餐描述：如 一学期',
+    `current_price` DECIMAL(10,2) NOT NULL COMMENT '当前售价',
+    `original_price` DECIMAL(10,2) COMMENT '原价',
+    `duration_months` INT NOT NULL COMMENT '有效时长(月)',
+    `is_best_value` TINYINT DEFAULT 0 COMMENT '是否为营销推荐',
+    `sort_order` INT DEFAULT 0 COMMENT '排序',
+    CONSTRAINT `fk_vip_pricing_vip_id` FOREIGN KEY (`vip_id`) REFERENCES `sys_vip_config` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='会员价格套餐表';
+
+-- 初始化会员配置数据
+INSERT INTO `sys_vip_config` (`id`, `tier_code`, `title`, `sub_title`, `benefits`, `is_enabled`, `sort_order`) VALUES 
+(1, 'VIP', 'VIP 基础版', '适合个人学习，包含基础题库与分析功能', '["基础题库访问", "错题本功能", "月度学习报告"]', 1, 1),
+(2, 'SVIP', 'SVIP 专业版', '全能学习助手，解锁所有高级分析与名师课程', '["全站题库无限制访问", "AI 智能解析", "名师精讲视频", "专属客服优先响应"]', 1, 2);
+
+-- 初始化会员价格数据
+INSERT INTO `sys_vip_pricing` (`vip_id`, `pkg_name`, `pkg_desc`, `current_price`, `original_price`, `duration_months`, `is_best_value`, `sort_order`) VALUES 
+(1, '月包', '', 29.00, 39.00, 1, 0, 1),
+(1, '季包', '一学期', 99.00, 129.00, 4, 1, 2),
+(1, '年包', '', 299.00, 399.00, 12, 0, 3),
+(2, '月包', '', 59.00, 79.00, 1, 0, 1),
+(2, '季包', '一学期', 199.00, 249.00, 4, 1, 2),
+(2, '年包', '', 599.00, 799.00, 12, 0, 3);
+
 
 -- ---------------------------------------------------------
 -- 核心业务模块
@@ -420,10 +474,12 @@ INSERT INTO `faqs` (`id`, `category_name`, `category_id`, `question`, `answer`, 
 ('FAQ005', '技术支持', 5, 'APP闪退怎么办？', '请尝试清理缓存或更新到最新版本。如果问题依旧，请联系客服。', 1);
 
 -- 11. 微信群配置表数据
-INSERT INTO `wechat_configs` (`group_name`, `qr_code_path`, `status`) VALUES
-('官方家长交流1群', '/uploads/qrcode1.png', 1),
-('初一学习辅导群', '/uploads/qrcode2.png', 1),
-('北京家长备考群', '/uploads/qrcode3.png', 1);
+ALTER TABLE `wechat_configs` ADD COLUMN `display_location` VARCHAR(50) DEFAULT 'NONE' COMMENT '展示位置: HOME_BANNER, HELP_SERVICE, NONE';
+
+INSERT INTO `wechat_configs` (`group_name`, `qr_code_path`, `status`, `display_location`) VALUES
+('官方家长交流1群', '/uploads/qrcode1.png', 1, 'HOME_BANNER'),
+('初一学习辅导群', '/uploads/qrcode2.png', 1, 'HELP_SERVICE'),
+('北京家长备考群', '/uploads/qrcode3.png', 1, 'NONE');
 
 -- 12. 错题打印订单表数据
 INSERT INTO `print_orders` (`order_no`, `user_name`, `user_phone`, `document_name`, `pages`, `print_type`, `delivery_method`, `total_price`, `order_status`) VALUES

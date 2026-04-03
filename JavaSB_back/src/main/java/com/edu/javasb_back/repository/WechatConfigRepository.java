@@ -10,4 +10,5 @@ import java.util.List;
 public interface WechatConfigRepository extends JpaRepository<WechatConfig, Integer> {
     List<WechatConfig> findAllByOrderByUpdateTimeDesc();
     List<WechatConfig> findByStatusOrderByUpdateTimeDesc(Integer status);
+    List<WechatConfig> findByDisplayLocationAndStatusOrderByUpdateTimeDesc(String displayLocation, Integer status);
 }

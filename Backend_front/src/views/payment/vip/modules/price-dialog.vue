@@ -1,16 +1,16 @@
 <template>
   <el-dialog
-    :title="`价格设置 - ${packageData?.name}`"
+    :title="`价格设置 - ${packageData?.title}`"
     v-model="visible"
     width="600px"
     @close="handleClose"
   >
     <el-table :data="localPrices" border style="width: 100%">
-      <el-table-column prop="periodName" label="周期名称" width="150" align="center" />
+      <el-table-column prop="pkgName" label="套餐名称" width="150" align="center" />
       <el-table-column label="现价(元)" align="center">
         <template #default="scope">
           <el-input-number
-            v-model="scope.row.price"
+            v-model="scope.row.currentPrice"
             :precision="2"
             :step="10"
             :min="0"
@@ -57,13 +57,13 @@
   })
 
   const loading = ref(false)
-  const localPrices = ref([])
+  const localPrices = ref<any[]>([])
 
   watch(
     () => props.packageData,
     (val) => {
-      if (val && val.prices) {
-        localPrices.value = JSON.parse(JSON.stringify(val.prices))
+      if (val && val.pricings) {
+        localPrices.value = JSON.parse(JSON.stringify(val.pricings))
       }
     },
     { immediate: true }
@@ -76,15 +76,17 @@
   const handleSubmit = async () => {
     loading.value = true
     try {
-      const res = await updatePackagePrice({
-        packageId: props.packageData.id,
-        prices: localPrices.value
-      })
-      if (res.code === 200) {
-        ElMessage.success('价格更新成功')
-        emit('success')
-        visible.value = false
+      // 遍历更新每一个套餐价格
+      for (const item of localPrices.value) {
+        // 确保字段名正确
+        await updatePackagePrice(item)
       }
+      ElMessage.success('价格更新成功')
+      emit('success')
+      visible.value = false
+    } catch (error) {
+      console.error('Failed to update prices:', error)
+      ElMessage.error('价格更新失败，请检查网络')
     } finally {
       loading.value = false
     }

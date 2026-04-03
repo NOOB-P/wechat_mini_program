@@ -23,6 +23,9 @@ public class WechatConfig {
     @Column(nullable = false)
     private Integer status = 1;
 
+    @Column(name = "display_location", length = 50)
+    private String displayLocation = "NONE";
+
     @UpdateTimestamp
     @Column(name = "update_time")
     private LocalDateTime updateTime;
@@ -38,6 +41,9 @@ public class WechatConfig {
 
     public Integer getStatus() { return status; }
     public void setStatus(Integer status) { this.status = status; }
+
+    public String getDisplayLocation() { return displayLocation; }
+    public void setDisplayLocation(String displayLocation) { this.displayLocation = displayLocation; }
 
     public LocalDateTime getUpdateTime() { return updateTime; }
     public void setUpdateTime(LocalDateTime updateTime) { this.updateTime = updateTime; }

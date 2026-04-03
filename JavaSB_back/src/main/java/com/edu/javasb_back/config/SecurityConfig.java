@@ -27,6 +27,7 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll() // 放在最前面：放行所有 OPTIONS 预检请求
                 .requestMatchers("/api/auth/**").permitAll() // 通用认证接口
                 .requestMatchers("/api/admin/auth/**").permitAll() // 后台管理端登录
+                .requestMatchers("/api/vip/options").permitAll() // 放行小程序获取会员配置
                 .requestMatchers("/api/app/auth/**").permitAll() // 小程序端登录、验证码
                 .requestMatchers("/api/log/**").permitAll() // 临时放行日志接口
                 .requestMatchers("/api/app/vip/**").permitAll() // 小程序端 VIP 相关接口

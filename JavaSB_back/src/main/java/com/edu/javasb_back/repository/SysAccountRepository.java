@@ -50,6 +50,9 @@ public interface SysAccountRepository extends JpaRepository<SysAccount, Long> {
     @Query(value = "UPDATE sys_accounts SET last_login_time = NOW(), online_status = :status WHERE uid = :uid", nativeQuery = true)
     int updateLoginStatusSql(@Param("uid") Long uid, @Param("status") String status);
 
+    Page<SysAccount> findByRoleId(Integer roleId, Pageable pageable);
+    Page<SysAccount> findByRoleIdAndUsernameContaining(Integer roleId, String username, Pageable pageable);
+
     /**
      * 使用 SQL 原生语句根据用户名查询用户信息
      */

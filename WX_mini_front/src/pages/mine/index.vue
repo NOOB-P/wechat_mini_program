@@ -35,6 +35,9 @@ const getUserInfo = async () => {
     if (res.code === 200) {
       // 只有当后端返回了非空的 avatar 时才更新
       const updatedData = { ...res.data }
+      if (updatedData.avatar && !updatedData.avatar.startsWith('http')) {
+        updatedData.avatar = __VITE_SERVER_BASEURL__ + updatedData.avatar
+      }
       if (!updatedData.avatar) {
         delete updatedData.avatar
       }

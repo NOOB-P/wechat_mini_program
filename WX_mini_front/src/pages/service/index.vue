@@ -1,13 +1,50 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getFaqCategoryApi, getFaqListApi } from '@/api/service'
+import { getWechatQrByLocationApi } from '@/api/index'
+import { useToast } from 'wot-design-uni'
 
+const toast = useToast()
 const searchValue = ref('')
 const currentTab = ref<string | null>(null) // 改为 string，存储分类名称
 const categories = ref<any[]>([])
 const faqs = ref<any[]>([])
 const activeFaq = ref<number[]>([])
 const isLoading = ref(false) // 增加请求锁，防止并发
+
+// 二维码弹窗相关
+const showQrPopup = ref(false)
+const currentQrCode = ref('')
+const qrGroupName = ref('')
+
+const handleContactClick = async () => {
+  try {
+    toast.loading('请稍后...')
+    const res = await getWechatQrByLocationApi('HELP_SERVICE')
+    if (res.code === 200) {
+      // 修正：拼接服务器 BaseURL
+      const path = res.data.qrCodePath
+      currentQrCode.value = path.startsWith('http') ? path : __VITE_SERVER_BASEURL__ + path
+      qrGroupName.value = res.data.groupName
+      showQrPopup.value = true
+    } else {
+      // 如果没有配置专用二维码，则回退到普通联系客服
+      uni.showModal({
+        title: '联系客服',
+        content: '暂无专用二维码，是否进入在线客服聊天？',
+        success: (modalRes) => {
+          if (modalRes.confirm) {
+            // 此处无法直接触发 button 的 open-type，通常建议直接在页面放二维码
+          }
+        }
+      })
+    }
+  } catch (e) {
+    toast.error('获取信息失败')
+  } finally {
+    toast.close()
+  }
+}
 
 // 核心：手动加载 FAQ 方法
 const loadFaqData = async () => {
@@ -119,12 +156,24 @@ const goBack = () => {
     </view>
 
     <view class="contact-footer">
-      <button class="cs-btn" open-type="contact">
+      <button class="cs-btn" @click="handleContactClick">
         <wd-icon name="chat" size="40rpx" class="btn-icon" />
-        <text>在线客服 (7×24小时)</text>
+        <text>添加客服微信 (推荐)</text>
       </button>
-      <text class="cs-tip">提供文字、语音、视频等多种实时沟通方式</text>
+      <text class="cs-tip">长按识别二维码，为您提供 1对1 咨询服务</text>
     </view>
+
+    <!-- 微信二维码弹窗 -->
+    <wd-popup v-model="showQrPopup" custom-style="padding: 40rpx; border-radius: 32rpx; width: 80%;" position="center">
+      <view class="qr-popup-content">
+        <view class="qr-title">{{ qrGroupName || '添加客服微信' }}</view>
+        <view class="qr-tip">长按识别二维码或保存到相册</view>
+        <image :src="currentQrCode" mode="widthFix" class="qr-image" show-menu-by-longpress />
+        <wd-button block @click="showQrPopup = false" custom-style="margin-top: 30rpx;">关闭</wd-button>
+      </view>
+    </wd-popup>
+
+    <wd-toast id="wd-toast" />
   </view>
 </template>
 
@@ -209,6 +258,32 @@ const goBack = () => {
     font-size: 24rpx;
     color: #999;
     margin-top: 16rpx;
+  }
+}
+
+.qr-popup-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+  .qr-title {
+    font-size: 34rpx;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10rpx;
+  }
+  
+  .qr-tip {
+    font-size: 24rpx;
+    color: #999;
+    margin-bottom: 30rpx;
+  }
+  
+  .qr-image {
+    width: 400rpx;
+    height: 400rpx;
+    border-radius: 12rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.05);
   }
 }
 </style>

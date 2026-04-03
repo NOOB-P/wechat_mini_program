@@ -44,7 +44,12 @@ public class VipOrderServiceImpl implements VipOrderService {
         order.setUserUid(userUid);
         order.setUserName(account.getNickname());
         order.setUserPhone(account.getPhone());
-        order.setPackageType((String) orderData.get("packageType"));
+        
+        // 修正：保存时优先保存 tierCode 到 packageType，方便回调判断
+        String tierCode = (String) orderData.get("tierCode");
+        String title = (String) orderData.get("packageType");
+        order.setPackageType(tierCode != null ? tierCode : title);
+        
         order.setPeriod((String) orderData.get("period"));
         order.setPrice(new BigDecimal(orderData.get("price").toString()));
         order.setPaymentStatus(0); // 待支付
@@ -74,10 +79,12 @@ public class VipOrderServiceImpl implements VipOrderService {
         Optional<SysAccount> accountOptional = sysAccountRepository.findById(order.getUserUid());
         if (accountOptional.isPresent()) {
             SysAccount account = accountOptional.get();
-            if ("VIP基础版".equals(order.getPackageType())) {
-                account.setIsVip(1);
-            } else if ("SVIP专业版".equals(order.getPackageType())) {
+            // 修正：根据 tierCode 判断，支持后台动态配置
+            if (order.getPackageType().contains("SVIP") || "SVIP".equalsIgnoreCase(order.getPackageType())) {
                 account.setIsSvip(1);
+                account.setIsVip(1); // SVIP 默认包含 VIP 权限
+            } else if (order.getPackageType().contains("VIP") || "VIP".equalsIgnoreCase(order.getPackageType())) {
+                account.setIsVip(1);
             }
             sysAccountRepository.save(account);
         }

@@ -2,99 +2,145 @@
   <view class="recharge-container">
     <wd-toast id="wd-toast" />
     
-    <!-- 顶部卡片：根据选中的 tab 切换背景风格 -->
-    <view class="top-card" :class="currentTab === 'vip' ? 'vip-bg' : 'svip-bg'">
-      <view class="user-info">
-        <wd-img src="https://img.yzcdn.cn/vant/cat.jpeg" :width="100" :height="100" round />
-        <view class="info-text">
-          <text class="name">学习达人</text>
-          <text class="status">{{ getStatusText() }}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 充值类型切换 -->
-    <view class="type-switch">
-      <view 
-        class="switch-item" 
-        :class="{ active: currentTab === 'vip' }"
-        @click="currentTab = 'vip'"
-      >
-        <wd-icon name="sketch" size="20px" class="icon" />
-        普通 VIP
-      </view>
-      <view 
-        class="switch-item" 
-        :class="{ active: currentTab === 'svip' }"
-        @click="currentTab = 'svip'"
-      >
-        <wd-icon name="diamond" size="20px" class="icon" />
-        超级 SVIP
-      </view>
-    </view>
-
-    <!-- 权益对比 (特权列表) -->
-    <view class="privilege-section">
-      <view class="section-title">专属特权</view>
-      <view class="privilege-list">
-        <view class="p-item" v-for="(item, index) in currentPrivileges" :key="index">
-          <wd-icon :name="item.icon" size="24px" class="p-icon" />
-          <text class="p-text">{{ item.name }}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 套餐选择 (网格布局) -->
-    <view class="plan-section">
-      <view class="section-title">选择套餐</view>
-      <view class="plan-grid">
-        <view 
-          v-for="(plan, index) in currentPlans" 
-          :key="index"
-          class="plan-item"
-          :class="{ active: selectedPlanIndex === index }"
-          @click="selectedPlanIndex = index"
-        >
-          <view class="tag" v-if="plan.tag">{{ plan.tag }}</view>
-          <view class="plan-duration">{{ plan.duration }}</view>
-          <view class="plan-price">
-            <text class="symbol">￥</text>
-            <text class="num">{{ plan.price }}</text>
+    <!-- 增加一个总体的 v-if 控制，确保数据加载完再渲染，避免 [渲染层错误] -->
+    <view v-if="isLoaded">
+      <!-- 顶部卡片：根据选中的 tab 切换背景风格 -->
+      <view class="top-card" :class="currentTab === 'SVIP' ? 'svip-bg' : 'vip-bg'">
+        <view class="user-info">
+          <wd-img src="https://img.yzcdn.cn/vant/cat.jpeg" :width="100" :height="100" round />
+          <view class="info-text">
+            <text class="name">学习达人</text>
+            <text class="status">{{ getStatusText() }}</text>
           </view>
-          <view class="plan-origin">￥{{ plan.originalPrice }}</view>
         </view>
       </view>
-    </view>
 
-    <!-- 底部支付栏 -->
-    <view class="bottom-bar">
-      <view class="price-info">
-        <text class="label">总计:</text>
-        <text class="symbol">￥</text>
-        <text class="num">{{ currentPlans[selectedPlanIndex]?.price || 0 }}</text>
+      <!-- 充值类型切换 -->
+      <view class="type-switch" v-if="vipConfigs && vipConfigs.length > 0">
+        <view 
+          v-for="config in vipConfigs"
+          :key="config.id"
+          class="switch-item" 
+          :class="{ 
+            active: currentTab === config.tierCode,
+            'svip-active': currentTab === config.tierCode && config.tierCode === 'SVIP'
+          }"
+          @click="currentTab = config.tierCode"
+        >
+          <wd-icon :name="config.tierCode === 'SVIP' ? 'diamond' : 'sketch'" size="20px" class="icon" />
+          {{ config.title }}
+        </view>
       </view>
-      <wd-button 
-        type="primary" 
-        custom-class="pay-btn" 
-        :class="currentTab === 'svip' ? 'svip-btn' : ''"
-        @click="handlePay"
-      >
-        立即开通
-      </wd-button>
+
+      <!-- 权益对比 (特权列表) -->
+      <view class="privilege-section" v-if="currentPrivileges.length > 0">
+        <view class="section-title">专属特权</view>
+        <view class="privilege-tags">
+          <view class="tag-item" v-for="(item, index) in currentPrivileges" :key="index">
+            {{ item }}
+          </view>
+        </view>
+      </view>
+
+      <!-- 套餐选择 (网格布局) -->
+      <view class="plan-section" v-if="currentPlans.length > 0">
+        <view class="section-title">选择套餐</view>
+        <view class="plan-grid">
+          <view 
+            v-for="(plan, index) in currentPlans" 
+            :key="plan.id || index"
+            class="plan-item"
+            :class="{ active: selectedPlanIndex === index }"
+            @click="selectedPlanIndex = index"
+          >
+            <view class="tag" v-if="plan.tag">{{ plan.tag }}</view>
+            <view class="plan-duration">{{ plan.duration }}</view>
+            <view class="plan-price">
+              <text class="symbol">￥</text>
+              <text class="num">{{ plan.price }}</text>
+            </view>
+            <view class="plan-origin">￥{{ plan.originalPrice }}</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部支付栏 -->
+      <view class="bottom-bar">
+        <view class="price-info">
+          <text class="label">总计:</text>
+          <text class="symbol">￥</text>
+          <text class="num">{{ currentPlans[selectedPlanIndex]?.price || 0 }}</text>
+        </view>
+        <wd-button 
+          type="primary" 
+          custom-class="pay-btn" 
+          :class="currentTab === 'svip' ? 'svip-btn' : ''"
+          @click="handlePay"
+        >
+          立即开通
+        </wd-button>
+      </view>
+    </view>
+    
+    <!-- 加载中状态 -->
+    <view v-else class="loading-box">
+      <wd-loading size="24px" />
+      <text class="loading-text">加载中...</text>
     </view>
 
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { createVipOrderApi, simulatePayCallbackApi } from '@/api/vip'
+import { createVipOrderApi, simulatePayCallbackApi, getVipOptionsApi } from '@/api/vip'
 import { getUserInfoApi } from '@/api/mine'
 
 const toast = useToast()
-const currentTab = ref('vip')
-const selectedPlanIndex = ref(1) // 默认选中中间的套餐（季卡/半年卡等推荐项）
+const isLoaded = ref(false)
+const currentTab = ref('VIP') // 默认值，会被 onLoad 或 fetchConfigs 覆盖
+const selectedPlanIndex = ref(0)
+const vipConfigs = ref<any[]>([])
+const urlType = ref('') // 记录从 URL 传进来的类型
+
+onLoad((options) => {
+  if (options && options.type) {
+    urlType.value = options.type.toUpperCase()
+  }
+})
+
+// 获取远程配置
+const fetchConfigs = async () => {
+  try {
+    const res = await getVipOptionsApi()
+    if (res.code === 200) {
+      vipConfigs.value = res.data
+      if (vipConfigs.value.length > 0) {
+        // 优先匹配从 URL 传进来的类型，否则取第一个
+        const matched = vipConfigs.value.find(c => c.tierCode === urlType.value)
+        if (matched) {
+          currentTab.value = matched.tierCode
+        } else {
+          currentTab.value = vipConfigs.value[0].tierCode
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch vip configs:', error)
+  } finally {
+    isLoaded.value = true
+  }
+}
+
+onMounted(() => {
+  fetchConfigs()
+})
+
+const currentConfig = computed(() => {
+  return vipConfigs.value.find(c => c.tierCode === currentTab.value)
+})
 
 // 动态获取状态文本
 const getStatusText = () => {
@@ -106,52 +152,48 @@ const getStatusText = () => {
   return '未开通会员'
 }
 
-// 模拟特权数据
-const vipPrivileges = [
-  { icon: 'chart-bar', name: '成绩深度分析' },
-  { icon: 'view-list', name: '错题集解锁' },
-  { icon: 'print', name: '错题纸质打印' }
-]
-
-const svipPrivileges = [
-  ...vipPrivileges,
-  { icon: 'video', name: 'AI 公益课程' },
-  { icon: 'time', name: 'AI 智能自习室' },
-  { icon: 'star', name: '专属学习建议' }
-]
-
 const currentPrivileges = computed(() => {
-  return currentTab.value === 'vip' ? vipPrivileges : svipPrivileges
+  if (!currentConfig.value || !currentConfig.value.benefits) return []
+  
+  let benefits = []
+  try {
+    benefits = typeof currentConfig.value.benefits === 'string' 
+      ? JSON.parse(currentConfig.value.benefits) 
+      : currentConfig.value.benefits
+  } catch (e) {
+    console.error('Parse benefits error:', e)
+  }
+  
+  return Array.isArray(benefits) ? benefits : []
 })
 
-// 模拟套餐数据
-const vipPlans = [
-  { duration: '月包', price: 19, originalPrice: 30, tag: '' },
-  { duration: '季包', price: 45, originalPrice: 90, tag: '推荐' },
-  { duration: '年包', price: 168, originalPrice: 360, tag: '省192' }
-]
-
-const svipPlans = [
-  { duration: '月包', price: 49, originalPrice: 80, tag: '' },
-  { duration: '季包', price: 128, originalPrice: 240, tag: '推荐' },
-  { duration: '年包', price: 398, originalPrice: 960, tag: '省562' }
-]
-
 const currentPlans = computed(() => {
-  return currentTab.value === 'vip' ? vipPlans : svipPlans
+  if (!currentConfig.value || !currentConfig.value.pricings) return []
+  return currentConfig.value.pricings.map((p: any) => ({
+    id: p.id,
+    duration: p.pkgName,
+    price: p.currentPrice,
+    originalPrice: p.originalPrice,
+    tag: p.pkgDesc || (p.isBestValue ? '推荐' : '')
+  }))
 })
 
 const handlePay = async () => {
   const selectedPlan = currentPlans.value[selectedPlanIndex.value]
-  const packageType = currentTab.value === 'vip' ? 'VIP基础版' : 'SVIP专业版'
+  if (!selectedPlan) return
+
+  const packageType = currentConfig.value?.title || '会员'
+  const tierCode = currentConfig.value?.tierCode || 'VIP'
   
   toast.loading('正在创建订单...')
   
   try {
     const res = await createVipOrderApi({
       packageType,
+      tierCode, // 增加 tierCode 传递
       period: selectedPlan.duration,
-      price: selectedPlan.price
+      price: selectedPlan.price,
+      pricingId: selectedPlan.id // 传递具体套餐ID
     })
     
     if (res.code === 200) {
@@ -255,8 +297,7 @@ const handlePay = async () => {
       color: #1a5f8e;
       background: rgba(26, 95, 142, 0.05);
       
-      // 如果是 svip 激活状态，改变高亮颜色
-      &:nth-child(2) {
+      &.svip-active {
         color: #f6d365;
         background: rgba(246, 211, 101, 0.1);
       }
@@ -274,38 +315,28 @@ const handlePay = async () => {
   border-left: 8rpx solid #1a5f8e;
 }
 
-/* 权益列表 */
+/* 权益列表 (改为标签模式) */
 .privilege-section {
   padding: 40rpx;
   background: #fff;
   margin-top: 20rpx;
 
-  .privilege-list {
+  .privilege-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 40rpx 0;
+    gap: 20rpx;
 
-    .p-item {
-      width: 33.33%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16rpx;
-
-      .p-icon {
-        width: 80rpx;
-        height: 80rpx;
-        background: rgba(26, 95, 142, 0.1);
-        color: #1a5f8e;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .p-text {
-        font-size: 24rpx;
-        color: #666;
+    .tag-item {
+      background: #f0f4f8;
+      color: #1a5f8e;
+      font-size: 24rpx;
+      padding: 12rpx 24rpx;
+      border-radius: 32rpx;
+      border: 1px solid #e1e8f0;
+      transition: all 0.3s;
+      
+      &:active {
+        background: #e1e8f0;
       }
     }
   }
@@ -406,6 +437,20 @@ const handlePay = async () => {
       background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%) !important;
       color: #f6d365 !important;
     }
+  }
+}
+
+.loading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 200rpx;
+  
+  .loading-text {
+    margin-top: 20rpx;
+    font-size: 28rpx;
+    color: #999;
   }
 }
 </style>

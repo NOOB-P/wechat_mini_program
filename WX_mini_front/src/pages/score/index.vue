@@ -151,7 +151,7 @@
                 <wd-icon name="lock-on" size="48px" color="#f6d365" />
               </view>
               <view class="lock-text">开通 VIP 解锁错题集及打印功能</view>
-              <wd-button custom-class="upgrade-btn" @click="goToRecharge">立即升级 VIP</wd-button>
+              <wd-button custom-class="upgrade-btn" @click="goToRecharge('VIP')">立即升级 VIP</wd-button>
             </view>
             
             <scroll-view scroll-y class="wrong-list" style="height: 600rpx;" v-else>
@@ -534,8 +534,8 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
   }
 }
 
-const goToRecharge = () => {
-  uni.navigateTo({ url: '/pages/vip/recharge' })
+const goToRecharge = (type: string = 'VIP') => {
+  uni.navigateTo({ url: `/pages/vip/recharge?type=${type}` })
 }
 
 const handleExport = () => {

@@ -134,8 +134,8 @@ const getModuleTitle = (path: string) => {
  */
 const getAllModules = async () => {
   const res = await fetchGetAllModules()
-  if (res.code === 200) {
-    allModules.value = res.data
+  if (res) {
+    allModules.value = res
   }
 }
 
@@ -150,9 +150,9 @@ const loadData = async () => {
       size: pagination.size,
       userName: searchForm.userName
     })
-    if (res.code === 200) {
-      tableData.value = res.data.records
-      pagination.total = res.data.total
+    if (res) {
+      tableData.value = res.records
+      pagination.total = res.total
     }
   } catch (error) {
     console.error('加载失败:', error)
@@ -199,16 +199,16 @@ const handleEdit = (row: Api.ContentManage.UserModulePermission) => {
  */
 const handleSave = async () => {
   if (!currentUser.value) return
+  
   saveLoading.value = true
   try {
-    const res = await fetchUpdateUserPermissions(currentUser.value.id, selectedModules.value)
-    if (res.code === 200) {
-      ElMessage.success('设置成功')
-      dialogVisible.value = false
-      loadData()
-    }
+    await fetchUpdateUserPermissions(currentUser.value.uid, selectedModules.value)
+    ElMessage.success('保存成功')
+    dialogVisible.value = false
+    loadData()
   } catch (error) {
     console.error('保存失败:', error)
+    ElMessage.error('保存失败，请稍后重试')
   } finally {
     saveLoading.value = false
   }

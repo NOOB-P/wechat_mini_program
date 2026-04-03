@@ -14,16 +14,16 @@
         :key="pkg.id"
         class="package-card bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 transition-all hover:shadow-lg"
       >
-        <div :class="['card-header p-6', pkg.type === 'SVIP' ? 'bg-indigo-600' : 'bg-blue-500']">
+        <div :class="['card-header p-6', pkg.tierCode === 'SVIP' ? 'bg-indigo-600' : 'bg-blue-500']">
           <div class="flex justify-between items-start">
             <div class="title-info">
               <span class="type-tag bg-white/20 text-white text-xs px-2 py-0.5 rounded-full mb-2 inline-block">
-                {{ pkg.type }}
+                {{ pkg.tierCode }}
               </span>
-              <h3 class="text-2xl font-bold text-white">{{ pkg.name }}</h3>
+              <h3 class="text-2xl font-bold text-white">{{ pkg.title }}</h3>
             </div>
             <el-switch
-              v-model="pkg.status"
+              v-model="pkg.isEnabled"
               :active-value="1"
               :inactive-value="0"
               active-color="#13ce66"
@@ -31,7 +31,7 @@
               @change="handleStatusChange(pkg)"
             />
           </div>
-          <p class="text-white/80 mt-2 text-sm">{{ pkg.description }}</p>
+          <p class="text-white/80 mt-2 text-sm">{{ pkg.subTitle }}</p>
         </div>
 
         <div class="card-content p-6">
@@ -41,7 +41,7 @@
             </h4>
             <div class="feature-tags flex wrap gap-2">
               <el-tag
-                v-for="feature in pkg.features"
+                v-for="feature in (typeof pkg.benefits === 'string' ? JSON.parse(pkg.benefits) : pkg.benefits)"
                 :key="feature"
                 size="small"
                 effect="plain"
@@ -60,25 +60,37 @@
               <el-button link type="primary" icon="Edit" @click="handleEditPrice(pkg)">修改价格</el-button>
             </h4>
             <div class="price-grid grid grid-cols-3 gap-4">
-              <div v-for="price in pkg.prices" :key="price.id" class="price-item text-center border-r last:border-r-0 border-gray-200">
-                <div class="period text-xs text-gray-500 mb-1">{{ price.periodName }}</div>
-                <div class="current-price text-lg font-bold text-red-500">¥{{ price.price }}</div>
+              <div v-for="price in pkg.pricings" :key="price.id" class="price-item text-center border-r last:border-r-0 border-gray-200">
+                <div class="period text-xs text-gray-500 mb-1">{{ price.pkgName }}</div>
+                <div class="current-price text-lg font-bold text-red-500">¥{{ price.currentPrice }}</div>
                 <div class="old-price text-xs text-gray-400 line-through">¥{{ price.originalPrice }}</div>
               </div>
             </div>
           </div>
 
-          <div class="actions flex justify-end gap-3">
-            <el-button icon="Setting" @click="handleEditPackage(pkg)">编辑权益</el-button>
-            <el-button type="primary" plain icon="Share" disabled>营销配置</el-button>
+          <div class="card-footer p-6 border-t border-gray-100 flex justify-between bg-gray-50/50">
+            <el-button @click="handleEditBenefits(pkg)">编辑权益</el-button>
+            <el-button disabled type="primary" plain>营销配置</el-button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 价格修改弹窗 -->
+    <!-- 弹窗组件 -->
     <PriceDialog
       v-model="priceVisible"
+      :package-data="currentPackage"
+      @success="getList"
+    />
+
+    <BenefitsDialog
+      v-model="benefitsVisible"
+      :package-data="currentPackage"
+      @success="getList"
+    />
+
+    <PackageDialog
+      v-model="packageVisible"
       :package-data="currentPackage"
       @success="getList"
     />
@@ -86,22 +98,26 @@
 </template>
 
 <script setup lang="ts">
-  import { fetchVipPackages, updateVipPackage } from '@/api/payment'
+  import { fetchVipPackages, toggleVipStatus } from '@/api/payment/vip'
   import PriceDialog from './modules/price-dialog.vue'
+  import BenefitsDialog from './modules/benefits-dialog.vue'
+  import PackageDialog from './modules/package-dialog.vue'
   import { ElMessage } from 'element-plus'
   import { CircleCheck, Money, Setting, Plus, Share } from '@element-plus/icons-vue'
 
   const loading = ref(false)
-  const packages = ref([])
+  const packages = ref<any[]>([])
   const priceVisible = ref(false)
+  const benefitsVisible = ref(false)
+  const packageVisible = ref(false)
   const currentPackage = ref<any>(null)
 
   const getList = async () => {
     loading.value = true
     try {
       const res = await fetchVipPackages()
-      if (res.code === 200) {
-        packages.value = res.data
+      if (res) {
+        packages.value = res
       }
     } finally {
       loading.value = false
@@ -110,13 +126,16 @@
 
   const handleStatusChange = async (pkg: any) => {
     try {
-      const res = await updateVipPackage({ id: pkg.id, status: pkg.status })
-      if (res.code === 200) {
-        ElMessage.success(`${pkg.name} 状态已更新`)
-      }
+      await toggleVipStatus(pkg.id, pkg.isEnabled)
+      ElMessage.success(`${pkg.title} 状态已更新`)
     } catch {
-      pkg.status = pkg.status === 1 ? 0 : 1
+      pkg.isEnabled = pkg.isEnabled === 1 ? 0 : 1
     }
+  }
+
+  const handleAdd = () => {
+    currentPackage.value = null
+    packageVisible.value = true
   }
 
   const handleEditPrice = (pkg: any) => {
@@ -124,8 +143,9 @@
     priceVisible.value = true
   }
 
-  const handleEditPackage = (pkg: any) => {
-    ElMessage.info(`即将开放：${pkg.name} 的权益详情编辑`)
+  const handleEditBenefits = (pkg: any) => {
+    currentPackage.value = pkg
+    benefitsVisible.value = true
   }
 
   onMounted(() => {
