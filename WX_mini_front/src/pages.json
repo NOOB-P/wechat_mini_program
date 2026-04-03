@@ -70,6 +70,16 @@
 			}
 		},
 		{
+			"path": "pages/mine/course-list",
+			"type": "page",
+			"style": {}
+		},
+		{
+			"path": "pages/mine/edit-profile",
+			"type": "page",
+			"style": {}
+		},
+		{
 			"path": "pages/mine/index",
 			"type": "page",
 			"style": {

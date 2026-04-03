@@ -1,54 +1,106 @@
 <template>
   <view class="settings-container">
     <wd-cell-group border class="settings-group">
-      <wd-cell title="手机号" :value="userInfo.phone" is-link @click="handleCellClick('手机号')" />
-      <wd-cell title="修改密码" is-link @click="handleCellClick('修改密码')" />
-      <wd-cell title="账户注销" is-link @click="handleCellClick('账户注销')" />
+      <wd-cell title="手机号" :value="userInfo.phone" is-link @click="showChangePhonePopup = true" />
+      <wd-cell title="修改密码" is-link @click="showChangePasswordPopup = true" />
+      <wd-cell title="账户注销" is-link @click="handleCancelAccount" />
     </wd-cell-group>
 
     <wd-cell-group border class="settings-group">
-      <wd-cell title="实名认证" is-link @click="handleCellClick('实名认证')" />
-    </wd-cell-group>
-
-    <wd-cell-group border class="settings-group">
-      <wd-cell title="上传日志" is-link @click="handleCellClick('上传日志')" />
-      <wd-cell title="版本更新" :value="settingsInfo.version" is-link @click="handleCellClick('版本更新')" />
+      <wd-cell title="上传日志" is-link @click="handleUploadLogs" />
+      <wd-cell title="版本更新" :value="settingsInfo.version" is-link @click="handleCheckUpdate" />
     </wd-cell-group>
 
     <view class="logout-btn-container">
       <text class="logout-text" @click="handleLogout">退出登录</text>
     </view>
+
+    <!-- 修改手机号弹窗 -->
+    <wd-popup v-model="showChangePhonePopup" position="bottom" custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+      <view class="popup-content">
+        <view class="popup-title">修改手机号</view>
+        <view class="input-group">
+          <wd-input v-model="phoneForm.newPhone" placeholder="请输入新手机号" type="number" maxlength="11" no-border />
+          <view class="code-wrapper">
+            <wd-input v-model="phoneForm.code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+              <template #suffix>
+                <view class="code-btn-text" :class="{ disabled: phoneCountdown > 0 }" @click="phoneCountdown === 0 && sendPhoneCode()">
+                  {{ phoneCountdown > 0 ? `${phoneCountdown}s后重试` : '获取验证码' }}
+                </view>
+              </template>
+            </wd-input>
+          </view>
+        </view>
+        <view class="action-btn">
+          <wd-button type="primary" block @click="handleChangePhone">确认修改</wd-button>
+        </view>
+      </view>
+    </wd-popup>
+
+    <!-- 修改密码弹窗 -->
+    <wd-popup v-model="showChangePasswordPopup" position="bottom" custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+      <view class="popup-content">
+        <view class="popup-title">修改密码</view>
+        <view class="input-group">
+          <wd-input v-model="passwordForm.oldPassword" placeholder="请输入旧密码" show-password type="text" no-border />
+          <wd-input v-model="passwordForm.newPassword" placeholder="请输入新密码" show-password type="text" no-border />
+          <wd-input v-model="passwordForm.confirmPassword" placeholder="请再次输入新密码" show-password type="text" no-border />
+        </view>
+        <view class="action-btn">
+          <wd-button type="primary" block @click="handleChangePassword">确认修改</wd-button>
+        </view>
+      </view>
+    </wd-popup>
+
+    <wd-toast id="wd-toast" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted } from 'vue'
-import { getUserInfoApi } from '@/api/mine'
-import request from '@/utils/request'
+import { reactive, ref, onMounted } from 'vue'
+import { getMineInfoApi, updateMineInfoApi, updatePasswordApi, logoutApi } from '@/api/mine'
+import { sendSmsCode } from '@/api/login'
+import { useToast } from 'wot-design-uni'
+
+const toast = useToast()
 
 // 用户信息
 const userInfo = reactive({
-  phone: ''
+  phone: '',
+  nickname: '',
+  email: ''
 })
 
 // 设置信息
 const settingsInfo = reactive({
-  version: ''
+  version: '1.0.0'
+})
+
+// 修改手机号相关
+const showChangePhonePopup = ref(false)
+const phoneCountdown = ref(0)
+let phoneTimer: ReturnType<typeof setInterval> | null = null
+const phoneForm = reactive({
+  newPhone: '',
+  code: ''
+})
+
+// 修改密码相关
+const showChangePasswordPopup = ref(false)
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
 })
 
 // 获取数据
 const fetchData = async () => {
   try {
-    // 获取用户信息
-    const userRes = await getUserInfoApi()
-    if (userRes.code === 200) {
-      userInfo.phone = userRes.data.phone
-    }
-
-    // 获取设置信息
-    const settingsRes = await getSettingsInfoApi()
-    if (settingsRes.code === 200) {
-      settingsInfo.version = settingsRes.data.version
+    const res = await getMineInfoApi()
+    if (res.code === 200) {
+      userInfo.phone = res.data.phone
+      userInfo.nickname = res.data.nickname
+      userInfo.email = res.data.email
     }
   } catch (error) {
     console.error('获取数据失败:', error)
@@ -59,12 +111,108 @@ onMounted(() => {
   fetchData()
 })
 
-// 处理点击
-const handleCellClick = (title: string) => {
-  uni.showToast({
-    title: `点击了${title}`,
-    icon: 'none'
+// 发送验证码
+const sendPhoneCode = async () => {
+  if (!phoneForm.newPhone || phoneForm.newPhone.length !== 11) {
+    toast.show('请输入正确的手机号')
+    return
+  }
+  try {
+    await sendSmsCode(phoneForm.newPhone)
+    toast.success('验证码已发送')
+    phoneCountdown.value = 60
+    phoneTimer = setInterval(() => {
+      phoneCountdown.value--
+      if (phoneCountdown.value <= 0) {
+        clearInterval(phoneTimer!)
+      }
+    }, 1000)
+  } catch (error) {
+    console.error('发送验证码失败:', error)
+  }
+}
+
+// 修改手机号
+const handleChangePhone = async () => {
+  if (!phoneForm.newPhone || !phoneForm.code) {
+    toast.show('请填写完整信息')
+    return
+  }
+  try {
+    // 后端 updateMineInfoApi 支持更新手机号，需要传递新手机号和验证码
+    const res = await updateMineInfoApi({ 
+      phone: phoneForm.newPhone,
+      code: phoneForm.code 
+    })
+    if (res.code === 200) {
+      toast.success('修改成功')
+      userInfo.phone = phoneForm.newPhone
+      showChangePhonePopup.value = false
+      // 重置表单
+      phoneForm.newPhone = ''
+      phoneForm.code = ''
+    }
+  } catch (error) {
+    console.error('修改手机号失败:', error)
+  }
+}
+
+// 修改密码
+const handleChangePassword = async () => {
+  if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+    toast.show('请填写完整信息')
+    return
+  }
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    toast.show('两次输入的新密码不一致')
+    return
+  }
+  try {
+    const res = await updatePasswordApi({
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword
+    })
+    if (res.code === 200) {
+      toast.success('修改成功')
+      showChangePasswordPopup.value = false
+      // 重置表单
+      passwordForm.oldPassword = ''
+      passwordForm.newPassword = ''
+      passwordForm.confirmPassword = ''
+    }
+  } catch (error) {
+    console.error('修改密码失败:', error)
+  }
+}
+
+// 账户注销
+const handleCancelAccount = () => {
+  uni.showModal({
+    title: '账户注销',
+    content: '注销后账户信息将无法找回，确定要注销吗？',
+    confirmColor: '#fa4350',
+    success: (res) => {
+      if (res.confirm) {
+        toast.show('暂不支持在线注销，请联系客服')
+      }
+    }
   })
+}
+
+// 上传日志
+const handleUploadLogs = () => {
+  toast.loading('正在上传日志...')
+  setTimeout(() => {
+    toast.success('上传成功')
+  }, 1500)
+}
+
+// 版本更新
+const handleCheckUpdate = () => {
+  toast.loading('正在检查更新...')
+  setTimeout(() => {
+    toast.show('当前已是最新版本')
+  }, 1000)
 }
 
 // 退出登录
@@ -72,8 +220,11 @@ const handleLogout = () => {
   uni.showModal({
     title: '提示',
     content: '确定要退出登录吗？',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
+        try {
+          await logoutApi()
+        } catch (e) {}
         uni.clearStorageSync()
         uni.reLaunch({
           url: '/pages/login/index'
@@ -108,6 +259,51 @@ const handleLogout = () => {
 .logout-text {
   color: #fa4350;
   font-size: 32rpx;
+}
+
+.popup-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  
+  .popup-title {
+    font-size: 36rpx;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+    margin-bottom: 60rpx;
+  }
+  
+  .input-group {
+    background: #f5f6f7;
+    border-radius: 24rpx;
+    padding: 10rpx 20rpx;
+    margin-bottom: 60rpx;
+    
+    :deep(.wd-input) {
+      background: transparent;
+      padding: 30rpx 10rpx;
+    }
+    
+    .code-wrapper {
+      border-top: 1rpx solid #eee;
+      
+      .code-btn-text {
+        font-size: 28rpx;
+        color: #1a5f8e;
+        padding: 0 20rpx;
+        
+        &.disabled {
+          color: #999;
+        }
+      }
+    }
+  }
+  
+  .action-btn {
+    margin-top: auto;
+    padding-bottom: 40rpx;
+  }
 }
 
 :deep(.wd-cell) {

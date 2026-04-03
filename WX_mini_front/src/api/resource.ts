@@ -1,11 +1,11 @@
 import request from '@/utils/request'
 
 export const getStudentTalkListApi = () => {
-  return request({ url: '/resource/student-talk/list', method: 'GET' })
+  return request({ url: '/api/app/resource/student-talk/list', method: 'GET' })
 }
 
 export const getFamilyEduListApi = () => {
-  return request({ url: '/resource/family-edu/list', method: 'GET' })
+  return request({ url: '/api/app/resource/family-edu/list', method: 'GET' })
 }
 
 /**
@@ -13,8 +13,8 @@ export const getFamilyEduListApi = () => {
  */
 export const getSyncCourseListApi = (params?: any) => {
   return request({
-    url: '/resource/sync-course/list',
-    method: 'POST',
+    url: '/api/app/resource/sync-course/list',
+    method: 'GET', // 改为 GET 以配合后端
     data: params
   })
 }
@@ -24,28 +24,23 @@ export const getSyncCourseListApi = (params?: any) => {
  */
 export const getSyncCourseOptionsApi = () => {
   return request({
-    url: '/resource/sync-course/options',
+    url: '/api/app/resource/sync-course/options',
     method: 'GET'
   })
 }
 
-/**
- * @Description: 获取历年真题列表
- */
-export const getPaperListApi = (params?: any) => {
+export const getPaperListApi = (params: any) => {
   return request({
-    url: '/resource/paper/list',
-    method: 'POST',
+    url: '/api/app/resource/paper/list',
+    method: 'GET',
     data: params
   })
 }
 
-/**
- * @Description: 获取历年真题的科目列表
- */
+/** 获取名校试卷科目 */
 export const getPaperSubjectsApi = () => {
   return request({
-    url: '/resource/paper/subjects',
+    url: '/api/app/resource/paper/subjects',
     method: 'GET'
   })
 }

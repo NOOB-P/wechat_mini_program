@@ -5,7 +5,7 @@ import request from '@/utils/request'
  */
 export const getVipAnalysisDataApi = () => {
   return request({
-    url: '/vip/analysis',
+    url: '/api/app/vip/analysis',
     method: 'GET'
   })
 }
@@ -16,7 +16,7 @@ export const getVipAnalysisDataApi = () => {
  */
 export const getVipWrongBookApi = (params: any) => {
   return request({
-    url: '/vip/wrongbook/list',
+    url: '/api/app/vip/wrongbook/list',
     method: 'GET',
     data: params
   })
@@ -27,7 +27,7 @@ export const getVipWrongBookApi = (params: any) => {
  */
 export const submitPrintOrderApi = (data: any) => {
   return request({
-    url: '/vip/print/order',
+    url: '/api/app/vip/print/order',
     method: 'POST',
     data
   })
@@ -38,7 +38,7 @@ export const submitPrintOrderApi = (data: any) => {
  */
 export const getPrintConfigApi = () => {
   return request({
-    url: '/vip/print/config',
+    url: '/api/app/vip/print/config',
     method: 'GET'
   })
 }

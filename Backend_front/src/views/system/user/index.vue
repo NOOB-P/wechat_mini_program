@@ -221,8 +221,12 @@
               info.push(h('p', `绑定学校: ${row.schoolName || '未绑定'}`))
             } else if (row.userType === '3') {
               // 家长用户
-              const bound = row.schoolName && row.className && row.studentName
-              if (bound) {
+              if (row.boundStudents && row.boundStudents.length > 0) {
+                row.boundStudents.forEach((s: any) => {
+                  info.push(h('p', `学生: ${s.name} (${s.school} / ${s.className || '未设置'})`))
+                })
+              } else if (row.schoolName && row.className && row.studentName) {
+                // 向后兼容之前的单条数据格式
                 info.push(h('p', `学校班级: ${row.schoolName} / ${row.className}`))
                 info.push(h('p', `关联学生: ${row.studentName}`))
               } else {

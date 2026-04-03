@@ -2,7 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { getHomeStatsApi, getHomeBannersApi, getHomePublicCoursesApi, getRecommendCoursesApi } from '@/api/index'
+import { getHomeStatsApi, getHomeBannersApi, getHomePublicCoursesApi } from '@/api/index'
+import { getCourseListApi } from '@/api/course'
 import { getUserInfoApi } from '@/api/mine'
 
 const toast = useToast()
@@ -29,13 +30,21 @@ const loadData = async () => {
       getHomeStatsApi(),
       getHomeBannersApi(),
       getHomePublicCoursesApi(),
-      getRecommendCoursesApi(),
+      getCourseListApi({ isRecommend: 1 }),
       getUserInfoApi()
     ])
     if (statsRes.code === 200) stats.value = statsRes.data
     if (bannersRes.code === 200) banners.value = bannersRes.data
     if (publicRes.code === 200) publicCourses.value = publicRes.data
-    if (coursesRes.code === 200) recommendCourses.value = coursesRes.data
+    if (coursesRes.code === 200) {
+      // 后端返回的是 list 包装的 Map，或者直接是列表，取决于具体的 AdminCourseController 实现
+      // 但小程序端的 getCourseListApi 映射的是 AppCourseController
+      recommendCourses.value = coursesRes.data.map((item: any) => ({
+        ...item,
+        name: item.title,
+        image: item.cover
+      }))
+    }
     if (userRes.code === 200) {
       isSVIPUser.value = userRes.data.isSvip === 1
       userInfo.value = userRes.data

@@ -8,6 +8,7 @@ export interface MockResponse {
 
 const mocks: Record<string, (data: any) => MockResponse> = {
   ...mineMocks,
+  /*
   '/auth/bind-student/sendCode': (data) => {
     return {
       code: 200,
@@ -242,6 +243,8 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       ]
     };
   },
+  */
+  /*
   '/course/list': (data) => {
     return {
       code: 200,
@@ -254,7 +257,8 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       ]
     };
   },
-  '/score/semester/list': (data) => {
+  */
+  '/api/app/score/semester/list': (data) => {
     return {
       code: 200,
       msg: '获取学期考试列表成功 (Mock)',
@@ -284,7 +288,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     }
   },
-  '/score/list': (data) => {
+  '/api/app/score/list': (data) => {
     // 模拟根据不同学期和考试返回不同数据
     const isNextSemester = data?.semester === '2023-2024-2';
     const examId = data?.examId || 'final';
@@ -344,6 +348,34 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   },
+  '/api/app/paper/detail': (data) => {
+    return {
+      code: 200,
+      msg: '获取试卷详情成功 (Mock)',
+      data: {
+        examName: '2023-2024学年第一学期期中考试 - 数学',
+        score: 135,
+        fullScore: 150,
+        teacherComment: '本次考试基础题掌握得很好，但在最后一道压轴大题上计算出现了失误。继续保持，注意做题时的计算细节！',
+        originalPaperImages: [
+          'https://via.placeholder.com/600x800.png?text=Original+Paper+Page+1',
+          'https://via.placeholder.com/600x800.png?text=Original+Paper+Page+2'
+        ],
+        electronicPaperImages: [
+          'https://via.placeholder.com/600x800.png?text=Electronic+Paper+Page+1',
+          'https://via.placeholder.com/600x800.png?text=Electronic+Paper+Page+2'
+        ],
+        answers: [
+          { questionNo: '1', type: '选择题', studentAnswer: 'A', correctAnswer: 'A', isRight: true },
+          { questionNo: '2', type: '选择题', studentAnswer: 'C', correctAnswer: 'B', isRight: false },
+          { questionNo: '3', type: '填空题', studentAnswer: '15', correctAnswer: '15', isRight: true },
+          { questionNo: '15', type: '解答题', studentAnswer: '见试卷原卷', correctAnswer: '参考答案详见电子版解析...', isRight: true }
+        ],
+        downloadUrl: 'https://example.com/download/paper.pdf'
+      }
+    };
+  },
+  /*
   '/paper/detail': (data) => {
     return {
       code: 200,
@@ -451,6 +483,8 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   },
+  */
+  /*
   '/resource/student-talk/list': () => ({
     code: 200,
     msg: 'success',
@@ -461,6 +495,8 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       { id: 4, title: '学霸说06期 新学期新环境的相处', author: '学霸说', buyers: 152, episodes: 1, price: '免费', cover: 'https://img.yzcdn.cn/vant/apple-2.jpg' },
     ]
   }),
+  */
+  /*
   '/resource/family-edu/list': () => ({
     code: 200,
     msg: 'success',
@@ -482,19 +518,22 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       ]
     }
   },
-  '/resource/paper/list': (data) => {
+  */
+  '/api/app/resource/paper/list': (data) => {
     const kw = data?.keyword || ''
     return {
       code: 200,
       msg: '获取试卷列表成功 (Mock)',
       data: [
-        { id: 1, title: `2020-2限时练1 (七年级) ${kw}`, tags: ['名校', '松阳三中', kw || '语文', 'PDF版'], year: '2021年', grade: '七年级', downloads: 101 },
-        { id: 2, title: `2020-2限时练2 (七年级) ${kw}`, tags: ['名校', '松阳三中', kw || '语文', 'PDF版'], year: '2021年', grade: '七年级', downloads: 88 },
-        { id: 3, title: `期中模拟卷 (八年级) ${kw}`, tags: ['名校', '附中', kw || '数学', 'PDF版'], year: '2022年', grade: '八年级', downloads: 342 }
+        { id: 'P001', title: `2023年杭州二中高三仿真模拟卷 (一) ${kw}`, tags: ['名校', '重点', kw || '综合', 'PDF'], year: '2023年', grade: '高三', downloads: 1250 },
+        { id: 'P002', title: `2024年北京人大附中初三二模真题 ${kw}`, tags: ['真题', '必刷', kw || '全科', '解析'], year: '2024年', grade: '初三', downloads: 3400 },
+        { id: 'P003', title: `上海中学2023-2024学年高一期末考试卷 ${kw}`, tags: ['名校', '期末', kw || '数学', '精品'], year: '2024年', grade: '高一', downloads: 890 },
+        { id: 'P004', title: `2023年西安西工大附中初一入学摸底测试 ${kw}`, tags: ['摸底', kw || '语文', 'PDF版'], year: '2023年', grade: '初一', downloads: 2100 },
+        { id: 'P005', title: `2024年成都七中高二联考物理压轴卷 ${kw}`, tags: ['联考', '名校', kw || '物理', '解析'], year: '2024年', grade: '高二', downloads: 1560 }
       ]
     };
   },
-  '/resource/paper/subjects': () => {
+  '/api/app/resource/paper/subjects': () => {
     return {
       code: 200,
       msg: '获取试卷科目成功 (Mock)',
@@ -504,13 +543,11 @@ const mocks: Record<string, (data: any) => MockResponse> = {
         { name: '英语', icon: 'edit', color: '#2196f3' },
         { name: '物理', icon: 'setting', color: '#00bcd4' },
         { name: '化学', icon: 'filter', color: '#ff9800' },
-        { name: '生物', icon: 'share', color: '#3f51b5' },
-        { name: '历史', icon: 'time', color: '#ffc107' },
-        { name: '地理', icon: 'location', color: '#03a9f4' },
-        { name: '道德与法治', icon: 'star', color: '#f44336' }
+        { name: '生物', icon: 'share', color: '#3f51b5' }
       ]
     };
   },
+  /*
   '/resource/sync-course/options': () => {
     return {
       code: 200,
@@ -521,6 +558,8 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   },
+  */
+  /*
   '/user/info': (data) => {
     // 根据请求头中的 token 区分角色
     const token = uni.getStorageSync('token') || '';
@@ -551,12 +590,14 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   }
+  */
 };
 
 export const getMockData = (url: string, data: any): MockResponse | null => {
   // 去掉 baseUrl 部分（如果有）
   const pureUrl = url.replace(__VITE_SERVER_BASEURL__, '');
 
+  /*
   // 课程详情 mock 拦截
   if (pureUrl === '/course/detail') {
     const detailData = getCourseDetailData(data?.name || '');
@@ -566,43 +607,16 @@ export const getMockData = (url: string, data: any): MockResponse | null => {
       data: detailData
     };
   }
+  */
 
   const handler = mocks[pureUrl];
   return handler ? handler(data) : null;
 };
 
+/*
 // --- 课程详情相关 ---
 export const getCourseDetailData = (courseName: string) => {
-  // 根据课程名称返回不同的模拟数据
-  const chapterLists: Record<string, any[]> = {
-    '心理健康微课堂': [
-      { title: '青春期心理特征解析' },
-      { title: '如何建立有效的沟通机制' },
-      { title: '应对孩子叛逆期的策略' }
-    ],
-    '外教口语特训': [
-      { title: '音标发音基础与纠正' },
-      { title: '日常交际口语100句' },
-      { title: '旅游出行场景模拟' },
-      { title: '商务英语初步' }
-    ],
-    '高中数学压轴': [
-      { title: '导数综合问题（一）' },
-      { title: '导数综合问题（二）' },
-      { title: '圆锥曲线与方程（上）' },
-      { title: '圆锥曲线与方程（下）' },
-      { title: '概率统计压轴突破' }
-    ]
-  }
-
-  // 默认大纲
-  const defaultChapters = [
-    { title: '核心概念解析与基础回顾' },
-    { title: '典型例题精讲与思路点拨' },
-    { title: '高频易错点避坑指南' },
-    { title: '综合拔高与实战演练' }
-  ]
-
+...
   return {
     desc: '这是一门精心打磨的高质量课程，由资深名师亲自授课，深入浅出地剖析核心知识点。无论你是基础薄弱想要稳扎稳打，还是寻求突破冲击高分，这门课程都能为你提供针对性的指导与帮助。',
     studentCount: Math.floor(Math.random() * 1000) + 100,
@@ -610,3 +624,4 @@ export const getCourseDetailData = (courseName: string) => {
     chapters: chapterLists[courseName] || defaultChapters
   }
 }
+*/
