@@ -17,6 +17,7 @@ import com.edu.javasb_back.model.entity.SysAccount;
 public interface SysAccountRepository extends JpaRepository<SysAccount, Long> {
     Optional<SysAccount> findByPhone(String phone);
     Optional<SysAccount> findByUsername(String username);
+    Optional<SysAccount> findByWxid(String wxid);
     boolean existsByPhone(String phone);
     boolean existsByUsername(String username);
 

@@ -130,7 +130,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useToast } from 'wot-design-uni'
-import { sendSmsCode, loginByPhone, loginByPassword, register, forgotPassword, thirdPartyLoginApi, bindThirdPartyPhone } from '@/api/login'
+import { sendSmsCode, loginByPhone, loginByPassword, register, forgotPassword, loginByWechat, thirdPartyLoginApi, bindThirdPartyPhone } from '@/api/login'
 
 const toast = useToast()
 
@@ -413,13 +413,19 @@ const thirdPartyLogin = (type: string) => {
       success: async (loginRes) => {
         if (loginRes.code) {
           try {
-            const res = await thirdPartyLoginApi('wechat', loginRes.code)
-            handleThirdPartySuccess(res, 'wechat')
-          } catch (error) {}
+            const res = await loginByWechat(loginRes.code)
+            if (res.code === 200) {
+              handleThirdPartySuccess(res, 'wechat')
+            } else {
+              toast.error(res.msg || '微信登录失败')
+            }
+          } catch (error: any) {
+            toast.error(error.msg || '微信登录异常')
+          }
         }
       },
       fail: () => {
-        toast.show('微信登录失败')
+        toast.show('微信授权失败')
       }
     })
   } else if (type === 'qq') {

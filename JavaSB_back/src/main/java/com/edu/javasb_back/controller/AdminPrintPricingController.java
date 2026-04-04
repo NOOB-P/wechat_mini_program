@@ -47,4 +47,22 @@ public class AdminPrintPricingController {
     public Result<Void> updateDeliveryConfigs(@RequestBody List<DeliveryConfig> deliveryConfigs) {
         return printConfigService.updateDeliveryConfigs(deliveryConfigs);
     }
+
+    /**
+     * 保存单个配送配置 (新增或修改)
+     */
+    @LogOperation("后台保存单个配送配置")
+    @PostMapping("/delivery-config")
+    public Result<DeliveryConfig> saveDeliveryConfig(@RequestBody DeliveryConfig deliveryConfig) {
+        return printConfigService.saveDeliveryConfig(deliveryConfig);
+    }
+
+    /**
+     * 删除配送配置
+     */
+    @LogOperation("后台删除配送配置")
+    @DeleteMapping("/delivery-config/{id}")
+    public Result<Void> deleteDeliveryConfig(@PathVariable Long id) {
+        return printConfigService.deleteDeliveryConfig(id);
+    }
 }

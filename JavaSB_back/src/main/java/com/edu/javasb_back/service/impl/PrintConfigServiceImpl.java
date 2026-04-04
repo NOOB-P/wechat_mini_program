@@ -54,4 +54,18 @@ public class PrintConfigServiceImpl implements PrintConfigService {
         deliveryConfigRepository.saveAll(deliveryConfigs);
         return Result.success(null);
     }
+
+    @Override
+    @Transactional
+    public Result<DeliveryConfig> saveDeliveryConfig(DeliveryConfig deliveryConfig) {
+        DeliveryConfig saved = deliveryConfigRepository.save(deliveryConfig);
+        return Result.success(saved);
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> deleteDeliveryConfig(Long id) {
+        deliveryConfigRepository.deleteById(id);
+        return Result.success(null);
+    }
 }

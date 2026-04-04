@@ -25,4 +25,14 @@ public interface PrintConfigService {
      * 批量更新配送费用
      */
     Result<Void> updateDeliveryConfigs(List<DeliveryConfig> deliveryConfigs);
+
+    /**
+     * 保存配送费用配置 (新增或修改单个)
+     */
+    Result<DeliveryConfig> saveDeliveryConfig(DeliveryConfig deliveryConfig);
+
+    /**
+     * 删除配送费用配置
+     */
+    Result<Void> deleteDeliveryConfig(Long id);
 }

@@ -10,7 +10,7 @@
 
     <el-row :gutter="20">
       <!-- 纸张价格配置 -->
-      <el-col :span="16">
+      <el-col :span="18">
         <el-card class="mb-5 shadow-sm">
           <template #header>
             <div class="card-header flex justify-between items-center">
@@ -64,11 +64,18 @@
               <span class="font-bold flex items-center">
                 <el-icon class="mr-2 text-orange-500"><Van /></el-icon> 配送费用配置
               </span>
-              <el-button type="primary" link @click="handleUpdateDelivery">保存修改</el-button>
+              <div class="actions">
+                <el-button type="success" link :icon="Plus" @click="handleAddDelivery">添加配送方式</el-button>
+                <el-button type="primary" link @click="handleUpdateDelivery" style="margin-left: 10px;">保存修改</el-button>
+              </div>
             </div>
           </template>
           <el-table :data="config.deliveryConfigs" border stripe style="width: 100%">
-            <el-table-column prop="name" label="配送方式" width="120" align="center" />
+            <el-table-column prop="name" label="配送方式" width="150" align="center">
+              <template #default="scope">
+                <el-input v-model="scope.row.name" size="small" placeholder="如：标准快递" />
+              </template>
+            </el-table-column>
             <el-table-column label="基础运费(元)" width="150" align="center">
               <template #default="scope">
                 <el-input-number 
@@ -96,70 +103,66 @@
                 <el-input v-model="scope.row.description" size="small" />
               </template>
             </el-table-column>
+            <el-table-column label="操作" width="80" align="center">
+              <template #default="scope">
+                <el-button 
+                  type="danger" 
+                  link 
+                  :icon="Delete" 
+                  @click="handleDeleteDelivery(scope.$index, scope.row)"
+                >
+                  删除
+                </el-button>
+              </template>
+            </el-table-column>
           </el-table>
         </el-card>
       </el-col>
 
-      <!-- 全局参数配置 -->
-      <el-col :span="8">
-        <el-card class="shadow-sm">
+      <!-- 侧边辅助说明 -->
+      <el-col :span="6">
+        <el-card class="shadow-sm info-card">
           <template #header>
             <span class="font-bold flex items-center">
-              <el-icon class="mr-2 text-purple-500"><Setting /></el-icon> 打印全局参数
+              <el-icon class="mr-2 text-info"><InfoFilled /></el-icon> 定价与运营建议
             </span>
           </template>
-          <el-form :model="config.otherConfigs" label-width="120px" label-position="left">
-            <el-form-item label="起印金额">
-              <el-input-number 
-                v-model="config.otherConfigs.minOrderPrice" 
-                :precision="2" 
-                :min="0"
-                style="width: 100%"
-              />
-              <p class="text-xs text-gray-400 mt-1">单笔订单不满此金额按此金额收取</p>
-            </el-form-item>
-            <el-form-item label="装订费用">
-              <el-input-number 
-                v-model="config.otherConfigs.bindingPrice" 
-                :precision="2" 
-                :min="0"
-                style="width: 100%"
-              />
-              <p class="text-xs text-gray-400 mt-1">每份文档（如错题本）的固定装订费</p>
-            </el-form-item>
-            <el-divider />
-            <div class="flex justify-end">
-              <el-button type="primary" @click="handleUpdateOther">更新全局参数</el-button>
-            </div>
-          </el-form>
+          <div class="tip-content">
+            <p class="mb-3 text-gray-600 leading-6">
+              <el-tag size="small" type="success" class="mr-1">纸张</el-tag> 
+              通常黑白打印单价较低（0.1-0.3元），彩色打印成本较高（1-2元）。
+            </p>
+            <p class="mb-3 text-gray-600 leading-6">
+              <el-tag size="small" type="warning" class="mr-1">配送</el-tag> 
+              配送费可根据学校合作快递的实际成本设置。
+            </p>
+            <p class="text-gray-600 leading-6">
+              <el-tag size="small" type="danger" class="mr-1">免邮</el-tag> 
+              合理设置免邮额度可有效提高客单价，建议设置在 30-50 元左右。
+            </p>
+          </div>
         </el-card>
 
-        <el-alert
-          title="定价建议"
-          type="info"
-          description="通常黑白打印单价较低（0.1-0.3元），彩色打印成本较高（1-2元）。配送费可根据学校合作快递的实际成本设置，设置免邮额度可有效提高客单价。"
-          show-icon
-          :closable="false"
-          class="mt-5"
-        />
+        <div class="mt-5 p-4 bg-blue-50 rounded-lg border border-blue-100 text-blue-700 text-sm">
+          <div class="font-bold mb-2 flex items-center">
+            <el-icon class="mr-1"><QuestionFilled /></el-icon> 常见问题
+          </div>
+          <p>修改配置后，小程序端下单将实时生效。建议在修改大额运费前发布公告通知用户。</p>
+        </div>
       </el-col>
     </el-row>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { fetchPrintConfig, updatePaperPrices, updateDeliveryConfig } from '@/api/payment/print'
-  import { ElMessage } from 'element-plus'
-  import { Document, Van, Setting } from '@element-plus/icons-vue'
+  import { fetchPrintConfig, updatePaperPrices, updateDeliveryConfig, deleteDeliveryConfig } from '@/api/payment/print'
+  import { ElMessage, ElMessageBox } from 'element-plus'
+  import { Document, Van, Plus, Delete, InfoFilled, QuestionFilled } from '@element-plus/icons-vue'
 
   const loading = ref(false)
   const config = reactive({
     paperPrices: [],
-    deliveryConfigs: [],
-    otherConfigs: {
-      bindingPrice: 0,
-      minOrderPrice: 0
-    }
+    deliveryConfigs: []
   })
 
   const getList = async () => {
@@ -183,8 +186,50 @@
     }
   }
 
+  const handleAddDelivery = () => {
+    config.deliveryConfigs.push({
+      name: '',
+      price: 0,
+      freeLimit: 0,
+      description: ''
+    })
+  }
+
+  const handleDeleteDelivery = async (index: number, row: any) => {
+    if (!row.id) {
+      config.deliveryConfigs.splice(index, 1)
+      return
+    }
+    
+    try {
+      await ElMessageBox.confirm(
+        '确认删除该配送方式吗？',
+        '提示',
+        {
+          confirmButtonText: '确认',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      )
+      
+      loading.value = true
+      await deleteDeliveryConfig(row.id)
+      ElMessage.success('配送方式已删除')
+      getList()
+    } catch (e) {
+      // 用户取消删除
+    } finally {
+      loading.value = false
+    }
+  }
+
   const handleUpdateDelivery = async () => {
     try {
+      // 简单校验
+      if (config.deliveryConfigs.some(d => !d.name)) {
+        return ElMessage.warning('请输入配送方式名称')
+      }
+      
       loading.value = true
       await updateDeliveryConfig(config.deliveryConfigs)
       ElMessage.success('配送费用配置已更新')
@@ -192,11 +237,6 @@
     } finally {
       loading.value = false
     }
-  }
-
-  const handleUpdateOther = async () => {
-    // 全局参数更新逻辑，如果有对应的后端接口可以调用
-    ElMessage.success('全局参数已更新')
   }
 
   onMounted(() => {

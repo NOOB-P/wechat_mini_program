@@ -70,15 +70,30 @@ export const forgotPassword = (data: { phone: string; password?: string; code?: 
 }
 
 /**
- * @Description: 第三方登录
- * @param {string} type 登录类型 wechat | qq
- * @param {string} openid 第三方唯一标识
+ * @Description: 微信登录
+ * @param {string} code 微信登录凭证
  */
-export const thirdPartyLoginApi = (type: string, openid: string) => {
+export const loginByWechat = (code: string) => {
   return request({
-    url: '/login/thirdParty',
+    url: '/api/app/auth/login/wechat',
     method: 'POST',
-    data: { type, openid }
+    data: { code }
+  })
+}
+
+/**
+ * @Description: 第三方登录 (保留兼容性)
+ * @param {string} type 登录类型 wechat | qq
+ * @param {string} code 登录凭证
+ */
+export const thirdPartyLoginApi = (type: string, code: string) => {
+  if (type === 'wechat') {
+    return loginByWechat(code)
+  }
+  return request({
+    url: '/api/app/auth/login/thirdParty',
+    method: 'POST',
+    data: { type, code }
   })
 }
 

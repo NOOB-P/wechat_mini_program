@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.Map;
 
 /**
  * 小程序端认证控制器
@@ -49,6 +50,17 @@ public class AppAuthController {
     public Result<LoginVO> loginByPhone(@RequestBody AccountLoginDTO loginDTO) {
         return sysAccountService.loginByPhone(loginDTO);
     }
+
+    /**
+     * 微信登录 (小程序端使用)
+     */
+    @LogOperation("小程序微信登录")
+    @PostMapping("/login/wechat")
+    public Result<LoginVO> loginByWechat(@RequestBody AccountLoginDTO loginDTO) {
+        return sysAccountService.loginByWechat(loginDTO.getCode());
+    }
+
+
 
     /**
      * 确认绑定学生账号 (小程序端使用)

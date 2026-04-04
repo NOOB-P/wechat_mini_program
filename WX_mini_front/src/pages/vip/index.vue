@@ -143,6 +143,7 @@
               <wd-icon name="info-circle" size="14px" />
               {{ currentDeliveryConfig.desc }}（基础运费：￥{{ currentDeliveryConfig.baseFee }}，满￥{{ currentDeliveryConfig.freeThreshold }}免邮）
             </view>
+            <wd-input v-model="printForm.userName" placeholder="收件人姓名" no-border />
             <wd-input v-model="printForm.address" placeholder="请输入收件地址/线下取件点" no-border />
             <wd-input v-model="printForm.phone" placeholder="联系电话" no-border />
           </view>
@@ -203,12 +204,14 @@ onLoad((options) => {
 
 const showPrintDialog = ref(false)
 const printForm = ref({
+  userName: '',
   address: '',
   phone: '',
   paperSize: 'A4',
   printSide: '双面',
   color: '黑白',
-  deliveryMethod: 'standard'
+  deliveryMethod: 'standard',
+  pages: 20
 })
 
 // 打印配置数据
@@ -232,8 +235,8 @@ const estimatedPrice = computed(() => {
     p.color === printForm.value.color
   )
   
-  // 假设默认打印 20 页
-  const pageCount = 20
+  // 使用表单中的页数
+  const pageCount = printForm.value.pages || 20
   let paperCost = paperConfig ? paperConfig.price * pageCount : 0
   
   // 加上装订费
@@ -294,12 +297,17 @@ const joinRoom = () => {
 }
 
 const submitPrint = async () => {
-  if (!printForm.value.address || !printForm.value.phone) {
+  if (!printForm.value.userName || !printForm.value.address || !printForm.value.phone) {
     return toast.show('请填写完整信息')
   }
   try {
     toast.loading('提交中...')
-    const res = await submitPrintOrderApi(printForm.value)
+    // 自动生成一个文档名称
+    const docName = `错题本_${new Date().toLocaleDateString().replace(/\//g, '')}_${printForm.value.paperSize}`
+    const res = await submitPrintOrderApi({
+      ...printForm.value,
+      documentName: docName
+    })
     if (res.code === 200) {
       toast.success(res.msg || '下单成功')
       showPrintDialog.value = false
