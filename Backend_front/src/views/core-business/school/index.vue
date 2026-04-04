@@ -589,7 +589,7 @@ import { useUserStore } from '@/store/modules/user'
 
 const downloadTemplate = () => {
   const token = useUserStore().accessToken || ''
-  const baseUrl = import.meta.env.VITE_API_URL || ''
+  const baseUrl = import.meta.env.VITE_API_URL === '/' ? '' : import.meta.env.VITE_API_URL || ''
   window.open(`${baseUrl}/api/system/school/download-template?token=${token}`, '_blank')
 }
 
