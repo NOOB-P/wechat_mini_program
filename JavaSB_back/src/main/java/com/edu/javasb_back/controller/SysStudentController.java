@@ -9,6 +9,7 @@ import com.edu.javasb_back.model.dto.StudentImportDTO;
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.exception.ExcelAnalysisException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -53,27 +54,38 @@ public class SysStudentController {
     @GetMapping("/download-template")
     public ResponseEntity<Resource> downloadTemplate() {
         try {
-            // 使用相对于项目根目录的路径
-            String filePath = "JavaSB_back/src/main/assests/学生上传模板.xlsx";
-            File file = new File(filePath);
-            if (!file.exists()) {
-                // 尝试另一种可能的相对路径（如果是在子模块目录下运行）
-                filePath = "src/main/assests/学生上传模板.xlsx";
-                file = new File(filePath);
-            }
+            // 优先尝试从类路径读取（支持打成 jar 包的情况）
+            Resource resource = new ClassPathResource("templates/student_template.xlsx");
             
-            if (!file.exists()) {
+            // 如果类路径中不存在，或者为了兼容开发环境，尝试直接读取 assets 目录下的原文件
+            if (!resource.exists()) {
+                File file = new File("JavaSB_back/src/main/assests/学生上传模板.xlsx");
+                if (!file.exists()) {
+                    // 尝试另一种相对路径
+                    file = new File("src/main/assests/学生上传模板.xlsx");
+                }
+                if (!file.exists()) {
+                    // 尝试绝对路径
+                    file = new File("c:/Users/admin/Desktop/wechat_mini_program-master/JavaSB_back/src/main/assests/学生上传模板.xlsx");
+                }
+                
+                if (file.exists()) {
+                    resource = new FileSystemResource(file);
+                }
+            }
+
+            if (!resource.exists()) {
                 return ResponseEntity.notFound().build();
             }
 
-            Resource resource = new FileSystemResource(file);
-            String filename = URLEncoder.encode(file.getName(), StandardCharsets.UTF_8.toString());
+            String filename = URLEncoder.encode("学生上传模板.xlsx", StandardCharsets.UTF_8.toString());
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                     .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                     .body(resource);
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
     }
