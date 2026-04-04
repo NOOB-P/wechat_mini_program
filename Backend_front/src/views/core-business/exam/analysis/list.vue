@@ -40,8 +40,13 @@
               </div>
             </div>
           </div>
-          <div class="mt-4 text-right">
-            <el-button type="primary" plain size="small">查看分析大屏</el-button>
+          <div class="mt-4 text-right flex justify-end gap-2">
+            <el-button type="primary" plain size="small" @click.stop="handleEnter(item)">
+              分析大屏
+            </el-button>
+            <el-button type="success" plain size="small" @click.stop="handleSelectClass(item)">
+              班级分析
+            </el-button>
           </div>
         </el-card>
       </el-col>
@@ -75,6 +80,13 @@ const resetSearch = () => {
 const handleEnter = (item: any) => {
   router.push({
     name: 'ExamAnalysisDashboard',
+    query: { projectId: item.id, projectName: item.name }
+  })
+}
+
+const handleSelectClass = (item: any) => {
+  router.push({
+    name: 'ExamAnalysisClassSelect',
     query: { projectId: item.id, projectName: item.name }
   })
 }

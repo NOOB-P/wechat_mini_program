@@ -38,6 +38,42 @@ export const examRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'analysis-class-select',
+      name: 'ExamAnalysisClassSelect',
+      component: '/core-business/exam/analysis/class-select',
+      meta: {
+        title: '选择分析班级',
+        isHide: true
+      }
+    },
+    {
+      path: 'analysis-class-dashboard',
+      name: 'ExamAnalysisClassDashboard',
+      component: '/core-business/exam/analysis/class-dashboard',
+      meta: {
+        title: '班级分析大屏',
+        isHide: true
+      }
+    },
+    {
+      path: 'analysis-student-report',
+      name: 'ExamAnalysisStudentReport',
+      component: '/core-business/exam/analysis/student-report',
+      meta: {
+        title: '学生分析报告',
+        isHide: true
+      }
+    },
+    {
+      path: 'analysis-student-subject-report',
+      name: 'ExamAnalysisStudentSubjectReport',
+      component: '/core-business/exam/analysis/student-subject-report',
+      meta: {
+        title: '学生单科分析',
+        isHide: true
+      }
+    },
+    {
       path: 'class',
       name: 'ExamClass',
       component: '/core-business/exam/class',
