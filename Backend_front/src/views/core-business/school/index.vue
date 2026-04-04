@@ -52,51 +52,52 @@
           </template>
 
           <!-- 树形视图 -->
-          <el-tree
-            v-if="viewType === 'tree'"
-            ref="treeRef"
-            :data="treeData"
-            :props="defaultProps"
-            default-expand-all
-            highlight-current
-            :expand-on-click-node="false"
-            :filter-node-method="filterNode"
-          >
-            <template #default="{ node, data }">
-              <span class="custom-tree-node">
-                <div class="node-label">
-                  <el-tag 
-                    v-if="data.type === 'province'" 
-                    size="small" 
-                    type="danger" 
-                    class="mr-2"
-                  >省份</el-tag>
-                  <el-tag 
-                    v-else-if="data.type === 'city'" 
-                    size="small" 
-                    type="info" 
-                    class="mr-2"
-                  >城市</el-tag>
-                  <el-tag 
-                    v-else-if="data.type === 'school'" 
-                    size="small" 
-                    type="primary" 
-                    class="mr-2"
-                  >学校</el-tag>
-                  <span>{{ node.label }}</span>
-                </div>
-              </span>
-            </template>
-          </el-tree>
+          <div v-if="viewType === 'tree'" class="tree-container">
+            <el-tree
+              ref="treeRef"
+              :data="treeData"
+              :props="defaultProps"
+              default-expand-all
+              highlight-current
+              :expand-on-click-node="false"
+              :filter-node-method="filterNode"
+            >
+              <template #default="{ node, data }">
+                <span class="custom-tree-node">
+                  <div class="node-label">
+                    <el-tag 
+                      v-if="data.type === 'province'" 
+                      size="small" 
+                      type="danger" 
+                      class="mr-2"
+                    >省份</el-tag>
+                    <el-tag 
+                      v-else-if="data.type === 'city'" 
+                      size="small" 
+                      type="info" 
+                      class="mr-2"
+                    >城市</el-tag>
+                    <el-tag 
+                      v-else-if="data.type === 'school'" 
+                      size="small" 
+                      type="primary" 
+                      class="mr-2"
+                    >学校</el-tag>
+                    <span>{{ node.label }}</span>
+                  </div>
+                </span>
+              </template>
+            </el-tree>
+          </div>
 
           <!-- 列表视图 -->
-          <div v-else>
+          <div v-else class="list-container">
             <el-table 
               :data="listData" 
               border 
               style="width: 100%" 
               v-loading="loading"
-              max-height="650"
+              height="400"
             >
               <el-table-column prop="province" label="省份" width="120" align="center" />
               <el-table-column prop="city" label="城市" width="120" align="center" />
@@ -584,12 +585,12 @@ const submitImport = async () => {
   }
 }
 
+import { useUserStore } from '@/store/modules/user'
+
 const downloadTemplate = () => {
-  ElMessage.info('正在下载模板...')
-  // 模拟下载
-  setTimeout(() => {
-    ElMessage.success('模板下载完成')
-  }, 1000)
+  const token = useUserStore().accessToken || ''
+  const baseUrl = import.meta.env.VITE_API_URL || ''
+  window.open(`${baseUrl}/api/system/school/download-template?token=${token}`, '_blank')
 }
 
 onMounted(() => {
@@ -604,8 +605,17 @@ onMounted(() => {
   min-height: calc(100vh - 120px);
 }
 
-.tree-card, .import-card {
-  height: 100%;
+.main-card, .import-card {
+  height: 550px;
+}
+
+.tree-container {
+  height: 450px;
+  overflow-y: auto;
+}
+
+.list-container {
+  height: auto;
 }
 
 .custom-tree-node {

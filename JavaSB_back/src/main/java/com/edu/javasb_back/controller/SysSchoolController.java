@@ -6,8 +6,16 @@ import com.edu.javasb_back.model.entity.SysSchool;
 import com.edu.javasb_back.model.vo.SchoolNodeVO;
 import com.edu.javasb_back.service.SysSchoolService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.File;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -17,6 +25,38 @@ public class SysSchoolController {
 
     @Autowired
     private SysSchoolService sysSchoolService;
+
+    @LogOperation("下载学校导入模板")
+    @GetMapping("/download-template")
+    public ResponseEntity<Resource> downloadTemplate() {
+        try {
+            // 指向 assets 目录下的学校导入模板
+            File file = new File("JavaSB_back/src/main/assests/学校导入模板.xlsx");
+            if (!file.exists()) {
+                // 尝试另一种相对路径
+                file = new File("src/main/assests/学校导入模板.xlsx");
+            }
+            if (!file.exists()) {
+                // 尝试绝对路径
+                file = new File("c:/Users/admin/Desktop/wechat_mini_program-master/JavaSB_back/src/main/assests/学校导入模板.xlsx");
+            }
+            
+            if (!file.exists()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Resource resource = new FileSystemResource(file);
+            String filename = URLEncoder.encode("学校导入模板.xlsx", StandardCharsets.UTF_8.toString());
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(resource);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 
     @LogOperation("获取学校架构树")
     @GetMapping("/tree")
