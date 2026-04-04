@@ -236,6 +236,7 @@ public class SysAccountServiceImpl implements SysAccountService {
         Optional<SysAccount> accountOpt = accountRepository.findByUidSql(uid);
         if (accountOpt.isPresent()) {
             SysAccount account = accountOpt.get();
+            checkVipExpiration(account);
             
             // 如果是后台管理人员，下发允许访问的模块列表
             if (account.getRoleId() != null && account.getRoleId() == 2) {
@@ -257,6 +258,7 @@ public class SysAccountServiceImpl implements SysAccountService {
         Optional<SysAccount> accountOpt = accountRepository.findByUsernameSql(username);
         if (accountOpt.isPresent()) {
             SysAccount account = accountOpt.get();
+            checkVipExpiration(account);
             
             // 如果是后台管理人员，下发允许访问的模块列表
             if (account.getRoleId() != null && account.getRoleId() == 2) {
@@ -272,7 +274,32 @@ public class SysAccountServiceImpl implements SysAccountService {
         return Result.error("用户不存在");
     }
 
+    private void checkVipExpiration(SysAccount account) {
+        if (account == null || account.getVipExpireTime() == null) {
+            return;
+        }
+        
+        // 只有家长角色 (roleId = 3) 需要检查 VIP 过期
+        if (account.getRoleId() != null && account.getRoleId() == 3) {
+            if (account.getVipExpireTime().isBefore(java.time.LocalDateTime.now())) {
+                boolean changed = false;
+                if (account.getIsVip() != null && account.getIsVip() == 1) {
+                    account.setIsVip(0);
+                    changed = true;
+                }
+                if (account.getIsSvip() != null && account.getIsSvip() == 1) {
+                    account.setIsSvip(0);
+                    changed = true;
+                }
+                if (changed) {
+                    accountRepository.save(account);
+                }
+            }
+        }
+    }
+
     private Result<LoginVO> generateLoginResult(SysAccount account) {
+        checkVipExpiration(account);
         // 使用原生 SQL 更新最后登录时间和状态
         accountRepository.updateLoginStatusSql(account.getUid(), "online");
 
