@@ -8,7 +8,7 @@ export function fetchGetSchoolTree() {
 }
 
 /** 获取学校平铺列表 */
-export function fetchGetSchoolList(params?: { keyword?: string, province?: string, city?: string, name?: string }) {
+export function fetchGetSchoolList(params?: { current?: number, size?: number, keyword?: string, province?: string, city?: string, name?: string }) {
   return api.get<any>({
     url: '/api/system/school/list',
     params

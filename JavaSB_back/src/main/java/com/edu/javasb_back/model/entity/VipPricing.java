@@ -43,6 +43,16 @@ public class VipPricing {
     public void setVipId(Integer vipId) { this.vipId = vipId; }
     public String getPkgName() { return pkgName; }
     public void setPkgName(String pkgName) { this.pkgName = pkgName; }
+    public String getPkgDesc() { return pkgDesc; }
+    public void setPkgDesc(String pkgDesc) { this.pkgDesc = pkgDesc; }
     public BigDecimal getCurrentPrice() { return currentPrice; }
     public void setCurrentPrice(BigDecimal currentPrice) { this.currentPrice = currentPrice; }
+    public BigDecimal getOriginalPrice() { return originalPrice; }
+    public void setOriginalPrice(BigDecimal originalPrice) { this.originalPrice = originalPrice; }
+    public Integer getDurationMonths() { return durationMonths; }
+    public void setDurationMonths(Integer durationMonths) { this.durationMonths = durationMonths; }
+    public Integer getIsBestValue() { return isBestValue; }
+    public void setIsBestValue(Integer isBestValue) { this.isBestValue = isBestValue; }
+    public Integer getSortOrder() { return sortOrder; }
+    public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
 }

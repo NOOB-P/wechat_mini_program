@@ -59,6 +59,8 @@ public class VipConfig {
     public void setBenefits(String benefits) { this.benefits = benefits; }
     public Integer getIsEnabled() { return isEnabled; }
     public void setIsEnabled(Integer isEnabled) { this.isEnabled = isEnabled; }
+    public Integer getSortOrder() { return sortOrder; }
+    public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
     public List<VipPricing> getPricings() { return pricings; }
     public void setPricings(List<VipPricing> pricings) { this.pricings = pricings; }
 }
