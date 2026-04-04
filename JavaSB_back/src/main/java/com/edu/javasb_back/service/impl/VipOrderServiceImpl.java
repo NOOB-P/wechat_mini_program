@@ -86,6 +86,26 @@ public class VipOrderServiceImpl implements VipOrderService {
             } else if (order.getPackageType().contains("VIP") || "VIP".equalsIgnoreCase(order.getPackageType())) {
                 account.setIsVip(1);
             }
+
+            // 计算过期时间
+            int months = 0;
+            if ("月包".equals(order.getPeriod())) {
+                months = 1;
+            } else if ("季包".equals(order.getPeriod())) {
+                months = 4;
+            } else if ("年包".equals(order.getPeriod())) {
+                months = 12;
+            }
+
+            if (months > 0) {
+                LocalDateTime currentExpire = account.getVipExpireTime();
+                LocalDateTime now = LocalDateTime.now();
+                if (currentExpire == null || currentExpire.isBefore(now)) {
+                    account.setVipExpireTime(now.plusMonths(months));
+                } else {
+                    account.setVipExpireTime(currentExpire.plusMonths(months));
+                }
+            }
             sysAccountRepository.save(account);
         }
 

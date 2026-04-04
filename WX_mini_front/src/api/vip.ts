@@ -74,3 +74,18 @@ export const simulatePayCallbackApi = (orderNo: string) => {
     data: { orderNo }
   })
 }
+
+/**
+ * @Description: 逻辑判断用户会员是否过期
+ * @param {object} userInfo 用户信息对象 (包含 vipExpireTime)
+ * @returns {boolean} true 表示已过期，false 表示未过期或非会员
+ */
+export const isVipExpired = (userInfo: any): boolean => {
+  if (!userInfo || !userInfo.vipExpireTime) return false
+  
+  const expireTime = new Date(userInfo.vipExpireTime).getTime()
+  const now = new Date().getTime()
+  
+  // 如果当前时间已经超过了过期时间，说明已过期
+  return now > expireTime
+}
