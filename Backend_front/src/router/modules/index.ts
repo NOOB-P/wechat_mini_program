@@ -1,6 +1,7 @@
 import { dashboardRoutes } from './dashboard'
 import { contentManagementRoutes } from './content-management'
 import { coreBusinessRoutes } from './core-business'
+import { examRoutes } from './exam'
 import { courseStudyRoutes } from './course-study'
 import { orderRoutes } from './order'
 import { paymentRoutes } from './payment'
@@ -17,6 +18,7 @@ export const routeModules: AppRouteRecord[] = [
   dashboardRoutes,
   contentManagementRoutes,
   coreBusinessRoutes,
+  examRoutes,
   orderRoutes,
   courseStudyRoutes,
   paymentRoutes,
