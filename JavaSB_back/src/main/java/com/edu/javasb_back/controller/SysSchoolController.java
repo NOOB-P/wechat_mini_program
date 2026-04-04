@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/system/school")
@@ -25,12 +26,14 @@ public class SysSchoolController {
 
     @LogOperation("获取学校列表")
     @GetMapping("/list")
-    public Result<List<SysSchool>> getSchoolList(
+    public Result<Map<String, Object>> getSchoolList(
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String province,
             @RequestParam(required = false) String city,
             @RequestParam(required = false) String name) {
-        return sysSchoolService.getSchoolList(keyword, province, city, name);
+        return sysSchoolService.getSchoolList(current, size, keyword, province, city, name);
     }
 
     @LogOperation("新增学校")
