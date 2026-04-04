@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,8 +14,10 @@ import org.springframework.stereotype.Service;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.DeliveryConfig;
 import com.edu.javasb_back.model.entity.PaperPrice;
+import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.repository.DeliveryConfigRepository;
 import com.edu.javasb_back.repository.PaperPriceRepository;
+import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.service.VipService;
 
 @Service
@@ -26,8 +29,44 @@ public class VipServiceImpl implements VipService {
     @Autowired
     private DeliveryConfigRepository deliveryConfigRepository;
 
+    @Autowired
+    private SysAccountRepository sysAccountRepository;
+
+    /**
+     * 内部校验 VIP 状态逻辑
+     */
+    private Result<SysAccount> validateVipStatus(Long uid) {
+        Optional<SysAccount> accountOpt = sysAccountRepository.findById(uid);
+        if (accountOpt.isEmpty()) return Result.error("用户不存在");
+        
+        SysAccount account = accountOpt.get();
+        // 如果没有 VIP 且没有 SVIP 权限
+        if ((account.getIsVip() == null || account.getIsVip() == 0) && 
+            (account.getIsSvip() == null || account.getIsSvip() == 0)) {
+            return Result.error(403, "您尚未开通会员，请先开通后查看");
+        }
+
+        // 校验过期时间
+        if (account.getVipExpireTime() != null && 
+            account.getVipExpireTime().isBefore(java.time.LocalDateTime.now())) {
+            
+            // 自动重置权限标识
+            account.setIsVip(0);
+            account.setIsSvip(0);
+            sysAccountRepository.save(account);
+            
+            return Result.error(403, "您的会员已过期，请续费后继续使用");
+        }
+        
+        return Result.success(account);
+    }
+
     @Override
     public Result<Map<String, Object>> getVipAnalysis(Long uid) {
+        // 先进行鉴权和过期判断
+        Result<SysAccount> authResult = validateVipStatus(uid);
+        if (authResult.getCode() != 200) return Result.error(authResult.getCode(), authResult.getMsg());
+
         // 模拟数据分析数据，实际应从业务表统计
         Map<String, Object> data = new HashMap<>();
         
@@ -119,7 +158,11 @@ public class VipServiceImpl implements VipService {
 
     @Override
     public Result<List<Map<String, Object>>> getWrongBookList(Long uid, Map<String, Object> params) {
-        // 模拟错题列表
+        // 先进行鉴权和过期判断
+        Result<SysAccount> authResult = validateVipStatus(uid);
+        if (authResult.getCode() != 200) return Result.error(authResult.getCode(), authResult.getMsg());
+
+        // 模拟错题本列表
         List<Map<String, Object>> list = new ArrayList<>();
         Map<String, Object> w1 = new HashMap<>();
         w1.put("id", 1);
