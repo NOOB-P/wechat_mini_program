@@ -31,6 +31,13 @@ public interface SysAccountService {
      * 手机号验证码登录 (主要用于小程序家长端)
      */
     Result<LoginVO> loginByPhone(AccountLoginDTO loginDTO);
+
+    /**
+     * 微信登录
+     * @param code 微信登录凭证
+     * @return 登录结果
+     */
+    Result<LoginVO> loginByWechat(String code);
     
     /**
      * 获取当前用户信息

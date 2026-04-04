@@ -291,6 +291,42 @@ CREATE TABLE `wechat_configs` (
 -- 订单与交易模块
 -- ---------------------------------------------------------
 
+-- 11.1 纸张单价配置表
+DROP TABLE IF EXISTS `paper_prices`;
+CREATE TABLE `paper_prices` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `type` VARCHAR(20) NOT NULL COMMENT '纸张规格: A4, A3',
+    `side` VARCHAR(20) NOT NULL COMMENT '单/双面: 单面, 双面',
+    `color` VARCHAR(20) NOT NULL COMMENT '颜色: 黑白, 彩色',
+    `price` DECIMAL(10,2) NOT NULL COMMENT '单价(元/张)',
+    `min_quantity` INT DEFAULT 1 COMMENT '起印数量',
+    `unit` VARCHAR(10) DEFAULT '张' COMMENT '单位'
+) ENGINE=InnoDB COMMENT='纸张打印单价配置表';
+
+-- 11.2 配送费用配置表
+DROP TABLE IF EXISTS `delivery_configs`;
+CREATE TABLE `delivery_configs` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(50) NOT NULL COMMENT '配送方式: 标准快递, 极速达, 自提',
+    `price` DECIMAL(10,2) NOT NULL COMMENT '基础运费',
+    `free_limit` DECIMAL(10,2) DEFAULT 0.00 COMMENT '免运费额度',
+    `description` VARCHAR(200) COMMENT '描述说明'
+) ENGINE=InnoDB COMMENT='配送费用配置表';
+
+-- 初始化打印配置数据
+INSERT INTO `paper_prices` (`type`, `side`, `color`, `price`) VALUES 
+('A4', '单面', '黑白', 0.50),
+('A4', '双面', '黑白', 0.80),
+('A4', '单面', '彩色', 2.00),
+('A4', '双面', '彩色', 3.50),
+('A3', '单面', '黑白', 1.00),
+('A3', '双面', '黑白', 1.50);
+
+INSERT INTO `delivery_configs` (`name`, `price`, `free_limit`, `description`) VALUES 
+('标准快递', 10.00, 50.00, '预计2-3天送达'),
+('极速达', 20.00, 100.00, '同城当日或次日送达'),
+('自提', 0.00, 0.00, '线下门店自提，无需运费');
+
 -- 12. 错题打印订单表
 DROP TABLE IF EXISTS `print_orders`;
 CREATE TABLE `print_orders` (

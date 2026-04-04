@@ -33,6 +33,10 @@ import com.edu.javasb_back.repository.SysUserModuleRepository;
 import com.edu.javasb_back.service.SysAccountService;
 import com.edu.javasb_back.utils.JwtUtils;
 
+import org.springframework.web.client.RestTemplate;
+import java.util.Map;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Service
 public class SysAccountServiceImpl implements SysAccountService {
 
@@ -62,6 +66,9 @@ public class SysAccountServiceImpl implements SysAccountService {
 
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+
+    private final RestTemplate restTemplate = new RestTemplate();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 模拟验证码缓存
     private static final ConcurrentHashMap<String, String> smsCodeMap = new ConcurrentHashMap<>();
@@ -228,6 +235,60 @@ public class SysAccountServiceImpl implements SysAccountService {
         smsCodeMap.remove(loginDTO.getPhone());
 
         return generateLoginResult(account);
+    }
+
+    @Override
+    public Result<LoginVO> loginByWechat(String code) {
+        if (!StringUtils.hasText(code)) {
+            return Result.error("微信登录凭证不能为空");
+        }
+
+        // 1. 调用微信 API 换取 openid
+        String appId = globalConfigProperties.getWechatAppId();
+        String secret = globalConfigProperties.getWechatAppSecret();
+        String url = String.format("https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
+                appId, secret, code);
+
+        try {
+            String response = restTemplate.getForObject(url, String.class);
+            Map<String, Object> resultMap = objectMapper.readValue(response, Map.class);
+
+            if (resultMap.containsKey("errcode") && (int)resultMap.get("errcode") != 0) {
+                return Result.error("微信授权失败: " + resultMap.get("errmsg"));
+            }
+
+            String openid = (String) resultMap.get("openid");
+            if (!StringUtils.hasText(openid)) {
+                return Result.error("获取微信 OpenID 失败");
+            }
+
+            // 2. 根据 openid 查询用户
+            Optional<SysAccount> accountOpt = accountRepository.findByWxid(openid);
+            SysAccount account;
+            if (accountOpt.isEmpty()) {
+                // 3. 如果用户不存在，则自动注册
+                account = new SysAccount();
+                account.setWxid(openid);
+                account.setUsername("wx_" + openid.substring(0, 8)); // 临时用户名
+                account.setNickname("微信用户_" + openid.substring(openid.length() - 4));
+                account.setRoleId(3); // 家长角色
+                account.setIsEnabled(1);
+                account.setOnlineStatus("online");
+                // 设置一个随机或默认密码，防止密码登录报错
+                account.setPassword(passwordEncoder.encode(globalConfigProperties.getDefaultPassword()));
+                accountRepository.save(account);
+            } else {
+                account = accountOpt.get();
+                if (account.getIsEnabled() == 0 || "banned".equals(account.getOnlineStatus())) {
+                    return Result.error("账号已被禁用或封禁");
+                }
+            }
+
+            return generateLoginResult(account);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("微信登录异常: " + e.getMessage());
+        }
     }
 
     @Override

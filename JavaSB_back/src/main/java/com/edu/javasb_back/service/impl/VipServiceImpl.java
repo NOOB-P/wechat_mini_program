@@ -1,5 +1,6 @@
 package com.edu.javasb_back.service.impl;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -10,13 +11,16 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.DeliveryConfig;
 import com.edu.javasb_back.model.entity.PaperPrice;
+import com.edu.javasb_back.model.entity.PrintOrder;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.repository.DeliveryConfigRepository;
 import com.edu.javasb_back.repository.PaperPriceRepository;
+import com.edu.javasb_back.repository.PrintOrderRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.service.VipService;
 
@@ -31,6 +35,11 @@ public class VipServiceImpl implements VipService {
 
     @Autowired
     private SysAccountRepository sysAccountRepository;
+
+    @Autowired
+    private PrintOrderRepository printOrderRepository;
+
+
 
     /**
      * 内部校验 VIP 状态逻辑
@@ -224,8 +233,74 @@ public class VipServiceImpl implements VipService {
     }
 
     @Override
+    @Transactional
     public Result<Void> submitPrintOrder(Long uid, Map<String, Object> orderData) {
-        // 模拟提交订单
-        return Result.success("订单已提交，请在我的订单中查看进度", null);
+        // 1. 参数提取
+        String paperSize = (String) orderData.get("paperSize");
+        String printSide = (String) orderData.get("printSide");
+        String color = (String) orderData.get("color");
+        Integer pages = (Integer) orderData.get("pages");
+        if (pages == null) pages = 20; // 默认页数，实际应从小程序传参
+        
+        String deliveryMethod = (String) orderData.get("deliveryMethod");
+        String userName = (String) orderData.get("userName");
+        String userPhone = (String) orderData.get("userPhone");
+        String documentName = (String) orderData.get("documentName");
+        if (documentName == null) documentName = "错题打印文档_" + System.currentTimeMillis();
+
+        // 2. 核心价格计算 (后端校验)
+        // 查询纸张单价
+        String finalPaperSize = paperSize;
+        String finalPrintSide = printSide;
+        String finalColor = color;
+        BigDecimal paperUnitPrice = paperPriceRepository.findAll().stream()
+                .filter(p -> p.getType().equalsIgnoreCase(finalPaperSize) && 
+                            p.getSide().equals(finalPrintSide) && 
+                            p.getColor().equals(finalColor))
+                .map(PaperPrice::getPrice)
+                .findFirst().orElse(new BigDecimal("0.50")); // 默认兜底价
+
+        BigDecimal paperCost = paperUnitPrice.multiply(new BigDecimal(pages));
+        BigDecimal bindingFee = new BigDecimal("2.00"); // 装订费配置
+        BigDecimal minAmount = new BigDecimal("5.00");  // 起印金额配置
+        
+        BigDecimal totalBase = paperCost.add(bindingFee);
+        if (totalBase.compareTo(minAmount) < 0) totalBase = minAmount;
+        
+        // 计算运费
+        String methodName = "standard".equals(deliveryMethod) ? "标准快递" : 
+                           "express".equals(deliveryMethod) ? "极速达" : "自提";
+        
+        DeliveryConfig delivery = deliveryConfigRepository.findAll().stream()
+                .filter(d -> d.getName().equals(methodName))
+                .findFirst().orElse(null);
+                
+        BigDecimal shippingFee = BigDecimal.ZERO;
+        if (delivery != null) {
+            // 如果不满足免邮额度
+            if (delivery.getFreeLimit().compareTo(BigDecimal.ZERO) == 0 || 
+                totalBase.compareTo(delivery.getFreeLimit()) < 0) {
+                shippingFee = delivery.getPrice();
+            }
+        }
+        
+        BigDecimal finalPrice = totalBase.add(shippingFee);
+
+        // 3. 创建订单实体
+        PrintOrder order = new PrintOrder();
+        order.setOrderNo("POD" + System.currentTimeMillis() + (int)(Math.random() * 900 + 100));
+        order.setUserName(userName != null ? userName : "微信用户");
+        order.setUserPhone(userPhone != null ? userPhone : "");
+        order.setDocumentName(documentName);
+        order.setPages(pages);
+        order.setPrintType(paperSize + "/" + printSide + "/" + color);
+        order.setDeliveryMethod(methodName);
+        order.setTotalPrice(finalPrice);
+        order.setOrderStatus(1); // 1-待支付
+
+        // 4. 保存入库
+        printOrderRepository.save(order);
+
+        return Result.success("订单已提交，请前往支付", null);
     }
 }
