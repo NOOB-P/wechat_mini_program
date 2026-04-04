@@ -90,23 +90,37 @@
           </el-tree>
 
           <!-- 列表视图 -->
-          <el-table 
-            v-else 
-            :data="listData" 
-            border 
-            style="width: 100%" 
-            v-loading="loading"
-          >
-            <el-table-column prop="province" label="省份" width="120" align="center" />
-            <el-table-column prop="city" label="城市" width="120" align="center" />
-            <el-table-column prop="name" label="学校名称" min-width="200" />
-            <el-table-column label="操作" width="150" align="center" fixed="right">
-              <template #default="{ row }">
-                <el-button type="primary" link size="small" @click="handleEditSchool(row)">编辑</el-button>
-                <el-button type="danger" link size="small" @click="handleDeleteSchool(row)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+          <div v-else>
+            <el-table 
+              :data="listData" 
+              border 
+              style="width: 100%" 
+              v-loading="loading"
+              max-height="650"
+            >
+              <el-table-column prop="province" label="省份" width="120" align="center" />
+              <el-table-column prop="city" label="城市" width="120" align="center" />
+              <el-table-column prop="name" label="学校名称" min-width="200" />
+              <el-table-column label="操作" width="150" align="center" fixed="right">
+                <template #default="{ row }">
+                  <el-button type="primary" link size="small" @click="handleEditSchool(row)">编辑</el-button>
+                  <el-button type="danger" link size="small" @click="handleDeleteSchool(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <div class="pagination-container mt-4 flex justify-end">
+              <el-pagination
+                v-model:current-page="page"
+                v-model:page-size="pageSize"
+                :page-sizes="[10, 20, 50, 100]"
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="total"
+                @size-change="handleSizeChange"
+                @current-change="handleCurrentChange"
+              />
+            </div>
+          </div>
         </el-card>
       </el-col>
 
@@ -205,6 +219,9 @@ const treeRef = ref<any>(null)
 const treeData = ref<Api.School.ArchitectureNode[]>([])
 const listData = ref<any[]>([])
 const allSchools = ref<any[]>([]) // 存储原始所有数据，用于筛选
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(10)
 const defaultProps = {
   children: 'children',
   label: 'name'
@@ -383,8 +400,14 @@ const loadData = async (forceRefetchAll = false) => {
   try {
     // 始终加载全量数据用于筛选框下拉列表（仅在第一次或数据变动时加载）
     if (allSchools.value.length === 0 || forceRefetchAll) {
-      const allRes = await fetchGetSchoolList()
-      allSchools.value = Array.isArray(allRes) ? allRes : (allRes?.data || [])
+      const allRes = await fetchGetSchoolList({ current: 1, size: 10000 })
+      if (allRes && allRes.records) {
+        allSchools.value = allRes.records
+      } else if (allRes && allRes.code === 200) {
+        allSchools.value = allRes.data.records
+      } else {
+        allSchools.value = Array.isArray(allRes) ? allRes : (allRes?.data || [])
+      }
     }
 
     if (viewType.value === 'tree') {
@@ -402,15 +425,19 @@ const loadData = async (forceRefetchAll = false) => {
       }
     } else {
       const res = await fetchGetSchoolList({
+        current: page.value,
+        size: pageSize.value,
         keyword: searchForm.value.keyword,
         province: searchForm.value.province,
         city: searchForm.value.city,
         name: searchForm.value.name
       })
-      if (Array.isArray(res)) {
-        listData.value = res
+      if (res && res.records) {
+        listData.value = res.records
+        total.value = res.total
       } else if (res && res.code === 200) {
-        listData.value = res.data
+        listData.value = res.data.records
+        total.value = res.data.total
       }
     }
   } catch (error) {
@@ -418,6 +445,17 @@ const loadData = async (forceRefetchAll = false) => {
   } finally {
     loading.value = false
   }
+}
+
+const handleSizeChange = (val: number) => {
+  pageSize.value = val
+  page.value = 1
+  loadData()
+}
+
+const handleCurrentChange = (val: number) => {
+  page.value = val
+  loadData()
 }
 
 watch(viewType, (newVal) => {

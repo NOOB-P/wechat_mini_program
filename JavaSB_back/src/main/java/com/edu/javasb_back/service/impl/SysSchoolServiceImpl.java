@@ -7,10 +7,15 @@ import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.service.SysSchoolService;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -119,7 +124,9 @@ public class SysSchoolServiceImpl implements SysSchoolService {
     }
 
     @Override
-    public Result<List<SysSchool>> getSchoolList(String keyword, String province, String city, String name) {
+    public Result<Map<String, Object>> getSchoolList(int page, int size, String keyword, String province, String city, String name) {
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createTime"));
+
         Specification<SysSchool> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("status"), 1));
@@ -148,7 +155,15 @@ public class SysSchoolServiceImpl implements SysSchoolService {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        List<SysSchool> schools = sysSchoolRepository.findAll(spec);
-        return Result.success("获取成功", schools);
+        Page<SysSchool> pageResult = sysSchoolRepository.findAll(spec, pageable);
+
+        Map<String, Object> resultData = new HashMap<>();
+        resultData.put("records", pageResult.getContent());
+        resultData.put("total", pageResult.getTotalElements());
+        resultData.put("current", pageResult.getNumber() + 1);
+        resultData.put("size", pageResult.getSize());
+        resultData.put("pages", pageResult.getTotalPages());
+
+        return Result.success("获取成功", resultData);
     }
 }
