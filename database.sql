@@ -107,7 +107,8 @@ INSERT INTO `sys_vip_pricing` (`vip_id`, `pkg_name`, `pkg_desc`, `current_price`
 -- 3. 学校结构表 (冗余设计)
 DROP TABLE IF EXISTS `schools`;
 CREATE TABLE `schools` (
-    `id` VARCHAR(50) PRIMARY KEY COMMENT '学校唯一标识',
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '内部记录ID',
+    `school_id` VARCHAR(50) NOT NULL UNIQUE COMMENT '学校唯一标识',
     `province` VARCHAR(50) COMMENT '省份',
     `city` VARCHAR(50) COMMENT '城市',
     `name` VARCHAR(100) NOT NULL COMMENT '学校名称',
@@ -117,14 +118,25 @@ CREATE TABLE `schools` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='学校基础信息表';
 
+-- 3.1 全局班级表
+DROP TABLE IF EXISTS `sys_classes`;
+CREATE TABLE `sys_classes` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '内部记录ID',
+    `classid` VARCHAR(50) NOT NULL UNIQUE COMMENT '班级唯一标识ID',
+    `grade` VARCHAR(50) NOT NULL COMMENT '年级',
+    `alias` VARCHAR(100) COMMENT '班级别名',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+) ENGINE=InnoDB COMMENT='全局班级管理表';
+
 -- 4. 学生档案表 (包含状态和会员冗余)
 DROP TABLE IF EXISTS `students`;
 CREATE TABLE `students` (
     `id` VARCHAR(50) PRIMARY KEY COMMENT '学生唯一ID',
     `student_no` VARCHAR(50) NOT NULL UNIQUE COMMENT '学号',
     `name` VARCHAR(50) NOT NULL COMMENT '学生姓名',
-    `gender` ENUM('男', '女', '未知') DEFAULT '未知' COMMENT '性别',
     `school_id` VARCHAR(50) COMMENT '关联的学校ID',
+    `class_id` VARCHAR(50) COMMENT '关联的班级ID(classid)',
     `school` VARCHAR(100) COMMENT '所在学校(冗余)',
     `grade` VARCHAR(50) COMMENT '所在年级(冗余)',
     `class_name` VARCHAR(50) COMMENT '所在班级(冗余)',
@@ -471,7 +483,7 @@ INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `avatar`, `password`,
 (10, 'parent07', '吴九妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000009', 'parent07@example.com', 3, 1, 1, 'offline', 1, 1);
 
 -- 3. 学校结构表数据
-INSERT INTO `schools` (`id`, `province`, `city`, `name`, `type`, `status`) VALUES
+INSERT INTO `schools` (`school_id`, `province`, `city`, `name`, `type`, `status`) VALUES
 ('SCH001', '广东省', '广州市', '第一中学', 'school', 1),
 ('SCH002', '广东省', '深圳市', '实验小学', 'school', 1),
 ('SCH003', '广东省', '东莞市', '育才中学', 'school', 1),
@@ -483,18 +495,31 @@ INSERT INTO `schools` (`id`, `province`, `city`, `name`, `type`, `status`) VALUE
 ('SCH009', '四川省', '成都市', '成都七中', 'school', 1),
 ('SCH010', '广东省', '广州市', '执信中学', 'school', 1);
 
+-- 3.1 全局班级表数据
+INSERT INTO `sys_classes` (`classid`, `grade`, `alias`) VALUES
+('CLS001', '初一', '1班'),
+('CLS002', '六年级', '2班'),
+('CLS003', '高一', '3班'),
+('CLS004', '高二', '理科班'),
+('CLS005', '初三', '英语强化班'),
+('CLS006', '初一', '2班'),
+('CLS007', '高一', '1班'),
+('CLS008', '初二', '3班'),
+('CLS009', '初三', '1班'),
+('CLS010', '四年级', '1班');
+
 -- 4. 学生档案表数据
-INSERT INTO `students` (`id`, `student_no`, `name`, `gender`, `school_id`, `school`, `grade`, `class_name`, `bound_count`) VALUES
-('STU001', '20230001', '张三', '男', 'SCH001', '第一中学', '初一', '1班', 2),
-('STU002', '20230002', '李四', '女', 'SCH002', '实验小学', '六年级', '2班', 1),
-('STU003', '20230003', '王五', '男', 'SCH003', '育才中学', '高一', '3班', 1),
-('STU004', '20230004', '赵六', '女', 'SCH004', '杭州高级中学', '高二', '理科班', 1),
-('STU005', '20230005', '孙七', '男', 'SCH005', '南京外国语学校', '初三', '英语强化班', 1),
-('STU006', '20230006', '周八', '男', 'SCH006', '北京四中', '初一', '2班', 1),
-('STU007', '20230007', '吴九', '女', 'SCH007', '上海建平中学', '高一', '1班', 1),
-('STU008', '20230008', '郑十', '男', 'SCH008', '武汉外国语学校', '初二', '3班', 0),
-('STU009', '20230009', '张小三', '女', 'SCH001', '第一中学', '初三', '1班', 1),
-('STU010', '20230010', '李小四', '男', 'SCH002', '实验小学', '四年级', '1班', 1);
+INSERT INTO `students` (`id`, `student_no`, `name`, `school_id`, `class_id`, `school`, `grade`, `class_name`, `bound_count`) VALUES
+('STU001', '20230001', '张三', 'SCH001', 'CLS001', '第一中学', '初一', '1班', 2),
+('STU002', '20230002', '李四', 'SCH002', 'CLS002', '实验小学', '六年级', '2班', 1),
+('STU003', '20230003', '王五', 'SCH003', 'CLS003', '育才中学', '高一', '3班', 1),
+('STU004', '20230004', '赵六', 'SCH004', 'CLS004', '杭州高级中学', '高二', '理科班', 1),
+('STU005', '20230005', '孙七', 'SCH005', 'CLS005', '南京外国语学校', '初三', '英语强化班', 1),
+('STU006', '20230006', '周八', 'SCH006', 'CLS006', '北京四中', '初一', '2班', 1),
+('STU007', '20230007', '吴九', 'SCH007', 'CLS007', '上海建平中学', '高一', '1班', 1),
+('STU008', '20230008', '郑十', 'SCH008', 'CLS008', '武汉外国语学校', '初二', '3班', 0),
+('STU009', '20230009', '张小三', 'SCH001', 'CLS009', '第一中学', '初三', '1班', 1),
+('STU010', '20230010', '李小四', 'SCH002', 'CLS010', '实验小学', '四年级', '1班', 1);
 
 -- 4.1 学生-家长绑定表数据 (体现新规则：一个家长账号只能绑定一个学生，但一个学生可以被多个家长绑定)
 INSERT INTO `student_parent_bindings` (`student_id`, `parent_uid`, `binding_type`) VALUES
@@ -504,9 +529,7 @@ INSERT INTO `student_parent_bindings` (`student_id`, `parent_uid`, `binding_type
 ('STU002', 6, 'parent'), -- 赵六爸爸绑定李四
 ('STU003', 8, 'parent'), -- 孙七妈妈绑定王五
 ('STU004', 9, 'parent'), -- 周八爸爸绑定赵六
-('STU005', 10, 'parent'), -- 吴九妈妈绑定孙七
-('STU006', 11, 'parent'), -- 假设还有其他家长账号... (此处保持逻辑一致即可)
-('STU007', 12, 'parent'); -- 提示：此处仅为示例，实际账号UID需存在于 sys_accounts 中
+('STU005', 10, 'parent'); -- 吴九妈妈绑定孙七
 
 -- 5. 考试信息与成绩表数据
 INSERT INTO `exams` (`id`, `name`, `school`, `grade`, `class_name`, `exam_date`, `status`, `success_count`, `fail_count`) VALUES

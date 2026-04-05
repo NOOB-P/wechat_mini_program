@@ -22,11 +22,11 @@ public class SysStudent {
     @Column(nullable = false, length = 50)
     private String name;
 
-    @Column(length = 10)
-    private String gender = "未知";
-
     @Column(name = "school_id", length = 50)
     private String schoolId;
+
+    @Column(name = "class_id", length = 50)
+    private String classId;
 
     @Column(length = 100)
     private String school;
@@ -57,11 +57,11 @@ public class SysStudent {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
-    public String getGender() { return gender; }
-    public void setGender(String gender) { this.gender = gender; }
-
     public String getSchoolId() { return schoolId; }
     public void setSchoolId(String schoolId) { this.schoolId = schoolId; }
+
+    public String getClassId() { return classId; }
+    public void setClassId(String classId) { this.classId = classId; }
 
     public String getSchool() { return school; }
     public void setSchool(String school) { this.school = school; }

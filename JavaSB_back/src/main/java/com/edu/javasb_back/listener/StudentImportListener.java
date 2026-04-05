@@ -10,7 +10,7 @@ import java.util.Map;
 
 public class StudentImportListener extends AnalysisEventListener<StudentImportDTO> {
     private List<StudentImportDTO> list = new ArrayList<>();
-    private static final String[] EXPECTED_HEADERS = {"学号", "姓名", "性别", "省份", "城市", "学校", "年级", "班级"};
+    private static final String[] EXPECTED_HEADERS = {"学号", "姓名", "省份", "城市", "学校", "年级", "班级"};
 
     @Override
     public void invokeHeadMap(Map<Integer, String> headMap, AnalysisContext context) {
@@ -28,7 +28,7 @@ public class StudentImportListener extends AnalysisEventListener<StudentImportDT
     @Override
     public void invoke(StudentImportDTO data, AnalysisContext context) {
         // 校验空数据
-        if (isEmpty(data.getStudentNo()) || isEmpty(data.getName()) || isEmpty(data.getGender()) || 
+        if (isEmpty(data.getStudentNo()) || isEmpty(data.getName()) || 
             isEmpty(data.getProvince()) || isEmpty(data.getCity()) || isEmpty(data.getSchool()) || 
             isEmpty(data.getGrade()) || isEmpty(data.getClassName())) {
             throw new ExcelAnalysisException("含有空数据");

@@ -166,7 +166,8 @@ declare namespace Api {
       id: string
       name: string
       studentNo: string
-      gender: string
+      schoolId?: string
+      classId?: string
       school: string
       grade: string
       className: string

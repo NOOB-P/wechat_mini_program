@@ -1,6 +1,5 @@
 package com.edu.javasb_back.controller;
 
-import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.SysSchool;
 import com.edu.javasb_back.model.vo.SchoolNodeVO;
@@ -31,7 +30,6 @@ public class SysSchoolController {
     @Autowired
     private SysSchoolService sysSchoolService;
 
-    @LogOperation("导入学校架构")
     @PostMapping("/import")
     public Result<Void> importSchools(@RequestParam("file") MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -50,7 +48,6 @@ public class SysSchoolController {
         }
     }
 
-    @LogOperation("下载学校导入模板")
     @GetMapping("/download-template")
     public ResponseEntity<Resource> downloadTemplate() {
         try {
@@ -87,13 +84,11 @@ public class SysSchoolController {
         }
     }
 
-    @LogOperation("获取学校架构树")
     @GetMapping("/tree")
     public Result<List<SchoolNodeVO>> getSchoolTree() {
         return sysSchoolService.getSchoolTree();
     }
 
-    @LogOperation("获取学校列表")
     @GetMapping("/list")
     public Result<Map<String, Object>> getSchoolList(
             @RequestParam(defaultValue = "1") int current,
@@ -105,21 +100,18 @@ public class SysSchoolController {
         return sysSchoolService.getSchoolList(current, size, keyword, province, city, name);
     }
 
-    @LogOperation("新增学校")
     @PostMapping("/add")
     public Result<Void> addSchool(@RequestBody SysSchool school) {
         return sysSchoolService.addSchool(school);
     }
 
-    @LogOperation("更新学校")
     @PutMapping("/edit")
     public Result<Void> updateSchool(@RequestBody SysSchool school) {
         return sysSchoolService.updateSchool(school);
     }
 
-    @LogOperation("删除学校")
     @DeleteMapping("/delete/{id}")
-    public Result<Void> deleteSchool(@PathVariable String id) {
+    public Result<Void> deleteSchool(@PathVariable Long id) {
         return sysSchoolService.deleteSchool(id);
     }
 }

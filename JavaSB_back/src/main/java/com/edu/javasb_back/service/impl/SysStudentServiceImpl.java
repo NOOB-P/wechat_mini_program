@@ -1,5 +1,7 @@
 package com.edu.javasb_back.service.impl;
 
+import com.edu.javasb_back.model.entity.SysClass;
+import com.edu.javasb_back.repository.SysClassRepository;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.StudentImportDTO;
 import com.edu.javasb_back.model.entity.SysSchool;
@@ -29,6 +31,9 @@ public class SysStudentServiceImpl implements SysStudentService {
     @Autowired
     private SysSchoolRepository sysSchoolRepository;
 
+    @Autowired
+    private SysClassRepository sysClassRepository;
+
     @Override
     public Result<Map<String, Object>> getStudentList(int page, int size, String keyword) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createTime"));
@@ -50,8 +55,24 @@ public class SysStudentServiceImpl implements SysStudentService {
 
         Page<SysStudent> pageResult = sysStudentRepository.findAll(spec, pageable);
 
+        // 处理关联数据显示
+        List<SysStudent> students = pageResult.getContent();
+        for (SysStudent student : students) {
+            if (StringUtils.hasText(student.getSchoolId())) {
+                sysSchoolRepository.findBySchoolId(student.getSchoolId()).ifPresent(school -> {
+                    student.setSchool(school.getName());
+                });
+            }
+            if (StringUtils.hasText(student.getClassId())) {
+                sysClassRepository.findByClassid(student.getClassId()).ifPresent(sysClass -> {
+                    student.setGrade(sysClass.getGrade());
+                    student.setClassName(sysClass.getAlias());
+                });
+            }
+        }
+
         Map<String, Object> resultData = new HashMap<>();
-        resultData.put("records", pageResult.getContent());
+        resultData.put("records", students);
         resultData.put("total", pageResult.getTotalElements());
         resultData.put("current", pageResult.getNumber() + 1);
         resultData.put("size", pageResult.getSize());
@@ -70,15 +91,16 @@ public class SysStudentServiceImpl implements SysStudentService {
             
             String schoolId;
             if (schoolOpt.isPresent()) {
-                schoolId = schoolOpt.get().getId();
+                schoolId = schoolOpt.get().getSchoolId();
             } else {
                 // 创建新学校
                 SysSchool newSchool = new SysSchool();
-                schoolId = UUID.randomUUID().toString();
-                newSchool.setId(schoolId);
+                schoolId = "SCH" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 5);
+                newSchool.setSchoolId(schoolId);
                 newSchool.setProvince(dto.getProvince());
                 newSchool.setCity(dto.getCity());
                 newSchool.setName(dto.getSchool());
+                newSchool.setType("school");
                 newSchool.setStatus(1);
                 sysSchoolRepository.save(newSchool);
             }
@@ -95,8 +117,8 @@ public class SysStudentServiceImpl implements SysStudentService {
             }
 
             student.setName(dto.getName());
-            student.setGender(dto.getGender());
             student.setSchoolId(schoolId);
+            student.setClassId(null); // Excel import doesn't have classId yet, maybe we need to update StudentImportDTO if we want it, but for now just set null.
             student.setSchool(dto.getSchool()); // 冗余
             student.setGrade(dto.getGrade());
             student.setClassName(dto.getClassName());
@@ -123,6 +145,21 @@ public class SysStudentServiceImpl implements SysStudentService {
         if (student.getBoundCount() == null) {
             student.setBoundCount(0);
         }
+        
+        // 自动更新冗余字段
+        if (StringUtils.hasText(student.getSchoolId())) {
+            sysSchoolRepository.findBySchoolId(student.getSchoolId()).ifPresent(school -> {
+                student.setSchool(school.getName());
+            });
+        }
+        
+        if (StringUtils.hasText(student.getClassId())) {
+            sysClassRepository.findByClassid(student.getClassId()).ifPresent(sysClass -> {
+                student.setGrade(sysClass.getGrade());
+                student.setClassName(sysClass.getAlias());
+            });
+        }
+        
         sysStudentRepository.save(student);
         return Result.success("添加学生成功", null);
     }
@@ -147,11 +184,27 @@ public class SysStudentServiceImpl implements SysStudentService {
 
         existing.setStudentNo(student.getStudentNo());
         existing.setName(student.getName());
-        existing.setGender(student.getGender());
         existing.setSchoolId(student.getSchoolId());
-        existing.setSchool(student.getSchool());
-        existing.setGrade(student.getGrade());
-        existing.setClassName(student.getClassName());
+        existing.setClassId(student.getClassId());
+        
+        // 自动更新冗余字段
+        if (StringUtils.hasText(student.getSchoolId())) {
+            sysSchoolRepository.findBySchoolId(student.getSchoolId()).ifPresent(school -> {
+                existing.setSchool(school.getName());
+            });
+        } else {
+            existing.setSchool(null);
+        }
+        
+        if (StringUtils.hasText(student.getClassId())) {
+            sysClassRepository.findByClassid(student.getClassId()).ifPresent(sysClass -> {
+                existing.setGrade(sysClass.getGrade());
+                existing.setClassName(sysClass.getAlias());
+            });
+        } else {
+            existing.setGrade(null);
+            existing.setClassName(null);
+        }
 
         sysStudentRepository.save(existing);
         return Result.success("更新学生信息成功", null);
