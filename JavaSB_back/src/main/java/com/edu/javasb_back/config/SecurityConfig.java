@@ -34,6 +34,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/order/**").permitAll()   // 后台管理端订单管理接口
                 .requestMatchers("/api/app/vip/**").permitAll() // 小程序端 VIP 相关接口
                 .requestMatchers("/api/students/**").permitAll() // 临时放行学生管理接口
+                .requestMatchers("/api/system/school/**").permitAll() // 临时放行学校管理接口
                 .requestMatchers("/uploads/**").permitAll() // 放行上传的静态资源图片
                 
 
