@@ -40,6 +40,17 @@ export const systemRoutes: AppRouteRecord = {
         keepAlive: true,
         isHideTab: true
       }
+    },
+    {
+      path: 'content-management',
+      name: 'ContentManagement',
+      component: '/system/content-management/index',
+      meta: {
+        title: 'menus.system.contentManagement',
+        keepAlive: true,
+        fixedTab: false,
+        roles: ['R_SUPER', 'R_ADMIN']
+      }
     }
     // {
     //   path: 'menu',

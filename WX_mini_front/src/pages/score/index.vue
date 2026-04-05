@@ -350,6 +350,16 @@ const checkVipStatus = async () => {
   try {
     const res = await getUserInfoApi()
     if (res.code === 200) {
+      // 1. 判断是否绑定学生
+      if (res.data.isBoundStudent === 0) {
+        toast.show('请先绑定学生')
+        setTimeout(() => {
+          uni.redirectTo({ url: '/pages/auth/bind-student' })
+        }, 1500)
+        return
+      }
+      
+      // 2. 更新 VIP 状态
       isVIPUser.value = res.data.isVip === 1 || res.data.isSvip === 1
       isSVIPUser.value = res.data.isSvip === 1
       uni.setStorageSync('userInfo', res.data)
