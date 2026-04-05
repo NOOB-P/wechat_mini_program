@@ -99,6 +99,8 @@
               v-loading="loading"
               height="400"
             >
+              <el-table-column prop="id" label="内部ID" width="100" align="center" />
+              <el-table-column prop="schoolId" label="唯一标识(ID)" width="150" align="center" />
               <el-table-column prop="province" label="省份" width="120" align="center" />
               <el-table-column prop="city" label="城市" width="120" align="center" />
               <el-table-column prop="name" label="学校名称" min-width="200" />
@@ -604,22 +606,23 @@ const handleAddSchool = () => {
 
 const handleEditSchool = (data: any) => {
   isEdit.value = true
-  // 如果是树节点，需要尝试从 listData 中获取完整的省市信息
+  // 如果是树节点，需要尝试从 allSchools 中获取完整的省市信息
   let schoolInfo = { ...data }
+  const dataId = data.id || data.schoolId
   if (!data.province) {
-    const found = listData.value.find(s => s.id === data.id)
+    const found = allSchools.value.find(s => (s.id || s.schoolId) === dataId)
     if (found) {
       schoolInfo = { ...found }
     } else {
-      // 如果 listData 还没加载，可能需要先加载或者提示用户
+      // 如果数据还没加载，可能需要先加载或者提示用户
       // 这里先尝试加载列表数据，如果还是没有，则只能编辑名称
-      fetchGetSchoolList().then(res => {
-        const list = Array.isArray(res) ? res : (res?.data || [])
-        listData.value = list
-        const f = list.find((s: any) => s.id === data.id)
+      fetchGetSchoolList({ current: 1, size: 10000 }).then(res => {
+        const list = res?.records || res?.data?.records || (Array.isArray(res) ? res : (res?.data || []))
+        allSchools.value = list
+        const f = list.find((s: any) => (s.id || s.schoolId) === dataId)
         if (f) {
           form.value = {
-            id: f.id,
+            id: f.id || f.schoolId,
             province: f.province || '',
             city: f.city || '',
             name: f.name
@@ -630,7 +633,7 @@ const handleEditSchool = (data: any) => {
   }
   
   form.value = {
-    id: schoolInfo.id,
+    id: schoolInfo.id || schoolInfo.schoolId,
     province: schoolInfo.province || '',
     city: schoolInfo.city || '',
     name: schoolInfo.name
@@ -645,7 +648,8 @@ const handleDeleteSchool = (data: any) => {
     type: 'warning'
   }).then(async () => {
     try {
-      await fetchDeleteSchool(data.id)
+      const deleteId = data.id || data.schoolId
+      await fetchDeleteSchool(deleteId)
       ElMessage.success('删除成功')
       loadData(true)
     } catch (error) {

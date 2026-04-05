@@ -11,9 +11,6 @@ public class StudentImportDTO {
     @ExcelProperty("姓名")
     private String name;
 
-    @ExcelProperty("性别")
-    private String gender;
-
     @ExcelProperty("省份")
     private String province;
 
@@ -34,9 +31,6 @@ public class StudentImportDTO {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-
-    public String getGender() { return gender; }
-    public void setGender(String gender) { this.gender = gender; }
 
     public String getProvince() { return province; }
     public void setProvince(String province) { this.province = province; }

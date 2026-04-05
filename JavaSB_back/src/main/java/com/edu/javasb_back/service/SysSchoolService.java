@@ -11,6 +11,6 @@ public interface SysSchoolService {
     Result<Void> addSchool(SysSchool school);
     Result<java.util.Map<String, Object>> getSchoolList(int page, int size, String keyword, String province, String city, String name);
     Result<Void> updateSchool(SysSchool school);
-    Result<Void> deleteSchool(String id);
+    Result<Void> deleteSchool(Long id);
     Result<Void> importSchools(List<SchoolImportDTO> list);
 }

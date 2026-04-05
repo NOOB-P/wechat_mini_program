@@ -54,7 +54,7 @@ public class SysSchoolServiceImpl implements SysSchoolService {
                 List<SchoolNodeVO> schoolNodes = new ArrayList<>();
 
                 for (SysSchool school : cityEntry.getValue()) {
-                    SchoolNodeVO schoolNode = new SchoolNodeVO(school.getId(), school.getName(), "school");
+                    SchoolNodeVO schoolNode = new SchoolNodeVO(school.getSchoolId(), school.getName(), "school");
                     // TODO: 如果需要年级和班级，可以在这里继续加载
                     // 目前直接将 children 设置为 空列表 或 null
                     schoolNode.setChildren(new ArrayList<>());
@@ -85,8 +85,8 @@ public class SysSchoolServiceImpl implements SysSchoolService {
         }
 
         // 生成唯一ID
-        String id = "SCH" + System.currentTimeMillis();
-        school.setId(id);
+        String schoolId = "SCH" + System.currentTimeMillis();
+        school.setSchoolId(schoolId);
         school.setType("school");
         school.setStatus(1);
 
@@ -96,7 +96,7 @@ public class SysSchoolServiceImpl implements SysSchoolService {
 
     @Override
     public Result<Void> updateSchool(SysSchool school) {
-        if (school.getId() == null || school.getId().isEmpty()) {
+        if (school.getId() == null) {
             return Result.error("学校ID不能为空");
         }
         java.util.Optional<SysSchool> existing = sysSchoolRepository.findById(school.getId());
@@ -112,8 +112,8 @@ public class SysSchoolServiceImpl implements SysSchoolService {
     }
 
     @Override
-    public Result<Void> deleteSchool(String id) {
-        if (id == null || id.isEmpty()) {
+    public Result<Void> deleteSchool(Long id) {
+        if (id == null) {
             return Result.error("学校ID不能为空");
         }
         java.util.Optional<SysSchool> schoolOpt = sysSchoolRepository.findById(id);
@@ -184,7 +184,7 @@ public class SysSchoolServiceImpl implements SysSchoolService {
                 school.setStatus(1);
             } else {
                 school = new SysSchool();
-                school.setId("SCH" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 5));
+                school.setSchoolId("SCH" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 5));
                 school.setProvince(dto.getProvince());
                 school.setCity(dto.getCity());
                 school.setName(dto.getSchoolName());

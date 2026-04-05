@@ -20,6 +20,14 @@ export const coreBusinessRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'sys-class',
+      name: 'SysClass',
+      component: '/core-business/sys-class',
+      meta: {
+        title: '班级数据'
+      }
+    },
+    {
       path: 'student',
       name: 'StudentProfile',
       component: '/core-business/student',

@@ -1,6 +1,5 @@
 package com.edu.javasb_back.controller;
 
-import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.SysStudent;
 import com.edu.javasb_back.service.SysStudentService;
@@ -30,7 +29,6 @@ public class SysStudentController {
     @Autowired
     private SysStudentService sysStudentService;
 
-    @LogOperation("导入学生档案")
     @PostMapping("/import")
     public Result<Void> importStudents(@RequestParam("file") MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -50,7 +48,6 @@ public class SysStudentController {
         }
     }
 
-    @LogOperation("下载学生上传模板")
     @GetMapping("/download-template")
     public ResponseEntity<Resource> downloadTemplate() {
         try {
@@ -90,7 +87,6 @@ public class SysStudentController {
         }
     }
 
-    @LogOperation("查询学生列表")
     @GetMapping("/list")
     public Result<Map<String, Object>> getStudentList(
             @RequestParam(defaultValue = "1") int page,
@@ -99,19 +95,16 @@ public class SysStudentController {
         return sysStudentService.getStudentList(page, size, keyword);
     }
 
-    @LogOperation("新增学生")
     @PostMapping("/add")
     public Result<Void> addStudent(@RequestBody SysStudent student) {
         return sysStudentService.addStudent(student);
     }
 
-    @LogOperation("编辑学生")
     @PutMapping("/edit")
     public Result<Void> updateStudent(@RequestBody SysStudent student) {
         return sysStudentService.updateStudent(student);
     }
 
-    @LogOperation("删除学生")
     @DeleteMapping("/delete/{id}")
     public Result<Void> deleteStudent(@PathVariable String id) {
         return sysStudentService.deleteStudent(id);

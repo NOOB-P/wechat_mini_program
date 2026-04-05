@@ -8,8 +8,10 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface SysSchoolRepository extends JpaRepository<SysSchool, String>, JpaSpecificationExecutor<SysSchool> {
+public interface SysSchoolRepository extends JpaRepository<SysSchool, Long>, JpaSpecificationExecutor<SysSchool> {
     List<SysSchool> findByStatus(Integer status);
     
     java.util.Optional<SysSchool> findByProvinceAndCityAndName(String province, String city, String name);
+
+    java.util.Optional<SysSchool> findBySchoolId(String schoolId);
 }

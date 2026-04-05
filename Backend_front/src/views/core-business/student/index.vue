@@ -39,7 +39,6 @@
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column prop="studentNo" label="学号" width="120" align="center" />
         <el-table-column prop="name" label="姓名" width="100" align="center" />
-        <el-table-column prop="gender" label="性别" width="70" align="center" />
         <el-table-column prop="school" label="学校" min-width="150" show-overflow-tooltip />
         <el-table-column prop="grade" label="年级" width="100" align="center" />
         <el-table-column prop="className" label="班级" width="80" align="center" />
@@ -83,11 +82,8 @@
         <el-form-item label="姓名" prop="name">
           <el-input v-model="form.name" placeholder="请输入姓名" />
         </el-form-item>
-        <el-form-item label="性别" prop="gender">
-          <el-radio-group v-model="form.gender">
-            <el-radio label="男">男</el-radio>
-            <el-radio label="女">女</el-radio>
-          </el-radio-group>
+        <el-form-item label="关联班级" prop="classId">
+          <el-input v-model="form.classId" placeholder="请输入班级唯一标识(classid)" />
         </el-form-item>
         <el-form-item label="所在学校" prop="schoolId">
           <el-select v-model="form.schoolId" placeholder="请选择学校" class="w-full">
@@ -265,8 +261,9 @@ const form = ref<Partial<Api.Student.StudentItem>>({
   id: '',
   studentNo: '',
   name: '',
-  gender: '男',
   school: '',
+  schoolId: '',
+  classId: '',
   grade: '',
   className: ''
 })
@@ -353,8 +350,8 @@ const handleAdd = () => {
     id: '',
     studentNo: '',
     name: '',
-    gender: '男',
     schoolId: '',
+    classId: '',
     grade: '',
     className: ''
   }

@@ -40,4 +40,9 @@ public class ExamClass {
     protected void onUpdate() {
         updateTime = LocalDateTime.now();
     }
+
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+
+    public String getProjectId() { return projectId; }
 }
