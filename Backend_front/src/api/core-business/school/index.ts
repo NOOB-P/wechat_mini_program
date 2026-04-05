@@ -49,9 +49,24 @@ export function fetchDeleteSchool(id: string) {
 
 /** 导入 Excel */
 export function fetchImportExcel(file: File) {
-  return Promise.resolve({
-    code: 200,
-    msg: '导入成功',
-    data: null
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return api.post<any>({
+    url: '/api/system/school/import',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
   })
+}
+
+import { useUserStore } from '@/store/modules/user'
+
+/** 下载导入模板 */
+export function fetchDownloadSchoolTemplate() {
+  const token = useUserStore().accessToken || ''
+  // 修正下载链接
+  const baseUrl = import.meta.env.VITE_API_URL === '/' ? '' : import.meta.env.VITE_API_URL || ''
+  window.open(`${baseUrl}/api/system/school/download-template?token=${token}`, '_blank')
 }

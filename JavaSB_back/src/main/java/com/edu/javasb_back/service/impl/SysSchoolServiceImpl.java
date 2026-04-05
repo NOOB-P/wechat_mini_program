@@ -14,10 +14,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import com.edu.javasb_back.model.dto.SchoolImportDTO;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -165,5 +168,31 @@ public class SysSchoolServiceImpl implements SysSchoolService {
         resultData.put("pages", pageResult.getTotalPages());
 
         return Result.success("获取成功", resultData);
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> importSchools(List<SchoolImportDTO> list) {
+        for (SchoolImportDTO dto : list) {
+            java.util.Optional<SysSchool> schoolOpt = sysSchoolRepository.findByProvinceAndCityAndName(
+                    dto.getProvince(), dto.getCity(), dto.getSchoolName());
+            
+            SysSchool school;
+            if (schoolOpt.isPresent()) {
+                school = schoolOpt.get();
+                // 如果已存在，更新状态等信息
+                school.setStatus(1);
+            } else {
+                school = new SysSchool();
+                school.setId("SCH" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 5));
+                school.setProvince(dto.getProvince());
+                school.setCity(dto.getCity());
+                school.setName(dto.getSchoolName());
+                school.setType("school");
+                school.setStatus(1);
+            }
+            sysSchoolRepository.save(school);
+        }
+        return Result.success("导入成功", null);
     }
 }

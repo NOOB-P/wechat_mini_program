@@ -5,6 +5,10 @@ import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.SysSchool;
 import com.edu.javasb_back.model.vo.SchoolNodeVO;
 import com.edu.javasb_back.service.SysSchoolService;
+import com.edu.javasb_back.listener.SchoolImportListener;
+import com.edu.javasb_back.model.dto.SchoolImportDTO;
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.exception.ExcelAnalysisException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -12,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.net.URLEncoder;
@@ -25,6 +30,25 @@ public class SysSchoolController {
 
     @Autowired
     private SysSchoolService sysSchoolService;
+
+    @LogOperation("导入学校架构")
+    @PostMapping("/import")
+    public Result<Void> importSchools(@RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return Result.error("文件内容为空");
+        }
+
+        try {
+            SchoolImportListener listener = new SchoolImportListener();
+            EasyExcel.read(file.getInputStream(), SchoolImportDTO.class, listener).sheet().doRead();
+            return sysSchoolService.importSchools(listener.getList());
+        } catch (ExcelAnalysisException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("导入失败：" + e.getMessage());
+        }
+    }
 
     @LogOperation("下载学校导入模板")
     @GetMapping("/download-template")
@@ -40,8 +64,13 @@ public class SysSchoolController {
                 // 尝试绝对路径
                 file = new File("c:/Users/admin/Desktop/wechat_mini_program-master/JavaSB_back/src/main/assests/学校导入模板.xlsx");
             }
+            if (!file.exists()) {
+                // 回退机制：如果都没找到，尝试在当前工作目录下寻找
+                file = new File("src/main/assests/学校导入模板.xlsx");
+            }
             
             if (!file.exists()) {
+                System.out.println("找不到模板文件: " + file.getAbsolutePath());
                 return ResponseEntity.notFound().build();
             }
 
