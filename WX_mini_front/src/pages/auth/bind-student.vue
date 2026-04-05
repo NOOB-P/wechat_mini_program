@@ -14,56 +14,213 @@
     </view>
 
     <view class="form-container">
-      <view class="input-group">
-        <wd-input v-model="form.studentName" placeholder="请输入学生真实姓名" no-border />
-        <wd-input v-model="form.studentId" placeholder="请输入学生用户/准考证" no-border />
-        <wd-input v-model="form.password" placeholder="请输入密码" type="password" show-password no-border />
-        <wd-input v-model="form.phone" placeholder="请输入手机号" disabled no-border />
-        <view class="code-wrapper">
-          <wd-input v-model="form.code" placeholder="请输入验证码" use-suffix-slot no-border>
+      <wd-cell-group border custom-class="cell-group-custom">
+        <wd-picker 
+          :columns="provinces" 
+          label="省份" 
+          v-model="selectedProvince" 
+          placeholder="请选择省份" 
+          @confirm="handleProvinceConfirm" 
+          align-right
+        />
+        <wd-picker 
+          :columns="cities" 
+          label="城市" 
+          v-model="selectedCity" 
+          placeholder="请选择城市" 
+          :disabled="!selectedProvince" 
+          @confirm="handleCityConfirm" 
+          align-right
+        />
+        <wd-picker 
+          :columns="schools" 
+          label="学校" 
+          v-model="selectedSchool" 
+          placeholder="请选择学校" 
+          :disabled="!selectedCity" 
+          @confirm="handleSchoolConfirm" 
+          align-right
+        />
+        <wd-picker 
+          :columns="grades" 
+          label="年级" 
+          v-model="selectedGrade" 
+          placeholder="请选择年级" 
+          :disabled="!selectedSchool" 
+          @confirm="handleGradeConfirm" 
+          align-right
+        />
+        <wd-picker 
+          :columns="classes" 
+          label="班级" 
+          v-model="selectedClass" 
+          placeholder="请选择班级" 
+          :disabled="!selectedGrade" 
+          @confirm="handleClassConfirm" 
+          align-right
+        />
+        <wd-picker 
+          :columns="students" 
+          label="学生" 
+          v-model="selectedStudentId" 
+          placeholder="请选择学生" 
+          :disabled="!selectedClass" 
+          align-right
+        />
+      </wd-cell-group>
+
+      <view class="parent-info-section">
+        <wd-cell-group border custom-class="cell-group-custom">
+          <wd-input v-model="form.phone" label="手机号" placeholder="请输入手机号" disabled align-right />
+          <wd-input v-model="form.code" label="验证码" placeholder="请输入验证码" use-suffix-slot align-right>
             <template #suffix>
               <view class="code-btn-text" :class="{ disabled: countdown > 0 }" @click="countdown === 0 && sendCode()">
                 {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
               </view>
             </template>
           </wd-input>
-        </view>
+        </wd-cell-group>
       </view>
 
       <view class="action-btn">
         <wd-button type="primary" block custom-class="bind-btn" @click="handleBind">确认绑定</wd-button>
       </view>
 
-      <view class="sub-actions">
+      <!-- <view class="sub-actions">
         <text class="link" @click="gotoForgotAccount">忘记账号？</text>
         <text class="link" @click="gotoForgotPassword">忘记密码？</text>
-      </view>
+      </view> -->
     </view>
 
     <view class="footer-notice">
-      提醒：家长最多可以绑定5个学生账号，如果超过上限，请先进入「我的-绑定学生账号」点击解绑。
+      提醒：一个手机号只能绑定1个学生账号，一个学生可以多个手机号绑定，如果超过上限，请先进入「我的-绑定学生账号」点击解绑。
     </view>
     <wd-toast id="wd-toast" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { onLoad, onNavigationBarButtonTap } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { sendBindStudentCode, bindStudentAccount } from '@/api/auth/bind-student'
+import { 
+  sendBindStudentCode, 
+  bindStudentAccount, 
+  getProvinces, 
+  getCities, 
+  getSchools, 
+  getGrades, 
+  getClasses, 
+  getStudents 
+} from '@/api/auth/bind-student'
 
 const toast = useToast()
 const countdown = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
 
+// 级联选择数据
+const provinces = ref<any[]>([])
+const cities = ref<any[]>([])
+const schools = ref<any[]>([])
+const grades = ref<any[]>([])
+const classes = ref<any[]>([])
+const students = ref<any[]>([])
+
+// 选中值
+const selectedProvince = ref('')
+const selectedCity = ref('')
+const selectedSchool = ref('')
+const selectedGrade = ref('')
+const selectedClass = ref('')
+const selectedStudentId = ref('')
+
 const form = reactive({
-  studentName: '',
-  studentId: '',
-  password: '',
-  phone: '', // 初始为空，由 onLoad 获取
+  phone: '', 
   code: ''
 })
+
+onMounted(async () => {
+  // 页面加载时获取省份
+  const res = await getProvinces()
+  if (res.code === 200) {
+    provinces.value = res.data.map((p: string) => ({ label: p, value: p }))
+  }
+})
+
+// 处理省份选择
+const handleProvinceConfirm = async (e: any) => {
+  const province = Array.isArray(e.value) ? e.value[0] : e.value
+  if (!province) return
+
+  selectedCity.value = ''
+  selectedSchool.value = ''
+  selectedGrade.value = ''
+  selectedClass.value = ''
+  selectedStudentId.value = ''
+  
+  const res = await getCities(province)
+  if (res.code === 200) {
+    cities.value = res.data.map((c: string) => ({ label: c, value: c }))
+  }
+}
+
+// 处理城市选择
+const handleCityConfirm = async (e: any) => {
+  const city = Array.isArray(e.value) ? e.value[0] : e.value
+  if (!city) return
+
+  selectedSchool.value = ''
+  selectedGrade.value = ''
+  selectedClass.value = ''
+  selectedStudentId.value = ''
+
+  const res = await getSchools(city)
+  if (res.code === 200) {
+    schools.value = res.data.map((s: any) => ({ label: s.name, value: s.id }))
+  }
+}
+
+// 处理学校选择
+const handleSchoolConfirm = async (e: any) => {
+  const schoolId = Array.isArray(e.value) ? e.value[0] : e.value
+  if (!schoolId) return
+
+  selectedGrade.value = ''
+  selectedClass.value = ''
+  selectedStudentId.value = ''
+
+  const res = await getGrades(schoolId)
+  if (res.code === 200) {
+    grades.value = res.data.map((g: string) => ({ label: g, value: g }))
+  }
+}
+
+// 处理年级选择
+const handleGradeConfirm = async (e: any) => {
+  const grade = Array.isArray(e.value) ? e.value[0] : e.value
+  if (!grade) return
+
+  selectedClass.value = ''
+  selectedStudentId.value = ''
+
+  const res = await getClasses(selectedSchool.value, grade)
+  if (res.code === 200) {
+    classes.value = res.data.map((c: string) => ({ label: c, value: c }))
+  }
+}
+
+// 处理班级选择
+const handleClassConfirm = async (e: any) => {
+  const className = Array.isArray(e.value) ? e.value[0] : e.value
+  if (!className) return
+
+  selectedStudentId.value = ''
+
+  const res = await getStudents(selectedSchool.value, selectedGrade.value, className)
+  if (res.code === 200) {
+    students.value = res.data.map((s: any) => ({ label: s.name, value: s.id }))
+  }
+}
 
 // 生命周期：获取登录页传来的手机号
 onLoad((options) => {
@@ -121,17 +278,17 @@ const sendCode = async () => {
 }
 
 const handleBind = async () => {
-  const { studentName, studentId, password, code, phone } = form
-  if (!studentName || !studentId || !password || !code) {
-    return toast.show('请填写完整信息')
+  const { code, phone } = form
+  const studentId = selectedStudentId.value
+  
+  if (!studentId || !code) {
+    return toast.show('请选择学生并输入验证码')
   }
   
   try {
     toast.loading('绑定中...')
     const res = await bindStudentAccount({
-      studentName,
       studentId,
-      password,
       phone,
       code
     })
@@ -183,54 +340,36 @@ const gotoForgotPassword = () => {
 .form-container {
   flex: 1;
 
-  .input-group {
-    display: flex;
-    flex-direction: column;
-    
-    :deep(.wd-input) {
-      margin-bottom: 40rpx;
-      background-color: #f8f9fa;
-      border-radius: 16rpx;
-      padding: 0 30rpx;
-      height: 100rpx;
-      display: flex;
-      align-items: center;
-    }
-    :deep(.wd-input__inner) {
-      height: 100rpx;
-      line-height: 100rpx;
-      display: flex;
-      align-items: center;
-    }
+  .cell-group-custom {
+    border-radius: 16rpx;
+    overflow: hidden;
+    background-color: #fff;
   }
 
-  .code-wrapper {
-    margin-bottom: 40rpx;
+  .parent-info-section {
+    margin-top: 30rpx;
+  }
 
-    :deep(.wd-input) {
-      margin-bottom: 0;
-    }
-
-    .code-btn-text {
-      font-size: 30rpx;
-      color: #1a5f8e;
-      padding: 20rpx 10rpx;
-      
-      &.disabled {
-        color: #999;
-      }
+  .code-btn-text {
+    font-size: 28rpx;
+    color: #1a5f8e;
+    padding: 10rpx 0;
+    
+    &.disabled {
+      color: #999;
     }
   }
 
   .action-btn {
-    margin-top: 80rpx;
+    margin-top: 60rpx;
+    padding: 0 20rpx;
   }
 
   .sub-actions {
     display: flex;
     justify-content: space-between;
     margin-top: 40rpx;
-    padding: 0 10rpx;
+    padding: 0 30rpx;
 
     .link {
       font-size: 28rpx;

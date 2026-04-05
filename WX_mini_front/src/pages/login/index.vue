@@ -8,9 +8,9 @@
       <wd-tabs v-model="loginType">
         <wd-tab title="快捷登录" name="phone">
           <view class="input-group">
-            <wd-input v-model="phone" placeholder="请输入手机号" type="number" maxlength="11" no-border />
+            <wd-input v-model="phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
             <view class="code-wrapper">
-              <wd-input v-model="code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+              <wd-input v-model="code" placeholder="请输入验证码" type="number" :maxlength="6" use-suffix-slot no-border>
                 <template #suffix>
                   <view class="code-btn-text" :class="{ disabled: countdown > 0 }" @click="countdown === 0 && sendCode()">
                     {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
@@ -22,7 +22,7 @@
         </wd-tab>
         <wd-tab title="密码登录" name="password">
           <view class="input-group">
-            <wd-input v-model="phone" placeholder="请输入手机号" type="number" maxlength="11" no-border />
+            <wd-input v-model="phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
             <wd-input v-model="password" placeholder="请输入密码" show-password type="text" no-border />
           </view>
         </wd-tab>
@@ -61,9 +61,9 @@
       <view class="popup-content">
         <view class="popup-title">快速注册</view>
         <view class="input-group">
-          <wd-input v-model="registerForm.phone" placeholder="请输入手机号" type="number" maxlength="11" no-border />
+          <wd-input v-model="registerForm.phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
           <view class="code-wrapper">
-            <wd-input v-model="registerForm.code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+            <wd-input v-model="registerForm.code" placeholder="请输入验证码" type="number" :maxlength="6" use-suffix-slot no-border>
               <template #suffix>
                 <view class="code-btn-text" :class="{ disabled: registerCountdown > 0 }" @click="registerCountdown === 0 && sendRegisterCode()">
                   {{ registerCountdown > 0 ? `${registerCountdown}s后重试` : '获取验证码' }}
@@ -84,9 +84,9 @@
       <view class="popup-content">
         <view class="popup-title">找回密码</view>
         <view class="input-group">
-          <wd-input v-model="forgotForm.phone" placeholder="请输入手机号" type="number" maxlength="11" no-border />
+          <wd-input v-model="forgotForm.phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
           <view class="code-wrapper">
-            <wd-input v-model="forgotForm.code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+            <wd-input v-model="forgotForm.code" placeholder="请输入验证码" type="number" :maxlength="6" use-suffix-slot no-border>
               <template #suffix>
                 <view class="code-btn-text" :class="{ disabled: forgotCountdown > 0 }" @click="forgotCountdown === 0 && sendForgotCode()">
                   {{ forgotCountdown > 0 ? `${forgotCountdown}s后重试` : '获取验证码' }}
@@ -106,9 +106,9 @@
       <view class="popup-content">
         <view class="popup-title">绑定手机号</view>
         <view class="input-group">
-          <wd-input v-model="bindPhoneForm.phone" placeholder="请输入手机号" type="number" maxlength="11" no-border />
+          <wd-input v-model="bindPhoneForm.phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
           <view class="code-wrapper">
-            <wd-input v-model="bindPhoneForm.code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+            <wd-input v-model="bindPhoneForm.code" placeholder="请输入验证码" type="number" :maxlength="6" use-suffix-slot no-border>
               <template #suffix>
                 <view class="code-btn-text" :class="{ disabled: bindPhoneCountdown > 0 }" @click="bindPhoneCountdown === 0 && sendBindPhoneCode()">
                   {{ bindPhoneCountdown > 0 ? `${bindPhoneCountdown}s后重试` : '获取验证码' }}
