@@ -47,6 +47,18 @@
           </template>
         </el-table-column>
       </el-table>
+      
+      <div class="mt-4 flex justify-end">
+        <el-pagination
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="total"
+          @size-change="loadData"
+          @current-change="handleCurrentChange"
+        />
+      </div>
     </el-card>
 
     <!-- 新增/编辑弹窗 -->
@@ -74,18 +86,23 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
+import { 
+  fetchGetClassList, 
+  fetchAddClass, 
+  fetchUpdateClass, 
+  fetchDeleteClass 
+} from '@/api/core-business/exam/class'
 
 const router = useRouter()
 const route = useRoute()
 const projectName = ref(route.query.projectName || '未指定项目')
-const projectId = ref(route.query.projectId)
+const projectId = ref(route.query.projectId as string)
 
 const loading = ref(false)
-const tableData = ref([
-  { id: '101', school: '第一中学', grade: '高一', className: '1班' },
-  { id: '102', school: '第一中学', grade: '高一', className: '2班' },
-  { id: '103', school: '第二中学', grade: '初一', className: '3班' }
-])
+const tableData = ref<any[]>([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(10)
 
 const searchForm = ref({
   school: '',
@@ -98,6 +115,7 @@ const isEdit = ref(false)
 const formRef = ref<FormInstance>()
 const form = ref({
   id: '',
+  projectId: projectId.value,
   school: '',
   grade: '',
   className: ''
@@ -109,35 +127,85 @@ const rules = {
   className: [{ required: true, message: '请输入班级', trigger: 'blur' }]
 }
 
+const loadData = async () => {
+  if (!projectId.value) {
+    ElMessage.error('缺少考试项目ID')
+    return
+  }
+  loading.value = true
+  try {
+    const res = await fetchGetClassList({
+      current: page.value,
+      size: pageSize.value,
+      projectId: projectId.value,
+      school: searchForm.value.school,
+      grade: searchForm.value.grade,
+      className: searchForm.value.className
+    })
+    
+    if (res) {
+      tableData.value = res.records || []
+      total.value = res.total || 0
+    } else {
+      tableData.value = []
+      total.value = 0
+    }
+  } catch (error) {
+    ElMessage.error('加载班级列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 const goBack = () => {
   router.push({ name: 'ExamProject' })
 }
 
 const handleSearch = () => {
-  ElMessage.success('查询成功')
+  page.value = 1
+  loadData()
 }
 
 const resetSearch = () => {
   searchForm.value = { school: '', grade: '', className: '' }
+  page.value = 1
+  loadData()
 }
 
 const handleAddClass = () => {
   isEdit.value = false
-  form.value = { id: '', school: '', grade: '', className: '' }
+  form.value = { id: '', projectId: projectId.value, school: '', grade: '', className: '' }
   dialogVisible.value = true
 }
 
 const handleEdit = (row: any) => {
   isEdit.value = true
-  form.value = { ...row }
+  form.value = { 
+    id: row.id, 
+    projectId: row.projectId, 
+    school: row.school, 
+    grade: row.grade, 
+    className: row.className 
+  }
   dialogVisible.value = true
 }
 
 const handleDelete = (row: any) => {
-  ElMessageBox.confirm(`确定要删除班级 [${row.school} ${row.grade}${row.className}] 吗？`, '警告', {
-    type: 'warning'
-  }).then(() => {
-    ElMessage.success('删除成功')
+  ElMessageBox.confirm(`确定要删除班级 [${row.school} ${row.grade}${row.className}] 吗？`, '危险操作警告', {
+    type: 'warning',
+    confirmButtonText: '确定删除',
+    cancelButtonText: '取消'
+  }).then(async () => {
+    try {
+      await fetchDeleteClass(row.id)
+      ElMessage.success('删除成功')
+      if (tableData.value.length === 1 && page.value > 1) {
+        page.value -= 1
+      }
+      loadData()
+    } catch (error) {
+      ElMessage.error('删除失败')
+    }
   })
 }
 
@@ -152,15 +220,35 @@ const handleEnter = (row: any) => {
   })
 }
 
+const handleCurrentChange = (val: number) => {
+  page.value = val
+  loadData()
+}
+
 const submitForm = async () => {
   if (!formRef.value) return
-  await formRef.value.validate((valid) => {
+  await formRef.value.validate(async (valid) => {
     if (valid) {
-      ElMessage.success(isEdit.value ? '编辑成功' : '添加成功')
-      dialogVisible.value = false
+      try {
+        if (isEdit.value) {
+          await fetchUpdateClass(form.value)
+        } else {
+          await fetchAddClass(form.value)
+        }
+        
+        ElMessage.success(isEdit.value ? '编辑成功' : '创建成功')
+        dialogVisible.value = false
+        loadData()
+      } catch (error) {
+        ElMessage.error(isEdit.value ? '编辑失败' : '创建失败')
+      }
     }
   })
 }
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <style scoped>

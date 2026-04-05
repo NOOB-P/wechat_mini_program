@@ -146,7 +146,7 @@ CREATE TABLE `student_parent_bindings` (
     CONSTRAINT `fk_binding_parent` FOREIGN KEY (`parent_uid`) REFERENCES `sys_accounts` (`uid`)
 ) ENGINE=InnoDB COMMENT='学生与家长账号绑定关系表 (一个家长只能绑1个学生，一个学生最多绑5个家长)';
 
--- 5. 考试信息与成绩表
+-- 5. 考试信息与成绩表 (兼容历史版本结构)
 DROP TABLE IF EXISTS `exams`;
 CREATE TABLE `exams` (
     `id` VARCHAR(50) PRIMARY KEY COMMENT '考试唯一ID',
@@ -162,7 +162,7 @@ CREATE TABLE `exams` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='考试基础信息表';
 
--- 6. 成绩与错题明细表 (包含题目得分冗余数组)
+-- 6. 成绩与错题明细表 (兼容历史版本结构)
 DROP TABLE IF EXISTS `exam_results`;
 CREATE TABLE `exam_results` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '记录ID',
@@ -180,6 +180,61 @@ CREATE TABLE `exam_results` (
     CONSTRAINT `fk_result_exam` FOREIGN KEY (`exam_id`) REFERENCES `exams` (`id`),
     CONSTRAINT `fk_result_student` FOREIGN KEY (`student_no`) REFERENCES `students` (`student_no`)
 ) ENGINE=InnoDB COMMENT='成绩记录及试卷解析结果表';
+
+-- ---------------------------------------------------------
+-- 新版考试数据中心模块 (项目 -> 班级 -> 科目 -> 成绩明细)
+-- ---------------------------------------------------------
+
+-- 6.1 考试项目表
+DROP TABLE IF EXISTS `exam_projects`;
+CREATE TABLE `exam_projects` (
+    `id` VARCHAR(50) PRIMARY KEY COMMENT '项目ID',
+    `name` VARCHAR(200) NOT NULL COMMENT '考试项目名称',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+) ENGINE=InnoDB COMMENT='考试项目管理表';
+
+-- 6.2 考试班级表
+DROP TABLE IF EXISTS `exam_classes`;
+CREATE TABLE `exam_classes` (
+    `id` VARCHAR(50) PRIMARY KEY COMMENT '班级记录ID',
+    `project_id` VARCHAR(50) NOT NULL COMMENT '关联考试项目ID',
+    `school` VARCHAR(100) NOT NULL COMMENT '学校名称',
+    `grade` VARCHAR(50) NOT NULL COMMENT '年级',
+    `class_name` VARCHAR(50) NOT NULL COMMENT '班级名称',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    CONSTRAINT `fk_class_project` FOREIGN KEY (`project_id`) REFERENCES `exam_projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='考试班级管理表';
+
+-- 6.3 考试科目表
+DROP TABLE IF EXISTS `exam_subjects`;
+CREATE TABLE `exam_subjects` (
+    `id` VARCHAR(50) PRIMARY KEY COMMENT '科目记录ID',
+    `class_id` VARCHAR(50) NOT NULL COMMENT '关联考试班级ID',
+    `subject_name` VARCHAR(50) NOT NULL COMMENT '科目名称',
+    `paper_url` VARCHAR(500) COMMENT '试卷文件地址',
+    `answer_url` VARCHAR(500) COMMENT '答案文件地址',
+    `score_uploaded` TINYINT(1) DEFAULT 0 COMMENT '是否已同步小题分成绩 (0-待同步, 1-已同步)',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    CONSTRAINT `fk_subject_class` FOREIGN KEY (`class_id`) REFERENCES `exam_classes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='考试科目管理表';
+
+-- 6.4 学生科目成绩与小题分表
+DROP TABLE IF EXISTS `exam_student_scores`;
+CREATE TABLE `exam_student_scores` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '成绩记录ID',
+    `subject_id` VARCHAR(50) NOT NULL COMMENT '关联考试科目ID',
+    `student_no` VARCHAR(50) NOT NULL COMMENT '学生学号',
+    `student_name` VARCHAR(50) COMMENT '学生姓名(冗余)',
+    `total_score` FLOAT NOT NULL COMMENT '科目总分',
+    `question_scores` JSON COMMENT '各小题得分数组(JSON格式)',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    CONSTRAINT `fk_score_subject` FOREIGN KEY (`subject_id`) REFERENCES `exam_subjects` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_score_student` FOREIGN KEY (`student_no`) REFERENCES `students` (`student_no`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='学生科目成绩与小题分明细表';
 
 -- ---------------------------------------------------------
 -- 课程、资源与交互模块
@@ -384,6 +439,17 @@ CREATE TABLE `sys_logs` (
 -- ---------------------------------------------------------
 -- 插入模拟数据 (Mock Data)
 -- ---------------------------------------------------------
+
+-- 0. 新版考试项目与班级示例数据
+INSERT INTO `exam_projects` (`id`, `name`, `create_time`, `update_time`) VALUES
+('EP1700000000001', '2023-2024学年第一学期期中联考', '2023-11-01 10:00:00', '2023-11-01 10:00:00'),
+('EP1700000000002', '2024年春季学期摸底考试', '2024-03-01 09:00:00', '2024-03-01 09:00:00');
+
+INSERT INTO `exam_classes` (`id`, `project_id`, `school`, `grade`, `class_name`, `create_time`, `update_time`) VALUES
+('EC1700000000001', 'EP1700000000001', '第一中学', '高一', '1班', '2023-11-01 10:30:00', '2023-11-01 10:30:00'),
+('EC1700000000002', 'EP1700000000001', '第一中学', '高一', '2班', '2023-11-01 10:35:00', '2023-11-01 10:35:00'),
+('EC1700000000003', 'EP1700000000001', '第二中学', '高一', '1班', '2023-11-01 10:40:00', '2023-11-01 10:40:00'),
+('EC1700000000004', 'EP1700000000002', '实验中学', '初三', '强化班', '2024-03-01 09:30:00', '2024-03-01 09:30:00');
 
 -- 1. 系统角色表数据
 INSERT INTO `sys_roles` (`id`, `role_name`, `role_code`, `description`, `status`) VALUES
