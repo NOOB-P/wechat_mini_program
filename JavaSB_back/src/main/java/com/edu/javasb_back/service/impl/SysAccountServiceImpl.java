@@ -299,6 +299,26 @@ public class SysAccountServiceImpl implements SysAccountService {
             SysAccount account = accountOpt.get();
             checkVipExpiration(account);
             
+            // 获取绑定的学生信息 (如果是家长角色)
+            if (account.getRoleId() != null && account.getRoleId() == 3) {
+                List<StudentParentBinding> bindings = bindingRepository.findByParentUid(account.getUid());
+                if (!bindings.isEmpty()) {
+                    StudentParentBinding binding = bindings.get(0);
+                    Optional<SysStudent> studentOpt = studentRepository.findById(binding.getStudentId());
+                    if (studentOpt.isPresent()) {
+                        SysStudent student = studentOpt.get();
+                        java.util.Map<String, Object> studentMap = new java.util.HashMap<>();
+                        studentMap.put("id", student.getId());
+                        studentMap.put("name", student.getName());
+                        studentMap.put("school", student.getSchool());
+                        studentMap.put("grade", student.getGrade());
+                        studentMap.put("className", student.getClassName());
+                        studentMap.put("studentNo", student.getStudentNo());
+                        account.setBoundStudentInfo(studentMap);
+                    }
+                }
+            }
+            
             // 如果是后台管理人员，下发允许访问的模块列表
             if (account.getRoleId() != null && account.getRoleId() == 2) {
                 List<String> allowedModules = sysUserModuleRepository.findByUid(account.getUid())
@@ -493,46 +513,51 @@ public class SysAccountServiceImpl implements SysAccountService {
 
     @Override
     @Transactional
-    public Result<Void> bindStudent(Long uid, String studentName, String studentNo) {
-        if (!StringUtils.hasText(studentName) || !StringUtils.hasText(studentNo)) {
-            return Result.error("学生姓名和学号不能为空");
+    public Result<Void> bindStudent(Long uid, String studentName, String studentId) {
+        // 由于前端现在传的是 studentId，我们直接通过 ID 查找学生
+        if (!StringUtils.hasText(studentId)) {
+            return Result.error("请选择要绑定的学生");
         }
 
         // 1. 验证学生是否存在
-        Optional<SysStudent> studentOpt = studentRepository.findByStudentNo(studentNo);
+        Optional<SysStudent> studentOpt = studentRepository.findById(studentId);
         if (studentOpt.isEmpty()) {
-            return Result.error("学生学号不存在，请检查后重新输入");
+            return Result.error("选中的学生不存在，请刷新后重试");
         }
 
         SysStudent student = studentOpt.get();
-        if (!student.getName().equals(studentName)) {
-            return Result.error("学生姓名与学号不匹配");
-        }
 
-        // 2. 检查家长是否已经绑定过学生 (一个家长只能绑定一个学生)
+        // 2. 验证短信验证码 (此处假设您已有验证码校验逻辑，通常从 Redis 获取)
+        // String cachedCode = redisTemplate.opsForValue().get("sms:bind:" + phone);
+        // if (cachedCode == null || !cachedCode.equals(inputCode)) return Result.error("验证码错误");
+
+        // 3. 检查家长是否已经绑定过学生 (核心规则：一个家长/手机号只能绑定一个学生)
         List<StudentParentBinding> parentBindings = bindingRepository.findByParentUid(uid);
         if (!parentBindings.isEmpty()) {
-            return Result.error("您的账号已绑定过学生，一个账号只能绑定一名学生");
+            if (parentBindings.get(0).getStudentId().equals(studentId)) {
+                return Result.success("您已绑定过该学生", null);
+            }
+            return Result.error("您的账号已绑定过学生，请先解绑后再操作");
         }
 
-        // 3. 检查绑定上限 (一个学生最多5个家长)
+        // 4. 检查学生绑定上限 (一个学生最多5个家长)
         long boundCount = bindingRepository.countByStudentId(student.getId());
         if (boundCount >= 5) {
             return Result.error("该学生绑定的家长数量已达上限(5人)");
         }
 
-        // 4. 创建绑定关系
+        // 5. 创建绑定关系
         StudentParentBinding binding = new StudentParentBinding();
         binding.setStudentId(student.getId());
         binding.setParentUid(uid);
         binding.setBindingType("parent");
         bindingRepository.save(binding);
 
-        // 5. 更新学生表中的绑定数量冗余字段
+        // 6. 更新学生表中的绑定数量冗余字段
         student.setBoundCount((int) (boundCount + 1));
         studentRepository.save(student);
 
-        // 6. 更新账号表中的绑定状态冗余字段
+        // 7. 更新账号表中的绑定状态冗余字段
         Optional<SysAccount> parentOpt = accountRepository.findById(uid);
         if (parentOpt.isPresent()) {
             SysAccount parent = parentOpt.get();
