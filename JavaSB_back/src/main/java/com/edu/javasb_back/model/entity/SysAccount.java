@@ -1,6 +1,7 @@
 package com.edu.javasb_back.model.entity;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -86,6 +87,9 @@ public class SysAccount {
     @Transient
     private java.util.List<String> allowedModules;
 
+    @Transient
+    private Map<String, Object> boundStudentInfo;
+
     // 手动添加 Getter/Setter 解决部分环境 Lombok 未生效问题
     public Long getUid() { return uid; }
     public void setUid(Long uid) { this.uid = uid; }
@@ -149,4 +153,7 @@ public class SysAccount {
 
     public LocalDateTime getUpdateTime() { return updateTime; }
     public void setUpdateTime(LocalDateTime updateTime) { this.updateTime = updateTime; }
+
+    public java.util.Map<String, Object> getBoundStudentInfo() { return boundStudentInfo; }
+    public void setBoundStudentInfo(java.util.Map<String, Object> boundStudentInfo) { this.boundStudentInfo = boundStudentInfo; }
 }

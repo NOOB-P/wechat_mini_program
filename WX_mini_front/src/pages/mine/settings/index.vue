@@ -1,19 +1,76 @@
 <template>
   <view class="settings-container">
-    <wd-cell-group border class="settings-group">
-      <wd-cell title="手机号" :value="userInfo.phone" is-link @click="showChangePhonePopup = true" />
-      <wd-cell title="修改密码" is-link @click="showChangePasswordPopup = true" />
-      <wd-cell title="账户注销" is-link @click="handleCancelAccount" />
-    </wd-cell-group>
+    <!-- 模块一：账号安全 -->
+    <view class="section-group">
+      <view class="section-header">账号安全</view>
+      <wd-cell-group border>
+        <wd-cell title="手机号" :value="userInfo.phone" is-link @click="showChangePhonePopup = true" />
+        <wd-cell title="修改密码" is-link @click="showChangePasswordPopup = true" />
+        <wd-cell title="账户注销" is-link @click="handleCancelAccount" />
+      </wd-cell-group>
+    </view>
 
-    <wd-cell-group border class="settings-group">
-      <wd-cell title="上传日志" is-link @click="handleUploadLogs" />
-      <wd-cell title="版本更新" :value="settingsInfo.version" is-link @click="handleCheckUpdate" />
-    </wd-cell-group>
+    <!-- 模块二：学生管理 -->
+    <view class="section-group">
+      <view class="section-header">学生管理</view>
+      <wd-cell-group border>
+        <wd-cell 
+          v-if="userInfo.isBoundStudent === 1" 
+          title="绑定学生" 
+          :value="userInfo.boundStudentInfo?.name" 
+          is-link 
+          @click="showStudentDetailPopup = true" 
+        />
+        <wd-cell 
+          v-else 
+          title="绑定学生" 
+          value="未绑定" 
+          is-link 
+          @click="handleGoToBind" 
+        />
+      </wd-cell-group>
+    </view>
+
+    <!-- 模块三：系统支持 -->
+    <view class="section-group">
+      <view class="section-header">系统支持</view>
+      <wd-cell-group border>
+        <wd-cell title="上传日志" is-link @click="handleUploadLogs" />
+        <wd-cell title="版本更新" :value="settingsInfo.version" is-link @click="handleCheckUpdate" />
+      </wd-cell-group>
+    </view>
 
     <view class="logout-btn-container">
       <text class="logout-text" @click="handleLogout">退出登录</text>
     </view>
+
+    <!-- 学生信息详情弹窗 -->
+    <wd-popup v-model="showStudentDetailPopup" position="bottom" custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+      <view class="popup-content">
+        <view class="popup-title">学生详情</view>
+        <view class="detail-list">
+          <view class="detail-item">
+            <text class="label">学生姓名</text>
+            <text class="value">{{ userInfo.boundStudentInfo?.name }}</text>
+          </view>
+          <view class="detail-item">
+            <text class="label">所在学校</text>
+            <text class="value">{{ userInfo.boundStudentInfo?.school }}</text>
+          </view>
+          <view class="detail-item">
+            <text class="label">所在班级</text>
+            <text class="value">{{ userInfo.boundStudentInfo?.grade }}{{ userInfo.boundStudentInfo?.className }}</text>
+          </view>
+          <view class="detail-item">
+            <text class="label">学生学号</text>
+            <text class="value">{{ userInfo.boundStudentInfo?.studentNo }}</text>
+          </view>
+        </view>
+        <view class="action-btn">
+          <wd-button type="error" block plain @click="handleUnbindStudent">解除绑定</wd-button>
+        </view>
+      </view>
+    </wd-popup>
 
     <!-- 修改手机号弹窗 -->
     <wd-popup v-model="showChangePhonePopup" position="bottom" custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
@@ -58,7 +115,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
-import { getMineInfoApi, updateMineInfoApi, updatePasswordApi, logoutApi } from '@/api/mine'
+import { getMineInfoApi, updateMineInfoApi, updatePasswordApi, logoutApi, unbindStudentApi } from '@/api/mine'
 import { sendSmsCode } from '@/api/login'
 import { useToast } from 'wot-design-uni'
 
@@ -68,13 +125,18 @@ const toast = useToast()
 const userInfo = reactive({
   phone: '',
   nickname: '',
-  email: ''
+  email: '',
+  isBoundStudent: 0,
+  boundStudentInfo: null as any
 })
 
 // 设置信息
 const settingsInfo = reactive({
   version: '1.0.0'
 })
+
+// 学生详情弹窗
+const showStudentDetailPopup = ref(false)
 
 // 修改手机号相关
 const showChangePhonePopup = ref(false)
@@ -101,6 +163,8 @@ const fetchData = async () => {
       userInfo.phone = res.data.phone
       userInfo.nickname = res.data.nickname
       userInfo.email = res.data.email
+      userInfo.isBoundStudent = res.data.isBoundStudent
+      userInfo.boundStudentInfo = res.data.boundStudentInfo
     }
   } catch (error) {
     console.error('获取数据失败:', error)
@@ -199,6 +263,41 @@ const handleCancelAccount = () => {
   })
 }
 
+// 跳转至绑定页面
+const handleGoToBind = () => {
+  uni.navigateTo({ 
+    url: `/pages/auth/bind-student?phone=${userInfo.phone}` 
+  })
+}
+
+// 解绑学生
+const handleUnbindStudent = () => {
+  uni.showModal({
+    title: '解绑确认',
+    content: `确定要解绑学生 [${userInfo.boundStudentInfo?.name}] 吗？`,
+    confirmColor: '#fa4350',
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          toast.loading('正在解绑...')
+          const res = await unbindStudentApi()
+          if (res.code === 200) {
+            toast.success('解绑成功')
+            userInfo.isBoundStudent = 0
+            userInfo.boundStudentInfo = null
+            showStudentDetailPopup.value = false // 关闭详情弹窗
+            setTimeout(() => {
+              uni.redirectTo({ url: '/pages/auth/bind-student' })
+            }, 1000)
+          }
+        } catch (error: any) {
+          toast.error(error.msg || '解绑失败')
+        }
+      }
+    }
+  })
+}
+
 // 上传日志
 const handleUploadLogs = () => {
   toast.loading('正在上传日志...')
@@ -239,16 +338,22 @@ const handleLogout = () => {
 .settings-container {
   min-height: 100vh;
   background-color: #f8f9fa;
-  padding-top: 20rpx;
+  padding: 20rpx 0;
 }
 
-.settings-group {
-  margin-bottom: 20rpx;
-  background-color: #fff;
+.section-group {
+  margin-bottom: 30rpx;
+  
+  .section-header {
+    padding: 20rpx 32rpx;
+    font-size: 26rpx;
+    color: #999;
+    background-color: #f8f9fa;
+  }
 }
 
 .logout-btn-container {
-  margin-top: 40rpx;
+  margin: 60rpx 0;
   background-color: #fff;
   height: 100rpx;
   display: flex;
@@ -272,6 +377,28 @@ const handleLogout = () => {
     color: #333;
     text-align: center;
     margin-bottom: 60rpx;
+  }
+
+  .detail-list {
+    flex: 1;
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 30rpx 0;
+      border-bottom: 1rpx solid #f5f5f5;
+      
+      .label {
+        font-size: 30rpx;
+        color: #666;
+      }
+      
+      .value {
+        font-size: 30rpx;
+        color: #333;
+        font-weight: 500;
+      }
+    }
   }
   
   .input-group {
@@ -302,7 +429,7 @@ const handleLogout = () => {
   
   .action-btn {
     margin-top: auto;
-    padding-bottom: 40rpx;
+    padding: 40rpx 0;
   }
 }
 

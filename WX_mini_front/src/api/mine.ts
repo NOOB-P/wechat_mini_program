@@ -43,6 +43,16 @@ export const logoutApi = () => {
 }
 
 /**
+ * @Description: 解绑学生 (个人设置使用)
+ */
+export const unbindStudentApi = () => {
+  return request({
+    url: '/api/app/auth/unbind-student',
+    method: 'POST'
+  })
+}
+
+/**
  * @Description: 上传头像
  */
 export const uploadAvatarApi = (filePath: string) => {

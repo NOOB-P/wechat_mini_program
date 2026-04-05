@@ -133,7 +133,7 @@ CREATE TABLE `students` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='学生档案表';
 
--- 4.1 学生-家长绑定表 (多对多)
+-- 4.1 学生-家长绑定表 (一对多：一个学生可被多名家长绑定，但一名家长只能绑定一名学生)
 DROP TABLE IF EXISTS `student_parent_bindings`;
 CREATE TABLE `student_parent_bindings` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '绑定ID',
@@ -141,10 +141,11 @@ CREATE TABLE `student_parent_bindings` (
     `parent_uid` BIGINT NOT NULL COMMENT '家长用户唯一ID (sys_accounts.uid)',
     `binding_type` VARCHAR(20) DEFAULT 'parent' COMMENT '绑定类型',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '绑定时间',
-    UNIQUE KEY `uk_parent_single` (`parent_uid`), -- 一个家长只能绑定一个学生
+    -- 核心约束：确保一个家长账号（即一个手机号）只能存在一条绑定记录
+    UNIQUE KEY `uk_parent_single` (`parent_uid`), 
     CONSTRAINT `fk_binding_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
     CONSTRAINT `fk_binding_parent` FOREIGN KEY (`parent_uid`) REFERENCES `sys_accounts` (`uid`)
-) ENGINE=InnoDB COMMENT='学生与家长账号绑定关系表 (一个家长只能绑1个学生，一个学生最多绑5个家长)';
+) ENGINE=InnoDB COMMENT='学生与家长账号绑定关系表 (1个家长限绑1名学生，1名学生支持多名家长共同管理)';
 
 -- 5. 考试信息与成绩表 (兼容历史版本结构)
 DROP TABLE IF EXISTS `exams`;
