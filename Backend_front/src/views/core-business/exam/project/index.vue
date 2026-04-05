@@ -62,14 +62,17 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
+import { 
+  fetchGetProjectList, 
+  fetchAddProject, 
+  fetchUpdateProject, 
+  fetchDeleteProject 
+} from '@/api/core-business/exam/project'
 
 const router = useRouter()
 const loading = ref(false)
-const tableData = ref([
-  { id: '1', name: '2023-2024学年第一学期期中联考', createTime: '2023-11-01 10:00:00' },
-  { id: '2', name: '2024年春季学期摸底考试', createTime: '2024-03-01 09:00:00' }
-])
-const total = ref(2)
+const tableData = ref<any[]>([])
+const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 
@@ -89,12 +92,47 @@ const rules = {
   name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }]
 }
 
+const loadData = async () => {
+  loading.value = true
+  try {
+    const res = await fetchGetProjectList({
+      current: page.value,
+      size: pageSize.value,
+      name: searchForm.value.name
+    })
+    
+    // API 工具拦截器已经解包了外层，直接返回了 data 对象
+    if (res) {
+      const records = res.records || []
+      tableData.value = records.map((item: any) => {
+        // 格式化时间 (使用原生 Date 替代 dayjs 避免依赖缺失问题)
+        if (item.createTime) {
+          const d = new Date(item.createTime)
+          item.createTime = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
+        }
+        return item
+      })
+      total.value = res.total || 0
+    } else {
+      tableData.value = []
+      total.value = 0
+    }
+  } catch (error) {
+    ElMessage.error('加载列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 const handleSearch = () => {
-  ElMessage.success('查询成功')
+  page.value = 1
+  loadData()
 }
 
 const resetSearch = () => {
   searchForm.value.name = ''
+  page.value = 1
+  loadData()
 }
 
 const handleAddProject = () => {
@@ -105,15 +143,26 @@ const handleAddProject = () => {
 
 const handleEdit = (row: any) => {
   isEdit.value = true
-  form.value = { ...row }
+  form.value = { id: row.id, name: row.name }
   dialogVisible.value = true
 }
 
 const handleDelete = (row: any) => {
-  ElMessageBox.confirm(`确定要删除项目 [${row.name}] 吗？`, '警告', {
-    type: 'warning'
-  }).then(() => {
-    ElMessage.success('删除成功')
+  ElMessageBox.confirm(`确定要删除项目 [${row.name}] 吗？这可能导致该项目下所有的班级和成绩数据被级联删除！`, '危险操作警告', {
+    type: 'warning',
+    confirmButtonText: '确定删除',
+    cancelButtonText: '取消'
+  }).then(async () => {
+    try {
+      await fetchDeleteProject(row.id)
+      ElMessage.success('删除成功')
+      if (tableData.value.length === 1 && page.value > 1) {
+        page.value -= 1
+      }
+      loadData()
+    } catch (error) {
+      ElMessage.error('删除失败')
+    }
   })
 }
 
@@ -126,20 +175,33 @@ const handleEnter = (row: any) => {
 
 const handleCurrentChange = (val: number) => {
   page.value = val
+  loadData()
 }
 
 const submitForm = async () => {
   if (!formRef.value) return
-  await formRef.value.validate((valid) => {
+  await formRef.value.validate(async (valid) => {
     if (valid) {
-      ElMessage.success(isEdit.value ? '编辑成功' : '创建成功')
-      dialogVisible.value = false
+      try {
+        if (isEdit.value) {
+          await fetchUpdateProject(form.value)
+        } else {
+          await fetchAddProject(form.value)
+        }
+        
+        ElMessage.success(isEdit.value ? '编辑成功' : '创建成功')
+        dialogVisible.value = false
+        loadData()
+      } catch (error) {
+        // 请求如果报错，axios 拦截器内部会抛出异常，这里捕获即可
+        ElMessage.error(isEdit.value ? '编辑失败' : '创建失败')
+      }
     }
   })
 }
 
 onMounted(() => {
-  // loadData()
+  loadData()
 })
 </script>
 
