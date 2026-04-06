@@ -16,4 +16,7 @@ public interface ExamResultRepository extends JpaRepository<ExamResult, Long> {
 
     @Query(value = "SELECT * FROM exam_results WHERE student_no = :studentNo ORDER BY create_time DESC LIMIT 6", nativeQuery = true)
     List<ExamResult> findTop6ByStudentNoOrderByCreateTimeDesc(@Param("studentNo") String studentNo);
+
+    @Query(value = "SELECT * FROM exam_results WHERE student_no = :studentNo", nativeQuery = true)
+    List<ExamResult> findAllByStudentNo(@Param("studentNo") String studentNo);
 }

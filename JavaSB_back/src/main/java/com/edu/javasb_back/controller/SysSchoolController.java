@@ -114,4 +114,37 @@ public class SysSchoolController {
     public Result<Void> deleteSchool(@PathVariable Long id) {
         return sysSchoolService.deleteSchool(id);
     }
+
+    @PostMapping("/batch-delete")
+    public Result<String> batchDeleteSchools(@RequestBody Map<String, java.util.List<Long>> params) {
+        java.util.List<Long> ids = params.get("ids");
+        if (ids == null || ids.isEmpty()) {
+            return Result.error("未选中任何学校");
+        }
+        int successCount = 0;
+        int failCount = 0;
+        java.util.List<String> failedNames = new java.util.ArrayList<>();
+        
+        for (Long id : ids) {
+            java.util.Optional<SysSchool> schoolOpt = sysSchoolService.getSchoolById(id); // assuming we need to get name, or fetch in service
+            String schoolName = "未知学校";
+            if (schoolOpt.isPresent()) {
+                schoolName = schoolOpt.get().getName();
+            }
+            
+            Result<Void> result = sysSchoolService.deleteSchool(id);
+            if (result.getCode() == 200) {
+                successCount++;
+            } else {
+                failCount++;
+                failedNames.add(schoolName);
+            }
+        }
+        if (failCount > 0) {
+            String failedMsg = String.join("，", failedNames);
+            String detailMsg = "批量删除完成。成功 " + successCount + " 个，跳过 " + failCount + " 个存在绑定数据的学校。未能删除的学校：[" + failedMsg + "]";
+            return Result.success("操作完成，部分成功", detailMsg);
+        }
+        return Result.success("批量删除成功", "批量删除成功");
+    }
 }
