@@ -192,7 +192,7 @@
               <div class="text-xs leading-6 text-gray-600 p-2">
                 <p>1. 请先<b>下载导入模板</b>，按照模板格式填写班级信息。</p>
                 <p>2. 支持<b>多文件批量上传</b>，系统将自动解析并更新班级数据。</p>
-                <p>3. 若班级已存在，系统将自动<b>更新</b>现有班级信息。</p>
+                <p>3. 若班级已存在，系统将自动<b>忽略</b>现有班级信息。</p>
               </div>
             </template>
             <div class="instructions-trigger" style="display: flex; align-items: center; font-size: 13px; color: #409eff; cursor: help; padding: 4px 8px; background-color: #ecf5ff; border-radius: 4px;">
