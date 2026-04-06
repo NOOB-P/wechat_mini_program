@@ -631,3 +631,62 @@ INSERT INTO `sys_logs` (`uid`, `user_name`, `nick_name`, `operation`, `method`, 
 (10, 'parent07', '吴九妈妈', '报名自习室', 'POST', '/api/study-room/enroll', '172.16.0.1', '外网', 200);
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- 11. 试卷科目表
+CREATE TABLE IF NOT EXISTS `paper_subjects` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(50) NOT NULL UNIQUE,
+    `icon` VARCHAR(50),
+    `color` VARCHAR(20),
+    `sort_order` INT DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 12. 试卷数据表
+CREATE TABLE IF NOT EXISTS `exam_papers` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `title` VARCHAR(200) NOT NULL,
+    `subject` VARCHAR(50),
+    `grade` VARCHAR(50),
+    `year` VARCHAR(10),
+    `type` VARCHAR(20),
+    `tags` VARCHAR(200),
+    `download_count` INT DEFAULT 0,
+    `file_path` VARCHAR(500),
+    `is_recommend` BIT(1) DEFAULT b'0',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 13. 初始化科目数据
+INSERT IGNORE INTO `paper_subjects` (`name`, `icon`, `color`, `sort_order`) VALUES
+('语文', 'read', '#ff5252', 1),
+('数学', 'chart', '#4caf50', 2),
+('英语', 'edit', '#2196f3', 3),
+('物理', 'setting', '#00bcd4', 4),
+('化学', 'filter', '#ff9800', 5),
+('生物', 'share', '#3f51b5', 6),
+('历史', 'clock', '#795548', 7),
+('政治', 'notification', '#e91e63', 8),
+('地理', 'location', '#009688', 9);
+
+-- 15. 课程购买订单表
+CREATE TABLE IF NOT EXISTS `course_orders` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `order_no` VARCHAR(50) NOT NULL UNIQUE,
+    `user_uid` BIGINT NOT NULL,
+    `course_id` VARCHAR(50) NOT NULL,
+    `price` DECIMAL(10, 2) NOT NULL,
+    `payment_status` INT DEFAULT 0, -- 0-待支付, 1-已支付
+    `payment_method` VARCHAR(50),
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX `idx_user_course` (`user_uid`, `course_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 14. 初始化试卷数据
+INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `tags`, `download_count`, `is_recommend`, `file_path`) VALUES
+('2023年杭州二中高三仿真模拟卷 (一)', '数学', '高三', '2023', 'FAMOUS', '名校,重点,综合,PDF', 1250, 1, '/uploads/papers/demo.pdf'),
+('2024年北京人大附中初三二模真题', '语文', '初三', '2024', 'FAMOUS', '真题,必刷,全科,解析', 3400, 0, '/uploads/papers/demo.pdf'),
+('上海中学2023-2024学年高一期末考试卷', '数学', '高一', '2024', 'FAMOUS', '名校,期末,数学,精品', 890, 1, '/uploads/papers/demo.pdf'),
+('2023年西安西工大附中初一入学摸底测试', '语文', '初一', '2023', 'FAMOUS', '摸底,语文,PDF版', 2100, 0, '/uploads/papers/demo.pdf'),
+('2024年成都七中高二联考物理压轴卷', '物理', '高二', '2024', 'JOINT', '联考,名校,物理,解析', 1560, 1, '/uploads/papers/demo.pdf');

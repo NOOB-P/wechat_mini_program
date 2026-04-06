@@ -8,7 +8,7 @@ export const courseStudyRoutes: AppRouteRecord = {
   meta: {
     title: '课程与自习室',
     icon: 'ri:book-open-line',
-    sort: 2
+    sort: 4
   },
   children: [
     {

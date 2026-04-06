@@ -315,6 +315,7 @@ public class SysAccountServiceImpl implements SysAccountService {
                         studentMap.put("className", student.getClassName());
                         studentMap.put("studentNo", student.getStudentNo());
                         account.setBoundStudentInfo(studentMap);
+                        account.setGrade(student.getGrade());
                     }
                 }
             }

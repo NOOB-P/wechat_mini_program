@@ -49,3 +49,24 @@ export const getMyCollectionsApi = () => {
 export const getMyStudyRecordsApi = () => {
   return request({ url: '/api/app/mine/record/list', method: 'GET' })
 }
+
+/**
+ * 获取已购课程
+ */
+export const getPurchasedCoursesApi = () => {
+  return request({ url: '/api/app/course/purchased', method: 'GET' })
+}
+
+/**
+ * 创建课程订单
+ */
+export const buyCourseApi = (courseId: string) => {
+  return request({ url: '/api/app/course/buy', method: 'POST', data: { courseId } })
+}
+
+/**
+ * 模拟支付
+ */
+export const payMockApi = (orderNo: string) => {
+  return request({ url: '/api/app/course/pay-mock', method: 'POST', data: { orderNo } })
+}

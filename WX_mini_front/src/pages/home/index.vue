@@ -87,7 +87,14 @@ onShow(() => {
 const handleGridClick = (type: string) => {
   if (type === 'analysis') {
     uni.navigateTo({ url: '/pages/score/index' })
+  } else if (type === 'academic') {
+    // 跳转到名校试卷
+    uni.navigateTo({ url: '/pages/resource/paper' })
   }
+}
+
+const navTo = (url: string) => {
+  uni.navigateTo({ url })
 }
 
 const goToRecharge = () => {
@@ -135,8 +142,8 @@ const handleCourseClick = (course: any) => {
         <image class="welcome-bg" src="/static/home/bg.png" mode="aspectFill" />
         <view class="welcome-info">
           <view class="user-header">
-            <text class="user-name">{{ userInfo.nickname || '张萌萌' }}家长</text>
-            <view class="grade-tag">{{ userInfo.grade || '二年级' }}</view>
+            <text class="user-name">{{ userInfo.nickname || '新用户' }}家长</text>
+            <view class="grade-tag" v-if="userInfo.isBoundStudent === 1">{{ userInfo.grade }}</view>
           </view>
           <text class="welcome-title">欢迎回来，开启学习之旅</text>
           <text class="welcome-desc">今天也要加油鸭！</text>
@@ -179,7 +186,7 @@ const handleCourseClick = (course: any) => {
         <view class="eval-grid">
           <view class="eval-item" @click="handleGridClick('academic')">
             <image class="eval-icon" src="/static/home/academic_eval.png" mode="widthFix" />
-            <text class="eval-text">学业测评</text>
+            <text class="eval-text">名校试卷</text>
           </view>
           <view class="eval-item" @click="handleGridClick('character')">
             <image class="eval-icon" src="/static/home/character_eval.png" mode="widthFix" />
@@ -194,7 +201,7 @@ const handleCourseClick = (course: any) => {
 
       <view class="section-header">
         <text class="section-title">今日推荐</text>
-        <text class="section-more">查看更多</text>
+        <text class="section-more" @click="navTo('/pages/course/index')">查看更多</text>
       </view>
 
       <view class="recommend-list">

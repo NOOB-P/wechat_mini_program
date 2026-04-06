@@ -13,6 +13,7 @@ import com.edu.javasb_back.model.entity.Course;
 import com.edu.javasb_back.repository.CourseInteractionRepository;
 import com.edu.javasb_back.repository.CourseRepository;
 import com.edu.javasb_back.service.CourseService;
+import com.edu.javasb_back.service.CourseOrderService;
 
 @Service
 public class CourseServiceImpl implements CourseService {
@@ -22,6 +23,9 @@ public class CourseServiceImpl implements CourseService {
 
     @Autowired
     private CourseInteractionRepository interactionRepository;
+
+    @Autowired
+    private CourseOrderService orderService;
 
     @Override
     public Result<List<Course>> getGeneralCourseList() {
@@ -39,6 +43,8 @@ public class CourseServiceImpl implements CourseService {
                 // 检查是否已收藏
                 int count = interactionRepository.checkIsCollectedSql(uid, courseId);
                 course.setIsCollected(count > 0);
+                // 检查是否已购买
+                course.setIsPurchased(orderService.isCoursePurchased(uid, courseId));
             }
             return Result.success(course);
         }

@@ -17,6 +17,7 @@ const userInfo = reactive({
 // 菜单组一
 const menuGroup1 = [
   { label: '我的课程', icon: 'books', value: 'courses' },
+  { label: '已购课程', icon: 'cart', value: 'purchased' },
   { label: '我的收藏', icon: 'star', value: 'favorites' },
   { label: '学习记录', icon: 'time', value: 'history' }
 ]
@@ -80,6 +81,8 @@ const handleMenuClick = (item: any) => {
   const type = item.value
   if (type === 'courses') {
     uni.navigateTo({ url: '/pages/mine/course-list?type=course' })
+  } else if (type === 'purchased') {
+    uni.navigateTo({ url: '/pages/mine/course-list?type=purchased' })
   } else if (type === 'favorites') {
     uni.navigateTo({ url: '/pages/mine/course-list?type=collection' })
   } else if (type === 'history') {

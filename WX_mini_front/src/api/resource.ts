@@ -44,3 +44,10 @@ export const getPaperSubjectsApi = () => {
     method: 'GET'
   })
 }
+
+export const incrementPaperDownloadApi = (id: string | number) => {
+  return request({
+    url: `/api/app/resource/paper/download/${id}`,
+    method: 'POST'
+  })
+}

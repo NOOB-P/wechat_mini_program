@@ -84,8 +84,8 @@
           <text>分享</text>
         </view>
       </view>
-      <wd-button type="primary" custom-class="study-btn" @click="startLearning">
-        立即学习
+      <wd-button type="primary" custom-class="study-btn" @click="handleAction">
+        {{ (courseInfo.price > 0 && !isPurchased) ? '立即购买' : '立即学习' }}
       </wd-button>
     </view>
   </view>
@@ -95,13 +95,14 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { getCourseDetailApi, collectCourseApi, recordLearningApi } from '@/api/course'
+import { getCourseDetailApi, collectCourseApi, recordLearningApi, buyCourseApi } from '@/api/course'
 
 const toast = useToast()
 
 const courseInfo = ref<any>({})
 const currentTab = ref('intro')
 const isCollected = ref(false)
+const isPurchased = ref(false)
 const currentChapter = ref(0)
 const chapters = ref<any[]>([
   { title: '课程介绍与学习指南' },
@@ -126,6 +127,7 @@ const loadCourseDetail = async (id: string) => {
       
       courseInfo.value = data
       isCollected.value = !!data.isCollected
+      isPurchased.value = !!data.isPurchased
       // 模拟一些详情页需要的数据，如果后端没有的话
       if (!courseInfo.value.studentCount) courseInfo.value.studentCount = Math.floor(Math.random() * 1000)
       if (!courseInfo.value.chapterCount) courseInfo.value.chapterCount = chapters.value.length
@@ -163,7 +165,35 @@ const handleCollect = async () => {
   }
 }
 
+const handleAction = async () => {
+  if (courseInfo.value.price > 0 && !isPurchased.value) {
+    // 需要购买
+    try {
+      toast.loading('正在下单...')
+      const res = await buyCourseApi(courseInfo.value.id)
+      if (res.code === 200) {
+        // 跳转到支付页面
+        const orderData = encodeURIComponent(JSON.stringify(res.data))
+        uni.navigateTo({
+          url: `/pages/course/pay?order=${orderData}`
+        })
+      } else {
+        toast.error(res.msg || '下单失败')
+      }
+    } catch (e) {
+      toast.error('网络错误')
+    }
+  } else {
+    // 直接学习
+    startLearning()
+  }
+}
+
 const playChapter = (index: number) => {
+  if (courseInfo.value.price > 0 && !isPurchased.value) {
+    toast.info('请先购买课程')
+    return
+  }
   currentChapter.value = index
   toast.show(`正在切换至：${chapters.value[index].title}`)
   // 点击具体章节也算开始学习

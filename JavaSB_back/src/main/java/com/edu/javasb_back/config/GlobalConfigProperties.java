@@ -42,7 +42,15 @@ public class GlobalConfigProperties {
      */
     private String uploadDir = "/upload/";
 
+    /**
+     * 试卷存储目录
+     */
+    private String paperDir = "src/main/resources/uploads/papers/";
+
     // 手动添加 Getter 和 Setter 方法，以防 Lombok 失效
+    public String getPaperDir() { return paperDir; }
+    public void setPaperDir(String paperDir) { this.paperDir = paperDir; }
+
     public String getDefaultPassword() { return defaultPassword; }
     public void setDefaultPassword(String defaultPassword) { this.defaultPassword = defaultPassword; }
 
