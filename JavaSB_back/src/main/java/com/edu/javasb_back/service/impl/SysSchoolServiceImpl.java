@@ -3,6 +3,8 @@ package com.edu.javasb_back.service.impl;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.SysSchool;
 import com.edu.javasb_back.model.vo.SchoolNodeVO;
+import com.edu.javasb_back.repository.SysClassRepository;
+import com.edu.javasb_back.model.entity.SysClass;
 import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.service.SysSchoolService;
 import jakarta.persistence.criteria.Predicate;
@@ -28,6 +30,9 @@ public class SysSchoolServiceImpl implements SysSchoolService {
 
     @Autowired
     private SysSchoolRepository sysSchoolRepository;
+
+    @Autowired
+    private SysClassRepository sysClassRepository;
 
     @Override
     public Result<List<SchoolNodeVO>> getSchoolTree() {
@@ -84,8 +89,17 @@ public class SysSchoolServiceImpl implements SysSchoolService {
             return Result.error("学校名称不能为空");
         }
 
-        // 生成唯一ID
-        String schoolId = "SCH" + System.currentTimeMillis();
+        // 检查该省市下是否已存在同名学校
+        if (sysSchoolRepository.findFirstByProvinceAndCityAndName(school.getProvince(), school.getCity(), school.getName()).isPresent()) {
+            return Result.success("该学校已存在，忽略添加", null);
+        }
+
+        // 生成唯一标识，重试确保唯一
+        String schoolId;
+        do {
+            schoolId = "SCH" + System.currentTimeMillis();
+        } while (sysSchoolRepository.findBySchoolId(schoolId).isPresent());
+        
         school.setSchoolId(schoolId);
         school.setType("school");
         school.setStatus(1);
@@ -121,9 +135,22 @@ public class SysSchoolServiceImpl implements SysSchoolService {
             return Result.error("学校不存在");
         }
         SysSchool school = schoolOpt.get();
-        school.setStatus(0); // 软删除
-        sysSchoolRepository.save(school);
+
+        // 检查是否有绑定的班级
+        if (school.getSchoolId() != null) {
+            List<SysClass> classes = sysClassRepository.findBySchoolId(school.getSchoolId());
+            if (classes != null && !classes.isEmpty()) {
+                return Result.error("删除失败：当前学校下存在已绑定的班级，请先解绑或删除关联班级");
+            }
+        }
+
+        sysSchoolRepository.delete(school); // 物理删除
         return Result.success("删除成功", null);
+    }
+
+    @Override
+    public java.util.Optional<SysSchool> getSchoolById(Long id) {
+        return sysSchoolRepository.findById(id);
     }
 
     @Override
@@ -132,7 +159,6 @@ public class SysSchoolServiceImpl implements SysSchoolService {
 
         Specification<SysSchool> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("status"), 1));
 
             if (keyword != null && !keyword.isEmpty()) {
                 String likeKeyword = "%" + keyword + "%";
@@ -174,23 +200,29 @@ public class SysSchoolServiceImpl implements SysSchoolService {
     @Transactional
     public Result<Void> importSchools(List<SchoolImportDTO> list) {
         for (SchoolImportDTO dto : list) {
-            java.util.Optional<SysSchool> schoolOpt = sysSchoolRepository.findByProvinceAndCityAndName(
+            // 根据省市区名称查找学校是否存在
+            java.util.Optional<SysSchool> schoolOpt = sysSchoolRepository.findFirstByProvinceAndCityAndName(
                     dto.getProvince(), dto.getCity(), dto.getSchoolName());
             
-            SysSchool school;
             if (schoolOpt.isPresent()) {
-                school = schoolOpt.get();
-                // 如果已存在，更新状态等信息
-                school.setStatus(1);
-            } else {
-                school = new SysSchool();
-                school.setSchoolId("SCH" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 5));
-                school.setProvince(dto.getProvince());
-                school.setCity(dto.getCity());
-                school.setName(dto.getSchoolName());
-                school.setType("school");
-                school.setStatus(1);
+                // 如果已存在，直接忽略跳过
+                continue;
             }
+            
+            SysSchool school = new SysSchool();
+            
+            // 生成唯一标识，重试确保唯一
+            String schoolId;
+            do {
+                schoolId = "SCH" + System.currentTimeMillis();
+            } while (sysSchoolRepository.findBySchoolId(schoolId).isPresent());
+            
+            school.setSchoolId(schoolId);
+            school.setProvince(dto.getProvince());
+            school.setCity(dto.getCity());
+            school.setName(dto.getSchoolName());
+            school.setType("school");
+            school.setStatus(1);
             sysSchoolRepository.save(school);
         }
         return Result.success("导入成功", null);

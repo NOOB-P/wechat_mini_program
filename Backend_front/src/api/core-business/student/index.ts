@@ -1,13 +1,15 @@
 import api from '@/utils/http'
 
 /** 获取学生列表 */
-export function fetchGetStudentList(params: { current?: number, size?: number, keyword?: string }) {
+export function fetchGetStudentList(params: { current?: number, size?: number, keyword?: string, schoolId?: string, classId?: string }) {
   return api.get<any>({
     url: '/api/students/list',
     params: {
       page: params.current || 1,
       size: params.size || 10,
-      keyword: params.keyword
+      keyword: params.keyword,
+      schoolId: params.schoolId,
+      classId: params.classId
     }
   })
 }
@@ -32,6 +34,21 @@ export function fetchUpdateStudent(params: Partial<Api.Student.StudentItem>) {
 export function fetchDeleteStudent(id: string) {
   return api.del<any>({
     url: `/api/students/delete/${id}`
+  })
+}
+
+/** 批量删除学生 */
+export function fetchBatchDeleteStudents(ids: (string | number)[]) {
+  return api.post<any>({
+    url: '/api/students/batch-delete',
+    data: { ids }
+  })
+}
+
+/** 获取学生绑定的家长手机号列表 */
+export function fetchGetBoundParents(id: string) {
+  return api.get<string[]>({
+    url: `/api/students/bound-parents/${id}`
   })
 }
 

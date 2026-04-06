@@ -47,6 +47,14 @@ export function fetchDeleteSchool(id: string) {
   })
 }
 
+/** 批量删除学校 */
+export function fetchBatchDeleteSchools(ids: (string | number)[]) {
+  return api.post<any>({
+    url: '/api/system/school/batch-delete',
+    data: { ids }
+  })
+}
+
 /** 导入 Excel */
 export function fetchImportExcel(file: File) {
   const formData = new FormData()

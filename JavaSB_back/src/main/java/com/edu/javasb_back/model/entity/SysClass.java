@@ -19,6 +19,9 @@ public class SysClass {
     @Column(name = "classid", nullable = false, unique = true, length = 50)
     private String classid;
 
+    @Column(name = "school_id", nullable = false, length = 50)
+    private String schoolId;
+
     @Column(name = "grade", nullable = false, length = 50)
     private String grade;
 
@@ -48,6 +51,14 @@ public class SysClass {
 
     public void setClassid(String classid) {
         this.classid = classid;
+    }
+
+    public String getSchoolId() {
+        return schoolId;
+    }
+
+    public void setSchoolId(String schoolId) {
+        this.schoolId = schoolId;
     }
 
     public String getGrade() {

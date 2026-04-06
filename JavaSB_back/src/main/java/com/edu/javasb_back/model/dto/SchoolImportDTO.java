@@ -5,13 +5,13 @@ import lombok.Data;
 
 @Data
 public class SchoolImportDTO {
-    @ExcelProperty("省份")
+    @ExcelProperty(index = 0)
     private String province;
 
-    @ExcelProperty("城市")
+    @ExcelProperty(index = 1)
     private String city;
 
-    @ExcelProperty("学校")
+    @ExcelProperty(index = 2)
     private String schoolName;
 
     public String getProvince() {
