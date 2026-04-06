@@ -303,6 +303,11 @@ public class SysAccountController {
             return Result.error("不能删除当前登录的账户");
         }
 
+        // 如果是家长角色，先解绑学生关系
+        if (targetAccount.getRoleId() != null && targetAccount.getRoleId() == 3) {
+            sysAccountService.unbindStudentByParentUid(uid);
+        }
+
         sysAccountRepository.deleteById(uid);
         return Result.success("删除成功", null);
     }

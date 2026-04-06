@@ -40,11 +40,25 @@
           <div class="flex items-center">
             <span class="font-bold mr-4">学校架构管理</span>
             <el-radio-group v-model="viewType" size="small">
-              <el-radio-button label="tree">树形视图</el-radio-button>
               <el-radio-button label="list">列表视图</el-radio-button>
+              <el-radio-button label="tree">树形视图</el-radio-button>
             </el-radio-group>
           </div>
           <div>
+            <el-button 
+              v-if="viewType === 'list' && !isBatchDeleting"
+              type="danger"
+              @click="isBatchDeleting = true"
+            >
+              批量删除
+            </el-button>
+            <el-button 
+              v-if="viewType === 'list' && isBatchDeleting"
+              :type="selectedIds.length > 0 ? 'danger' : 'default'"
+              @click="handleBatchDelete"
+            >
+              {{ selectedIds.length > 0 ? '开始删除' : '取消删除' }}
+            </el-button>
             <el-button type="primary" plain @click="handleOpenImport">批量导入</el-button>
             <el-button type="primary" @click="handleAddSchool">添加学校</el-button>
           </div>
@@ -83,7 +97,7 @@
                       type="primary" 
                       class="mr-2"
                     >学校</el-tag>
-                    <span>{{ node.label }}</span>
+                    <span>{{ node.label }} <span v-if="data.type === 'school'" class="text-gray-400 ml-2 text-xs">({{ data.id }})</span></span>
                   </div>
                 </span>
               </template>
@@ -98,14 +112,18 @@
               style="width: 100%" 
               v-loading="loading"
               height="400"
+              @selection-change="handleSelectionChange"
             >
-              <el-table-column prop="id" label="内部ID" width="100" align="center" />
-              <el-table-column prop="schoolId" label="唯一标识(ID)" width="150" align="center" />
-              <el-table-column prop="province" label="省份" width="120" align="center" />
-              <el-table-column prop="city" label="城市" width="120" align="center" />
+              <el-table-column v-if="isBatchDeleting" type="selection" width="55" align="center" />
+              <el-table-column prop="id" label="内部ID" width="80" align="center" />
+              <el-table-column prop="schoolId" label="唯一标识(ID)" width="180" align="center" />
+              <el-table-column prop="province" label="省份" width="150" align="center" />
+              <el-table-column prop="city" label="城市" width="150" align="center" />
               <el-table-column prop="name" label="学校名称" min-width="200" />
-              <el-table-column label="操作" width="150" align="center" fixed="right">
+              <el-table-column prop="createTime" label="创建时间" width="180" align="center" />
+              <el-table-column label="操作" width="200" align="center" fixed="right">
                 <template #default="{ row }">
+                  <el-button type="primary" link size="small" @click="handleEnterSchool(row)">进入</el-button>
                   <el-button type="primary" link size="small" @click="handleEditSchool(row)">编辑</el-button>
                   <el-button type="danger" link size="small" @click="handleDeleteSchool(row)">删除</el-button>
                 </template>
@@ -135,7 +153,7 @@
               <div class="text-xs leading-6 text-gray-600 p-2">
                 <p>1. 请先<b>下载导入模板</b>，按照模板格式填写学校架构信息。</p>
                 <p>2. 支持<b>多文件批量上传</b>，系统将自动解析并更新学校架构。</p>
-                <p>3. 若学校已存在，系统将自动<b>更新</b>现有学校信息。</p>
+                <p>3. 若学校已存在，系统将自动<b>忽略</b>现有学校信息。</p>
               </div>
             </template>
             <div class="instructions-trigger">
@@ -235,7 +253,7 @@
       :title="dialogTitle"
       width="450px"
     >
-      <el-form :model="form" label-width="80px" ref="formRef" :rules="rules">
+      <el-form :model="form" label-width="100px" ref="formRef" :rules="rules">
         <el-form-item label="省份" prop="province">
           <el-input v-model="form.province" placeholder="请输入省份" />
         </el-form-item>
@@ -264,6 +282,7 @@ import {
   fetchAddSchool, 
   fetchUpdateSchool, 
   fetchDeleteSchool,
+  fetchBatchDeleteSchools,
   fetchImportExcel,
   fetchDownloadSchoolTemplate
 } from '@/api/core-business/school/index'
@@ -278,7 +297,7 @@ import {
   Plus
 } from '@element-plus/icons-vue'
 
-const viewType = ref<'tree' | 'list'>('tree')
+const viewType = ref<'tree' | 'list'>('list')
 const loading = ref(false)
 const treeRef = ref<any>(null)
 const treeData = ref<Api.School.ArchitectureNode[]>([])
@@ -290,6 +309,62 @@ const pageSize = ref(10)
 const defaultProps = {
   children: 'children',
   label: 'name'
+}
+
+const selectedIds = ref<number[]>([])
+const isBatchDeleting = ref(false)
+
+const handleSelectionChange = (selection: any[]) => {
+  selectedIds.value = selection.map(item => item.id)
+}
+
+const handleBatchDelete = () => {
+  if (selectedIds.value.length === 0) {
+    // 没选择时点击，因为文案是"取消删除"，清空选择并隐藏复选框
+    isBatchDeleting.value = false
+    selectedIds.value = []
+    return
+  }
+  ElMessageBox.confirm(
+    `确定要删除选中的 ${selectedIds.value.length} 个学校吗？`,
+    '批量删除警告',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(async () => {
+      try {
+        const res = await fetchBatchDeleteSchools(selectedIds.value)
+        console.log('学校批量删除返回数据:', res)
+        
+        // 修复：由于 axios 拦截器可能会直接返回 res.data 的 data 字段，也可能返回完整的 response
+        // 如果后端返回的是 Result.success(msg, data) 且拦截器直接返回了 data
+        // 那么这里的 res 实际上就是后端 data 里面的内容（即我们想要的详细信息字符串）
+        let msg = ''
+        if (typeof res === 'string') {
+          msg = res
+        } else {
+          msg = (res as any)?.msg || (res as any)?.data?.msg
+        }
+        
+        console.log('后端返回的详细 msg:', msg)
+        
+        if (msg && msg.includes('未能删除')) {
+          ElMessage.warning(msg)
+        } else {
+          ElMessage.success(msg || '批量删除成功')
+        }
+        selectedIds.value = []
+        isBatchDeleting.value = false
+        loadData(true)
+      } catch (error: any) {
+        console.error('学校批量删除异常:', error)
+        ElMessage.error(error.message || '批量删除失败')
+      }
+    })
+    .catch(() => {})
 }
 
 // 搜索相关
@@ -443,6 +518,7 @@ const formRef = ref<FormInstance>()
 const isEdit = ref(false)
 const form = ref({
   id: '',
+  schoolId: '',
   province: '',
   city: '',
   name: ''
@@ -523,6 +599,7 @@ const submitImport = async () => {
   }
   importLoading.value = false
 }
+
 const loadData = async (forceRefetchAll = false) => {
   loading.value = true
   try {
@@ -561,10 +638,22 @@ const loadData = async (forceRefetchAll = false) => {
         name: searchForm.value.name
       })
       if (res && res.records) {
-        listData.value = res.records
+        listData.value = res.records.map((item: any) => {
+          if (item.createTime) {
+            const d = new Date(item.createTime)
+            item.createTime = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
+          }
+          return item
+        })
         total.value = res.total
       } else if (res && res.code === 200) {
-        listData.value = res.data.records
+        listData.value = res.data.records.map((item: any) => {
+          if (item.createTime) {
+            const d = new Date(item.createTime)
+            item.createTime = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
+          }
+          return item
+        })
         total.value = res.data.total
       }
     }
@@ -572,6 +661,26 @@ const loadData = async (forceRefetchAll = false) => {
     console.error('获取数据失败:', error)
   } finally {
     loading.value = false
+  }
+}
+
+watch(viewType, () => {
+  loadData()
+})
+
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const handleEnterSchool = (row: any) => {
+  const schoolId = row.schoolId || row.id
+  if (schoolId) {
+    router.push({
+      path: '/core-business/sys-class',
+      query: { schoolId, schoolName: row.name }
+    })
+  } else {
+    ElMessage.warning('无法获取学校ID')
   }
 }
 
@@ -597,11 +706,15 @@ const handleAddSchool = () => {
   isEdit.value = false
   form.value = {
     id: '',
+    schoolId: '',
     province: '',
     city: '',
     name: ''
   }
   dialogVisible.value = true
+  nextTick(() => {
+    formRef.value?.clearValidate()
+  })
 }
 
 const handleEditSchool = (data: any) => {
@@ -623,6 +736,7 @@ const handleEditSchool = (data: any) => {
         if (f) {
           form.value = {
             id: f.id || f.schoolId,
+            schoolId: f.schoolId || '',
             province: f.province || '',
             city: f.city || '',
             name: f.name
@@ -634,6 +748,7 @@ const handleEditSchool = (data: any) => {
   
   form.value = {
     id: schoolInfo.id || schoolInfo.schoolId,
+    schoolId: schoolInfo.schoolId || '',
     province: schoolInfo.province || '',
     city: schoolInfo.city || '',
     name: schoolInfo.name

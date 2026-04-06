@@ -34,8 +34,17 @@ public class SysStudentServiceImpl implements SysStudentService {
     @Autowired
     private SysClassRepository sysClassRepository;
 
+    @Autowired
+    private com.edu.javasb_back.repository.StudentParentBindingRepository bindingRepository;
+
+    @Autowired
+    private com.edu.javasb_back.repository.SysAccountRepository sysAccountRepository;
+
+    @Autowired
+    private com.edu.javasb_back.repository.ExamResultRepository examResultRepository;
+
     @Override
-    public Result<Map<String, Object>> getStudentList(int page, int size, String keyword) {
+    public Result<Map<String, Object>> getStudentList(int page, int size, String keyword, String schoolId, String classId) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createTime"));
 
         Specification<SysStudent> spec = (root, query, cb) -> {
@@ -50,6 +59,12 @@ public class SysStudentServiceImpl implements SysStudentService {
                     cb.like(root.get("className"), likeKeyword)
                 ));
             }
+            if (StringUtils.hasText(schoolId)) {
+                predicates.add(cb.equal(root.get("schoolId"), schoolId));
+            }
+            if (StringUtils.hasText(classId)) {
+                predicates.add(cb.equal(root.get("classId"), classId));
+            }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
@@ -60,7 +75,18 @@ public class SysStudentServiceImpl implements SysStudentService {
         for (SysStudent student : students) {
             if (StringUtils.hasText(student.getSchoolId())) {
                 sysSchoolRepository.findBySchoolId(student.getSchoolId()).ifPresent(school -> {
-                    student.setSchool(school.getName());
+                    // 格式化学校名称为：xx省xx市xx学校
+                    String formattedSchoolName = "";
+                    if (StringUtils.hasText(school.getProvince())) {
+                        formattedSchoolName += school.getProvince();
+                    }
+                    if (StringUtils.hasText(school.getCity())) {
+                        formattedSchoolName += school.getCity();
+                    }
+                    if (StringUtils.hasText(school.getName())) {
+                        formattedSchoolName += school.getName();
+                    }
+                    student.setSchool(formattedSchoolName);
                 });
             }
             if (StringUtils.hasText(student.getClassId())) {
@@ -86,7 +112,7 @@ public class SysStudentServiceImpl implements SysStudentService {
     public Result<Void> importStudents(List<StudentImportDTO> students) {
         for (StudentImportDTO dto : students) {
             // 1. 处理学校
-            Optional<SysSchool> schoolOpt = sysSchoolRepository.findByProvinceAndCityAndName(
+            Optional<SysSchool> schoolOpt = sysSchoolRepository.findFirstByProvinceAndCityAndName(
                     dto.getProvince(), dto.getCity(), dto.getSchool());
             
             String schoolId;
@@ -95,7 +121,9 @@ public class SysStudentServiceImpl implements SysStudentService {
             } else {
                 // 创建新学校
                 SysSchool newSchool = new SysSchool();
-                schoolId = "SCH" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 5);
+                do {
+                    schoolId = "SCH" + System.currentTimeMillis();
+                } while (sysSchoolRepository.findBySchoolId(schoolId).isPresent());
                 newSchool.setSchoolId(schoolId);
                 newSchool.setProvince(dto.getProvince());
                 newSchool.setCity(dto.getCity());
@@ -118,7 +146,21 @@ public class SysStudentServiceImpl implements SysStudentService {
 
             student.setName(dto.getName());
             student.setSchoolId(schoolId);
-            student.setClassId(null); // Excel import doesn't have classId yet, maybe we need to update StudentImportDTO if we want it, but for now just set null.
+            
+            String classId = null;
+            if (StringUtils.hasText(dto.getGrade()) && StringUtils.hasText(dto.getClassName())) {
+                // 创建新班级
+                SysClass newClass = new SysClass();
+                do {
+                    classId = "CLS" + System.currentTimeMillis();
+                } while (sysClassRepository.existsByClassid(classId));
+                newClass.setClassid(classId);
+                newClass.setSchoolId(schoolId);
+                newClass.setGrade(dto.getGrade());
+                newClass.setAlias(dto.getClassName());
+                sysClassRepository.save(newClass);
+            }
+            student.setClassId(classId);
             student.setSchool(dto.getSchool()); // 冗余
             student.setGrade(dto.getGrade());
             student.setClassName(dto.getClassName());
@@ -211,11 +253,49 @@ public class SysStudentServiceImpl implements SysStudentService {
     }
 
     @Override
+    @Transactional
     public Result<Void> deleteStudent(String id) {
         if (!sysStudentRepository.existsById(id)) {
             return Result.error("学生不存在");
         }
+        
+        Optional<SysStudent> studentOpt = sysStudentRepository.findById(id);
+        if (studentOpt.isEmpty()) {
+            return Result.error("学生不存在");
+        }
+        SysStudent student = studentOpt.get();
+
+        long boundCount = bindingRepository.countByStudentId(id);
+        if (boundCount > 0) {
+            return Result.error("删除失败：当前学生已绑定家长账号，请先解绑");
+        }
+        
+        // 删除相关的考试成绩记录，避免外键约束失败
+        if (StringUtils.hasText(student.getStudentNo())) {
+            List<com.edu.javasb_back.model.entity.ExamResult> results = examResultRepository.findAllByStudentNo(student.getStudentNo());
+            if (results != null && !results.isEmpty()) {
+                examResultRepository.deleteAll(results);
+            }
+        }
+
         sysStudentRepository.deleteById(id);
         return Result.success("删除学生成功", null);
+    }
+
+    @Override
+    public Result<List<String>> getBoundParents(String studentId) {
+        if (!StringUtils.hasText(studentId)) {
+            return Result.error("学生ID不能为空");
+        }
+        List<com.edu.javasb_back.model.entity.StudentParentBinding> bindings = bindingRepository.findByStudentId(studentId);
+        List<String> parentPhones = new java.util.ArrayList<>();
+        for (com.edu.javasb_back.model.entity.StudentParentBinding binding : bindings) {
+            sysAccountRepository.findById(binding.getParentUid()).ifPresent(account -> {
+                if (StringUtils.hasText(account.getPhone())) {
+                    parentPhones.add(account.getPhone());
+                }
+            });
+        }
+        return Result.success("获取成功", parentPhones);
     }
 }

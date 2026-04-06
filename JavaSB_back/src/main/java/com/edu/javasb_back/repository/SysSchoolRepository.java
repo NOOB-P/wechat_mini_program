@@ -13,7 +13,7 @@ import java.util.List;
 public interface SysSchoolRepository extends JpaRepository<SysSchool, Long>, JpaSpecificationExecutor<SysSchool> {
     List<SysSchool> findByStatus(Integer status);
     
-    java.util.Optional<SysSchool> findByProvinceAndCityAndName(String province, String city, String name);
+    java.util.Optional<SysSchool> findFirstByProvinceAndCityAndName(String province, String city, String name);
 
     java.util.Optional<SysSchool> findBySchoolId(String schoolId);
     @Query("SELECT DISTINCT s.province FROM SysSchool s WHERE s.status = 1")

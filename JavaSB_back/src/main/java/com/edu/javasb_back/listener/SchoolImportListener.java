@@ -15,19 +15,25 @@ public class SchoolImportListener extends AnalysisEventListener<SchoolImportDTO>
 
     @Override
     public void invokeHeadMap(Map<Integer, String> headMap, AnalysisContext context) {
-        if (headMap.size() != EXPECTED_HEADERS.length) {
-            throw new ExcelAnalysisException("检查格式：列数量不正确，应为 " + EXPECTED_HEADERS.length + " 列");
+        if (headMap.size() < 3) {
+            throw new ExcelAnalysisException("检查格式：列数量不正确，应至少为 3 列");
         }
-        for (int i = 0; i < EXPECTED_HEADERS.length; i++) {
+        for (int i = 0; i < 3; i++) {
             String header = headMap.get(i);
-            if (header == null || !EXPECTED_HEADERS[i].equals(header.trim())) {
-                throw new ExcelAnalysisException("检查格式：第 " + (i + 1) + " 列标题应为 [" + EXPECTED_HEADERS[i] + "]");
+            // 匹配时去掉所有空白字符（包括空格、回车、换行、制表符等）
+            if (header == null || !header.replaceAll("\\s+", "").contains(EXPECTED_HEADERS[i])) {
+                throw new ExcelAnalysisException("检查格式：第 " + (i + 1) + " 列标题应包含 [" + EXPECTED_HEADERS[i] + "]");
             }
         }
     }
 
     @Override
     public void invoke(SchoolImportDTO data, AnalysisContext context) {
+        // 去除前后空白字符
+        if (data.getProvince() != null) data.setProvince(data.getProvince().trim());
+        if (data.getCity() != null) data.setCity(data.getCity().trim());
+        if (data.getSchoolName() != null) data.setSchoolName(data.getSchoolName().trim());
+
         // 校验空数据
         if (isEmpty(data.getProvince()) || isEmpty(data.getCity()) || isEmpty(data.getSchoolName())) {
             throw new ExcelAnalysisException("含有空数据");

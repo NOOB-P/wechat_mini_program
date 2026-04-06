@@ -1,12 +1,32 @@
 <template>
   <div class="page-container">
-    <el-card shadow="never">
+    <el-card shadow="never" class="main-card">
       <template #header>
         <div class="flex justify-between items-center">
-          <span class="font-bold">学生档案管理</span>
+          <div class="flex items-center">
+            <span class="font-bold mr-4">学生档案管理</span>
+            <el-tag v-if="currentSchoolName || currentClassName" type="warning" effect="plain" class="ml-2">
+              当前学校: {{ currentSchoolName || '全部' }} &nbsp;|&nbsp; 
+              当前班级: {{ currentClassName || '全部' }}
+            </el-tag>
+          </div>
           <div class="header-actions">
-            <el-button type="primary" @click="handleOpenImport">导入学生</el-button>
-            <el-button type="success" @click="handleAdd">新增学生</el-button>
+            <el-button 
+              v-if="!isBatchDeleting"
+              type="danger"
+              @click="isBatchDeleting = true"
+            >
+              批量删除
+            </el-button>
+            <el-button 
+              v-else
+              :type="selectedIds.length > 0 ? 'danger' : 'default'"
+              @click="handleBatchDelete"
+            >
+              {{ selectedIds.length > 0 ? '开始删除' : '取消删除' }}
+            </el-button>
+            <el-button @click="handleOpenImport">批量导入</el-button>
+            <el-button type="primary" @click="handleAdd">添加学生</el-button>
           </div>
         </div>
       </template>
@@ -34,14 +54,15 @@
         border 
         style="width: 100%" 
         v-loading="loading"
+        height="350"
         @selection-change="handleSelectionChange"
       >
-        <el-table-column type="selection" width="55" align="center" />
-        <el-table-column prop="studentNo" label="学号" width="120" align="center" />
-        <el-table-column prop="name" label="姓名" width="100" align="center" />
-        <el-table-column prop="school" label="学校" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="grade" label="年级" width="100" align="center" />
-        <el-table-column prop="className" label="班级" width="80" align="center" />
+        <el-table-column v-if="isBatchDeleting" type="selection" width="55" align="center" />
+        <el-table-column prop="studentNo" label="学号" width="160" align="center" />
+        <el-table-column prop="name" label="姓名" width="120" align="center" />
+        <el-table-column prop="school" label="学校" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="grade" label="年级" width="120" align="center" />
+        <el-table-column prop="className" label="班级" width="100" align="center" />
 
         <el-table-column label="绑定数量" width="100" align="center">
           <template #default="{ row }">
@@ -60,7 +81,7 @@
       </el-table>
 
       <!-- 分页 -->
-      <div class="mt-4 flex justify-end">
+      <div class="pagination-container mt-auto flex justify-end pt-4">
         <el-pagination
           v-model:current-page="page"
           v-model:page-size="pageSize"
@@ -74,32 +95,31 @@
     </el-card>
 
     <!-- 新增/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑学生' : '新增学生'" width="500px">
-      <el-form :model="form" label-width="100px" ref="formRef" :rules="rules">
+    <el-dialog 
+      v-model="dialogVisible" 
+      :title="isEdit ? '编辑学生档案' : '新增学生'" 
+      width="500px"
+    >
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="学号" prop="studentNo">
           <el-input v-model="form.studentNo" placeholder="请输入学号" />
         </el-form-item>
         <el-form-item label="姓名" prop="name">
           <el-input v-model="form.name" placeholder="请输入姓名" />
         </el-form-item>
-        <el-form-item label="关联班级" prop="classId">
-          <el-input v-model="form.classId" placeholder="请输入班级唯一标识(classid)" />
-        </el-form-item>
-        <el-form-item label="所在学校" prop="schoolId">
-          <el-select v-model="form.schoolId" placeholder="请选择学校" class="w-full">
-            <el-option 
-              v-for="item in schoolList" 
-              :key="item.id" 
-              :label="item.name" 
-              :value="item.id" 
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="年级" prop="grade">
-          <el-input v-model="form.grade" placeholder="如：高一年级" />
-        </el-form-item>
-        <el-form-item label="班级" prop="className">
-          <el-input v-model="form.className" placeholder="如：1班" />
+        
+        <el-form-item v-if="isEdit" label="绑定账号">
+          <div v-if="boundParents.length > 0" class="w-full">
+            <el-tag 
+              v-for="(phone, index) in boundParents" 
+              :key="index" 
+              type="info" 
+              class="mr-2 mb-2"
+            >
+              {{ phone }}
+            </el-tag>
+          </div>
+          <span v-else class="text-gray-400 text-sm">暂无绑定账号</span>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -117,8 +137,7 @@
               <div class="text-xs leading-6 text-gray-600 p-2">
                 <p>1. 请先<b>下载导入模板</b>，按照模板格式填写学生信息。</p>
                 <p>2. 支持<b>多文件批量上传</b>，系统将自动校验列标题及空数据。</p>
-                <p>3. 若学号已存在，系统将自动<b>更新</b>现有学生档案信息。</p>
-                <p>4. 若学校不存在，系统将根据填写的省市区及名称<b>自动创建</b>学校并绑定。</p>
+                <p>3. 若学号已存在，系统将自动<b>忽略</b>现有学生档案信息。</p>
               </div>
             </template>
             <div class="instructions-trigger">
@@ -215,15 +234,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
+import { useRoute } from 'vue-router'
 import { 
   fetchGetStudentList, 
   fetchAddStudent, 
   fetchUpdateStudent, 
   fetchDeleteStudent,
+  fetchBatchDeleteStudents,
   fetchBatchUpdateStatus,
   fetchImportStudents,
-  fetchDownloadTemplate
+  fetchDownloadTemplate,
+  fetchGetBoundParents
 } from '@/api/core-business/student/index'
 import { fetchGetSchoolList } from '@/api/core-business/school/index'
 import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
@@ -240,6 +262,8 @@ import {
 } from '@element-plus/icons-vue'
 import BindingStatus from './components/binding-status.vue'
 
+const route = useRoute()
+
 // 表格数据相关
 const loading = ref(false)
 const tableData = ref<Api.Student.StudentItem[]>([])
@@ -249,12 +273,20 @@ const pageSize = ref(10)
 const selectedIds = ref<string[]>([])
 const schoolList = ref<any[]>([])
 
-const searchForm = ref({
-  keyword: ''
+const searchForm = reactive({
+  keyword: '',
+  schoolId: (route.query.schoolId as string) || '',
+  classId: (route.query.classId as string) || ''
 })
+
+const currentSchoolName = ref((route.query.schoolName as string) || '')
+const currentClassName = ref((route.query.className as string) || '')
+
+const isBatchDeleting = ref(false)
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
+const boundParents = ref<string[]>([])
 const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
 const form = ref<Partial<Api.Student.StudentItem>>({
@@ -283,11 +315,17 @@ const uploadRef = ref<any>()
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await fetchGetStudentList({
+    const params: any = {
       current: page.value,
       size: pageSize.value,
-      ...searchForm.value
-    })
+      keyword: searchForm.keyword || undefined
+    }
+    
+    // 支持按学校和班级ID进行关联查询过滤
+    if (searchForm.schoolId) params.schoolId = searchForm.schoolId
+    if (searchForm.classId) params.classId = searchForm.classId
+
+    const res = await fetchGetStudentList(params)
     
     // 处理 axios 拦截器解包的情况
     if (res && res.records) {
@@ -326,7 +364,9 @@ const handleSearch = () => {
 }
 
 const resetSearch = () => {
-  searchForm.value = { keyword: '' }
+  searchForm.keyword = ''
+  searchForm.schoolId = (route.query.schoolId as string) || ''
+  searchForm.classId = (route.query.classId as string) || ''
   handleSearch()
 }
 
@@ -340,27 +380,83 @@ const handleCurrentChange = (val: number) => {
   loadData()
 }
 
-const handleSelectionChange = (selection: Api.Student.StudentItem[]) => {
+const handleSelectionChange = (selection: any[]) => {
   selectedIds.value = selection.map(item => item.id)
 }
 
+const handleBatchDelete = () => {
+  if (selectedIds.value.length === 0) {
+    isBatchDeleting.value = false
+    selectedIds.value = []
+    return
+  }
+  ElMessageBox.confirm(
+    `确定要删除选中的 ${selectedIds.value.length} 个学生吗？`,
+    '批量删除警告',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(async () => {
+    try {
+      const res: any = await fetchBatchDeleteStudents(selectedIds.value)
+      console.log('学生批量删除返回数据:', res)
+      
+      let msg = ''
+      if (typeof res === 'string') {
+        msg = res
+      } else {
+        msg = res?.msg || res?.data?.msg
+      }
+      
+      console.log('后端返回的详细 msg:', msg)
+      
+      if (msg && msg.includes('未能删除')) {
+        ElMessage.warning(msg)
+      } else {
+        ElMessage.success(msg || '批量删除成功')
+      }
+      selectedIds.value = []
+      isBatchDeleting.value = false
+      loadData()
+    } catch (error: any) {
+      console.error('学生批量删除异常:', error)
+      ElMessage.error(error.message || '批量删除失败')
+    }
+  }).catch(() => {})
+}
+
 const handleAdd = () => {
+  if (!searchForm.schoolId || !searchForm.classId) {
+    ElMessage.warning('请先从学校管理 -> 班级管理进入指定的班级，才能添加学生！')
+    return
+  }
+
   isEdit.value = false
   form.value = {
     id: '',
     studentNo: '',
     name: '',
-    schoolId: '',
-    classId: '',
+    schoolId: searchForm.schoolId,
+    classId: searchForm.classId,
+    school: currentSchoolName.value,
     grade: '',
     className: ''
+  }
+  if (formRef.value) {
+    formRef.value.resetFields()
   }
   dialogVisible.value = true
 }
 
-const handleEdit = (row: Api.Student.StudentItem) => {
+const handleEdit = async (row: Api.Student.StudentItem) => {
   isEdit.value = true
   form.value = { ...row }
+  boundParents.value = []
+  if (formRef.value) {
+    formRef.value.resetFields()
+  }
   // 处理后端返回字段匹配问题，给 schoolId 赋值
   if (row.school && !form.value.schoolId) {
     const matchedSchool = schoolList.value.find(s => s.name === row.school)
@@ -369,6 +465,18 @@ const handleEdit = (row: Api.Student.StudentItem) => {
     }
   }
   dialogVisible.value = true
+  
+  // 获取绑定的家长手机号列表
+  try {
+    const res: any = await fetchGetBoundParents(row.id)
+    if (res.code === 200) {
+      boundParents.value = res.data || []
+    } else if (Array.isArray(res)) {
+      boundParents.value = res
+    }
+  } catch (error) {
+    console.error('获取绑定账号失败', error)
+  }
 }
 
 const handleDelete = (row: Api.Student.StudentItem) => {
@@ -376,8 +484,12 @@ const handleDelete = (row: Api.Student.StudentItem) => {
     type: 'warning'
   }).then(async () => {
     try {
-      await fetchDeleteStudent(row.id)
-      ElMessage.success('删除成功')
+      const res: any = await fetchDeleteStudent(row.id)
+      if (res && res.code === 200 && res.msg && res.msg.includes('失败')) {
+        ElMessage.warning(res.msg)
+      } else {
+        ElMessage.success(res?.msg || '删除成功')
+      }
       loadData()
     } catch (error) {
       ElMessage.error((error as any).message || '删除失败')
@@ -495,6 +607,19 @@ onMounted(() => {
 <style scoped>
 .page-container {
   padding: 20px;
+  background-color: #f5f7fa;
+  min-height: calc(100vh - 120px);
+}
+.main-card {
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+:deep(.el-card__body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .search-form {
   background-color: #f8f9fa;
