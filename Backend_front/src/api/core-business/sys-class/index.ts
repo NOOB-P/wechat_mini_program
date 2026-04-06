@@ -1,4 +1,5 @@
 import api from '@/utils/http'
+import { useUserStore } from '@/store/modules/user'
 
 export const getClassList = (params?: any) => {
   return api.get<any>({
@@ -14,6 +15,13 @@ export const addClass = (data: any) => {
   })
 }
 
+export const batchAddClasses = (data: any) => {
+  return api.post<any>({
+    url: '/api/system/class/batch-add',
+    data
+  })
+}
+
 export const updateClass = (id: number, data: any) => {
   return api.put<any>({
     url: `/api/system/class/update/${id}`,
@@ -25,4 +33,30 @@ export const deleteClass = (id: number) => {
   return api.del<any>({
     url: `/api/system/class/delete/${id}`
   })
+}
+
+export const batchDeleteClasses = (ids: (string | number)[]) => {
+  return api.post<any>({
+    url: '/api/system/class/batch-delete',
+    data: { ids }
+  })
+}
+
+export function fetchImportClass(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return api.post<any>({
+    url: '/api/system/class/import',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+export function fetchDownloadClassTemplate() {
+  const token = useUserStore().accessToken || ''
+  const baseUrl = import.meta.env.VITE_API_URL === '/' ? '' : import.meta.env.VITE_API_URL || ''
+  window.open(`${baseUrl}/api/system/class/download-template?token=${token}`, '_blank')
 }

@@ -123,10 +123,12 @@ DROP TABLE IF EXISTS `sys_classes`;
 CREATE TABLE `sys_classes` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '内部记录ID',
     `classid` VARCHAR(50) NOT NULL UNIQUE COMMENT '班级唯一标识ID',
+    `school_id` VARCHAR(50) NOT NULL COMMENT '关联的学校ID',
     `grade` VARCHAR(50) NOT NULL COMMENT '年级',
     `alias` VARCHAR(100) COMMENT '班级别名',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    CONSTRAINT `fk_sysclass_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`school_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB COMMENT='全局班级管理表';
 
 -- 4. 学生档案表 (包含状态和会员冗余)
@@ -497,17 +499,17 @@ INSERT INTO `schools` (`school_id`, `province`, `city`, `name`, `type`, `status`
 ('SCH010', '广东省', '广州市', '执信中学', 'school', 1);
 
 -- 3.1 全局班级表数据
-INSERT INTO `sys_classes` (`classid`, `grade`, `alias`) VALUES
-('CLS001', '初一', '1班'),
-('CLS002', '六年级', '2班'),
-('CLS003', '高一', '3班'),
-('CLS004', '高二', '理科班'),
-('CLS005', '初三', '英语强化班'),
-('CLS006', '初一', '2班'),
-('CLS007', '高一', '1班'),
-('CLS008', '初二', '3班'),
-('CLS009', '初三', '1班'),
-('CLS010', '四年级', '1班');
+INSERT INTO `sys_classes` (`classid`, `school_id`, `grade`, `alias`) VALUES
+('CLS001', 'SCH001', '初一', '1班'),
+('CLS002', 'SCH002', '六年级', '2班'),
+('CLS003', 'SCH003', '高一', '3班'),
+('CLS004', 'SCH004', '高二', '理科班'),
+('CLS005', 'SCH005', '初三', '英语强化班'),
+('CLS006', 'SCH006', '初一', '2班'),
+('CLS007', 'SCH007', '高一', '1班'),
+('CLS008', 'SCH008', '初二', '3班'),
+('CLS009', 'SCH001', '初三', '1班'),
+('CLS010', 'SCH002', '四年级', '1班');
 
 -- 4. 学生档案表数据
 INSERT INTO `students` (`id`, `student_no`, `name`, `school_id`, `class_id`, `school`, `grade`, `class_name`, `bound_count`) VALUES

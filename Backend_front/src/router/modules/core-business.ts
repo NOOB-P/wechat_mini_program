@@ -5,6 +5,7 @@ export const coreBusinessRoutes: AppRouteRecord = {
   path: '/core-business',
   component: RoutesAlias.Layout,
   name: 'CoreBusiness',
+  redirect: '/core-business/school',
   meta: {
     title: '学校档案管理',
     icon: 'ri:database-2-line',
@@ -16,7 +17,8 @@ export const coreBusinessRoutes: AppRouteRecord = {
       name: 'SchoolOrg',
       component: '/core-business/school',
       meta: {
-        title: '学校数据'
+        title: '学校数据',
+        isHide: true
       }
     },
     {
@@ -24,7 +26,8 @@ export const coreBusinessRoutes: AppRouteRecord = {
       name: 'SysClass',
       component: '/core-business/sys-class',
       meta: {
-        title: '班级数据'
+        title: '班级数据',
+        isHide: true
       }
     },
     {
@@ -32,7 +35,8 @@ export const coreBusinessRoutes: AppRouteRecord = {
       name: 'StudentProfile',
       component: '/core-business/student',
       meta: {
-        title: '学生数据'
+        title: '学生数据',
+        isHide: true
       }
     }
   ]
