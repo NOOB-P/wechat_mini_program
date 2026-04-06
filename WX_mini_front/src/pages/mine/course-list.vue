@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { getMyCoursesApi, getMyCollectionsApi, getMyStudyRecordsApi } from '@/api/course'
+import { getMyCoursesApi, getMyCollectionsApi, getMyStudyRecordsApi, getPurchasedCoursesApi } from '@/api/course'
 import { useToast } from 'wot-design-uni'
 
 const toast = useToast()
@@ -43,6 +43,7 @@ const pageTitle = computed(() => {
     case 'course': return '我的课程'
     case 'collection': return '我的收藏'
     case 'record': return '学习记录'
+    case 'purchased': return '已购课程'
     default: return '课程列表'
   }
 })
@@ -66,6 +67,8 @@ const loadData = async () => {
       res = await getMyCollectionsApi()
     } else if (currentType.value === 'record') {
       res = await getMyStudyRecordsApi()
+    } else if (currentType.value === 'purchased') {
+      res = await getPurchasedCoursesApi()
     }
     
     if (res && res.code === 200) {

@@ -85,6 +85,9 @@ public class SysAccount {
     private String studentId;
 
     @Transient
+    private String grade;
+
+    @Transient
     private java.util.List<String> allowedModules;
 
     @Transient
@@ -111,6 +114,9 @@ public class SysAccount {
 
     public java.util.List<String> getAllowedModules() { return allowedModules; }
     public void setAllowedModules(java.util.List<String> allowedModules) { this.allowedModules = allowedModules; }
+
+    public String getGrade() { return grade; }
+    public void setGrade(String grade) { this.grade = grade; }
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }

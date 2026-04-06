@@ -63,6 +63,11 @@
 			}
 		},
 		{
+			"path": "pages/course/pay",
+			"type": "page",
+			"style": {}
+		},
+		{
 			"path": "pages/home/index",
 			"type": "page",
 			"style": {

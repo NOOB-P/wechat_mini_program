@@ -21,6 +21,15 @@ export const orderRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'course',
+      name: 'CourseOrderManage',
+      component: '/order/course',
+      meta: {
+        title: '课程订单管理',
+        keepAlive: true
+      }
+    },
+    {
       path: 'print',
       name: 'PrintOrderManage',
       component: '/order/print',

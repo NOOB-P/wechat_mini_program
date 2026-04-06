@@ -36,6 +36,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/students/**").permitAll() // 临时放行学生管理接口
                 .requestMatchers("/api/system/school/**").permitAll() // 临时放行学校管理接口
                 .requestMatchers("/api/system/class/**").permitAll() // 临时放行班级管理接口
+                .requestMatchers("/api/admin/resource/paper/**").permitAll() // 放行试卷管理接口
+                .requestMatchers("/api/app/resource/paper/**").permitAll() // 放行小程序试卷资源接口
+                .requestMatchers("/api/app/course/**").permitAll() // 放行小程序课程相关接口
                 .requestMatchers("/uploads/**").permitAll() // 放行上传的静态资源图片
                 
 

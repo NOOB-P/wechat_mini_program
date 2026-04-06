@@ -63,6 +63,9 @@ public class Course {
     private Boolean isCollected = false;
 
     @Transient
+    private Boolean isPurchased = false;
+
+    @Transient
     private Integer progress = 0;
 
     @Column(name = "create_time", updatable = false)
@@ -102,6 +105,8 @@ public class Course {
     public void setEpisodes(Integer episodes) { this.episodes = episodes; }
     public Boolean getIsCollected() { return isCollected; }
     public void setIsCollected(Boolean isCollected) { this.isCollected = isCollected; }
+    public Boolean getIsPurchased() { return isPurchased; }
+    public void setIsPurchased(Boolean isPurchased) { this.isPurchased = isPurchased; }
     public Integer getProgress() { return progress; }
     public void setProgress(Integer progress) { this.progress = progress; }
 }

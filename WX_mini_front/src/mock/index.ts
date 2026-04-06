@@ -766,6 +766,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
     }
   },
   */
+  /*
   '/api/app/resource/paper/list': (data) => {
     const kw = data?.keyword || ''
     return {
@@ -794,6 +795,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       ]
     };
   },
+  */
   /*
   '/resource/sync-course/options': () => {
     return {

@@ -47,6 +47,12 @@ public interface CourseRepository extends JpaRepository<Course, String> {
     Optional<Course> findByIdSql(@Param("id") String id);
 
     /**
+     * 批量查询课程
+     */
+    @Query(value = "SELECT * FROM courses WHERE id IN (:ids)", nativeQuery = true)
+    List<Course> findAllByIdSql(@Param("ids") List<String> ids);
+
+    /**
      * 使用 SQL 原生语句查询同步课程的选项 (年级和科目)
      */
     @Query(value = "SELECT DISTINCT grade as label, grade as value FROM courses WHERE type = 'sync' AND grade IS NOT NULL", nativeQuery = true)

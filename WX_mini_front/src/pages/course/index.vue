@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getCourseListApi } from '@/api/course'
+import { getCourseListApi, buyCourseApi } from '@/api/course'
 
 const searchValue = ref('')
 const courses = ref<any[]>([])
@@ -18,10 +18,41 @@ const getCourseList = async () => {
 }
 
 const handleCourseClick = (course: any) => {
-  // 跳转到详情页，传递课程ID
-  uni.navigateTo({
-    url: `/pages/course/detail?id=${course.id}`
-  })
+  // 如果是免费或者是已购买，直接跳转到详情学习
+  if (course.price <= 0 || course.isPurchased) {
+    uni.navigateTo({
+      url: `/pages/course/detail?id=${course.id}`
+    })
+  } else {
+    // 跳转到详情，详情页也会有购买逻辑
+    uni.navigateTo({
+      url: `/pages/course/detail?id=${course.id}`
+    })
+  }
+}
+
+const handleBuy = async (e: any, course: any) => {
+  e.stopPropagation()
+  // 如果是已购买或者是免费课程，直接进入详情学习
+  if (course.isPurchased || course.price <= 0) {
+    uni.navigateTo({ url: `/pages/course/detail?id=${course.id}` })
+    return
+  }
+
+  try {
+    const res = await buyCourseApi(course.id)
+    if (res.code === 200) {
+      // 跳转到支付页面
+      const orderData = encodeURIComponent(JSON.stringify(res.data))
+      uni.navigateTo({
+        url: `/pages/course/pay?order=${orderData}`
+      })
+    } else {
+      uni.showToast({ title: res.msg || '下单失败', icon: 'none' })
+    }
+  } catch (error) {
+    uni.showToast({ title: '网络错误', icon: 'none' })
+  }
 }
 
 onShow(() => {
@@ -51,7 +82,14 @@ onShow(() => {
           <view class="course-bottom">
             <text class="course-price" v-if="item.price > 0">￥{{ item.price }}</text>
             <text class="course-price free" v-else>免费</text>
-            <wd-button type="primary" size="small" plain>立即学习</wd-button>
+            <wd-button 
+              type="primary" 
+              size="small" 
+              plain 
+              @click="handleBuy($event, item)"
+            >
+              {{ (item.price > 0 && !item.isPurchased) ? '立即购买' : '立即学习' }}
+            </wd-button>
           </view>
         </view>
       </view>

@@ -11,6 +11,7 @@ interface NavigateToOptions {
        "/pages/auth/reset-password" |
        "/pages/course/detail" |
        "/pages/course/index" |
+       "/pages/course/pay" |
        "/pages/home/index" |
        "/pages/mine/course-list" |
        "/pages/mine/edit-profile" |
