@@ -1,29 +1,46 @@
 <template>
   <view class="course-list-container">
     <wd-toast id="wd-toast" />
-    <view class="header">
-      <text class="title">{{ pageTitle }}</text>
-    </view>
+    
+    <!-- 顶部背景渐变 -->
+    <view class="header-bg"></view>
 
     <view class="course-list" v-if="courses.length > 0">
       <view v-for="item in courses" :key="item.id" class="course-card" @click="goToDetail(item.id)">
-        <wd-img :src="item.cover || 'https://img.yzcdn.cn/vant/cat.jpeg'" :width="100" :height="70" round class="course-img" />
-        <view class="course-info">
-          <text class="course-name">{{ item.title }}</text>
-          <view class="course-bottom">
-            <view class="left-info">
-              <text class="course-type">{{ getTypeName(item.type) }}</text>
-              <text class="course-progress" v-if="currentType === 'record'">已学 {{ item.progress || 0 }}%</text>
+        <view class="card-inner">
+          <image 
+            :src="item.cover || 'https://img.yzcdn.cn/vant/cat.jpeg'" 
+            mode="aspectFill"
+            class="course-img" 
+          />
+          <view class="course-info">
+            <view class="top-section">
+              <text class="course-name">{{ item.title }}</text>
+              <view class="course-tag">{{ getTypeName(item.type) }}</view>
             </view>
-            <wd-button type="primary" size="small" plain>{{ currentType === 'record' ? '继续学习' : '查看详情' }}</wd-button>
+            
+            <view class="bottom-section">
+              <view class="progress-wrap" v-if="currentType === 'record'">
+                <view class="progress-text">已学 {{ item.progress || 0 }}%</view>
+                <view class="progress-bar">
+                  <view class="progress-inner" :style="{ width: (item.progress || 0) + '%' }"></view>
+                </view>
+              </view>
+              <view class="action-btn">
+                <text>{{ currentType === 'record' ? '继续学习' : '查看详情' }}</text>
+                <wd-icon name="arrow-right" size="14px" />
+              </view>
+            </view>
           </view>
         </view>
       </view>
     </view>
     
     <view class="empty-state" v-else>
-      <wd-icon name="info-circle" size="48px" color="#ccc" />
-      <text class="empty-text">暂无数据</text>
+      <image src="/static/images/empty_course.png" mode="aspectFit" class="empty-img" v-if="false" />
+      <wd-icon name="info-circle" size="64px" color="#e0e5ed" />
+      <text class="empty-text">暂时还没有相关课程哦~</text>
+      <wd-button type="primary" size="small" plain custom-class="go-study-btn" @click="goHome">去发现好课</wd-button>
     </view>
   </view>
 </template>
@@ -83,6 +100,9 @@ const loadData = async () => {
 onLoad((options: any) => {
   if (options.type) {
     currentType.value = options.type
+    uni.setNavigationBarTitle({
+      title: pageTitle.value
+    })
   }
 })
 
@@ -95,86 +115,161 @@ const goToDetail = (id: string) => {
     url: `/pages/course/detail?id=${id}`
   })
 }
+
+const goHome = () => {
+  uni.switchTab({
+    url: '/pages/resource/index'
+  })
+}
 </script>
 
 <style lang="scss" scoped>
 .course-list-container {
   min-height: 100vh;
-  background-color: #f8f9fa;
-  padding: 30rpx;
+  background-color: #f7f8fa;
+  position: relative;
+  padding: 20rpx 30rpx;
+  box-sizing: border-box;
 }
 
-.header {
-  margin-bottom: 30rpx;
-  .title {
-    font-size: 36rpx;
-    font-weight: bold;
-    color: #333;
-  }
+.header-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 300rpx;
+  background: linear-gradient(135deg, #d4f9f2 0%, #eef5ff 100%);
+  opacity: 0.6;
+  z-index: 0;
+}
+
+.course-list {
+  position: relative;
+  z-index: 1;
 }
 
 .course-card {
   background-color: #fff;
-  border-radius: 16rpx;
-  padding: 20rpx;
-  margin-bottom: 20rpx;
-  display: flex;
-  gap: 20rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.03);
+  border-radius: 24rpx;
+  margin-bottom: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 8rpx 24rpx rgba(26, 95, 142, 0.04);
+  transition: all 0.3s;
+
+  &:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+
+  .card-inner {
+    display: flex;
+    padding: 24rpx;
+    gap: 24rpx;
+  }
+
+  .course-img {
+    width: 200rpx;
+    height: 140rpx;
+    border-radius: 16rpx;
+    flex-shrink: 0;
+    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  }
 
   .course-info {
     flex: 1;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    min-width: 0;
 
-    .course-name {
-      font-size: 30rpx;
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 10rpx;
+    .top-section {
+      .course-name {
+        font-size: 30rpx;
+        font-weight: 600;
+        color: #2c3e50;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+        overflow: hidden;
+        margin-bottom: 12rpx;
+      }
+
+      .course-tag {
+        display: inline-block;
+        font-size: 22rpx;
+        color: #1a5f8e;
+        background: rgba(26, 95, 142, 0.08);
+        padding: 4rpx 16rpx;
+        border-radius: 8rpx;
+        font-weight: 500;
+      }
     }
 
-    .course-bottom {
+    .bottom-section {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-end;
+      margin-top: 10rpx;
 
-      .left-info {
+      .progress-wrap {
+        flex: 1;
+        margin-right: 20rpx;
+
+        .progress-text {
+          font-size: 22rpx;
+          color: #7a8ba6;
+          margin-bottom: 8rpx;
+        }
+
+        .progress-bar {
+          height: 8rpx;
+          background: #f0f4f9;
+          border-radius: 10rpx;
+          overflow: hidden;
+
+          .progress-inner {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 10rpx;
+          }
+        }
+      }
+
+      .action-btn {
         display: flex;
-        flex-direction: column;
-        gap: 8rpx;
-      }
-
-      .course-type {
-        font-size: 22rpx;
-        color: #999;
-        background: #f0f2f5;
-        padding: 4rpx 12rpx;
-        border-radius: 4rpx;
-        width: fit-content;
-      }
-
-      .course-progress {
+        align-items: center;
         font-size: 24rpx;
         color: #1a5f8e;
-        font-weight: 500;
+        font-weight: 600;
+        
+        text {
+          margin-right: 4rpx;
+        }
       }
     }
   }
 }
 
 .empty-state {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-top: 200rpx;
+  padding-top: 260rpx;
   
   .empty-text {
-    margin-top: 20rpx;
-    color: #999;
+    margin-top: 30rpx;
+    color: #aab4c3;
     font-size: 28rpx;
+    margin-bottom: 40rpx;
+  }
+
+  .go-study-btn {
+    width: 240rpx;
+    border-radius: 100rpx !important;
   }
 }
 </style>

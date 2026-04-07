@@ -19,7 +19,7 @@ public interface PrintOrderRepository extends JpaRepository<PrintOrder, Long> {
      */
     @Query("SELECT p FROM PrintOrder p WHERE " +
            "(:orderNo IS NULL OR p.orderNo LIKE %:orderNo%) AND " +
-           "(:userName IS NULL OR p.userName LIKE %:userName%) AND " +
+           "(:userName IS NULL OR p.userName LIKE %:userName% OR p.userPhone LIKE %:userName%) AND " +
            "(:orderStatus IS NULL OR p.orderStatus = :orderStatus)")
     Page<PrintOrder> findByParams(@Param("orderNo") String orderNo, 
                                  @Param("userName") String userName, 

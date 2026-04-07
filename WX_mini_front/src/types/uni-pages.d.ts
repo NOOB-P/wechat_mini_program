@@ -16,6 +16,7 @@ interface NavigateToOptions {
        "/pages/mine/course-list" |
        "/pages/mine/edit-profile" |
        "/pages/mine/index" |
+       "/pages/mine/order-list" |
        "/pages/paper/index" |
        "/pages/register/index" |
        "/pages/resource/family-edu" |
