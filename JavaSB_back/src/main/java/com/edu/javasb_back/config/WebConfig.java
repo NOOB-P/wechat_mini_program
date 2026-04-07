@@ -25,6 +25,10 @@ public class WebConfig implements WebMvcConfigurer {
         
         // 保留原有的映射作为回退
         registerResourceHandler(registry, "/uploads/**", uploadDir);
+
+        // 新增：将 /static/** 映射到 classpath 下的 static 目录
+        registry.addResourceHandler("/static/**")
+                .addResourceLocations("classpath:/static/");
     }
 
     private void registerResourceHandler(ResourceHandlerRegistry registry, String pattern, String dir) {
