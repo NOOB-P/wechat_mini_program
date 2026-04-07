@@ -1,6 +1,6 @@
 <template>
   <view class="resource-container">
-    <image class="page-bg" src="/static/home/page_bg.png" mode="widthFix" />
+    <image class="page-bg" :src="staticBaseUrl + '/home/page_bg.png'" mode="widthFix" />
     <wd-toast id="wd-toast" />
     
     <view class="content animate-fade-in">
@@ -13,7 +13,7 @@
       <view class="grid-wrap">
         <view class="grid-item" @click="navTo('/pages/resource/paper')">
           <view class="icon-box paper">
-            <image class="grid-icon" src="/static/resource/paper.png" mode="aspectFit" />
+            <image class="grid-icon" :src="staticBaseUrl + '/resource/paper.png'" mode="aspectFit" />
           </view>
           <view class="info">
             <text class="main-title">名校试卷</text>
@@ -23,7 +23,7 @@
         
         <view class="grid-item" @click="navTo('/pages/resource/student-talk')">
           <view class="icon-box student">
-            <image class="grid-icon" src="/static/resource/student.png" mode="aspectFit" />
+            <image class="grid-icon" :src="staticBaseUrl + '/resource/student.png'" mode="aspectFit" />
           </view>
           <view class="info">
             <text class="main-title">学霸说</text>
@@ -33,7 +33,7 @@
         
         <view class="grid-item" @click="navTo('/pages/resource/family-edu')">
           <view class="icon-box family">
-            <image class="grid-icon" src="/static/resource/family.png" mode="aspectFit" />
+            <image class="grid-icon" :src="staticBaseUrl + '/resource/family.png'" mode="aspectFit" />
           </view>
           <view class="info">
             <text class="main-title">家庭教育</text>
@@ -43,7 +43,7 @@
         
         <view class="grid-item" @click="navTo('/pages/resource/sync-course')">
           <view class="icon-box course">
-            <image class="grid-icon" src="/static/resource/course.png" mode="aspectFit" />
+            <image class="grid-icon" :src="staticBaseUrl + '/resource/course.png'" mode="aspectFit" />
           </view>
           <view class="info">
             <text class="main-title">同步/专题课</text>
@@ -62,15 +62,15 @@
       </view>
       <view class="recommend-grid">
         <view class="recommend-item" @click="navTo('/pages/course/index')">
-          <image class="recommend-img" src="/static/resource/recommend_ai.png" mode="aspectFill" />
+          <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_ai.png'" mode="aspectFill" />
           <text class="recommend-text">精选AI</text>
         </view>
         <view class="recommend-item" @click="navTo('/pages/course/index')">
-          <image class="recommend-img" src="/static/resource/recommend_tutor.png" mode="aspectFill" />
+          <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_tutor.png'" mode="aspectFill" />
           <text class="recommend-text">精选家教</text>
         </view>
         <view class="recommend-item" @click="navTo('/pages/course/index')">
-          <image class="recommend-img" src="/static/resource/recommend_course.png" mode="aspectFill" />
+          <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_course.png'" mode="aspectFill" />
           <text class="recommend-text">精选课程</text>
         </view>
       </view>
@@ -86,13 +86,13 @@
       </view>
       <view class="recommend-grid">
         <view class="recommend-item" @click="navTo('/pages/course/index')">
-          <image class="recommend-img" src="/static/resource/ai_study_1.png" mode="aspectFill" />
+          <image class="recommend-img" :src="staticBaseUrl + '/resource/ai_study_1.png'" mode="aspectFill" />
         </view>
         <view class="recommend-item" @click="navTo('/pages/course/index')">
-          <image class="recommend-img" src="/static/resource/ai_study_2.png" mode="aspectFill" />
+          <image class="recommend-img" :src="staticBaseUrl + '/resource/ai_study_2.png'" mode="aspectFill" />
         </view>
         <view class="recommend-item" @click="navTo('/pages/course/index')">
-          <image class="recommend-img" src="/static/resource/ai_study_3.png" mode="aspectFill" />
+          <image class="recommend-img" :src="staticBaseUrl + '/resource/ai_study_3.png'" mode="aspectFill" />
         </view>
       </view>
     </view>
@@ -127,6 +127,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { getUserInfoApi } from '@/api/mine'
 import { useToast } from 'wot-design-uni'
 
+const staticBaseUrl = __VITE_SERVER_BASEURL__ + '/static'
 const courses = ref<any[]>([])
 const searchKeyword = ref('')
 const isSVIPUser = ref(false)
