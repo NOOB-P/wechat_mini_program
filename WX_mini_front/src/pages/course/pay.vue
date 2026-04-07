@@ -95,7 +95,7 @@ const handlePay = async () => {
       toast.success('支付成功')
       setTimeout(() => {
         uni.redirectTo({
-          url: '/pages/mine/course-list?type=purchased'
+          url: '/pages/mine/order-list?tab=course'
         })
       }, 1500)
     } else {
