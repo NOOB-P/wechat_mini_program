@@ -2,6 +2,7 @@
 import { reactive, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getUserInfoApi } from '@/api/mine'
+import { resolveAvatarSrc } from '@/utils/avatar'
 
 // 用户信息
 const userInfo = reactive({
@@ -34,12 +35,10 @@ const getUserInfo = async () => {
   try {
     const res = await getUserInfoApi()
     if (res.code === 200) {
-      // 只有当后端返回了非空的 avatar 时才更新
       const updatedData = { ...res.data }
-      if (updatedData.avatar && !updatedData.avatar.startsWith('http')) {
-        updatedData.avatar = __VITE_SERVER_BASEURL__ + updatedData.avatar
-      }
-      if (!updatedData.avatar) {
+      if (updatedData.avatar) {
+        updatedData.avatar = resolveAvatarSrc(updatedData.avatar)
+      } else {
         delete updatedData.avatar
       }
       Object.assign(userInfo, updatedData)

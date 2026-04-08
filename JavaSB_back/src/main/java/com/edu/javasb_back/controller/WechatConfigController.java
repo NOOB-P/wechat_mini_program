@@ -69,7 +69,9 @@ public class WechatConfigController {
         if (list.isEmpty()) {
             return Result.error("暂无配置");
         }
-        return Result.success("获取成功", list.get(0));
+        WechatConfig config = list.get(0);
+        config.setQrCodePath(normalizeQrCodePath(config.getQrCodePath()));
+        return Result.success("获取成功", config);
     }
 
     @LogOperation("上传二维码图片")
@@ -86,11 +88,11 @@ public class WechatConfigController {
             File dir = new File(uploadDir);
             if (!dir.exists()) dir.mkdirs();
 
-            Path path = Paths.get(uploadDir + fileName);
+            Path path = Paths.get(uploadDir, fileName);
             Files.write(path, file.getBytes());
 
-            // 返回相对路径供前端访问 (统一使用 /uploads/ 前缀)
-            return Result.success("上传成功", "/uploads/" + fileName);
+            // 保存到 code 目录时返回明确路径，避免前后端路径歧义
+            return Result.success("上传成功", "/uploads/code/" + fileName);
         } catch (IOException e) {
             return Result.error("上传失败: " + e.getMessage());
         }
@@ -131,14 +133,73 @@ public class WechatConfigController {
         Optional<WechatConfig> configOpt = wechatConfigRepository.findById(id);
         if (configOpt.isPresent()) {
             // 可选：删除本地物理文件
-            String qrPath = configOpt.get().getQrCodePath();
-            if (qrPath != null && qrPath.startsWith("/uploads/")) {
-                String fileName = qrPath.substring(9);
-                File file = new File(globalConfigProperties.getUploadDir() + fileName);
+            String qrPath = normalizeQrCodePath(configOpt.get().getQrCodePath());
+            String absolutePath = resolveUploadAbsolutePath(qrPath);
+            if (absolutePath != null) {
+                File file = new File(absolutePath);
                 if (file.exists()) file.delete();
             }
             wechatConfigRepository.deleteById(id);
         }
         return Result.success("删除成功", null);
+    }
+
+    private String normalizeQrCodePath(String qrCodePath) {
+        if (qrCodePath == null || qrCodePath.isBlank()) {
+            return qrCodePath;
+        }
+
+        String normalizedPath = qrCodePath.trim();
+        int uploadsIndex = normalizedPath.indexOf("/uploads/");
+        if (uploadsIndex != -1) {
+            normalizedPath = normalizedPath.substring(uploadsIndex);
+        }
+
+        if (!normalizedPath.startsWith("/uploads/")) {
+            return normalizedPath;
+        }
+        if (normalizedPath.startsWith("/uploads/code/") || normalizedPath.startsWith("/uploads/papers/")) {
+            return normalizedPath;
+        }
+
+        String fileName = normalizedPath.substring("/uploads/".length());
+        File legacyFile = new File(resolveUploadRootDir(), fileName);
+        if (legacyFile.exists()) {
+            return normalizedPath;
+        }
+
+        File codeFile = new File(globalConfigProperties.getUploadDir(), fileName);
+        if (codeFile.exists()) {
+            return "/uploads/code/" + fileName;
+        }
+
+        return normalizedPath;
+    }
+
+    private String resolveUploadAbsolutePath(String uploadPath) {
+        if (uploadPath == null || uploadPath.isBlank()) {
+            return null;
+        }
+
+        String normalizedPath = normalizeQrCodePath(uploadPath);
+        if (normalizedPath == null || !normalizedPath.startsWith("/uploads/")) {
+            return null;
+        }
+        if (normalizedPath.startsWith("/uploads/code/")) {
+            return Paths.get(globalConfigProperties.getUploadDir(), normalizedPath.substring("/uploads/code/".length())).toString();
+        }
+        if (normalizedPath.startsWith("/uploads/papers/")) {
+            return Paths.get(globalConfigProperties.getPaperDir(), normalizedPath.substring("/uploads/papers/".length())).toString();
+        }
+        return Paths.get(resolveUploadRootDir(), normalizedPath.substring("/uploads/".length())).toString();
+    }
+
+    private String resolveUploadRootDir() {
+        File uploadDir = new File(globalConfigProperties.getUploadDir());
+        File parentDir = uploadDir.getParentFile();
+        if (parentDir != null) {
+            return parentDir.getAbsolutePath();
+        }
+        return uploadDir.getAbsolutePath();
     }
 }

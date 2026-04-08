@@ -6,8 +6,9 @@
     <view class="avatar-card">
       <view class="avatar-wrapper" @click="chooseAvatar">
         <image
+          :key="avatarRenderKey"
           class="avatar-image"
-          :src="profileForm.avatar || 'https://img.yzcdn.cn/vant/cat.jpeg'"
+          :src="profileForm.avatarPreview || DEFAULT_AVATAR"
           mode="aspectFill"
         />
         <view class="camera-icon">
@@ -71,25 +72,35 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { getMineInfoApi, updateMineInfoApi, uploadAvatarApi } from '@/api/mine'
+import { getAvatarPath, resolveAvatarSrc } from '@/utils/avatar'
 import { useToast } from 'wot-design-uni'
 
 const toast = useToast()
+const DEFAULT_AVATAR = 'https://img.yzcdn.cn/vant/cat.jpeg'
+const avatarRenderKey = ref(0)
 
 const profileForm = reactive({
   nickname: '',
   avatar: '',
+  avatarPreview: '',
   email: '',
   phone: ''
 })
+
+const updateAvatarPreview = (value: string, bustCache = false) => {
+  profileForm.avatarPreview = resolveAvatarSrc(value, bustCache)
+  avatarRenderKey.value += 1
+}
 
 const fetchProfile = async () => {
   try {
     const res = await getMineInfoApi()
     if (res.code === 200) {
       profileForm.nickname = res.data.nickname
-      profileForm.avatar = res.data.avatar && !res.data.avatar.startsWith('http') ? __VITE_SERVER_BASEURL__ + res.data.avatar : res.data.avatar
+      profileForm.avatar = getAvatarPath(res.data.avatar)
+      updateAvatarPreview(profileForm.avatar)
       profileForm.email = res.data.email
       profileForm.phone = res.data.phone
     }
@@ -105,16 +116,27 @@ const chooseAvatar = () => {
     sizeType: ['compressed'],
     sourceType: ['album', 'camera'],
     success: async (res) => {
+      const previousAvatar = profileForm.avatar
+      const previousAvatarPreview = profileForm.avatarPreview
       const tempFilePath = res.tempFilePaths[0]
+      profileForm.avatarPreview = tempFilePath
+      avatarRenderKey.value += 1
       try {
         toast.loading('上传中...')
         const uploadRes: any = await uploadAvatarApi(tempFilePath)
         if (uploadRes.code === 200) {
-          const path = uploadRes.data
-          profileForm.avatar = path.startsWith('http') ? path : __VITE_SERVER_BASEURL__ + path
+          profileForm.avatar = getAvatarPath(uploadRes.data)
           toast.success('头像上传成功')
+        } else {
+          profileForm.avatar = previousAvatar
+          profileForm.avatarPreview = previousAvatarPreview
+          avatarRenderKey.value += 1
+          toast.error(uploadRes.msg || '头像上传失败')
         }
       } catch (error) {
+        profileForm.avatar = previousAvatar
+        profileForm.avatarPreview = previousAvatarPreview
+        avatarRenderKey.value += 1
         console.error('上传头像错误:', error)
         toast.error('网络错误')
       }
@@ -137,12 +159,8 @@ const handleSave = async () => {
   
   try {
     toast.loading('保存中...')
-    
-    // 修正：保存时去除 BaseURL 前缀，只存相对路径
-    let avatarPath = profileForm.avatar
-    if (avatarPath && avatarPath.startsWith(__VITE_SERVER_BASEURL__)) {
-      avatarPath = avatarPath.replace(__VITE_SERVER_BASEURL__, '')
-    }
+
+    const avatarPath = getAvatarPath(profileForm.avatar)
 
     const res = await updateMineInfoApi({
       nickname: profileForm.nickname,
@@ -151,6 +169,13 @@ const handleSave = async () => {
     })
     
     if (res.code === 200) {
+      const cachedUserInfo = uni.getStorageSync('userInfo') || {}
+      uni.setStorageSync('userInfo', {
+        ...cachedUserInfo,
+        nickname: profileForm.nickname,
+        email: profileForm.email,
+        avatar: avatarPath
+      })
       toast.success('保存成功')
       setTimeout(() => {
         uni.navigateBack()

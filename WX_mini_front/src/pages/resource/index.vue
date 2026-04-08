@@ -116,6 +116,15 @@
         </view>
       </view>
     </view>
+
+    <wd-popup v-model="showQrPopup" custom-style="padding: 40rpx; border-radius: 32rpx; width: 80%;" position="center">
+      <view class="qr-popup-content">
+        <view class="qr-title">{{ qrGroupName || '自习室报名群' }}</view>
+        <view class="qr-tip">长按识别二维码或保存到相册</view>
+        <image :src="currentQrCode" mode="widthFix" class="qr-image" show-menu-by-longpress />
+        <wd-button block @click="showQrPopup = false" custom-style="margin-top: 30rpx;">关闭</wd-button>
+      </view>
+    </wd-popup>
   </view>
   </view>
 </template>
@@ -123,8 +132,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { getCourseListApi } from '@/api/course'
+import { getWechatQrByLocationApi } from '@/api/index'
 import { onShow } from '@dcloudio/uni-app'
 import { getUserInfoApi } from '@/api/mine'
+import { resolveUploadSrc } from '@/utils/upload'
 import { useToast } from 'wot-design-uni'
 
 const staticBaseUrl = __VITE_SERVER_BASEURL__ + '/static'
@@ -132,12 +143,27 @@ const courses = ref<any[]>([])
 const searchKeyword = ref('')
 const isSVIPUser = ref(false)
 const toast = useToast()
+const showQrPopup = ref(false)
+const currentQrCode = ref('')
+const qrGroupName = ref('')
 
-const joinStudyRoom = () => {
-  toast.loading('正在为您分配座位...')
-  setTimeout(() => {
-    toast.success('报名成功，即将进入自习室')
-  }, 1500)
+const joinStudyRoom = async () => {
+  try {
+    toast.loading('正在获取自习室二维码...')
+    const res = await getWechatQrByLocationApi('HELP_SERVICE')
+    if (res.code === 200 && res.data?.qrCodePath) {
+      currentQrCode.value = resolveUploadSrc(res.data.qrCodePath, true)
+      qrGroupName.value = res.data.groupName || '自习室报名群'
+      showQrPopup.value = true
+    } else {
+      toast.show(res.msg || '暂无自习室二维码')
+    }
+  } catch (error) {
+    console.error('获取自习室二维码失败:', error)
+    toast.error('获取二维码失败')
+  } finally {
+    toast.close()
+  }
 }
 
 // 获取系统状态栏高度，用于自定义导航栏适配
@@ -433,6 +459,32 @@ onMounted(() => {
         }
       }
     }
+  }
+}
+
+.qr-popup-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  .qr-title {
+    font-size: 34rpx;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10rpx;
+  }
+
+  .qr-tip {
+    font-size: 24rpx;
+    color: #999;
+    margin-bottom: 30rpx;
+  }
+
+  .qr-image {
+    width: 400rpx;
+    height: 400rpx;
+    border-radius: 12rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
   }
 }
 </style>

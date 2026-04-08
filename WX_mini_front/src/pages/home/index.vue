@@ -5,6 +5,7 @@ import { useToast } from 'wot-design-uni'
 import { getHomeStatsApi, getHomeBannersApi, getHomePublicCoursesApi, getWechatQrByLocationApi } from '@/api/index'
 import { getCourseListApi } from '@/api/course'
 import { getUserInfoApi } from '@/api/mine'
+import { resolveUploadSrc } from '@/utils/upload'
 
 const toast = useToast()
 
@@ -32,9 +33,7 @@ const handleBannerClick = async (img: string) => {
     toast.loading('请稍后...')
     const res = await getWechatQrByLocationApi('HOME_BANNER')
     if (res.code === 200) {
-      // 修正：拼接服务器 BaseURL
-      const path = res.data.qrCodePath
-      currentQrCode.value = path.startsWith('http') ? path : __VITE_SERVER_BASEURL__ + path
+      currentQrCode.value = resolveUploadSrc(res.data.qrCodePath, true)
       qrGroupName.value = res.data.groupName
       showQrPopup.value = true
     } else {
