@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getFaqCategoryApi, getFaqListApi } from '@/api/service'
 import { getWechatQrByLocationApi } from '@/api/index'
+import { resolveUploadSrc } from '@/utils/upload'
 import { useToast } from 'wot-design-uni'
 
 const toast = useToast()
@@ -10,7 +11,7 @@ const searchValue = ref('')
 const currentTab = ref<string | null>(null) // 改为 string，存储分类名称
 const categories = ref<any[]>([])
 const faqs = ref<any[]>([])
-const activeFaq = ref<number[]>([])
+const activeFaq = ref<string[]>([])
 const isLoading = ref(false) // 增加请求锁，防止并发
 
 const staticBaseUrl = __VITE_SERVER_BASEURL__ + '/static'
@@ -25,9 +26,7 @@ const handleContactClick = async () => {
     toast.loading('请稍后...')
     const res = await getWechatQrByLocationApi('HELP_SERVICE')
     if (res.code === 200) {
-      // 修正：拼接服务器 BaseURL
-      const path = res.data.qrCodePath
-      currentQrCode.value = path.startsWith('http') ? path : __VITE_SERVER_BASEURL__ + path
+      currentQrCode.value = resolveUploadSrc(res.data.qrCodePath, true)
       qrGroupName.value = res.data.groupName
       showQrPopup.value = true
     } else {
@@ -175,7 +174,7 @@ onMounted(() => {
                 v-for="faq in faqs" 
                 :key="faq.id" 
                 :title="faq.question" 
-                :name="faq.id"
+                :name="String(faq.id)"
                 custom-class="faq-collapse-item"
               >
                 <view class="faq-answer-content">
@@ -231,9 +230,9 @@ onMounted(() => {
 
 /* 顶部大背景 - 采用与名校试卷类似的轻盈风格 */
 .header-section {
-  height: 280rpx;
+  min-height: 280rpx;
   background: linear-gradient(135deg, #eefaf6 0%, #eef5ff 100%);
-  padding: 40rpx 40rpx 0;
+  padding: 40rpx 40rpx 30rpx;
   box-sizing: border-box;
   position: relative;
   border-bottom-left-radius: 60rpx;
@@ -301,21 +300,54 @@ onMounted(() => {
 
 /* 悬浮搜索框 */
 .search-box-wrap {
-  position: absolute;
-  bottom: -44rpx;
-  left: 40rpx;
-  right: 40rpx;
-  background: #fff;
+  margin-top: 28rpx;
+  padding: 10rpx;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(244, 251, 255, 0.82) 100%);
   border-radius: 44rpx;
-  box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.08);
-  padding: 4rpx;
-  z-index: 10;
+  box-shadow: 0 12rpx 30rpx rgba(79, 172, 254, 0.16);
+  border: 2rpx solid rgba(255, 255, 255, 0.92);
+  z-index: 1;
 }
 
 .content-body {
   position: relative;
   z-index: 1;
-  padding: 80rpx 30rpx 30rpx;
+  padding: 34rpx 30rpx 30rpx;
+}
+
+:deep(.search-box-wrap .wd-search),
+:deep(.search-box-wrap .wd-search__container),
+:deep(.search-box-wrap .wd-search__field) {
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+:deep(.search-box-wrap .wd-search__block),
+:deep(.search-box-wrap .wd-search__cover) {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-radius: 36rpx !important;
+  box-shadow:
+    inset 0 0 0 2rpx rgba(141, 196, 255, 0.24),
+    0 6rpx 18rpx rgba(144, 198, 255, 0.14);
+}
+
+:deep(.search-box-wrap .wd-search__input),
+:deep(.search-box-wrap .wd-search__placeholder-txt) {
+  font-size: 26rpx !important;
+}
+
+:deep(.search-box-wrap .wd-search__input) {
+  color: #4f6072 !important;
+}
+
+:deep(.search-box-wrap .wd-search__placeholder-txt) {
+  color: #9caaba !important;
+}
+
+:deep(.search-box-wrap .wd-search__search-icon),
+:deep(.search-box-wrap .wd-search__search-left-icon) {
+  color: #6eaef6 !important;
+  font-size: 28rpx !important;
 }
 
 /* 快捷分类 */
