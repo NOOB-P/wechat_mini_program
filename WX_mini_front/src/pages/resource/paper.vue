@@ -1,10 +1,14 @@
 <template>
   <view class="paper-container">
-    <!-- 顶部背景渐变 -->
-    <view class="header-bg"></view>
-
-    <view class="sticky-header">
-      <view class="search-wrap">
+    <!-- 顶部大面积柔和渐变 -->
+    <view class="header-section">
+      <view class="header-content">
+        <text class="page-title">名校试卷</text>
+        <text class="page-subtitle">汇聚全国名校真题 · 助力高效提分</text>
+      </view>
+      
+      <!-- 悬浮搜索框 -->
+      <view class="search-box-wrap">
         <wd-search 
           v-model="keyword" 
           placeholder="搜索试卷、学校或年份" 
@@ -17,110 +21,104 @@
     </view>
 
     <view class="content-body animate-fade-in">
-      <view class="subject-grid-card">
-        <view class="grid-title">科目分类</view>
-        <view class="grid-content">
-          <view class="sub-item" v-for="sub in subjects" :key="sub.name" @click="selectSubject(sub.name)">
-            <view class="sub-icon-wrap" :style="{ background: sub.color + '1a' }">
-              <wd-icon :name="sub.icon" size="20px" :color="sub.color" />
+      <!-- 科目导航 - 采用横向滑动或精简网格 -->
+      <view class="section-block">
+        <view class="section-header">
+          <text class="section-title">科目分类</text>
+        </view>
+        <view class="subject-grid">
+          <view class="sub-card" v-for="sub in subjects" :key="sub.name" @click="selectSubject(sub.name)">
+            <view class="sub-icon-box" :style="{ background: sub.color + '12' }">
+              <wd-icon :name="sub.icon" size="22px" :color="sub.color" />
             </view>
-            <text class="sub-name">{{ sub.name }}</text>
+            <text class="sub-label">{{ sub.name }}</text>
           </view>
         </view>
       </view>
 
-      <view class="special-section-card">
+      <!-- 专题区域 - 更加精致的卡片 -->
+      <view class="section-block">
         <view class="section-header">
-          <view class="title-left">
-            <view class="title-indicator"></view>
-            <text class="sec-title">专题试卷</text>
-          </view>
-          <text class="sec-more">更多专辑 <wd-icon name="arrow-right" size="12px" /></text>
+          <text class="section-title">专题专辑</text>
+          <view class="header-more">全部 <wd-icon name="arrow-right" size="12px" /></view>
         </view>
         
-        <view class="special-layout">
-          <view class="card-featured" @click="handleSpecial('FAMOUS')">
-            <view class="card-inner">
-              <view class="card-text">
-                <text class="c-title">名校真题</text>
-                <text class="c-desc">同步全国名校 实时更新</text>
-              </view>
-              <view class="card-badge">HOT</view>
-              <view class="c-btn">进入</view>
+        <view class="special-flex">
+          <view class="featured-card" @click="handleSpecial('FAMOUS')">
+            <view class="f-content">
+              <text class="f-tag">HOT</text>
+              <text class="f-title">名校真题</text>
+              <text class="f-desc">同步全国名校 实时更新资源</text>
+              <view class="f-btn">立即进入</view>
             </view>
+            <view class="f-decoration"></view>
           </view>
           
-          <view class="card-column">
-            <view class="card-mini blue" @click="handleSpecial('MONTHLY')">
-              <text class="c-title">月考专栏</text>
-              <text class="c-desc">阶段提升 查漏补缺</text>
+          <view class="side-column">
+            <view class="mini-card blue" @click="handleSpecial('MONTHLY')">
+              <text class="m-title">月考专栏</text>
+              <text class="m-desc">阶段提升 查漏补缺</text>
             </view>
-            <view class="card-mini purple" @click="handleSpecial('JOINT')">
-              <text class="c-title">联考专辑</text>
-              <text class="c-desc">掌握趋势 提前备考</text>
+            <view class="mini-card purple" @click="handleSpecial('JOINT')">
+              <text class="m-title">联考专辑</text>
+              <text class="m-desc">掌握趋势 提前备考</text>
             </view>
           </view>
         </view>
       </view>
 
-      <view class="list-section-card">
-        <view class="tabs-header">
+      <!-- 列表区域 - 极简白卡片 -->
+      <view class="list-container">
+        <view class="list-tabs">
           <view 
-            class="tab-item" 
+            class="tab-pill" 
             :class="{ active: currentTab === 'all' }" 
             @click="currentTab = 'all'"
-          >
-            <text>全部试卷</text>
-            <view class="active-line"></view>
-          </view>
+          >全部试卷</view>
           <view 
-            class="tab-item" 
+            class="tab-pill" 
             :class="{ active: currentTab === 'recommend' }" 
             @click="currentTab = 'recommend'"
-          >
-            <text>编辑精选</text>
-            <view class="active-line"></view>
-          </view>
+          >编辑精选</view>
         </view>
         
-        <view class="paper-list-wrap">
+        <view class="paper-list">
           <view 
-            class="paper-card" 
+            class="paper-item-card" 
             v-for="(item, index) in filteredList" 
             :key="item.id" 
             @click="handleItemClick(item)"
           >
-            <view class="paper-header">
-              <view class="paper-type-icon">
-                <wd-icon name="file-word" size="20px" color="#1a5f8e" />
+            <view class="p-left">
+              <view class="p-icon-bg">
+                <wd-icon name="file-word" size="24px" color="#1a5f8e" />
               </view>
-              <text class="p-title-text">{{ item.title }}</text>
             </view>
-            
-            <view class="p-tags-row">
-              <view class="tag-item" v-for="tag in formatTags(item.tags)" :key="tag">{{ tag }}</view>
-            </view>
-            
-            <view class="p-footer">
-              <view class="footer-left">
-                <text class="footer-info">{{ item.year }} · {{ item.grade }}</text>
+            <view class="p-right">
+              <text class="p-name">{{ item.title }}</text>
+              <view class="p-tags">
+                <text class="p-tag-item" v-for="tag in formatTags(item.tags)" :key="tag">{{ tag }}</text>
               </view>
-              <view class="footer-right">
-                <wd-icon name="download" size="14px" color="#999" />
-                <text class="download-count">{{ item.downloads || 0 }}次下载</text>
+              <view class="p-meta">
+                <text class="p-info-text">{{ item.year }} · {{ item.grade }}</text>
+                <view class="p-count">
+                  <wd-icon name="download" size="12px" color="#999" />
+                  <text>{{ item.downloads || 0 }}</text>
+                </view>
               </view>
             </view>
           </view>
         </view>
 
-        <view class="empty-state" v-if="filteredList.length === 0">
+        <view class="empty-box" v-if="filteredList.length === 0">
           <wd-img :width="100" :height="100" src="https://img.yzcdn.cn/vant/empty-image-default.png" />
-          <text class="empty-text">没有找到符合条件的试卷~</text>
+          <text class="empty-text">暂无相关试卷资源~</text>
         </view>
       </view>
     </view>
   </view>
 </template>
+
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
@@ -237,344 +235,367 @@ onMounted(() => {
   padding-bottom: 60rpx;
 }
 
-.header-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 380rpx;
-  background: linear-gradient(135deg, #d4f9f2 0%, #eef5ff 100%);
+/* 顶部大背景 */
+.header-section {
+  height: 280rpx;
+  background: linear-gradient(135deg, #eefaf6 0%, #eef5ff 100%);
+  padding: 40rpx 40rpx 0;
+  box-sizing: border-box;
+  position: relative;
+  border-bottom-left-radius: 60rpx;
+  border-bottom-right-radius: 60rpx;
   z-index: 0;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 90% 10%, rgba(255,255,255,0.6) 0%, transparent 40%);
+    z-index: -1;
+  }
 }
 
-.sticky-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(10px);
-  padding: 20rpx 30rpx;
+.header-content {
+  color: #333;
+  margin-bottom: 20rpx;
+  
+  .page-title {
+    font-size: 40rpx;
+    font-weight: bold;
+    display: block;
+    margin-bottom: 8rpx;
+    letter-spacing: 2rpx;
+    color: #1a5f8e;
+  }
+  
+  .page-subtitle {
+    font-size: 22rpx;
+    color: #666;
+  }
 }
 
-.search-wrap {
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 40rpx;
+/* 悬浮搜索框 */
+.search-box-wrap {
+  position: absolute;
+  bottom: -44rpx;
+  left: 40rpx;
+  right: 40rpx;
+  background: #fff;
+  border-radius: 44rpx;
+  box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.08);
   padding: 4rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+  z-index: 10;
 }
 
 .content-body {
   position: relative;
   z-index: 1;
-  padding: 20rpx 30rpx;
+  padding: 60rpx 30rpx 30rpx;
 }
 
-/* 科目分类卡片 */
-.subject-grid-card {
-  background: #fff;
-  border-radius: 32rpx;
-  padding: 30rpx;
-  margin-bottom: 30rpx;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.03);
-
-  .grid-title {
-    font-size: 28rpx;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 24rpx;
-  }
-
-  .grid-content {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20rpx;
-  }
-
-  .sub-item {
-    display: flex;
-    align-items: center;
-    background: #f8fbff;
-    padding: 20rpx 16rpx;
-    border-radius: 16rpx;
-    transition: all 0.3s;
-
-    &:active {
-      transform: scale(0.96);
-      background: #f0f6ff;
-    }
-
-    .sub-icon-wrap {
-      width: 56rpx;
-      height: 56rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 12rpx;
-      margin-right: 12rpx;
-      flex-shrink: 0;
-    }
-
-    .sub-name {
-      font-size: 26rpx;
-      color: #333;
-      font-weight: 500;
-    }
-  }
+.section-block {
+  margin-bottom: 48rpx;
 }
 
-/* 专题卷区域 */
-.special-section-card {
-  background: #fff;
-  border-radius: 32rpx;
-  padding: 30rpx;
-  margin-bottom: 30rpx;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.03);
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+  padding: 0 10rpx;
 
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24rpx;
-
-    .title-left {
-      display: flex;
-      align-items: center;
-      
-      .title-indicator {
-        width: 8rpx;
-        height: 32rpx;
-        background: linear-gradient(180deg, #1a5f8e, #00897b);
-        border-radius: 4rpx;
-        margin-right: 16rpx;
-      }
-      
-      .sec-title {
-        font-size: 32rpx;
-        font-weight: bold;
-        color: #1a1a1a;
-      }
-    }
+  .section-title {
+    font-size: 34rpx;
+    font-weight: bold;
+    color: #1a1a1a;
+    position: relative;
     
-    .sec-more {
-      font-size: 24rpx;
-      color: #999;
-      display: flex;
-      align-items: center;
-      gap: 4rpx;
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -4rpx;
+      left: 0;
+      width: 40%;
+      height: 6rpx;
+      background: #2ed573;
+      border-radius: 3rpx;
+      opacity: 0.6;
     }
   }
-
-  .special-layout {
+  
+  .header-more {
+    font-size: 24rpx;
+    color: #999;
     display: flex;
-    gap: 20rpx;
-    height: 300rpx;
-
-    .card-featured {
-      flex: 1.2;
-      background: linear-gradient(135deg, #fff9f0, #ffe8d1);
-      border-radius: 24rpx;
-      position: relative;
-      overflow: hidden;
-      
-      .card-inner {
-        height: 100%;
-        padding: 30rpx;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-      }
-
-      .c-title {
-        font-size: 32rpx;
-        font-weight: bold;
-        color: #855e3a;
-        margin-bottom: 8rpx;
-        display: block;
-      }
-
-      .c-desc {
-        font-size: 22rpx;
-        color: #a68465;
-      }
-
-      .card-badge {
-        position: absolute;
-        top: 0;
-        right: 0;
-        background: #ff6b6b;
-        color: #fff;
-        font-size: 18rpx;
-        font-weight: bold;
-        padding: 4rpx 12rpx;
-        border-bottom-left-radius: 12rpx;
-      }
-
-      .c-btn {
-        background: #855e3a;
-        color: #fff;
-        font-size: 22rpx;
-        padding: 10rpx 30rpx;
-        border-radius: 30rpx;
-        align-self: flex-start;
-      }
-    }
-
-    .card-column {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 20rpx;
-
-      .card-mini {
-        flex: 1;
-        border-radius: 24rpx;
-        padding: 20rpx;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-
-        &.blue { background: linear-gradient(135deg, #f0f7ff, #e1f0ff); }
-        &.purple { background: linear-gradient(135deg, #f8f0ff, #f0e1ff); }
-
-        .c-title {
-          font-size: 26rpx;
-          font-weight: bold;
-          color: #333;
-          margin-bottom: 4rpx;
-        }
-
-        .c-desc {
-          font-size: 20rpx;
-          color: #8c8c8c;
-        }
-      }
-    }
+    align-items: center;
+    gap: 4rpx;
   }
 }
 
-/* 列表卡片区域 */
-.list-section-card {
+/* 科目网格 */
+.subject-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20rpx;
+}
+
+.sub-card {
   background: #fff;
-  border-radius: 32rpx;
-  padding: 30rpx;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.03);
-
-  .tabs-header {
-    display: flex;
-    gap: 48rpx;
-    margin-bottom: 30rpx;
-    border-bottom: 2rpx solid #f5f5f5;
-
-    .tab-item {
-      padding-bottom: 20rpx;
-      position: relative;
-      font-size: 30rpx;
-      color: #8c8c8c;
-      transition: all 0.3s;
-
-      &.active {
-        color: #1a5f8e;
-        font-weight: bold;
-        
-        .active-line {
-          position: absolute;
-          bottom: -2rpx;
-          left: 0;
-          width: 100%;
-          height: 6rpx;
-          background: linear-gradient(90deg, #1a5f8e, #00897b);
-          border-radius: 4rpx;
-        }
-      }
-    }
-  }
-
-  .paper-card {
-    background: #fcfdfe;
-    border: 2rpx solid #f0f5ff;
-    border-radius: 20rpx;
-    padding: 24rpx;
-    margin-bottom: 24rpx;
-    transition: all 0.3s;
-
-    &:active {
-      background: #f5f9ff;
-      transform: scale(0.99);
-    }
-
-    .paper-header {
-      display: flex;
-      gap: 16rpx;
-      margin-bottom: 16rpx;
-
-      .paper-type-icon {
-        background: rgba(26, 95, 142, 0.1);
-        width: 44rpx;
-        height: 44rpx;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8rpx;
-        flex-shrink: 0;
-      }
-
-      .p-title-text {
-        font-size: 30rpx;
-        font-weight: 600;
-        color: #1a1a1a;
-        line-height: 1.4;
-      }
-    }
-
-    .p-tags-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12rpx;
-      margin-bottom: 20rpx;
-
-      .tag-item {
-        font-size: 20rpx;
-        color: #00897b;
-        background: rgba(0, 137, 123, 0.08);
-        padding: 4rpx 14rpx;
-        border-radius: 6rpx;
-      }
-    }
-
-    .p-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-top: 16rpx;
-      border-top: 2rpx dashed #f0f0f0;
-
-      .footer-info {
-        font-size: 22rpx;
-        color: #999;
-      }
-
-      .footer-right {
-        display: flex;
-        align-items: center;
-        gap: 6rpx;
-        
-        .download-count {
-          font-size: 22rpx;
-          color: #999;
-        }
-      }
-    }
-  }
-}
-
-.empty-state {
+  border-radius: 24rpx;
+  padding: 24rpx 10rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 60rpx 0;
+  gap: 16rpx;
+  transition: all 0.3s;
+  border: 1rpx solid #f0f3f5;
+  
+  &:active {
+    transform: scale(0.95);
+    background: #fafbfc;
+  }
+
+  .sub-icon-box {
+    width: 80rpx;
+    height: 80rpx;
+    border-radius: 20rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sub-label {
+    font-size: 26rpx;
+    color: #333;
+    font-weight: 500;
+  }
+}
+
+/* 专题布局 */
+.special-flex {
+  display: flex;
+  gap: 20rpx;
+  height: 320rpx;
+}
+
+.featured-card {
+  flex: 1.2;
+  background: linear-gradient(135deg, #fff9f0 0%, #ffe8d1 100%);
+  border-radius: 32rpx;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8rpx 20rpx rgba(255, 152, 0, 0.05);
+
+  .f-content {
+    padding: 32rpx;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 2;
+  }
+
+  .f-tag {
+    background: #ff6b6b;
+    color: #fff;
+    font-size: 18rpx;
+    font-weight: bold;
+    padding: 4rpx 16rpx;
+    border-radius: 20rpx;
+    align-self: flex-start;
+    margin-bottom: 16rpx;
+  }
+
+  .f-title {
+    font-size: 36rpx;
+    font-weight: bold;
+    color: #855e3a;
+    margin-bottom: 8rpx;
+  }
+
+  .f-desc {
+    font-size: 22rpx;
+    color: #a68465;
+    margin-bottom: auto;
+  }
+
+  .f-btn {
+    background: #855e3a;
+    color: #fff;
+    font-size: 22rpx;
+    padding: 12rpx 28rpx;
+    border-radius: 30rpx;
+    align-self: flex-start;
+  }
+
+  .f-decoration {
+    position: absolute;
+    right: -20rpx;
+    bottom: -20rpx;
+    width: 120rpx;
+    height: 120rpx;
+    background: rgba(133, 94, 58, 0.05);
+    border-radius: 50%;
+    z-index: 1;
+  }
+}
+
+.side-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.mini-card {
+  flex: 1;
+  border-radius: 32rpx;
+  padding: 24rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  
+  &.blue { background: linear-gradient(135deg, #f0f7ff 0%, #e1f0ff 100%); }
+  &.purple { background: linear-gradient(135deg, #f8f0ff 0%, #f0e1ff 100%); }
+
+  .m-title {
+    font-size: 28rpx;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 4rpx;
+  }
+
+  .m-desc {
+    font-size: 20rpx;
+    color: #8c8c8c;
+  }
+}
+
+/* 列表容器 */
+.list-container {
+  margin-top: 20rpx;
+}
+
+.list-tabs {
+  display: flex;
+  gap: 24rpx;
+  margin-bottom: 32rpx;
+  padding: 0 10rpx;
+}
+
+.tab-pill {
+  padding: 12rpx 32rpx;
+  border-radius: 32rpx;
+  font-size: 28rpx;
+  color: #8c8c8c;
+  background: #fff;
+  border: 1rpx solid #f0f3f5;
+  transition: all 0.3s;
+
+  &.active {
+    color: #fff;
+    background: #1a5f8e;
+    border-color: #1a5f8e;
+    font-weight: bold;
+    box-shadow: 0 6rpx 16rpx rgba(26, 95, 142, 0.2);
+  }
+}
+
+.paper-item-card {
+  display: flex;
+  background: #fff;
+  border-radius: 28rpx;
+  padding: 28rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.02);
+  border: 1rpx solid #f0f3f5;
+  transition: all 0.3s;
+
+  &:active {
+    transform: scale(0.98);
+    background: #fafbfc;
+  }
+
+  .p-left {
+    margin-right: 24rpx;
+    .p-icon-bg {
+      width: 88rpx;
+      height: 88rpx;
+      background: #f0f7ff;
+      border-radius: 20rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  .p-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .p-name {
+    font-size: 30rpx;
+    font-weight: 600;
+    color: #1a1a1a;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    margin-bottom: 12rpx;
+  }
+
+  .p-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12rpx;
+    margin-bottom: 16rpx;
+  }
+
+  .p-tag-item {
+    font-size: 20rpx;
+    color: #00897b;
+    background: rgba(0, 137, 123, 0.06);
+    padding: 4rpx 16rpx;
+    border-radius: 8rpx;
+  }
+
+  .p-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16rpx;
+    border-top: 1rpx solid #f5f7fa;
+
+    .p-info-text {
+      font-size: 22rpx;
+      color: #999;
+    }
+
+    .p-count {
+      display: flex;
+      align-items: center;
+      gap: 6rpx;
+      font-size: 22rpx;
+      color: #999;
+    }
+  }
+}
+
+.empty-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 100rpx 0;
   
   .empty-text {
-    margin-top: 20rpx;
+    margin-top: 24rpx;
     font-size: 26rpx;
     color: #999;
   }
@@ -588,5 +609,11 @@ onMounted(() => {
   from { opacity: 0; transform: translateY(20rpx); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20rpx); }
+  to { opacity: 1; transform: translateX(0); }
+}
 </style>
+
 
