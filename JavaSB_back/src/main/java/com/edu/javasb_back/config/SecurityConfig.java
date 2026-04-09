@@ -40,7 +40,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/app/resource/paper/**").permitAll() // 放行小程序试卷资源接口
                 .requestMatchers("/api/app/course/**").permitAll() // 放行小程序课程相关接口
                 .requestMatchers("/uploads/**").permitAll() // 放行上传的静态资源图片
-                
+                .requestMatchers("/api/app/mine/info").permitAll()
 
                 .anyRequest().authenticated() // 其他所有请求都需要携带有效 Token
             )
