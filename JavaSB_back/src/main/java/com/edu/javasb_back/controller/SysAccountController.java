@@ -1,7 +1,11 @@
 package com.edu.javasb_back.controller;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.exception.ExcelAnalysisException;
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.listener.ParentImportListener;
+import com.edu.javasb_back.model.dto.ParentImportDTO;
 import com.edu.javasb_back.model.entity.StudentParentBinding;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.SysStudent;
@@ -14,16 +18,29 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 @RestController
 @RequestMapping("/api/system/user")
@@ -43,6 +60,8 @@ public class SysAccountController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    private static final int PARENT_ROLE_ID = 3;
 
     // 辅助方法：获取当前用户的实体
     private SysAccount getCurrentUser() {
@@ -213,6 +232,159 @@ public class SysAccountController {
     }
 
     /**
+     * 批量导入家长用户
+     */
+    @LogOperation("批量导入家长用户")
+    @PostMapping("/import-parents")
+    public Result<Void> importParents(@RequestParam("file") MultipartFile file) {
+        SysAccount currentUser = getCurrentUser();
+        if (!isAdmin(currentUser)) return Result.error(403, "无权限执行此操作，仅管理员可用");
+        if (file == null || file.isEmpty()) {
+            return Result.error("文件内容为空");
+        }
+
+        try {
+            ParentImportListener listener = new ParentImportListener();
+            EasyExcel.read(file.getInputStream(), ParentImportDTO.class, listener).sheet().doRead();
+
+            int successCount = 0;
+            int skippedCount = 0;
+            int bindFailedCount = 0;
+            StringBuilder skippedDetails = new StringBuilder();
+            StringBuilder bindFailedDetails = new StringBuilder();
+
+            for (ParentImportDTO dto : listener.getList()) {
+                String username = trim(dto.getUsername());
+                String nickname = trim(dto.getNickname());
+                String phone = trim(dto.getPhone());
+                String password = trim(dto.getPassword());
+                String studentNo = trim(dto.getStudentNo());
+
+                if (username == null || nickname == null || phone == null) {
+                    skippedCount++;
+                    appendDetail(skippedDetails, username != null ? username : phone, "必填字段缺失");
+                    continue;
+                }
+
+                if (!phone.matches("^1[3-9]\\d{9}$")) {
+                    skippedCount++;
+                    appendDetail(skippedDetails, username, "手机号格式不正确");
+                    continue;
+                }
+
+                if (sysAccountRepository.existsByUsername(username)) {
+                    skippedCount++;
+                    appendDetail(skippedDetails, username, "用户名已存在");
+                    continue;
+                }
+
+                if (sysAccountRepository.existsByPhone(phone)) {
+                    skippedCount++;
+                    appendDetail(skippedDetails, username, "手机号已存在");
+                    continue;
+                }
+
+                SysAccount account = new SysAccount();
+                account.setUsername(username);
+                account.setNickname(nickname);
+                account.setPhone(phone);
+                account.setRoleId(PARENT_ROLE_ID);
+                account.setIsEnabled(1);
+                account.setOnlineStatus("offline");
+                account.setIsVip(parseBooleanFlag(dto.getVip()) ? 1 : 0);
+                account.setIsSvip(parseBooleanFlag(dto.getSvip()) ? 1 : 0);
+                if (account.getIsSvip() == 1) {
+                    account.setIsVip(1);
+                }
+                account.setPassword(passwordEncoder.encode(password != null ? password : "123456"));
+                sysAccountRepository.save(account);
+                successCount++;
+
+                if (studentNo != null) {
+                    Optional<SysStudent> studentOpt = sysStudentRepository.findByStudentNo(studentNo);
+                    if (studentOpt.isPresent()) {
+                        Result<Void> bindResult = sysAccountService.bindStudentById(account.getUid(), studentOpt.get().getId());
+                        if (bindResult.getCode() != 200) {
+                            bindFailedCount++;
+                            appendDetail(bindFailedDetails, username, bindResult.getMsg());
+                        }
+                    } else {
+                        bindFailedCount++;
+                        appendDetail(bindFailedDetails, username, "未找到学号为 " + studentNo + " 的学生");
+                    }
+                }
+            }
+
+            StringBuilder message = new StringBuilder("导入完成：成功 ")
+                    .append(successCount)
+                    .append(" 条，跳过 ")
+                    .append(skippedCount)
+                    .append(" 条");
+            if (bindFailedCount > 0) {
+                message.append("，绑定失败 ").append(bindFailedCount).append(" 条");
+            }
+            if (skippedDetails.length() > 0) {
+                message.append("；跳过明细：").append(skippedDetails);
+            }
+            if (bindFailedDetails.length() > 0) {
+                message.append("；绑定明细：").append(bindFailedDetails);
+            }
+
+            return Result.success(message.toString(), null);
+        } catch (ExcelAnalysisException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("导入失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 下载家长导入模板
+     */
+    @LogOperation("下载家长导入模板")
+    @GetMapping("/download-parent-template")
+    public ResponseEntity<Resource> downloadParentTemplate() {
+        SysAccount currentUser = getCurrentUser();
+        if (!isAdmin(currentUser)) {
+            return ResponseEntity.status(403).build();
+        }
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("家长导入模板");
+            String[] headers = {"用户名", "昵称", "手机号", "密码", "VIP", "SVIP", "学生学号"};
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                headerRow.createCell(i).setCellValue(headers[i]);
+                sheet.setColumnWidth(i, 18 * 256);
+            }
+
+            Row sampleRow = sheet.createRow(1);
+            sampleRow.createCell(0).setCellValue("parent_demo01");
+            sampleRow.createCell(1).setCellValue("张三爸爸");
+            sampleRow.createCell(2).setCellValue("13800001234");
+            sampleRow.createCell(3).setCellValue("123456");
+            sampleRow.createCell(4).setCellValue("否");
+            sampleRow.createCell(5).setCellValue("否");
+            sampleRow.createCell(6).setCellValue("STU2026001");
+
+            Row tipsRow = sheet.createRow(2);
+            tipsRow.createCell(0).setCellValue("说明：密码留空默认 123456；VIP/SVIP 填 是/否；学生学号可选");
+
+            workbook.write(outputStream);
+            String filename = URLEncoder.encode("家长导入模板.xlsx", StandardCharsets.UTF_8.toString());
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(new ByteArrayResource(outputStream.toByteArray()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
      * 编辑账户
      */
     @LogOperation("编辑账户")
@@ -310,5 +482,28 @@ public class SysAccountController {
 
         sysAccountRepository.deleteById(uid);
         return Result.success("删除成功", null);
+    }
+
+    private String trim(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private boolean parseBooleanFlag(String value) {
+        if (value == null) return false;
+        String normalized = value.trim();
+        return "1".equals(normalized) ||
+                "是".equals(normalized) ||
+                "true".equalsIgnoreCase(normalized) ||
+                "yes".equalsIgnoreCase(normalized) ||
+                "y".equalsIgnoreCase(normalized);
+    }
+
+    private void appendDetail(StringBuilder builder, String key, String message) {
+        if (builder.length() > 0) {
+            builder.append("；");
+        }
+        builder.append("[").append(key != null ? key : "未知").append(": ").append(message).append("]");
     }
 }
