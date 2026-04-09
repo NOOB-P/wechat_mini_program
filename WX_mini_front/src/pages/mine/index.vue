@@ -2,6 +2,7 @@
 import { reactive, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getUserInfoApi } from '@/api/mine'
+import { resolveAvatarSrc } from '@/utils/avatar'
 
 // 用户信息
 const userInfo = reactive({
@@ -17,7 +18,7 @@ const userInfo = reactive({
 // 菜单组一
 const menuGroup1 = [
   { label: '我的课程', icon: 'books', value: 'courses' },
-  { label: '已购课程', icon: 'cart', value: 'purchased' },
+  { label: '已购订单', icon: 'cart', value: 'purchased' },
   { label: '我的收藏', icon: 'star', value: 'favorites' },
   { label: '学习记录', icon: 'time', value: 'history' }
 ]
@@ -34,12 +35,10 @@ const getUserInfo = async () => {
   try {
     const res = await getUserInfoApi()
     if (res.code === 200) {
-      // 只有当后端返回了非空的 avatar 时才更新
       const updatedData = { ...res.data }
-      if (updatedData.avatar && !updatedData.avatar.startsWith('http')) {
-        updatedData.avatar = __VITE_SERVER_BASEURL__ + updatedData.avatar
-      }
-      if (!updatedData.avatar) {
+      if (updatedData.avatar) {
+        updatedData.avatar = resolveAvatarSrc(updatedData.avatar)
+      } else {
         delete updatedData.avatar
       }
       Object.assign(userInfo, updatedData)
@@ -79,10 +78,12 @@ onMounted(() => {
 
 const handleMenuClick = (item: any) => {
   const type = item.value
+  console.log('Menu clicked:', type)
   if (type === 'courses') {
     uni.navigateTo({ url: '/pages/mine/course-list?type=course' })
   } else if (type === 'purchased') {
-    uni.navigateTo({ url: '/pages/mine/course-list?type=purchased' })
+    console.log('Navigating to order-list')
+    uni.navigateTo({ url: '/pages/mine/order-list' })
   } else if (type === 'favorites') {
     uni.navigateTo({ url: '/pages/mine/course-list?type=collection' })
   } else if (type === 'history') {
@@ -192,8 +193,8 @@ const goToVip = () => {
   left: 0;
   right: 0;
   height: 400rpx;
-  background: linear-gradient(180deg, #1a5f8e 0%, #f8f9fa 100%);
-  opacity: 0.1;
+  background: linear-gradient(135deg, #d4f9f2 0%, #eef5ff 100%);
+  opacity: 0.8;
 }
 
 .header-content {

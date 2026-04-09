@@ -109,14 +109,17 @@ public class AppMineController {
 
         // 生成文件名
         String originalFilename = file.getOriginalFilename();
-        String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        String extension = "";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        }
         String fileName = UUID.randomUUID().toString().replace("-", "") + extension;
 
         // 保存文件
         try {
             file.transferTo(new File(folder.getAbsolutePath() + File.separator + fileName));
-            // 返回可访问的 URL (WebConfig 中配置了 /uploads/**)
-            String avatarUrl = "http://127.0.0.1:8080/uploads/" + fileName;
+            // 统一返回相对路径，由前端基于当前服务地址拼接，避免写死本机地址
+            String avatarUrl = "/uploads/code/" + fileName;
             return Result.success("上传成功", avatarUrl);
         } catch (IOException e) {
             e.printStackTrace();

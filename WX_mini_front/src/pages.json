@@ -92,6 +92,11 @@
 			}
 		},
 		{
+			"path": "pages/mine/order-list",
+			"type": "page",
+			"style": {}
+		},
+		{
 			"path": "pages/paper/index",
 			"type": "page",
 			"style": {

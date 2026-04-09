@@ -139,6 +139,9 @@ const loadCourseDetail = async (id: string) => {
 }
 
 onLoad((options: any) => {
+  uni.setNavigationBarTitle({
+    title: '课程详情'
+  })
   if (options.id) {
     loadCourseDetail(options.id)
   }
@@ -314,7 +317,7 @@ const startLearning = async () => {
       color: #333;
       margin-bottom: 20rpx;
       padding-left: 16rpx;
-      border-left: 8rpx solid #1a5f8e;
+      border-left: 8rpx solid #2ed573;
     }
     
     .intro-text {
@@ -367,8 +370,8 @@ const startLearning = async () => {
         background: #f5f5f5;
         
         &.is-playing {
-          color: #1a5f8e;
-          background: rgba(26, 95, 142, 0.1);
+          color: #2ed573;
+          background: rgba(46, 213, 115, 0.1);
         }
       }
     }
@@ -415,7 +418,7 @@ const startLearning = async () => {
     height: 80rpx !important;
     line-height: 80rpx !important;
     border-radius: 40rpx !important;
-    background: linear-gradient(135deg, #1a5f8e 0%, #00897b 100%) !important;
+    background: linear-gradient(135deg, #2ed573 0%, #7bed9f 100%) !important;
     border: none !important;
     font-size: 30rpx !important;
     margin: 0 !important;

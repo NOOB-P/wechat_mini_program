@@ -88,6 +88,9 @@
             </wd-input>
           </view>
         </view>
+        <view v-if="phoneErrorMessage" class="form-error-tip">
+          {{ phoneErrorMessage }}
+        </view>
         <view class="action-btn">
           <wd-button type="primary" block @click="handleChangePhone">确认修改</wd-button>
         </view>
@@ -114,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, onUnmounted, watch } from 'vue'
 import { getMineInfoApi, updateMineInfoApi, updatePasswordApi, logoutApi, unbindStudentApi } from '@/api/mine'
 import { sendSmsCode } from '@/api/login'
 import { useToast } from 'wot-design-uni'
@@ -142,6 +145,7 @@ const showStudentDetailPopup = ref(false)
 const showChangePhonePopup = ref(false)
 const phoneCountdown = ref(0)
 let phoneTimer: ReturnType<typeof setInterval> | null = null
+const phoneErrorMessage = ref('')
 const phoneForm = reactive({
   newPhone: '',
   code: ''
@@ -175,12 +179,35 @@ onMounted(() => {
   fetchData()
 })
 
+watch(showChangePhonePopup, (visible) => {
+  if (!visible) {
+    phoneErrorMessage.value = ''
+  }
+})
+
+watch(
+  () => [phoneForm.newPhone, phoneForm.code],
+  () => {
+    if (phoneErrorMessage.value) {
+      phoneErrorMessage.value = ''
+    }
+  }
+)
+
+onUnmounted(() => {
+  if (phoneTimer) {
+    clearInterval(phoneTimer)
+    phoneTimer = null
+  }
+})
+
 // 发送验证码
 const sendPhoneCode = async () => {
   if (!phoneForm.newPhone || phoneForm.newPhone.length !== 11) {
     toast.show('请输入正确的手机号')
     return
   }
+  phoneErrorMessage.value = ''
   try {
     await sendSmsCode(phoneForm.newPhone)
     toast.success('验证码已发送')
@@ -189,9 +216,12 @@ const sendPhoneCode = async () => {
       phoneCountdown.value--
       if (phoneCountdown.value <= 0) {
         clearInterval(phoneTimer!)
+        phoneTimer = null
       }
     }, 1000)
-  } catch (error) {
+  } catch (error: any) {
+    phoneErrorMessage.value = error?.msg || '验证码发送失败，请稍后重试'
+    toast.error(phoneErrorMessage.value)
     console.error('发送验证码失败:', error)
   }
 }
@@ -202,6 +232,11 @@ const handleChangePhone = async () => {
     toast.show('请填写完整信息')
     return
   }
+  if (phoneForm.newPhone === userInfo.phone) {
+    toast.show('新手机号不能与当前手机号相同')
+    return
+  }
+  phoneErrorMessage.value = ''
   try {
     // 后端 updateMineInfoApi 支持更新手机号，需要传递新手机号和验证码
     const res = await updateMineInfoApi({ 
@@ -210,13 +245,20 @@ const handleChangePhone = async () => {
     })
     if (res.code === 200) {
       toast.success('修改成功')
-      userInfo.phone = phoneForm.newPhone
+      await fetchData()
+      const cachedUserInfo = uni.getStorageSync('userInfo') || {}
+      uni.setStorageSync('userInfo', {
+        ...cachedUserInfo,
+        phone: userInfo.phone
+      })
       showChangePhonePopup.value = false
       // 重置表单
       phoneForm.newPhone = ''
       phoneForm.code = ''
     }
-  } catch (error) {
+  } catch (error: any) {
+    phoneErrorMessage.value = error?.msg || '修改手机号失败，请稍后重试'
+    toast.error(phoneErrorMessage.value)
     console.error('修改手机号失败:', error)
   }
 }
@@ -405,7 +447,7 @@ const handleLogout = () => {
     background: #f5f6f7;
     border-radius: 24rpx;
     padding: 10rpx 20rpx;
-    margin-bottom: 60rpx;
+    margin-bottom: 24rpx;
     
     :deep(.wd-input) {
       background: transparent;
@@ -425,6 +467,16 @@ const handleLogout = () => {
         }
       }
     }
+  }
+
+  .form-error-tip {
+    margin-bottom: 36rpx;
+    padding: 18rpx 22rpx;
+    border-radius: 18rpx;
+    background: rgba(250, 67, 80, 0.08);
+    color: #e34d59;
+    font-size: 24rpx;
+    line-height: 1.5;
   }
   
   .action-btn {

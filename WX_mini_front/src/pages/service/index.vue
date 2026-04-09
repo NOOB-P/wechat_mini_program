@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { getFaqCategoryApi, getFaqListApi } from '@/api/service'
 import { getWechatQrByLocationApi } from '@/api/index'
+import { resolveUploadSrc } from '@/utils/upload'
 import { useToast } from 'wot-design-uni'
 
 const toast = useToast()
@@ -9,8 +11,10 @@ const searchValue = ref('')
 const currentTab = ref<string | null>(null) // 改为 string，存储分类名称
 const categories = ref<any[]>([])
 const faqs = ref<any[]>([])
-const activeFaq = ref<number[]>([])
+const activeFaq = ref<string[]>([])
 const isLoading = ref(false) // 增加请求锁，防止并发
+
+const staticBaseUrl = __VITE_SERVER_BASEURL__ + '/static'
 
 // 二维码弹窗相关
 const showQrPopup = ref(false)
@@ -22,9 +26,7 @@ const handleContactClick = async () => {
     toast.loading('请稍后...')
     const res = await getWechatQrByLocationApi('HELP_SERVICE')
     if (res.code === 200) {
-      // 修正：拼接服务器 BaseURL
-      const path = res.data.qrCodePath
-      currentQrCode.value = path.startsWith('http') ? path : __VITE_SERVER_BASEURL__ + path
+      currentQrCode.value = resolveUploadSrc(res.data.qrCodePath, true)
       qrGroupName.value = res.data.groupName
       showQrPopup.value = true
     } else {
@@ -101,75 +103,116 @@ const onTabChange = (e: any) => {
   }
 }
 
+onLoad(() => {
+  uni.setNavigationBarTitle({
+    title: '客服帮助'
+  })
+})
+
 onMounted(() => {
   getCategories()
 })
-
-const goBack = () => {
-  uni.navigateBack()
-}
 </script>
 
 <template>
   <view class="service-container">
-    <view class="search-box">
-      <wd-search 
-        v-model="searchValue" 
-        placeholder="搜索您想了解的问题" 
-        hide-cancel 
-        @search="handleSearch" 
-        @clear="handleSearch" 
-      />
+    <!-- 顶部大面积柔和渐变 -->
+    <view class="header-section">
+      <view class="header-content">
+        <view class="title-row">
+          <text class="page-title">帮助中心</text>
+          <view class="online-status">
+            <view class="status-dot"></view>
+            <text>客服在线</text>
+          </view>
+        </view>
+        <text class="page-subtitle">遇见问题？我们会竭诚为您解答</text>
+      </view>
+      
+      <!-- 悬浮搜索框 -->
+      <view class="search-box-wrap">
+        <wd-search 
+          v-model="searchValue" 
+          placeholder="搜索您想了解的问题" 
+          hide-cancel 
+          @search="handleSearch" 
+          @clear="handleSearch" 
+          custom-style="background: transparent;"
+        />
+      </view>
     </view>
 
-    <view class="faq-section">
-      <view class="section-title">常见问题 (FAQ)</view>
-      
-      <!-- 关键修改：使用 :model-value 和 @change 显式控制，去掉 v-model -->
-      <wd-tabs 
-        :model-value="currentTab" 
-        @change="onTabChange" 
-        sticky 
-        :offset-top="88"
-      >
-        <wd-tab 
-          v-for="cat in categories" 
-          :key="cat.id" 
-          :title="cat.name" 
-          :name="cat.id"
-        ></wd-tab>
-      </wd-tabs>
+    <view class="content-body animate-fade-in">
+      <!-- 快捷分类 - 采用胶囊样式 -->
+      <view class="category-scroll-wrap">
+        <scroll-view scroll-x class="category-scroll" show-scrollbar="false">
+          <view class="category-list">
+            <view 
+              v-for="cat in categories" 
+              :key="cat.id" 
+              class="category-pill"
+              :class="{ active: currentTab === cat.id }"
+              @click="onTabChange({ name: cat.id })"
+            >
+              <text>{{ cat.name }}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
 
-      <scroll-view scroll-y class="faq-list">
-        <template v-if="faqs.length > 0">
-          <wd-collapse v-model="activeFaq">
-            <wd-collapse-item v-for="faq in faqs" :key="faq.id" :title="faq.question" :name="faq.id">
-              <view class="faq-answer">{{ faq.answer }}</view>
-            </wd-collapse-item>
-          </wd-collapse>
-        </template>
-        <view v-else-if="!isLoading" class="empty-state">
-          <wd-status-tip image="search" tip="未找到相关问题" />
+      <!-- FAQ 卡片容器 -->
+      <view class="faq-card-container">
+        <view class="faq-card-header">
+          <wd-icon name="chat" size="18px" color="#1a5f8e" />
+          <text class="faq-card-title">常见问题解答</text>
         </view>
-        <!-- 可以在此处增加 loading 状态展示 -->
-      </scroll-view>
+
+        <view class="faq-list-wrap">
+          <template v-if="faqs.length > 0">
+            <wd-collapse v-model="activeFaq" :accordion="true">
+              <wd-collapse-item 
+                v-for="faq in faqs" 
+                :key="faq.id" 
+                :title="faq.question" 
+                :name="String(faq.id)"
+                custom-class="faq-collapse-item"
+              >
+                <view class="faq-answer-content">
+                  <view class="answer-inner">
+                    <text class="answer-text">{{ faq.answer }}</text>
+                  </view>
+                </view>
+              </wd-collapse-item>
+            </wd-collapse>
+          </template>
+          
+          <view v-else-if="!isLoading" class="empty-state">
+            <image class="empty-img" src="https://img.yzcdn.cn/vant/empty-image-default.png" mode="aspectFit" />
+            <text class="empty-text">未找到相关问题，您可以尝试更换关键词</text>
+          </view>
+        </view>
+      </view>
     </view>
 
     <view class="contact-footer">
-      <button class="cs-btn" @click="handleContactClick">
-        <wd-icon name="chat" size="40rpx" class="btn-icon" />
-        <text>添加客服微信 (推荐)</text>
-      </button>
-      <text class="cs-tip">长按识别二维码，为您提供 1对1 咨询服务</text>
+      <view class="contact-box" @click="handleContactClick">
+        <view class="contact-btn-inner">
+          <wd-icon name="chat" size="24px" color="#fff" />
+          <view class="btn-text-group">
+            <text class="main-text">添加客服微信 (推荐)</text>
+            <text class="sub-text">1对1 专属咨询服务</text>
+          </view>
+        </view>
+      </view>
     </view>
 
     <!-- 微信二维码弹窗 -->
     <wd-popup v-model="showQrPopup" custom-style="padding: 40rpx; border-radius: 32rpx; width: 80%;" position="center">
       <view class="qr-popup-content">
-        <view class="qr-title">{{ qrGroupName || '添加客服微信' }}</view>
-        <view class="qr-tip">长按识别二维码或保存到相册</view>
-        <image :src="currentQrCode" mode="widthFix" class="qr-image" show-menu-by-longpress />
-        <wd-button block @click="showQrPopup = false" custom-style="margin-top: 30rpx;">关闭</wd-button>
+        <view class="qr-title-text">{{ qrGroupName || '添加客服微信' }}</view>
+        <view class="qr-desc-text">长按识别二维码或保存到相册</view>
+        <image :src="currentQrCode" mode="widthFix" class="qr-img-box" show-menu-by-longpress />
+        <wd-button block @click="showQrPopup = false" custom-style="margin-top: 30rpx; border-radius: 40rpx;">关闭</wd-button>
       </view>
     </wd-popup>
 
@@ -180,110 +223,331 @@ const goBack = () => {
 <style lang="scss" scoped>
 .service-container {
   min-height: 100vh;
-  background-color: #f5f6f8;
-  padding-bottom: 200rpx; /* 留出底部按钮空间 */
+  background-color: #f8f9fa;
+  position: relative;
+  padding-bottom: 240rpx;
 }
 
-.search-box {
-  background-color: #fff;
-  padding: 10rpx 0 20rpx;
-}
+/* 顶部大背景 - 采用与名校试卷类似的轻盈风格 */
+.header-section {
+  min-height: 280rpx;
+  background: linear-gradient(135deg, #eefaf6 0%, #eef5ff 100%);
+  padding: 40rpx 40rpx 30rpx;
+  box-sizing: border-box;
+  position: relative;
+  border-bottom-left-radius: 60rpx;
+  border-bottom-right-radius: 60rpx;
+  z-index: 0;
 
-.faq-section {
-  background-color: #fff;
-  margin-top: 20rpx;
-  
-  .section-title {
-    font-size: 32rpx;
-    font-weight: bold;
-    color: #333;
-    padding: 30rpx 32rpx 10rpx;
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 90% 10%, rgba(255,255,255,0.6) 0%, transparent 40%);
+    z-index: -1;
   }
 }
 
-.faq-list {
-  height: calc(100vh - 120rpx - 100rpx - 200rpx);
+.header-content {
+  color: #333;
+  margin-bottom: 20rpx;
+  
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+    margin-bottom: 8rpx;
+  }
+
+  .page-title {
+    font-size: 44rpx;
+    font-weight: bold;
+    color: #1a5f8e;
+    letter-spacing: 2rpx;
+  }
+
+  .online-status {
+    display: flex;
+    align-items: center;
+    gap: 8rpx;
+    background: rgba(46, 213, 115, 0.1);
+    padding: 4rpx 16rpx;
+    border-radius: 20rpx;
+    
+    .status-dot {
+      width: 10rpx;
+      height: 10rpx;
+      background: #2ed573;
+      border-radius: 50%;
+      box-shadow: 0 0 8rpx #2ed573;
+    }
+    
+    text {
+      font-size: 20rpx;
+      color: #27ae60;
+      font-weight: 500;
+    }
+  }
+  
+  .page-subtitle {
+    font-size: 24rpx;
+    color: #666;
+  }
+}
+
+/* 悬浮搜索框 */
+.search-box-wrap {
+  margin-top: 28rpx;
+  padding: 10rpx;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(244, 251, 255, 0.82) 100%);
+  border-radius: 44rpx;
+  box-shadow: 0 12rpx 30rpx rgba(79, 172, 254, 0.16);
+  border: 2rpx solid rgba(255, 255, 255, 0.92);
+  z-index: 1;
+}
+
+.content-body {
+  position: relative;
+  z-index: 1;
+  padding: 34rpx 30rpx 30rpx;
+}
+
+:deep(.search-box-wrap .wd-search),
+:deep(.search-box-wrap .wd-search__container),
+:deep(.search-box-wrap .wd-search__field) {
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+:deep(.search-box-wrap .wd-search__block),
+:deep(.search-box-wrap .wd-search__cover) {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-radius: 36rpx !important;
+  box-shadow:
+    inset 0 0 0 2rpx rgba(141, 196, 255, 0.24),
+    0 6rpx 18rpx rgba(144, 198, 255, 0.14);
+}
+
+:deep(.search-box-wrap .wd-search__input),
+:deep(.search-box-wrap .wd-search__placeholder-txt) {
+  font-size: 26rpx !important;
+}
+
+:deep(.search-box-wrap .wd-search__input) {
+  color: #4f6072 !important;
+}
+
+:deep(.search-box-wrap .wd-search__placeholder-txt) {
+  color: #9caaba !important;
+}
+
+:deep(.search-box-wrap .wd-search__search-icon),
+:deep(.search-box-wrap .wd-search__search-left-icon) {
+  color: #6eaef6 !important;
+  font-size: 28rpx !important;
+}
+
+/* 快捷分类 */
+.category-scroll-wrap {
+  margin-bottom: 40rpx;
+}
+
+.category-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.category-list {
+  display: flex;
   padding: 10rpx 0;
+  gap: 20rpx;
 }
 
-.faq-answer {
-  font-size: 28rpx;
+.category-pill {
+  padding: 12rpx 36rpx;
+  background: #fff;
+  border-radius: 36rpx;
+  font-size: 26rpx;
   color: #666;
-  line-height: 1.6;
-  background-color: #f9f9f9;
-  padding: 20rpx;
-  border-radius: 12rpx;
+  border: 1rpx solid #f0f3f5;
+  transition: all 0.3s;
+  
+  &.active {
+    background: #1a5f8e;
+    color: #fff;
+    font-weight: bold;
+    border-color: #1a5f8e;
+    box-shadow: 0 6rpx 16rpx rgba(26, 95, 142, 0.2);
+  }
 }
 
+/* FAQ 卡片 */
+.faq-card-container {
+  background: #fff;
+  border-radius: 32rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+  border: 1rpx solid #f0f3f5;
+}
+
+.faq-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f5f7fa;
+  
+  .faq-card-title {
+    font-size: 30rpx;
+    font-weight: bold;
+    color: #333;
+  }
+}
+
+.faq-list-wrap {
+  min-height: 400rpx;
+}
+
+:deep(.faq-collapse-item) {
+  .wd-collapse-item__title {
+    font-size: 28rpx !important;
+    font-weight: 500 !important;
+    color: #444 !important;
+    padding: 30rpx !important;
+    background-color: #fff !important;
+  }
+  
+  .wd-collapse-item__header {
+    border-bottom: 1rpx solid #f9fafb !important;
+  }
+}
+
+.faq-answer-content {
+  padding: 0 30rpx 30rpx;
+  background-color: #fff;
+}
+
+.answer-inner {
+  padding: 10rpx 10rpx 10rpx;
+  
+  .answer-text {
+    font-size: 26rpx;
+    color: #666;
+    line-height: 1.6;
+  }
+}
+
+/* 空状态 */
 .empty-state {
-  padding-top: 100rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 100rpx 40rpx;
+  
+  .empty-img {
+    width: 200rpx;
+    height: 200rpx;
+    margin-bottom: 30rpx;
+    opacity: 0.8;
+  }
+  
+  .empty-text {
+    font-size: 24rpx;
+    color: #999;
+    text-align: center;
+    line-height: 1.5;
+  }
 }
 
+/* 底部联系按钮 */
 .contact-footer {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: #fff;
-  padding: 30rpx 40rpx 40rpx;
-  box-shadow: 0 -4rpx 16rpx rgba(0,0,0,0.05);
+  padding: 40rpx;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, #fff 80%, rgba(255, 255, 255, 0));
+  z-index: 100;
+}
+
+.contact-box {
+  width: 100%;
+  height: 110rpx;
+  background: linear-gradient(135deg, #2ed573, #7bed9f);
+  border-radius: 55rpx;
+  box-shadow: 0 12rpx 32rpx rgba(46, 213, 115, 0.3);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  z-index: 999;
+  justify-content: center;
+  transition: all 0.3s;
   
-  .cs-btn {
-    width: 100%;
-    height: 90rpx;
-    background: linear-gradient(90deg, #4b89ff, #3266ff);
-    color: #fff;
-    border-radius: 45rpx;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 32rpx;
-    font-weight: bold;
-    border: none;
-    
-    &::after {
-      border: none;
-    }
-    
-    .btn-icon {
-      margin-right: 12rpx;
-    }
-  }
-  
-  .cs-tip {
-    font-size: 24rpx;
-    color: #999;
-    margin-top: 16rpx;
+  &:active {
+    transform: scale(0.97);
+    box-shadow: 0 6rpx 16rpx rgba(46, 213, 115, 0.2);
   }
 }
 
+.contact-btn-inner {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.btn-text-group {
+  display: flex;
+  flex-direction: column;
+  
+  .main-text {
+    color: #fff;
+    font-size: 32rpx;
+    font-weight: bold;
+    letter-spacing: 2rpx;
+  }
+  
+  .sub-text {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 20rpx;
+  }
+}
+
+/* 二维码弹窗样式 */
 .qr-popup-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   
-  .qr-title {
+  .qr-title-text {
     font-size: 34rpx;
     font-weight: bold;
     color: #333;
-    margin-bottom: 10rpx;
+    margin-bottom: 12rpx;
   }
   
-  .qr-tip {
+  .qr-desc-text {
     font-size: 24rpx;
     color: #999;
-    margin-bottom: 30rpx;
+    margin-bottom: 32rpx;
   }
   
-  .qr-image {
-    width: 400rpx;
-    height: 400rpx;
-    border-radius: 12rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.05);
+  .qr-img-box {
+    width: 440rpx;
+    height: 440rpx;
+    border-radius: 20rpx;
+    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.08);
   }
 }
+
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
 </style>
+
