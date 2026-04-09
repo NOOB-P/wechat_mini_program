@@ -5,6 +5,7 @@ import { useToast } from 'wot-design-uni'
 import { getHomeStatsApi, getHomeBannersApi, getHomePublicCoursesApi, getWechatQrByLocationApi } from '@/api/index'
 import { getCourseListApi } from '@/api/course'
 import { getUserInfoApi } from '@/api/mine'
+import { resolveUploadSrc } from '@/utils/upload'
 
 const toast = useToast()
 
@@ -20,6 +21,8 @@ const recommendCourses = ref<any[]>([])
 const isSVIPUser = ref(false)
 const userInfo = ref<any>({})
 
+const staticBaseUrl = __VITE_SERVER_BASEURL__ + '/static'
+
 // 二维码弹窗相关
 const showQrPopup = ref(false)
 const currentQrCode = ref('')
@@ -30,9 +33,7 @@ const handleBannerClick = async (img: string) => {
     toast.loading('请稍后...')
     const res = await getWechatQrByLocationApi('HOME_BANNER')
     if (res.code === 200) {
-      // 修正：拼接服务器 BaseURL
-      const path = res.data.qrCodePath
-      currentQrCode.value = path.startsWith('http') ? path : __VITE_SERVER_BASEURL__ + path
+      currentQrCode.value = resolveUploadSrc(res.data.qrCodePath, true)
       qrGroupName.value = res.data.groupName
       showQrPopup.value = true
     } else {
@@ -130,7 +131,7 @@ const handleCourseClick = (course: any) => {
 
 <template>
   <view class="index-container">
-    <image class="page-bg" src="/static/home/page_bg.png" mode="widthFix" />
+    <image class="page-bg" :src="staticBaseUrl + '/home/page_bg.png'" mode="widthFix" />
     <wd-toast id="wd-toast" />
     <view class="header">
       <text class="title">优题慧数据分析平台</text>
@@ -139,7 +140,7 @@ const handleCourseClick = (course: any) => {
     <view class="content">
       <!-- 欢迎卡片 -->
       <view class="welcome-card">
-        <image class="welcome-bg" src="/static/home/bg.png" mode="aspectFill" />
+        <image class="welcome-bg" :src="staticBaseUrl + '/home/bg.png'" mode="aspectFill" />
         <view class="welcome-info">
           <view class="user-header">
             <text class="user-name">{{ userInfo.nickname || '新用户' }}家长</text>
@@ -154,7 +155,7 @@ const handleCourseClick = (course: any) => {
       <!-- 核心功能：成绩分析 -->
       <view class="function-banner" @click="handleGridClick('analysis')">
         <view class="banner-content">
-          <image class="banner-icon-img" src="/static/home/analysis.png" mode="aspectFit" />
+          <image class="banner-icon-img" :src="staticBaseUrl + '/home/analysis.png'" mode="aspectFit" />
           <view class="banner-text-wrap">
             <text class="banner-title">学情分析</text>
             <text class="banner-desc">查看近期考试趋势与各科综合表现</text>
@@ -175,7 +176,7 @@ const handleCourseClick = (course: any) => {
           indicator-color="rgba(255, 255, 255, 0.5)"
           indicator-active-color="#ffffff"
         >
-          <swiper-item v-for="(img, index) in ['/static/home/广告位.jpg', '/static/home/banner_bg.png']" :key="index">
+          <swiper-item v-for="(img, index) in [staticBaseUrl + '/home/广告位.jpg', staticBaseUrl + '/home/banner_bg.png']" :key="index">
             <image class="swiper-img" :src="img" mode="aspectFill" @click="handleBannerClick(img)" />
           </swiper-item>
         </swiper>
@@ -185,15 +186,15 @@ const handleCourseClick = (course: any) => {
       <view class="eval-section">
         <view class="eval-grid">
           <view class="eval-item" @click="handleGridClick('academic')">
-            <image class="eval-icon" src="/static/home/academic_eval.png" mode="widthFix" />
+            <image class="eval-icon" :src="staticBaseUrl + '/home/academic_eval.png'" mode="widthFix" />
             <text class="eval-text">名校试卷</text>
           </view>
           <view class="eval-item" @click="handleGridClick('character')">
-            <image class="eval-icon" src="/static/home/character_eval.png" mode="widthFix" />
+            <image class="eval-icon" :src="staticBaseUrl + '/home/character_eval.png'" mode="widthFix" />
             <text class="eval-text">性格测评</text>
           </view>
           <view class="eval-item" @click="handleGridClick('homework')">
-            <image class="eval-icon" src="/static/home/homework_check.png" mode="widthFix" />
+            <image class="eval-icon" :src="staticBaseUrl + '/home/homework_check.png'" mode="widthFix" />
             <text class="eval-text">作业批改</text>
           </view>
         </view>
