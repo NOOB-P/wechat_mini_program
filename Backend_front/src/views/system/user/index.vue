@@ -13,6 +13,7 @@
       <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
         <template #left>
           <ElSpace wrap>
+            <ElButton @click="handleOpenParentImport" v-ripple>家长批量导入</ElButton>
             <ElButton @click="showDialog('add')" v-ripple>新增用户</ElButton>
           </ElSpace>
         </template>
@@ -37,6 +38,109 @@
         :user-data="currentUserData"
         @submit="handleDialogSubmit"
       />
+
+      <ElDialog v-model="parentImportVisible" title="批量导入家长账号" width="560px">
+        <div class="import-container">
+          <div class="flex justify-start mb-4">
+            <el-tooltip placement="right" effect="light">
+              <template #content>
+                <div class="text-xs leading-6 text-gray-600 p-2">
+                  <p>1. 仅导入家长账号，角色固定为“家长”。</p>
+                  <p>2. 模板必填列：用户名、昵称、手机号；密码留空默认 `123456`。</p>
+                  <p>3. `VIP`、`SVIP` 列支持填写“是/否”，`学生学号` 为可选绑定字段。</p>
+                  <p>4. 若用户名或手机号已存在，系统会自动跳过并在结果里提示。</p>
+                </div>
+              </template>
+              <div class="instructions-trigger">
+                <el-icon class="mr-1"><InfoFilled /></el-icon>
+                <span>导入操作说明 (鼠标悬停查看)</span>
+              </div>
+            </el-tooltip>
+          </div>
+
+          <el-upload
+            ref="parentUploadRef"
+            class="upload-demo"
+            drag
+            action="#"
+            multiple
+            :auto-upload="false"
+            :on-change="handleParentFileChange"
+            :file-list="parentFileList"
+            :on-remove="handleParentRemove"
+            :show-file-list="false"
+            accept=".xlsx, .xls"
+          >
+            <div v-if="parentFileList.length === 0" class="upload-empty-content">
+              <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+              <div class="el-upload__text">
+                将文件拖到此处，或<em>点击上传</em>
+              </div>
+              <div class="el-upload__tip mt-2">
+                仅支持 .xlsx / .xls 格式文件
+              </div>
+            </div>
+
+            <div v-else class="upload-list-content" @click.stop>
+              <div class="flex justify-between items-center mb-2 px-2">
+                <span class="text-xs font-bold text-gray-500">待处理队列 ({{ parentFileList.length }})</span>
+                <el-button link type="danger" size="small" @click="parentFileList = []">清空</el-button>
+              </div>
+              <el-table :data="parentFileList" size="small" border max-height="180" class="import-table">
+                <el-table-column prop="name" label="文件名" show-overflow-tooltip />
+                <el-table-column label="状态" width="90" align="center">
+                  <template #default="{ row }">
+                    <div class="status-cell">
+                      <el-tag v-if="row.status === 'ready'" type="info" size="small" class="status-tag-mini">等待中</el-tag>
+                      <el-tag v-else-if="row.status === 'success'" type="success" size="small" class="status-tag-mini tag-success-simple">已导入</el-tag>
+                      <el-tag v-else-if="row.status === 'fail'" type="danger" size="small" class="status-tag-mini">
+                        <el-tooltip v-if="row.errorMsg" :content="row.errorMsg" placement="top">
+                          <span>失败</span>
+                        </el-tooltip>
+                        <span v-else>失败</span>
+                      </el-tag>
+                      <el-tag v-else type="primary" size="small" class="status-tag-mini rotating">
+                        <el-icon><Loading /></el-icon>
+                      </el-tag>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="50" align="center">
+                  <template #default="{ $index }">
+                    <el-button link type="danger" :icon="Delete" @click="parentFileList.splice($index, 1)" />
+                  </template>
+                </el-table-column>
+              </el-table>
+              <div class="mt-2 text-center">
+                <el-button link type="primary" size="small" @click="handleContinueParentUpload">
+                  <el-icon class="mr-1"><Plus /></el-icon>继续添加文件
+                </el-button>
+              </div>
+            </div>
+          </el-upload>
+
+          <div class="mt-8 flex flex-col gap-3">
+            <el-button
+              type="primary"
+              size="large"
+              class="w-full start-import-btn"
+              :loading="parentImportLoading"
+              :disabled="parentFileList.length === 0"
+              @click="submitParentImport"
+            >
+              <template #icon v-if="!parentImportLoading">
+                <el-icon><Upload /></el-icon>
+              </template>
+              {{ parentImportLoading ? '正在导入家长账号...' : '确认开始批量导入' }}
+            </el-button>
+            <div class="flex justify-center mt-1">
+              <el-button link type="primary" @click="downloadParentTemplate" class="download-link">
+                <el-icon class="mr-1"><Document /></el-icon>还没有模板？点击下载家长导入模板.xlsx
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </ElDialog>
     </ElCard>
   </div>
 </template>
@@ -44,14 +148,15 @@
 <script setup lang="ts">
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { useTable } from '@/hooks/core/useTable'
-  import { fetchGetUserList, fetchDeleteUser } from '@/api/system/user'
+  import { fetchGetUserList, fetchDeleteUser, fetchImportParentUsers, fetchDownloadParentTemplate } from '@/api/system/user'
   import defaultAvatar from '@/assets/images/avatar/avatar.webp'
   import UserSearch from './modules/user-search.vue'
   import UserDialog from './modules/user-dialog.vue'
-  import { ElTag, ElMessageBox, ElImage } from 'element-plus'
+  import { ElTag, ElMessageBox, ElImage, ElMessage } from 'element-plus'
   import { DialogType } from '@/types'
   import { fetchGetRoleList } from '@/api/system/role'
   import { onMounted } from 'vue'
+  import { UploadFilled, Loading, Delete, Upload, Document, InfoFilled, Plus } from '@element-plus/icons-vue'
 
   defineOptions({ name: 'User' })
 
@@ -61,6 +166,10 @@
   const dialogType = ref<DialogType>('add')
   const dialogVisible = ref(false)
   const currentUserData = ref<Partial<UserListItem>>({})
+  const parentImportVisible = ref(false)
+  const parentImportLoading = ref(false)
+  const parentFileList = ref<any[]>([])
+  const parentUploadRef = ref<any>()
 
   // 角色列表缓存，用于表格渲染
   const roleMap = ref<Record<string, string>>({})
@@ -350,4 +459,152 @@
     selectedRows.value = selection
     console.log('选中行数据:', selectedRows.value)
   }
+
+  const handleOpenParentImport = () => {
+    parentFileList.value = []
+    parentImportVisible.value = true
+  }
+
+  const handleParentFileChange = (uploadFile: any, uploadFiles: any) => {
+    parentFileList.value = uploadFiles
+  }
+
+  const handleParentRemove = (file: any, uploadFiles: any) => {
+    parentFileList.value = uploadFiles
+  }
+
+  const handleContinueParentUpload = () => {
+    if (parentUploadRef.value) {
+      const input = parentUploadRef.value.$el.querySelector('input[type="file"]')
+      if (input) {
+        input.click()
+      }
+    }
+  }
+
+  const submitParentImport = async () => {
+    const readyFiles = parentFileList.value.filter((f) => f.status === 'ready' || f.status === 'fail')
+    if (readyFiles.length === 0) {
+      ElMessage.warning('没有待导入的文件')
+      return
+    }
+
+    parentImportLoading.value = true
+    let successCount = 0
+    let failCount = 0
+
+    for (const fileItem of readyFiles) {
+      fileItem.status = 'uploading'
+      fileItem.errorMsg = ''
+
+      try {
+        await fetchImportParentUsers(fileItem.raw)
+        fileItem.status = 'success'
+        successCount++
+      } catch (error: any) {
+        fileItem.status = 'fail'
+        fileItem.errorMsg = error.message || '导入失败'
+        failCount++
+      }
+    }
+
+    if (failCount === 0) {
+      ElMessage.success(`成功导入 ${successCount} 个文件`)
+      setTimeout(() => {
+        parentImportVisible.value = false
+        parentFileList.value = []
+        refreshData()
+      }, 1200)
+    } else {
+      ElMessage.warning(`导入完成：${successCount} 个成功，${failCount} 个失败`)
+      refreshData()
+    }
+
+    parentImportLoading.value = false
+  }
+
+  const downloadParentTemplate = () => {
+    fetchDownloadParentTemplate()
+  }
 </script>
+
+<style scoped>
+  .import-container {
+    padding: 0 10px;
+  }
+
+  .upload-demo {
+    width: 100%;
+  }
+
+  :deep(.el-upload-dragger) {
+    width: 100%;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 180px;
+  }
+
+  .upload-empty-content {
+    padding: 30px 0;
+  }
+
+  .upload-list-content {
+    padding: 15px;
+    cursor: default;
+  }
+
+  .import-table {
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .status-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .status-tag-mini {
+    min-width: 60px;
+    height: 24px;
+    line-height: 22px;
+    padding: 0 8px;
+    border-radius: 12px;
+  }
+
+  .tag-success-simple {
+    background-color: #f0f9eb;
+    border-color: #e1f3d8;
+    color: #67c23a;
+  }
+
+  .start-import-btn {
+    height: 48px;
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+
+  .download-link {
+    font-size: 13px;
+    color: #409eff;
+  }
+
+  .instructions-trigger {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    color: #409eff;
+    cursor: help;
+    padding: 4px 8px;
+    background-color: #ecf5ff;
+    border-radius: 4px;
+    transition: all 0.3s;
+  }
+
+  .instructions-trigger:hover {
+    background-color: #d9ecff;
+  }
+</style>
