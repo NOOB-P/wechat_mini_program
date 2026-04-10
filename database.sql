@@ -205,6 +205,14 @@ DROP TABLE IF EXISTS `exam_projects`;
 CREATE TABLE `exam_projects` (
     `id` VARCHAR(50) PRIMARY KEY COMMENT '项目ID',
     `name` VARCHAR(200) NOT NULL COMMENT '考试项目名称',
+    `exam_type` VARCHAR(20) NOT NULL DEFAULT 'NORMAL' COMMENT '考试类型: NORMAL-普通考试, JOINT-联合考试',
+    `selected_school_ids` TEXT COMMENT '联合考试选中的学校ID列表(JSON)',
+    `selected_class_ids` TEXT COMMENT '普通考试选中的班级ID列表(JSON)',
+    `subject_names` TEXT COMMENT '项目科目列表(JSON)',
+    `school_count` INT DEFAULT 0 COMMENT '覆盖学校数',
+    `class_count` INT DEFAULT 0 COMMENT '覆盖班级数',
+    `student_count` INT DEFAULT 0 COMMENT '覆盖学生数',
+    `subject_count` INT DEFAULT 0 COMMENT '科目数',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='考试项目管理表';
@@ -214,9 +222,12 @@ DROP TABLE IF EXISTS `exam_classes`;
 CREATE TABLE `exam_classes` (
     `id` VARCHAR(50) PRIMARY KEY COMMENT '班级记录ID',
     `project_id` VARCHAR(50) NOT NULL COMMENT '关联考试项目ID',
+    `school_id` VARCHAR(50) NOT NULL COMMENT '关联学校ID',
     `school` VARCHAR(100) NOT NULL COMMENT '学校名称',
     `grade` VARCHAR(50) NOT NULL COMMENT '年级',
     `class_name` VARCHAR(50) NOT NULL COMMENT '班级名称',
+    `source_class_id` VARCHAR(50) COMMENT '关联全局班级ID',
+    `student_count` INT DEFAULT 0 COMMENT '班级学生数',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     CONSTRAINT `fk_class_project` FOREIGN KEY (`project_id`) REFERENCES `exam_projects` (`id`) ON DELETE CASCADE
@@ -460,12 +471,12 @@ INSERT INTO `exam_projects` (`id`, `name`, `create_time`, `update_time`) VALUES
 ('EP1700000000001', '2023-2024学年第一学期期中联考', '2023-11-01 10:00:00', '2023-11-01 10:00:00'),
 ('EP1700000000002', '2024年春季学期摸底考试', '2024-03-01 09:00:00', '2024-03-01 09:00:00');
 
-INSERT INTO `exam_classes` (`id`, `project_id`, `school`, `grade`, `class_name`, `create_time`, `update_time`) VALUES
-('EC1700000000001', 'EP1700000000001', '第一中学', '高一', '1班', '2023-11-01 10:30:00', '2023-11-01 10:30:00'),
-('EC1700000000002', 'EP1700000000001', '第一中学', '高一', '2班', '2023-11-01 10:35:00', '2023-11-01 10:35:00'),
-('EC1700000000003', 'EP1700000000001', '第二中学', '高一', '1班', '2023-11-01 10:40:00', '2023-11-01 10:40:00'),
-('EC1700000000004', 'EP1700000000002', '实验中学', '初三', '强化班', '2024-03-01 09:30:00', '2024-03-01 09:30:00');
-
+-- 修复后的 exam_classes 插入语句
+INSERT INTO `exam_classes` (`id`, `project_id`, `school_id`, `school`, `grade`, `class_name`, `create_time`, `update_time`) VALUES
+('EC1700000000001', 'EP1700000000001', 'SCH001', '第一中学', '高一', '1班', '2023-11-01 10:30:00', '2023-11-01 10:30:00'),
+('EC1700000000002', 'EP1700000000001', 'SCH001', '第一中学', '高一', '2班', '2023-11-01 10:35:00', '2023-11-01 10:35:00'),
+('EC1700000000003', 'EP1700000000001', 'SCH011', '第二中学', '高一', '1班', '2023-11-01 10:40:00', '2023-11-01 10:40:00'),
+('EC1700000000004', 'EP1700000000002', 'SCH012', '实验中学', '初三', '强化班', '2024-03-01 09:30:00', '2024-03-01 09:30:00');
 -- 1. 系统角色表数据
 INSERT INTO `sys_roles` (`id`, `role_name`, `role_code`, `description`, `status`) VALUES
 (1, '超级管理员', 'super_admin', '系统最高权限', 1),

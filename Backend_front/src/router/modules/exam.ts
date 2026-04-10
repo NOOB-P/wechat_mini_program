@@ -21,6 +21,15 @@ export const examRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'project-editor',
+      name: 'ExamProjectEditor',
+      component: '/core-business/exam/project-editor',
+      meta: {
+        title: '考试项目编辑',
+        isHide: true
+      }
+    },
+    {
       path: 'analysis-list',
       name: 'ExamAnalysisList',
       component: '/core-business/exam/analysis/list',
@@ -88,6 +97,15 @@ export const examRoutes: AppRouteRecord = {
       component: '/core-business/exam/subject',
       meta: {
         title: '考试科目管理',
+        isHide: true
+      }
+    },
+    {
+      path: 'subject-score',
+      name: 'ExamSubjectScore',
+      component: '/core-business/exam/subject-score',
+      meta: {
+        title: '科目成绩管理',
         isHide: true
       }
     }

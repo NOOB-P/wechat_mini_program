@@ -9,12 +9,13 @@
   }
 
   #app-main {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-width: 0;
-    height: 100vh;
-    overflow: auto;
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-width: 0;
+      height: 100vh;
+      overflow-y: scroll;
+      overflow-x: auto;
 
     #app-header {
       position: sticky;

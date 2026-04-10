@@ -2,7 +2,7 @@ package com.edu.javasb_back.controller;
 
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.model.entity.ExamProject;
+import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
 import com.edu.javasb_back.service.ExamProjectService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -25,15 +25,21 @@ public class ExamProjectController {
         return examProjectService.getProjectList(current, size, name);
     }
 
+    @LogOperation("获取考试项目创建配置")
+    @GetMapping("/options")
+    public Result<Map<String, Object>> getProjectOptions() {
+        return examProjectService.getProjectOptions();
+    }
+
     @LogOperation("新增考试项目")
     @PostMapping("/add")
-    public Result<Void> addProject(@RequestBody ExamProject project) {
+    public Result<Void> addProject(@RequestBody ExamProjectSaveDTO project) {
         return examProjectService.addProject(project);
     }
 
     @LogOperation("更新考试项目")
     @PutMapping("/edit")
-    public Result<Void> updateProject(@RequestBody ExamProject project) {
+    public Result<Void> updateProject(@RequestBody ExamProjectSaveDTO project) {
         return examProjectService.updateProject(project);
     }
 
@@ -41,5 +47,50 @@ public class ExamProjectController {
     @DeleteMapping("/delete/{id}")
     public Result<Void> deleteProject(@PathVariable String id) {
         return examProjectService.deleteProject(id);
+    }
+
+    @LogOperation("获取考试项目详情")
+    @GetMapping("/detail/{id}")
+    public Result<Map<String, Object>> getProjectDetail(@PathVariable String id) {
+        return examProjectService.getProjectDetail(id);
+    }
+
+    @LogOperation("获取考试项目考生列表")
+    @GetMapping("/students")
+    public Result<Map<String, Object>> getProjectStudents(
+            @RequestParam String projectId,
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String schoolId,
+            @RequestParam(required = false) String classId) {
+        return examProjectService.getProjectStudentPage(projectId, current, size, keyword, schoolId, classId);
+    }
+
+    @LogOperation("获取考试项目成绩概览")
+    @GetMapping("/scores/summary")
+    public Result<Map<String, Object>> getProjectScoreSummary(@RequestParam String projectId) {
+        return examProjectService.getProjectScoreSummary(projectId);
+    }
+
+    @LogOperation("获取考试项目成绩列表")
+    @GetMapping("/scores/list")
+    public Result<Map<String, Object>> getProjectScoreList(
+            @RequestParam String projectId,
+            @RequestParam(required = false) String subjectName,
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String schoolId,
+            @RequestParam(required = false) String classId) {
+        return examProjectService.getProjectScorePage(
+                projectId,
+                subjectName,
+                current,
+                size,
+                keyword,
+                schoolId,
+                classId
+        );
     }
 }
