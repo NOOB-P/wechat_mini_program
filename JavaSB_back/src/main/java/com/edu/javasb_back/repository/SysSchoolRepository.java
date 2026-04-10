@@ -16,6 +16,7 @@ public interface SysSchoolRepository extends JpaRepository<SysSchool, Long>, Jpa
     java.util.Optional<SysSchool> findFirstByProvinceAndCityAndName(String province, String city, String name);
 
     java.util.Optional<SysSchool> findBySchoolId(String schoolId);
+    List<SysSchool> findBySchoolIdIn(List<String> schoolIds);
     @Query("SELECT DISTINCT s.province FROM SysSchool s WHERE s.status = 1")
     List<String> findDistinctProvinces();
 
