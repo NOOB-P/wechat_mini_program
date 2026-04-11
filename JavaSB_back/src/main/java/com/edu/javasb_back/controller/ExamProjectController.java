@@ -129,4 +129,14 @@ public class ExamProjectController {
             @RequestParam MultipartFile file) {
         return examProjectService.uploadAnswerSheet(projectId, subjectName, studentNo, file);
     }
+
+    @LogOperation("保存单个学生成绩")
+    @PostMapping("/scores/save")
+    public Result<Void> saveStudentScore(
+            @RequestParam String projectId,
+            @RequestParam String subjectName,
+            @RequestParam String studentNo,
+            @RequestBody java.util.List<Double> questionScores) {
+        return examProjectService.saveStudentScore(projectId, subjectName, studentNo, questionScores);
+    }
 }

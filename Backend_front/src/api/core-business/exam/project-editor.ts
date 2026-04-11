@@ -128,6 +128,26 @@ export function fetchImportScore(params: {
   })
 }
 
+/**
+ * 保存单个学生成绩
+ */
+export function fetchSaveStudentScore(params: {
+  projectId: string
+  subjectName: string
+  studentNo: string
+  questionScores: number[]
+}) {
+  return api.post<void>({
+    url: '/api/system/exam-project/scores/save',
+    params: {
+      projectId: params.projectId,
+      subjectName: params.subjectName,
+      studentNo: params.studentNo
+    },
+    data: params.questionScores
+  })
+}
+
 export function fetchImportAnswerSheetZip(params: {
   projectId: string
   subjectName: string

@@ -71,12 +71,12 @@
                 action="#"
                 :auto-upload="false"
                 :show-file-list="false"
-                accept=".jpg,.jpeg,.png,.pdf"
+                accept=".pdf,.png,.jpg,.jpeg"
                 :on-change="(file) => handleUploadAnswerSheet(row, file)"
               >
                 <el-button type="primary" link>上传试卷</el-button>
               </el-upload>
-              <el-button type="primary" link @click="handleEditScore(row)">录入成绩</el-button>
+              <el-button type="primary" link @click="handleEditScore(row)">编辑成绩</el-button>
             </div>
           </template>
         </el-table-column>
@@ -192,6 +192,14 @@
         </div>
       </div>
     </el-dialog>
+
+    <ScoreEditDialog
+      v-model="scoreEditVisible"
+      :project-id="projectId"
+      :subject-name="subjectName"
+      :student="currentStudent"
+      @saved="loadData"
+    />
   </div>
 </template>
 
@@ -202,7 +210,8 @@
     Back, Search, Refresh, Upload, Download,
     InfoFilled, UploadFilled, Delete, Plus, Document, Loading as LoadingIcon
   } from '@element-plus/icons-vue'
-  import { ElMessage } from 'element-plus'
+  import { ElMessage, ElMessageBox } from 'element-plus'
+  import ScoreEditDialog from './components/ScoreEditDialog.vue'
   import { 
     fetchProjectScoreList,
     fetchDownloadScoreTemplate,
@@ -222,6 +231,8 @@
   const pageSize = ref(10)
   const total = ref(0)
   const tableData = ref<any[]>([])
+  const scoreEditVisible = ref(false)
+  const currentStudent = ref<any>(null)
 
   const schoolOptions = ref<any[]>([])
   const classOptions = ref<any[]>([])
@@ -290,8 +301,9 @@
     loadData()
   }
 
-  function handleEditScore(_row?: any) {
-    handleBatchUpload('score')
+  function handleEditScore(row: any) {
+    currentStudent.value = row
+    scoreEditVisible.value = true
   }
 
   async function handleUploadAnswerSheet(row: any, file: any) {
