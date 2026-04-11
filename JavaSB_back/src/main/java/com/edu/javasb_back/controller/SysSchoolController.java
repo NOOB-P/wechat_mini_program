@@ -52,18 +52,18 @@ public class SysSchoolController {
     public ResponseEntity<Resource> downloadTemplate() {
         try {
             // 指向 assets 目录下的学校导入模板
-            File file = new File("JavaSB_back/src/main/assests/学校导入模板.xlsx");
+            File file = new File("JavaSB_back/src/main/assests/学校模板.xlsx");
             if (!file.exists()) {
                 // 尝试另一种相对路径
-                file = new File("src/main/assests/学校导入模板.xlsx");
+                file = new File("src/main/assests/学校模板.xlsx");
             }
             if (!file.exists()) {
                 // 尝试绝对路径
-                file = new File("c:/Users/admin/Desktop/wechat_mini_program-master/JavaSB_back/src/main/assests/学校导入模板.xlsx");
+                file = new File("c:/Users/31585/Desktop/wechat_mini_program/JavaSB_back/src/main/assests/学校模板.xlsx");
             }
             if (!file.exists()) {
                 // 回退机制：如果都没找到，尝试在当前工作目录下寻找
-                file = new File("src/main/assests/学校导入模板.xlsx");
+                file = new File("src/main/assests/学校模板.xlsx");
             }
             
             if (!file.exists()) {
@@ -72,7 +72,7 @@ public class SysSchoolController {
             }
 
             Resource resource = new FileSystemResource(file);
-            String filename = URLEncoder.encode("学校导入模板.xlsx", StandardCharsets.UTF_8.toString());
+            String filename = URLEncoder.encode("学校模板.xlsx", StandardCharsets.UTF_8.toString());
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")

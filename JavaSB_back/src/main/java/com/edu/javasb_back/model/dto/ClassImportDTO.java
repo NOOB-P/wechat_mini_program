@@ -5,23 +5,29 @@ import lombok.Data;
 
 @Data
 public class ClassImportDTO {
-    @ExcelProperty("班级唯一标识")
-    private String classid;
+    @ExcelProperty("省份")
+    private String province;
 
-    @ExcelProperty("关联学校唯一标识")
-    private String schoolId;
+    @ExcelProperty("城市")
+    private String city;
+
+    @ExcelProperty("学校")
+    private String schoolName;
 
     @ExcelProperty("年级")
     private String grade;
 
-    @ExcelProperty("班级名称")
+    @ExcelProperty("班级")
     private String alias;
 
-    public String getClassid() { return classid; }
-    public void setClassid(String classid) { this.classid = classid; }
+    public String getProvince() { return province; }
+    public void setProvince(String province) { this.province = province; }
 
-    public String getSchoolId() { return schoolId; }
-    public void setSchoolId(String schoolId) { this.schoolId = schoolId; }
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+
+    public String getSchoolName() { return schoolName; }
+    public void setSchoolName(String schoolName) { this.schoolName = schoolName; }
 
     public String getGrade() { return grade; }
     public void setGrade(String grade) { this.grade = grade; }

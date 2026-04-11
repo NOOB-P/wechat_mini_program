@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import jakarta.persistence.criteria.Predicate;
@@ -140,20 +141,49 @@ public class SysClassServiceImpl implements SysClassService {
         return Result.success("批量添加班级成功", null);
     }
 
+    @Autowired
+    private com.edu.javasb_back.repository.SysSchoolRepository sysSchoolRepository;
+
     @Override
+    @Transactional
     public Result<Void> importClasses(List<ClassImportDTO> list) {
         for (ClassImportDTO dto : list) {
-            // 根据唯一标识判断是否存在，存在则更新，不存在则新增
-            java.util.Optional<SysClass> existingOpt = sysClassRepository.findByClassid(dto.getClassid());
+            // 1. 获取或创建学校
+            java.util.Optional<com.edu.javasb_back.model.entity.SysSchool> schoolOpt = sysSchoolRepository.findFirstByProvinceAndCityAndName(
+                    dto.getProvince(), dto.getCity(), dto.getSchoolName());
             
-            if (existingOpt.isPresent()) {
-                // 如果已存在，直接忽略跳过
+            String schoolId;
+            if (schoolOpt.isPresent()) {
+                schoolId = schoolOpt.get().getSchoolId();
+            } else {
+                // 创建新学校
+                com.edu.javasb_back.model.entity.SysSchool newSchool = new com.edu.javasb_back.model.entity.SysSchool();
+                do {
+                    schoolId = "SCH" + System.currentTimeMillis();
+                } while (sysSchoolRepository.findBySchoolId(schoolId).isPresent());
+                newSchool.setSchoolId(schoolId);
+                newSchool.setProvince(dto.getProvince());
+                newSchool.setCity(dto.getCity());
+                newSchool.setName(dto.getSchoolName());
+                newSchool.setType("school");
+                newSchool.setStatus(1);
+                sysSchoolRepository.save(newSchool);
+            }
+
+            // 2. 检查关联学校下是否已存在同一年级同名的班级
+            if (sysClassRepository.findFirstBySchoolIdAndGradeAndAlias(
+                    schoolId, dto.getGrade(), dto.getAlias()).isPresent()) {
                 continue;
             }
             
             SysClass sysClass = new SysClass();
-            sysClass.setClassid(dto.getClassid());
-            sysClass.setSchoolId(dto.getSchoolId());
+            String classid;
+            do {
+                classid = "CLS" + System.currentTimeMillis();
+            } while (sysClassRepository.existsByClassid(classid));
+            
+            sysClass.setClassid(classid);
+            sysClass.setSchoolId(schoolId);
             sysClass.setGrade(dto.getGrade());
             sysClass.setAlias(dto.getAlias());
             sysClassRepository.save(sysClass);

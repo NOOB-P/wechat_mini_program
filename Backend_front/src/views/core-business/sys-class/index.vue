@@ -268,8 +268,8 @@
             {{ importLoading ? '正在解析并写入数据库...' : '确认开始批量导入' }}
           </el-button>
           <div class="flex justify-center mt-1">
-            <el-button link type="primary" @click="downloadTemplate" style="font-size: 13px;">
-              <el-icon class="mr-1"><document /></el-icon>还没有模板？点击下载班级导入模板.xlsx
+            <el-button link type="primary" @click="fetchDownloadClassTemplate" style="font-size: 13px;">
+              <el-icon class="mr-1"><document /></el-icon>还没有模板？点击下载学校-班级模板.xlsx
             </el-button>
           </div>
         </div>
