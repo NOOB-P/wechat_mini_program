@@ -54,9 +54,10 @@
             <span class="time-text">{{ formatDate(row.updateTime || row.createTime) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="160" align="center" fixed="right">
+        <el-table-column label="操作" width="200" align="center" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="handleEnter(row)">进入</el-button>
+            <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -77,7 +78,7 @@
 
     <ProjectDialog
       v-model="dialogVisible"
-      mode="create"
+      :mode="dialogMode"
       :options="projectOptions"
       :project="dialogProject"
       @saved="handleSaved"
@@ -100,12 +101,14 @@
   import {
     fetchDeleteProject,
     fetchGetProjectList,
-    fetchProjectOptions
+    fetchProjectOptions,
+    fetchProjectDetail
   } from '@/api/core-business/exam/project'
 
   const router = useRouter()
   const loading = ref(false)
   const dialogVisible = ref(false)
+  const dialogMode = ref<'create' | 'edit'>('create')
   const tableData = ref<ExamProjectItem[]>([])
   const total = ref(0)
   const page = ref(1)
@@ -166,6 +169,7 @@
   }
 
   function handleCreate() {
+    dialogMode.value = 'create'
     dialogProject.value = {
       name: '',
       schoolIds: [],
@@ -173,6 +177,24 @@
       subjects: []
     }
     dialogVisible.value = true
+  }
+
+  async function handleEdit(row: ExamProjectItem) {
+    loading.value = true
+    try {
+      const res = await fetchProjectDetail(row.id)
+      dialogMode.value = 'edit'
+      dialogProject.value = {
+        id: res.project.id,
+        name: res.project.name,
+        schoolIds: res.project.selectedSchoolIds || [],
+        classIds: res.project.selectedClassIds || [],
+        subjects: res.project.subjects || []
+      }
+      dialogVisible.value = true
+    } finally {
+      loading.value = false
+    }
   }
 
   function handleEnter(row: ExamProjectItem) {

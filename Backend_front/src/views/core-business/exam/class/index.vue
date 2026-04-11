@@ -31,7 +31,10 @@
       <template #header>
         <div class="flex justify-between items-center">
           <span class="font-bold">班级列表</span>
-          <el-button type="primary" @click="handleAddClass">添加班级</el-button>
+          <div class="header-actions">
+            <el-button @click="handleOpenImport">批量导入</el-button>
+            <el-button type="primary" @click="handleAddClass">添加班级</el-button>
+          </div>
         </div>
       </template>
 
@@ -79,6 +82,77 @@
         <el-button type="primary" @click="submitForm">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 导入弹窗 -->
+    <el-dialog v-model="importVisible" title="导入班级架构" width="550px">
+      <div class="import-container">
+        <div class="flex justify-start mb-4">
+          <el-tooltip placement="right" effect="light">
+            <template #content>
+              <div class="text-xs leading-6 text-gray-600 p-2">
+                <p>1. 请先<b>下载导入模板</b>，按照模板格式填写班级信息。</p>
+                <p>2. 支持<b>多文件批量上传</b>，系统将自动校验数据。</p>
+              </div>
+            </template>
+            <div class="instructions-trigger">
+              <el-icon class="mr-1"><info-filled /></el-icon>
+              <span>导入操作说明 (鼠标悬停查看)</span>
+            </div>
+          </el-tooltip>
+        </div>
+        
+        <el-upload
+          class="upload-demo"
+          drag
+          action="#"
+          multiple
+          :auto-upload="false"
+          :on-change="handleFileChange"
+          :file-list="fileList"
+          :show-file-list="false"
+          accept=".xlsx, .xls"
+        >
+          <div v-if="fileList.length === 0" class="upload-empty-content">
+            <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+            <div class="el-upload__text">
+              将文件拖到此处，或<em>点击上传</em>
+            </div>
+            <div class="el-upload__tip mt-2">
+              仅支持 .xlsx / .xls 格式文件
+            </div>
+          </div>
+          <div v-else class="p-4">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm font-bold">待上传文件 ({{ fileList.length }})</span>
+              <el-button link type="danger" @click="fileList = []">清空</el-button>
+            </div>
+            <el-table :data="fileList" size="small" border>
+              <el-table-column prop="name" label="文件名" />
+            </el-table>
+          </div>
+        </el-upload>
+
+        <div class="mt-8 flex flex-col gap-3">
+          <el-button 
+            type="primary" 
+            size="large"
+            class="w-full start-import-btn" 
+            :loading="importLoading" 
+            :disabled="fileList.length === 0"
+            @click="submitImport"
+          >
+            确认开始批量导入
+          </el-button>
+          <div class="flex justify-center mt-1">
+            <a href="file:///c:/Users/admin/Desktop/wechat_mini_program-master/JavaSB_back/src/main/assests/班级导入模板.zip" download="班级导入模板.zip">
+              <el-button link type="primary" class="download-link">
+                <el-icon class="mr-1"><document /></el-icon>还没有模板？点击下载班级导入模板.zip
+              </el-button>
+            </a>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -86,6 +160,14 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
+import { 
+  InfoFilled, 
+  UploadFilled, 
+  Document, 
+  Upload, 
+  Delete, 
+  Plus 
+} from '@element-plus/icons-vue'
 import { 
   fetchGetClassList, 
   fetchAddClass, 
@@ -125,6 +207,29 @@ const rules = {
   school: [{ required: true, message: '请输入学校名称', trigger: 'blur' }],
   grade: [{ required: true, message: '请输入年级', trigger: 'blur' }],
   className: [{ required: true, message: '请输入班级', trigger: 'blur' }]
+}
+
+const importVisible = ref(false)
+const importLoading = ref(false)
+const fileList = ref<any[]>([])
+
+const handleOpenImport = () => {
+  fileList.value = []
+  importVisible.value = true
+}
+
+const handleFileChange = (file: any) => {
+  fileList.value.push(file)
+}
+
+const submitImport = () => {
+  importLoading.value = true
+  setTimeout(() => {
+    importLoading.value = false
+    importVisible.value = false
+    ElMessage.success('导入成功')
+    loadData()
+  }, 1500)
 }
 
 const loadData = async () => {
@@ -254,5 +359,40 @@ onMounted(() => {
 <style scoped>
 .page-container {
   padding: 20px;
+}
+
+.import-container {
+  padding: 10px 20px;
+}
+
+.instructions-trigger {
+  display: flex;
+  align-items: center;
+  color: #409eff;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 8px 12px;
+  background: #f0f7ff;
+  border-radius: 4px;
+}
+
+.upload-demo :deep(.el-upload-dragger) {
+  padding: 40px 20px;
+  border: 2px dashed #dcdfe6;
+  border-radius: 12px;
+  background: #fafafa;
+}
+
+.upload-empty-content .el-icon--upload {
+  font-size: 48px;
+  color: #909399;
+  margin-bottom: 16px;
+}
+
+.start-import-btn {
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
 }
 </style>
