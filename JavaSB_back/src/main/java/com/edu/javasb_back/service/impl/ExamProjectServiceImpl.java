@@ -297,6 +297,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     item.put("classId", student.getClassId());
                     item.put("className", student.getClassName());
                     item.put("totalScore", hasScore(score) ? score.getTotalScore() : null);
+                    item.put("questionScores", score == null ? "[]" : score.getQuestionScores());
                     item.put("hasScore", hasScore(score));
                     item.put("hasAnswerSheet", hasAnswerSheet(score));
                     item.put("answerSheetUrl", score == null ? null : score.getAnswerSheetUrl());
@@ -1101,6 +1102,41 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         if (!StringUtils.hasText(json)) return Collections.emptyList();
         try { return normalize(objectMapper.readValue(json, new TypeReference<List<String>>() {})); }
         catch (Exception ignored) { return Collections.emptyList(); }
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> saveStudentScore(String projectId, String subjectName, String studentNo, List<Double> questionScores) {
+        if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
+        UploadCtx uploadCtx = buildUploadCtx(projectId, subjectName);
+        if (!uploadCtx.ok()) return Result.error(uploadCtx.msg());
+
+        SysStudent student = uploadCtx.studentNoMap().get(normalizeStudentNo(studentNo));
+        if (student == null) return Result.error("未找到学号为[" + studentNo + "]的学生");
+
+        ExamClass examClass = uploadCtx.examClassMap().get(student.getClassId());
+        if (examClass == null) return Result.error("学生所属班级未纳入本项目");
+
+        ExamSubject subject = uploadCtx.classToSubjectMap().get(examClass.getId());
+        if (subject == null) return Result.error("学生所属班级未开启[" + subjectName + "]科目");
+
+        String scoreKey = subject.getId() + "_" + student.getStudentNo();
+        ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), subject, student);
+        
+        double total = questionScores.stream().mapToDouble(v -> v == null ? 0D : v).sum();
+        score.setTotalScore(total);
+        score.setScoreEntered(Boolean.TRUE);
+        try {
+            score.setQuestionScores(objectMapper.writeValueAsString(questionScores));
+        } catch (Exception ignored) {}
+
+        examStudentScoreRepository.saveAndFlush(score);
+        
+        // 检查该科目是否已全量录入
+        subject.setScoreUploaded(Boolean.TRUE);
+        examSubjectRepository.saveAndFlush(subject);
+
+        return Result.success("成绩保存成功", null);
     }
 
     private String json(List<String> values) {
