@@ -11,7 +11,7 @@ import java.util.Map;
 
 public class ClassImportListener extends AnalysisEventListener<ClassImportDTO> {
     private List<ClassImportDTO> list = new ArrayList<>();
-    private static final String[] EXPECTED_HEADERS = {"班级唯一标识", "关联学校唯一标识", "年级", "班级名称"};
+    private static final String[] EXPECTED_HEADERS = {"省份", "城市", "学校", "年级", "班级"};
 
     @Override
     public void invokeHeadMap(Map<Integer, String> headMap, AnalysisContext context) {
@@ -29,13 +29,14 @@ public class ClassImportListener extends AnalysisEventListener<ClassImportDTO> {
     @Override
     public void invoke(ClassImportDTO data, AnalysisContext context) {
         // 去除前后空白字符
-        if (data.getClassid() != null) data.setClassid(data.getClassid().trim());
-        if (data.getSchoolId() != null) data.setSchoolId(data.getSchoolId().trim());
+        if (data.getProvince() != null) data.setProvince(data.getProvince().trim());
+        if (data.getCity() != null) data.setCity(data.getCity().trim());
+        if (data.getSchoolName() != null) data.setSchoolName(data.getSchoolName().trim());
         if (data.getGrade() != null) data.setGrade(data.getGrade().trim());
         if (data.getAlias() != null) data.setAlias(data.getAlias().trim());
 
         // 校验空数据
-        if (isEmpty(data.getClassid()) || isEmpty(data.getSchoolId()) || isEmpty(data.getGrade()) || isEmpty(data.getAlias())) {
+        if (isEmpty(data.getProvince()) || isEmpty(data.getCity()) || isEmpty(data.getSchoolName()) || isEmpty(data.getGrade()) || isEmpty(data.getAlias())) {
             throw new ExcelAnalysisException("含有空数据");
         }
         list.add(data);
