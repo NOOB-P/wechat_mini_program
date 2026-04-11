@@ -30,6 +30,12 @@ public class ExamStudentScore {
     @Column(name = "student_name", length = 50)
     private String studentName;
 
+    @Column(name = "answer_sheet_url", length = 500)
+    private String answerSheetUrl;
+
+    @Column(name = "score_entered")
+    private Boolean scoreEntered;
+
     @Column(name = "total_score", nullable = false)
     private Double totalScore;
 
@@ -46,6 +52,12 @@ public class ExamStudentScore {
     protected void onCreate() {
         createTime = LocalDateTime.now();
         updateTime = LocalDateTime.now();
+        if (scoreEntered == null) {
+            scoreEntered = Boolean.FALSE;
+        }
+        if (totalScore == null) {
+            totalScore = 0D;
+        }
     }
 
     @PreUpdate
@@ -64,6 +76,12 @@ public class ExamStudentScore {
 
     public String getStudentName() { return studentName; }
     public void setStudentName(String studentName) { this.studentName = studentName; }
+
+    public String getAnswerSheetUrl() { return answerSheetUrl; }
+    public void setAnswerSheetUrl(String answerSheetUrl) { this.answerSheetUrl = answerSheetUrl; }
+
+    public Boolean getScoreEntered() { return scoreEntered; }
+    public void setScoreEntered(Boolean scoreEntered) { this.scoreEntered = scoreEntered; }
 
     public Double getTotalScore() { return totalScore; }
     public void setTotalScore(Double totalScore) { this.totalScore = totalScore; }

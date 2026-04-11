@@ -17,7 +17,7 @@
       </el-card>
     </div>
 
-    <div class="content-grid">
+    <div class="content-grid single-column">
       <el-card shadow="never" class="section-card">
         <template #header>
           <div class="section-title">
@@ -39,48 +39,22 @@
       <el-card shadow="never" class="section-card">
         <template #header>
           <div class="section-title">
-            <el-icon class="title-icon"><Reading /></el-icon>
-            考试科目
+            <el-icon class="title-icon"><OfficeBuilding /></el-icon>
+            参与班级
           </div>
         </template>
-        <el-table :data="detail.subjects" class="custom-table">
-          <el-table-column prop="subjectName" label="科目" min-width="120">
+        <el-table :data="detail.classes" class="custom-table">
+          <el-table-column prop="school" label="学校" min-width="180">
             <template #default="{ row }">
-              <span class="fw-medium">{{ row.subjectName }}</span>
+              <span class="fw-medium">{{ row.school }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="classCount" label="班级数" width="90" align="center" />
-          <el-table-column prop="studentCount" label="学生数" width="90" align="center" />
-          <el-table-column prop="scoreCount" label="成绩条数" width="110" align="center" />
-          <el-table-column label="状态" width="100" align="center">
-            <template #default="{ row }">
-              <el-tag :type="row.scoreUploaded ? 'success' : 'info'" effect="light" class="status-tag">{{
-                row.scoreUploaded ? '已录入' : '待录入'
-              }}</el-tag>
-            </template>
-          </el-table-column>
+          <el-table-column prop="grade" label="年级" width="120" align="center" />
+          <el-table-column prop="className" label="班级" width="120" align="center" />
+          <el-table-column prop="studentCount" label="学生数" width="120" align="center" />
         </el-table>
       </el-card>
     </div>
-
-    <el-card shadow="never" class="section-card">
-      <template #header>
-        <div class="section-title">
-          <el-icon class="title-icon"><OfficeBuilding /></el-icon>
-          参与班级
-        </div>
-      </template>
-      <el-table :data="detail.classes" class="custom-table">
-        <el-table-column prop="school" label="学校" min-width="180">
-          <template #default="{ row }">
-            <span class="fw-medium">{{ row.school }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="grade" label="年级" width="120" align="center" />
-        <el-table-column prop="className" label="班级" width="120" align="center" />
-        <el-table-column prop="studentCount" label="学生数" width="120" align="center" />
-      </el-table>
-    </el-card>
   </div>
 </template>
 

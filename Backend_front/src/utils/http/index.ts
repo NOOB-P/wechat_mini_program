@@ -85,7 +85,11 @@ axiosInstance.interceptors.request.use(
 
 /** 响应拦截器 */
 axiosInstance.interceptors.response.use(
-  (response: AxiosResponse<BaseResponse>) => {
+  (response: AxiosResponse<any>) => {
+    // 如果响应类型是 blob，直接返回
+    if (response.config.responseType === 'blob') {
+      return response
+    }
     const { code, msg } = response.data
     if (code === ApiStatus.success) return response
     if (code === ApiStatus.unauthorized) handleUnauthorizedError(msg)
@@ -178,7 +182,12 @@ async function request<T = any>(config: ExtendedAxiosRequestConfig): Promise<T> 
   }
 
   try {
-    const res = await axiosInstance.request<BaseResponse<T>>(config)
+    const res = await axiosInstance.request<any>(config)
+
+    // 处理 Blob 响应
+    if (config.responseType === 'blob') {
+      return res.data as T
+    }
 
     // 显示成功消息
     if (config.showSuccessMessage && res.data.msg) {
