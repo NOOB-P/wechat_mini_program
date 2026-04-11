@@ -4,8 +4,10 @@ import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
 import com.edu.javasb_back.service.ExamProjectService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -92,5 +94,39 @@ public class ExamProjectController {
                 schoolId,
                 classId
         );
+    }
+
+    @LogOperation("下载成绩导入模板")
+    @GetMapping("/scores/template")
+    public void downloadScoreTemplate(HttpServletResponse response) {
+        examProjectService.downloadScoreTemplate(response);
+    }
+
+    @LogOperation("导入成绩")
+    @PostMapping("/scores/import")
+    public Result<Void> importScores(
+            @RequestParam String projectId,
+            @RequestParam String subjectName,
+            @RequestParam MultipartFile file) {
+        return examProjectService.importScores(projectId, subjectName, file);
+    }
+
+    @LogOperation("批量导入试卷")
+    @PostMapping("/papers/import")
+    public Result<Void> importAnswerSheets(
+            @RequestParam String projectId,
+            @RequestParam String subjectName,
+            @RequestParam MultipartFile file) {
+        return examProjectService.importAnswerSheets(projectId, subjectName, file);
+    }
+
+    @LogOperation("上传单个试卷")
+    @PostMapping("/papers/upload")
+    public Result<String> uploadAnswerSheet(
+            @RequestParam String projectId,
+            @RequestParam String subjectName,
+            @RequestParam String studentNo,
+            @RequestParam MultipartFile file) {
+        return examProjectService.uploadAnswerSheet(projectId, subjectName, studentNo, file);
     }
 }

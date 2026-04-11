@@ -27,6 +27,9 @@ public class ExamProject {
     @Column(name = "subject_names", columnDefinition = "TEXT")
     private String subjectNames;
 
+    @Column(name = "subject_benchmarks", columnDefinition = "TEXT")
+    private String subjectBenchmarks;
+
     @Column(name = "school_count")
     private Integer schoolCount;
 
@@ -73,6 +76,9 @@ public class ExamProject {
 
     public String getSubjectNames() { return subjectNames; }
     public void setSubjectNames(String subjectNames) { this.subjectNames = subjectNames; }
+
+    public String getSubjectBenchmarks() { return subjectBenchmarks; }
+    public void setSubjectBenchmarks(String subjectBenchmarks) { this.subjectBenchmarks = subjectBenchmarks; }
 
     public Integer getSchoolCount() { return schoolCount; }
     public void setSchoolCount(Integer schoolCount) { this.schoolCount = schoolCount; }

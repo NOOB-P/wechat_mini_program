@@ -209,6 +209,7 @@ CREATE TABLE `exam_projects` (
     `selected_school_ids` TEXT COMMENT '联合考试选中的学校ID列表(JSON)',
     `selected_class_ids` TEXT COMMENT '普通考试选中的班级ID列表(JSON)',
     `subject_names` TEXT COMMENT '项目科目列表(JSON)',
+    `subject_benchmarks` TEXT COMMENT '学科基准分数配置',
     `school_count` INT DEFAULT 0 COMMENT '覆盖学校数',
     `class_count` INT DEFAULT 0 COMMENT '覆盖班级数',
     `student_count` INT DEFAULT 0 COMMENT '覆盖学生数',
@@ -244,6 +245,7 @@ CREATE TABLE `exam_subjects` (
     `score_uploaded` TINYINT(1) DEFAULT 0 COMMENT '是否已同步小题分成绩 (0-待同步, 1-已同步)',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY `idx_exam_subject_class_name` (`class_id`, `subject_name`),
     CONSTRAINT `fk_subject_class` FOREIGN KEY (`class_id`) REFERENCES `exam_classes` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB COMMENT='考试科目管理表';
 
@@ -254,10 +256,13 @@ CREATE TABLE `exam_student_scores` (
     `subject_id` VARCHAR(50) NOT NULL COMMENT '关联考试科目ID',
     `student_no` VARCHAR(50) NOT NULL COMMENT '学生学号',
     `student_name` VARCHAR(50) COMMENT '学生姓名(冗余)',
+    `answer_sheet_url` VARCHAR(500) COMMENT '学生试卷原卷路径',
+    `score_entered` TINYINT(1) DEFAULT 0 COMMENT '成绩是否已录入 (0-未录入, 1-已录入)',
     `total_score` FLOAT NOT NULL COMMENT '科目总分',
     `question_scores` JSON COMMENT '各小题得分数组(JSON格式)',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY `uk_exam_student_score_subject_student` (`subject_id`, `student_no`),
     CONSTRAINT `fk_score_subject` FOREIGN KEY (`subject_id`) REFERENCES `exam_subjects` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_score_student` FOREIGN KEY (`student_no`) REFERENCES `students` (`student_no`) ON DELETE CASCADE
 ) ENGINE=InnoDB COMMENT='学生科目成绩与小题分明细表';

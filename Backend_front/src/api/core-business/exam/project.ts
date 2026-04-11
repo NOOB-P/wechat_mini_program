@@ -9,6 +9,7 @@ export interface ExamProjectForm {
   schoolIds: string[]
   classIds: string[]
   subjects: string[]
+  benchmarks?: Record<string, { totalScore: number; questions: Array<{ score: number }> }>
 }
 
 export interface ExamProjectItem {
@@ -50,6 +51,7 @@ export interface ExamProjectDetailData {
     selectedSchoolIds: string[]
     selectedClassIds: string[]
   }
+  benchmarks: Record<string, { totalScore: number; questions: Array<{ score: number }> }>
   stats: Record<string, number>
   classes: Array<{
     id: string

@@ -16,17 +16,19 @@ export interface ProjectStudentItem {
 
 export interface ProjectScoreSummaryItem {
   subjectName: string
+  paperCount: number
   classCount: number
   studentCount: number
   scoreCount: number
   avgScore: number | null
   maxScore: number | null
   minScore: number | null
+  paperUploaded: boolean
   scoreUploaded: boolean
 }
 
 export interface ProjectScoreItem {
-  id: number
+  id: number | null
   subjectName: string
   studentNo: string
   studentName: string
@@ -35,7 +37,10 @@ export interface ProjectScoreItem {
   grade: string
   classId: string
   className: string
-  totalScore: number
+  hasAnswerSheet: boolean
+  answerSheetUrl?: string | null
+  hasScore: boolean
+  totalScore: number | null
   updateTime?: string | number[] | null
 }
 
@@ -88,5 +93,77 @@ export function fetchProjectScoreList(params: {
   }>({
     url: '/api/system/exam-project/scores/list',
     params
+  })
+}
+
+/**
+ * 下载成绩导入模板
+ */
+export function fetchDownloadScoreTemplate() {
+  return api.get<any>({
+    url: '/api/system/exam-project/scores/template',
+    responseType: 'blob'
+  })
+}
+
+/**
+ * 导入成绩
+ */
+export function fetchImportScore(params: {
+  projectId: string
+  subjectName: string
+  file: File
+}) {
+  const formData = new FormData()
+  formData.append('projectId', params.projectId)
+  formData.append('subjectName', params.subjectName)
+  formData.append('file', params.file)
+  return api.post<void>({
+    url: '/api/system/exam-project/scores/import',
+    data: formData,
+    showSuccessMessage: true,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+export function fetchImportAnswerSheetZip(params: {
+  projectId: string
+  subjectName: string
+  file: File
+}) {
+  const formData = new FormData()
+  formData.append('projectId', params.projectId)
+  formData.append('subjectName', params.subjectName)
+  formData.append('file', params.file)
+  return api.post<void>({
+    url: '/api/system/exam-project/papers/import',
+    data: formData,
+    showSuccessMessage: true,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+export function fetchUploadStudentAnswerSheet(params: {
+  projectId: string
+  subjectName: string
+  studentNo: string
+  file: File
+}) {
+  const formData = new FormData()
+  formData.append('projectId', params.projectId)
+  formData.append('subjectName', params.subjectName)
+  formData.append('studentNo', params.studentNo)
+  formData.append('file', params.file)
+  return api.post<string>({
+    url: '/api/system/exam-project/papers/upload',
+    data: formData,
+    showSuccessMessage: true,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
   })
 }
