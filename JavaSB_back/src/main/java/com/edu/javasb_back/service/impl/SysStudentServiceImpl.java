@@ -133,7 +133,27 @@ public class SysStudentServiceImpl implements SysStudentService {
                 sysSchoolRepository.save(newSchool);
             }
 
-            // 2. 处理学生
+            // 2. 处理班级
+            Optional<SysClass> classOpt = sysClassRepository.findFirstBySchoolIdAndGradeAndAlias(
+                    schoolId, dto.getGrade(), dto.getClassName());
+            
+            String classId;
+            if (classOpt.isPresent()) {
+                classId = classOpt.get().getClassid();
+            } else {
+                // 创建新班级
+                SysClass newClass = new SysClass();
+                do {
+                    classId = "CLS" + System.currentTimeMillis();
+                } while (sysClassRepository.existsByClassid(classId));
+                newClass.setClassid(classId);
+                newClass.setSchoolId(schoolId);
+                newClass.setGrade(dto.getGrade());
+                newClass.setAlias(dto.getClassName());
+                sysClassRepository.save(newClass);
+            }
+
+            // 3. 处理学生
             Optional<SysStudent> studentOpt = sysStudentRepository.findByStudentNo(dto.getStudentNo());
             SysStudent student;
             if (studentOpt.isPresent()) {
@@ -146,20 +166,6 @@ public class SysStudentServiceImpl implements SysStudentService {
 
             student.setName(dto.getName());
             student.setSchoolId(schoolId);
-            
-            String classId = null;
-            if (StringUtils.hasText(dto.getGrade()) && StringUtils.hasText(dto.getClassName())) {
-                // 创建新班级
-                SysClass newClass = new SysClass();
-                do {
-                    classId = "CLS" + System.currentTimeMillis();
-                } while (sysClassRepository.existsByClassid(classId));
-                newClass.setClassid(classId);
-                newClass.setSchoolId(schoolId);
-                newClass.setGrade(dto.getGrade());
-                newClass.setAlias(dto.getClassName());
-                sysClassRepository.save(newClass);
-            }
             student.setClassId(classId);
             student.setSchool(dto.getSchool()); // 冗余
             student.setGrade(dto.getGrade());

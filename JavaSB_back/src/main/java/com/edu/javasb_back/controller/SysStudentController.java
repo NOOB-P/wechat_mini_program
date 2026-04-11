@@ -59,14 +59,14 @@ public class SysStudentController {
             
             // 如果类路径中不存在，或者为了兼容开发环境，尝试直接读取 assets 目录下的原文件
             if (!resource.exists()) {
-                File file = new File("JavaSB_back/src/main/assests/学生上传模板.xlsx");
+                File file = new File("JavaSB_back/src/main/assests/学校-班级-学生模板.xlsx");
                 if (!file.exists()) {
                     // 尝试另一种相对路径
-                    file = new File("src/main/assests/学生上传模板.xlsx");
+                    file = new File("src/main/assests/学校-班级-学生模板.xlsx");
                 }
                 if (!file.exists()) {
                     // 尝试绝对路径
-                    file = new File("c:/Users/admin/Desktop/wechat_mini_program-master/JavaSB_back/src/main/assests/学生上传模板.xlsx");
+                    file = new File("c:/Users/31585/Desktop/wechat_mini_program/JavaSB_back/src/main/assests/学校-班级-学生模板.xlsx");
                 }
                 
                 if (file.exists()) {
@@ -78,7 +78,7 @@ public class SysStudentController {
                 return ResponseEntity.notFound().build();
             }
 
-            String filename = URLEncoder.encode("学生上传模板.xlsx", StandardCharsets.UTF_8.toString());
+            String filename = URLEncoder.encode("学校-班级-学生模板.xlsx", StandardCharsets.UTF_8.toString());
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
