@@ -223,9 +223,11 @@
             {{ importLoading ? '正在解析并写入数据库...' : '确认开始批量导入' }}
           </el-button>
           <div class="flex justify-center mt-1">
-            <el-button link type="primary" @click="downloadTemplate" class="download-link">
-              <el-icon class="mr-1"><document /></el-icon>还没有模板？点击下载学生上传模板.xlsx
-            </el-button>
+            <a href="file:///c:/Users/admin/Desktop/wechat_mini_program-master/JavaSB_back/src/main/assests/学生模板.zip" download="学生模板.zip">
+              <el-button link type="primary" class="download-link">
+                <el-icon class="mr-1"><document /></el-icon>还没有模板？点击下载学生模板.zip
+              </el-button>
+            </a>
           </div>
         </div>
       </div>
