@@ -190,9 +190,9 @@
           <el-tooltip placement="right" effect="light">
             <template #content>
               <div class="text-xs leading-6 text-gray-600 p-2">
-                <p>1. 请先<b>下载导入模板</b>，按照模板格式填写班级信息。</p>
-                <p>2. 支持<b>多文件批量上传</b>，系统将自动解析并更新班级数据。</p>
-                <p>3. 若班级已存在，系统将自动<b>忽略</b>现有班级信息。</p>
+                <p>1. 请先<b>下载班级导入模板压缩包</b>，压缩包内包含班级、班级-学生两种模板。</p>
+                <p>2. 上传流程统一为<b>上传-校验-处理</b>，系统会严格校验表头顺序和必填项。</p>
+                <p>3. 使用班级模板时，当前页面所属学校会作为导入归属学校，并自动建立班级、学生关联。</p>
               </div>
             </template>
             <div class="instructions-trigger" style="display: flex; align-items: center; font-size: 13px; color: #409eff; cursor: help; padding: 4px 8px; background-color: #ecf5ff; border-radius: 4px;">
@@ -265,11 +265,11 @@
             <template #icon v-if="!importLoading">
               <el-icon><upload /></el-icon>
             </template>
-            {{ importLoading ? '正在解析并写入数据库...' : '确认开始批量导入' }}
+            {{ importLoading ? '正在上传-校验-处理...' : '确认开始批量导入' }}
           </el-button>
           <div class="flex justify-center mt-1">
             <el-button link type="primary" @click="fetchDownloadClassTemplate" style="font-size: 13px;">
-              <el-icon class="mr-1"><document /></el-icon>还没有模板？点击下载学校-班级模板.xlsx
+              <el-icon class="mr-1"><document /></el-icon>还没有模板？点击下载班级导入模板.zip
             </el-button>
           </div>
         </div>
@@ -582,7 +582,7 @@ const submitImport = async () => {
   for (const file of pendingFiles) {
     file.status = 'uploading'
     try {
-      await fetchImportClass(file.raw)
+      await fetchImportClass(file.raw, searchForm.schoolId || undefined)
       file.status = 'success'
     } catch (error: any) {
       file.status = 'fail'

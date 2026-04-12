@@ -135,9 +135,9 @@
           <el-tooltip placement="right" effect="light">
             <template #content>
               <div class="text-xs leading-6 text-gray-600 p-2">
-                <p>1. 请先<b>下载导入模板</b>，按照模板格式填写学生信息。</p>
-                <p>2. 支持<b>多文件批量上传</b>，系统将自动校验列标题及空数据。</p>
-                <p>3. 若学号已存在，系统将自动<b>忽略</b>现有学生档案信息。</p>
+                <p>1. 请先<b>下载学生导入模板压缩包</b>，压缩包内包含学生模板示例。</p>
+                <p>2. 上传流程统一为<b>上传-校验-处理</b>，系统会严格校验表头顺序和必填项。</p>
+                <p>3. 当前页面所属班级会作为导入归属班级，若学号已存在，系统会自动更新并重新关联学生档案。</p>
               </div>
             </template>
             <div class="instructions-trigger">
@@ -220,11 +220,11 @@
             <template #icon v-if="!importLoading">
               <el-icon><upload /></el-icon>
             </template>
-            {{ importLoading ? '正在解析并写入数据库...' : '确认开始批量导入' }}
+            {{ importLoading ? '正在上传-校验-处理...' : '确认开始批量导入' }}
           </el-button>
           <div class="flex justify-center mt-1">
             <el-button link type="primary" class="download-link" @click="fetchDownloadTemplate">
-              <el-icon class="mr-1"><document /></el-icon>还没有模板？点击下载学校-班级-学生模板.xlsx
+              <el-icon class="mr-1"><document /></el-icon>还没有模板？点击下载学生导入模板.zip
             </el-button>
           </div>
         </div>
@@ -569,7 +569,7 @@ const submitImport = async () => {
     fileItem.errorMsg = ''
     
     try {
-      await fetchImportStudents(fileItem.raw)
+      await fetchImportStudents(fileItem.raw, searchForm.schoolId || undefined, searchForm.classId || undefined)
       fileItem.status = 'success'
       successCount++
     } catch (error: any) {
