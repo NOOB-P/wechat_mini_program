@@ -142,7 +142,8 @@
       examType: detail.value.project.examType,
       schoolIds: detail.value.project.selectedSchoolIds,
       classIds: detail.value.project.selectedClassIds,
-      subjects: detail.value.project.subjects
+      subjects: detail.value.project.subjects,
+      benchmarks: detail.value.benchmarks || {}
     }
     dialogVisible.value = true
   }

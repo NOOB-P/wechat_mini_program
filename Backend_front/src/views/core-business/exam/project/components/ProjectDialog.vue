@@ -44,6 +44,16 @@
               <el-icon><Plus /></el-icon>
             </div>
           </el-form-item>
+
+          <el-form-item label="学科基准分数" required>
+            <div class="selection-box benchmark-box" @click="benchmarkVisible = true">
+              <div v-if="Object.keys(form.benchmarks || {}).length > 0" class="benchmark-summary">
+                已设置 <span class="highlight">{{ Object.keys(form.benchmarks || {}).length }}</span> 个学科的分值基准
+              </div>
+              <div v-else class="placeholder">点击设置各学科满分及小题分值</div>
+              <el-icon><ArrowRight /></el-icon>
+            </div>
+          </el-form-item>
         </el-form>
       </div>
 
@@ -106,6 +116,13 @@
       :selected="form.subjects"
       @confirm="handleSubjectConfirm"
     />
+
+    <SubjectBenchmarkDialog
+      v-model="benchmarkVisible"
+      :subjects="form.subjects"
+      :initial-benchmarks="form.benchmarks"
+      @confirm="handleBenchmarkConfirm"
+    />
   </el-dialog>
 </template>
 
@@ -115,6 +132,7 @@
   import { ArrowRight, Plus } from '@element-plus/icons-vue'
   import StudentSelectDialog from './StudentSelectDialog.vue'
   import SubjectSelectDialog from './SubjectSelectDialog.vue'
+  import SubjectBenchmarkDialog from './SubjectBenchmarkDialog.vue'
   import { addProject, updateProject } from './ProjectDialog'
   import type { ExamProjectForm, ProjectSchoolOption, ProjectClassOption } from '@/api/core-business/exam/project'
 
@@ -137,13 +155,15 @@
   const saving = ref(false)
   const studentSelectVisible = ref(false)
   const subjectSelectVisible = ref(false)
+  const benchmarkVisible = ref(false)
 
   const form = reactive<ExamProjectForm>({
     id: '',
     name: '',
     schoolIds: [],
     classIds: [],
-    subjects: []
+    subjects: [],
+    benchmarks: {}
   })
 
   watch(
@@ -155,7 +175,8 @@
           name: props.project.name || '',
           schoolIds: [...(props.project.schoolIds || [])],
           classIds: [...(props.project.classIds || [])],
-          subjects: [...(props.project.subjects || [])]
+          subjects: [...(props.project.subjects || [])],
+          benchmarks: props.project.benchmarks || {}
         })
       }
     }
@@ -194,10 +215,27 @@
 
   function handleSubjectConfirm(selected: string[]) {
     form.subjects = selected
+    // 移除不在已选科目中的基准分数
+    if (form.benchmarks) {
+      const newBenchmarks: any = {}
+      selected.forEach(s => {
+        if (form.benchmarks && form.benchmarks[s]) {
+          newBenchmarks[s] = form.benchmarks[s]
+        }
+      })
+      form.benchmarks = newBenchmarks
+    }
+  }
+
+  function handleBenchmarkConfirm(benchmarks: any) {
+    form.benchmarks = benchmarks
   }
 
   function removeSubject(subject: string) {
     form.subjects = form.subjects.filter(s => s !== subject)
+    if (form.benchmarks) {
+      delete form.benchmarks[subject]
+    }
   }
 
   function handleClose() {
@@ -213,6 +251,12 @@
     }
     if (form.subjects.length === 0) {
       return ElMessage.warning('请至少选择一个学科')
+    }
+    
+    // 检查基准分数是否完整
+    const benchmarkCount = Object.keys(form.benchmarks || {}).length
+    if (benchmarkCount < form.subjects.length) {
+      return ElMessage.warning('请设置所有已选学科的基准分数')
     }
 
     saving.value = true

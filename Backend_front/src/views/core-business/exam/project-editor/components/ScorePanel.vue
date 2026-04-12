@@ -40,13 +40,17 @@
         <el-table-column prop="classCount" label="班级数" width="90" align="center" />
         <el-table-column prop="studentCount" label="学生数" width="100" align="center" />
         <el-table-column prop="scoreCount" label="成绩条数" width="100" align="center" />
-        <el-table-column prop="avgScore" label="平均分" width="100" align="center" />
-        <el-table-column prop="maxScore" label="最高分" width="100" align="center" />
-        <el-table-column prop="minScore" label="最低分" width="100" align="center" />
-        <el-table-column label="状态" width="100" align="center">
+        <el-table-column label="试卷包" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.paperUploaded ? 'success' : 'info'">{{
+              row.paperUploaded ? '录入' : '未录入'
+            }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="成绩单" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="row.scoreUploaded ? 'success' : 'info'">{{
-              row.scoreUploaded ? '已录入' : '待录入'
+              row.scoreUploaded ? '录入' : '未录入'
             }}</el-tag>
           </template>
         </el-table-column>
