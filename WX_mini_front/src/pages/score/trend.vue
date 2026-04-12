@@ -212,16 +212,11 @@ const showDetail = (exam: any) => {
 }
 
 const getTrendSummary = () => {
-  if (!trendData.value || !trendData.value.history || trendData.value.history.length < 1) return ''
+  if (!trendData.value) return ''
   const history = trendData.value.history
   const latest = history[history.length - 1].score
-  
-  if (history.length < 2) {
-    return `${latest}分`
-  }
-  
   const prev = history[history.length - 2].score
-  const diff = Math.round((latest - prev) * 10) / 10
+  const diff = latest - prev
   return diff >= 0 ? `+${diff}分` : `${diff}分`
 }
 

@@ -48,6 +48,14 @@ export const loginByWechat = (code: string) => {
   })
 }
 
+export const loginByWechatPhone = (data: { phoneCode: string; wxCode: string }) => {
+  return request({
+    url: '/api/app/auth/login/wechat/phone',
+    method: 'POST',
+    data
+  })
+}
+
 export const thirdPartyLoginApi = (type: string, code: string) => {
   if (type === 'wechat') {
     return loginByWechat(code)

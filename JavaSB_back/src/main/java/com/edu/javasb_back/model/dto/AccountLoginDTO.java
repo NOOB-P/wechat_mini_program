@@ -12,6 +12,8 @@ public class AccountLoginDTO {
     private String phone;
     private String password;
     private String code;
+    private String phoneCode;
+    private String wxCode;
     private String openid;
     private String loginType;
     private Integer roleId;
@@ -46,6 +48,22 @@ public class AccountLoginDTO {
 
     public void setCode(String code) {
         this.code = code;
+    }
+
+    public String getPhoneCode() {
+        return phoneCode;
+    }
+
+    public void setPhoneCode(String phoneCode) {
+        this.phoneCode = phoneCode;
+    }
+
+    public String getWxCode() {
+        return wxCode;
+    }
+
+    public void setWxCode(String wxCode) {
+        this.wxCode = wxCode;
     }
 
     public String getOpenid() {
