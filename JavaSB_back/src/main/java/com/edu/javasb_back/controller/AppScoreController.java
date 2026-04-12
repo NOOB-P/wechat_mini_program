@@ -59,4 +59,41 @@ public class AppScoreController {
         if (uid == null) return Result.error(401, "请先登录");
         return scoreService.getStudentScores(uid, semester, examId);
     }
+
+    /**
+     * 获取成绩构成分析
+     */
+    @LogOperation("获取成绩构成分析")
+    @GetMapping("/composition")
+    public Result<Map<String, Object>> getScoreComposition(
+            @RequestParam(required = false) String examId,
+            @RequestParam(required = false) String subject) {
+        Long uid = getCurrentUid();
+        if (uid == null) return Result.error(401, "请先登录");
+        return scoreService.getScoreComposition(uid, examId, subject);
+    }
+
+    /**
+     * 获取分数分布统计
+     */
+    @LogOperation("获取分数分布统计")
+    @GetMapping("/distribution")
+    public Result<Map<String, Object>> getScoreDistribution(
+            @RequestParam(required = false) String examId,
+            @RequestParam(required = false) String subject) {
+        Long uid = getCurrentUid();
+        if (uid == null) return Result.error(401, "请先登录");
+        return scoreService.getScoreDistribution(uid, examId, subject);
+    }
+
+    /**
+     * 获取近六次考试趋势
+     */
+    @LogOperation("获取近六次考试趋势")
+    @GetMapping("/trend")
+    public Result<Map<String, Object>> getScoreTrend(@RequestParam(required = false) String examId) {
+        Long uid = getCurrentUid();
+        if (uid == null) return Result.error(401, "请先登录");
+        return scoreService.getScoreTrend(uid, examId);
+    }
 }
