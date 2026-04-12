@@ -19,6 +19,8 @@ public interface SysAccountService {
 
     Result<LoginVO> loginByWechat(String code);
 
+    Result<LoginVO> loginByWechatPhone(AccountLoginDTO loginDTO);
+
     Result<LoginVO> bindWechatPhone(AccountLoginDTO loginDTO);
 
     Result<SysAccount> getUserInfo(Long uid);
