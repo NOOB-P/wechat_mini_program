@@ -26,6 +26,9 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -216,6 +219,28 @@ public class SysAccountServiceImpl implements SysAccountService {
 
     @Override
     @Transactional
+    public Result<LoginVO> loginByWechatPhone(AccountLoginDTO loginDTO) {
+        if (!StringUtils.hasText(loginDTO.getPhoneCode())) {
+            return Result.error("微信手机号授权凭证不能为空");
+        }
+        if (!StringUtils.hasText(loginDTO.getWxCode())) {
+            return Result.error("微信登录凭证不能为空");
+        }
+
+        try {
+            String openid = extractWechatOpenid(loginDTO.getWxCode());
+            String phone = extractWechatPhoneNumber(loginDTO.getPhoneCode());
+            return loginOrRegisterWechatPhone(phone, openid);
+        } catch (IllegalStateException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("微信手机号授权登录异常: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
     public Result<LoginVO> bindWechatPhone(AccountLoginDTO loginDTO) {
         if (!StringUtils.hasText(loginDTO.getPhone()) || !StringUtils.hasText(loginDTO.getCode())) {
             return Result.error("手机号和验证码不能为空");
@@ -231,6 +256,11 @@ public class SysAccountServiceImpl implements SysAccountService {
 
         String phone = loginDTO.getPhone();
         String openid = loginDTO.getOpenid();
+        if (openid != null) {
+            smsCodeMap.remove(phone);
+            return loginOrRegisterWechatPhone(phone, openid);
+        }
+
         Optional<SysAccount> wxAccountOpt = accountRepository.findByWxid(openid);
         Optional<SysAccount> phoneAccountOpt = accountRepository.findByPhone(phone);
 
@@ -598,6 +628,161 @@ public class SysAccountServiceImpl implements SysAccountService {
             throw new IllegalStateException("获取微信OpenID失败");
         }
         return openid;
+    }
+
+    private Result<LoginVO> loginOrRegisterWechatPhone(String phone, String openid) {
+        Optional<SysAccount> wxAccountOpt = accountRepository.findByWxid(openid);
+        Optional<SysAccount> phoneAccountOpt = accountRepository.findByPhone(phone);
+
+        SysAccount loginAccount;
+        if (phoneAccountOpt.isPresent()) {
+            SysAccount phoneAccount = phoneAccountOpt.get();
+            Result<Void> enabledResult = validateAccountEnabled(phoneAccount);
+            if (enabledResult.getCode() != 200) {
+                return Result.error(enabledResult.getMsg());
+            }
+
+            if (StringUtils.hasText(phoneAccount.getWxid()) && !openid.equals(phoneAccount.getWxid())) {
+                return Result.error("该手机号已绑定其他微信账号");
+            }
+
+            if (wxAccountOpt.isPresent() && !wxAccountOpt.get().getUid().equals(phoneAccount.getUid())) {
+                Result<Void> mergeResult = mergeWechatAccount(phoneAccount, wxAccountOpt.get());
+                if (mergeResult.getCode() != 200) {
+                    return Result.error(mergeResult.getMsg());
+                }
+            }
+
+            initParentAccount(phoneAccount, phone, openid);
+            phoneAccount.setPhone(phone);
+            phoneAccount.setWxid(openid);
+            loginAccount = accountRepository.save(phoneAccount);
+        } else if (wxAccountOpt.isPresent()) {
+            SysAccount wxAccount = wxAccountOpt.get();
+            Result<Void> enabledResult = validateAccountEnabled(wxAccount);
+            if (enabledResult.getCode() != 200) {
+                return Result.error(enabledResult.getMsg());
+            }
+
+            if (StringUtils.hasText(wxAccount.getPhone()) && !phone.equals(wxAccount.getPhone())) {
+                return Result.error("当前微信已绑定其他手机号");
+            }
+
+            initParentAccount(wxAccount, phone, openid);
+            wxAccount.setPhone(phone);
+            wxAccount.setWxid(openid);
+            loginAccount = accountRepository.save(wxAccount);
+        } else {
+            SysAccount newAccount = new SysAccount();
+            initParentAccount(newAccount, phone, openid);
+            newAccount.setPhone(phone);
+            newAccount.setWxid(openid);
+            loginAccount = accountRepository.save(newAccount);
+        }
+
+        return generateLoginResult(loginAccount);
+    }
+
+    private String extractWechatPhoneNumber(String phoneCode) throws Exception {
+        Map<String, Object> resultMap = callWechatPhoneNumberApi(phoneCode, false);
+        Object phoneInfoObj = resultMap.get("phone_info");
+        if (!(phoneInfoObj instanceof Map<?, ?> phoneInfoMap)) {
+            throw new IllegalStateException("获取微信手机号失败");
+        }
+
+        Object phoneNumberObj = phoneInfoMap.get("phoneNumber");
+        String phoneNumber = phoneNumberObj == null ? null : phoneNumberObj.toString();
+        if (!StringUtils.hasText(phoneNumber)) {
+            throw new IllegalStateException("获取微信手机号失败");
+        }
+        return phoneNumber;
+    }
+
+    private Map<String, Object> callWechatPhoneNumberApi(String phoneCode, boolean refreshAccessToken) throws Exception {
+        String accessToken = getWechatAccessToken(refreshAccessToken);
+        String url = String.format("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=%s", accessToken);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(Map.of("code", phoneCode), headers);
+
+        String response = restTemplate.postForObject(url, requestEntity, String.class);
+        Map<String, Object> resultMap = objectMapper.readValue(response, Map.class);
+        Integer errCode = parseWechatErrCode(resultMap);
+        if (errCode != null && (errCode == 40001 || errCode == 42001)) {
+            if (!refreshAccessToken) {
+                return callWechatPhoneNumberApi(phoneCode, true);
+            }
+            throw new IllegalStateException("微信 access_token 已失效，请稍后重试");
+        }
+        if (errCode != null && errCode != 0) {
+            throw new IllegalStateException("微信获取手机号失败: " + resultMap.get("errmsg"));
+        }
+        return resultMap;
+    }
+
+    private String getWechatAccessToken(boolean forceRefresh) throws Exception {
+        String cacheKey = "wechat:miniprogram:access_token";
+        if (!forceRefresh) {
+            try {
+                String cachedToken = stringRedisTemplate.opsForValue().get(cacheKey);
+                if (StringUtils.hasText(cachedToken)) {
+                    return cachedToken;
+                }
+            } catch (Exception ignored) {
+            }
+        } else {
+            try {
+                stringRedisTemplate.delete(cacheKey);
+            } catch (Exception ignored) {
+            }
+        }
+
+        String appId = globalConfigProperties.getWechatAppId();
+        String secret = globalConfigProperties.getWechatAppSecret();
+        String url = String.format(
+                "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=%s&secret=%s",
+                appId, secret);
+
+        String response = restTemplate.getForObject(url, String.class);
+        Map<String, Object> resultMap = objectMapper.readValue(response, Map.class);
+        Integer errCode = parseWechatErrCode(resultMap);
+        if (errCode != null && errCode != 0) {
+            throw new IllegalStateException("获取微信 access_token 失败: " + resultMap.get("errmsg"));
+        }
+
+        Object accessTokenObj = resultMap.get("access_token");
+        String accessToken = accessTokenObj == null ? null : accessTokenObj.toString();
+        if (!StringUtils.hasText(accessToken)) {
+            throw new IllegalStateException("获取微信 access_token 失败");
+        }
+
+        long ttlSeconds = 6600L;
+        Object expiresInObj = resultMap.get("expires_in");
+        if (expiresInObj instanceof Number number) {
+            ttlSeconds = Math.max(60L, number.longValue() - 300L);
+        }
+
+        try {
+            stringRedisTemplate.opsForValue().set(cacheKey, accessToken, ttlSeconds, TimeUnit.SECONDS);
+        } catch (Exception ignored) {
+        }
+        return accessToken;
+    }
+
+    private Integer parseWechatErrCode(Map<String, Object> resultMap) {
+        Object errCodeObj = resultMap.get("errcode");
+        if (errCodeObj instanceof Number number) {
+            return number.intValue();
+        }
+        if (errCodeObj instanceof String errCodeText && StringUtils.hasText(errCodeText)) {
+            try {
+                return Integer.parseInt(errCodeText);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private Result<LoginVO> buildWechatBindResult(String openid) {

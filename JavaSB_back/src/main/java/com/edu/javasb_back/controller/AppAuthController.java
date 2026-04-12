@@ -90,6 +90,12 @@ public class AppAuthController {
         return sysAccountService.loginByWechat(loginDTO.getCode());
     }
 
+    @LogOperation("小程序微信手机号授权登录")
+    @PostMapping("/login/wechat/phone")
+    public Result<LoginVO> loginByWechatPhone(@RequestBody AccountLoginDTO loginDTO) {
+        return sysAccountService.loginByWechatPhone(loginDTO);
+    }
+
     @LogOperation("小程序微信绑定手机号")
     @PostMapping("/login/wechat/bind-phone")
     public Result<LoginVO> bindWechatPhone(@RequestBody AccountLoginDTO loginDTO) {

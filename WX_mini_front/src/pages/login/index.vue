@@ -1,16 +1,29 @@
 <template>
   <view class="login-container">
     <view class="header">
-      <view class="title">欢迎登录</view>
+      <view class="logo-box">
+        <image class="logo-img" src="/static/logo.png" mode="aspectFit" />
+        <view class="brand-name">优题慧</view>
+      </view>
     </view>
 
     <view class="form-container">
-      <wd-tabs v-model="loginType">
-        <wd-tab title="快捷登录" name="phone">
+      <wd-tabs v-model="loginType" custom-class="login-tabs">
+        <wd-tab title="验证码登录" name="phone">
           <view class="input-group">
-            <wd-input v-model="phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
-            <view class="code-wrapper">
-              <wd-input v-model="code" placeholder="请输入验证码" type="number" :maxlength="6" use-suffix-slot no-border>
+            <view class="input-item">
+              <text class="prefix">+86</text>
+              <wd-input v-model="phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
+            </view>
+            <view class="input-item code-item">
+              <wd-input
+                v-model="code"
+                placeholder="请输入验证码"
+                type="number"
+                :maxlength="6"
+                use-suffix-slot
+                no-border
+              >
                 <template #suffix>
                   <view class="code-btn-text" :class="{ disabled: countdown > 0 }" @click="countdown === 0 && sendCode()">
                     {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
@@ -20,24 +33,45 @@
             </view>
           </view>
         </wd-tab>
-        <wd-tab title="密码登录" name="password">
+
+        <wd-tab title="账号登录" name="password">
           <view class="input-group">
-            <wd-input v-model="phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
-            <wd-input v-model="password" placeholder="请输入密码" show-password type="text" no-border />
+            <view class="input-item">
+              <wd-input v-model="phone" placeholder="请输入账号" type="text" no-border />
+            </view>
+            <view class="input-item">
+              <wd-input v-model="password" placeholder="请输入密码" show-password type="text" no-border />
+            </view>
           </view>
         </wd-tab>
       </wd-tabs>
 
+      <!-- <view v-if="loginType === 'phone'" class="wechat-phone-login">
+        <button class="wx-phone-login-btn" open-type="getPhoneNumber" @getphonenumber="handleWechatPhoneLogin">
+          <wd-icon name="wechat" size="24px" color="#fff" />
+          <text class="btn-text">微信手机号一键登录</text>
+        </button>
+      </view> -->
+
       <view class="action-btn">
-        <wd-button type="primary" block @click="handleLogin">登录</wd-button>
+        <wd-button type="primary" block custom-class="submit-btn" @click="handleLogin">登录</wd-button>
       </view>
 
-      <view class="sub-actions">
-        <!-- 占位元素，保证如果只有右侧按钮时能通过 space-between 推到右边 -->
-        <text></text>
-        <text v-if="loginType === 'password'" class="link" @click="goToForgotPassword">找回密码</text>
+      <view class="agreement-row">
+        <wd-checkbox v-model="isAgreed" custom-class="agreement-checkbox" />
+        <view class="agreement-text">
+          请阅读并勾选<text class="link">《用户服务协议》</text><text class="link">《隐私政策》</text>
+        </view>
       </view>
+
+      <!-- <view class="sub-actions">
+        <text class="link skip-link" @click="skipLogin">暂不登录，去首页逛逛</text>
+      </view> -->
     </view>
+
+    <!-- <view class="footer-slogan">
+      让每个孩子成为最好的自己
+    </view> -->
 
     <view class="third-party">
       <view class="divider">
@@ -50,22 +84,37 @@
           <wd-icon name="wechat" size="40px" color="#07C160" />
           <text class="icon-text">微信</text>
         </view>
-        <view class="icon-item" @click="thirdPartyLogin('qq')">
+        <!-- <view class="icon-item" @click="thirdPartyLogin('qq')">
           <wd-icon name="qq" size="40px" color="#12B7F5" />
           <text class="icon-text">QQ</text>
-        </view>
+        </view> -->
       </view>
     </view>
-    
-    <wd-popup v-model="showRegisterPopup" position="bottom" custom-style="height: 70%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+
+    <wd-popup
+      v-model="showRegisterPopup"
+      position="bottom"
+      custom-style="height: 70%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;"
+    >
       <view class="popup-content">
         <view class="popup-title">快速注册</view>
         <view class="input-group">
           <wd-input v-model="registerForm.phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
           <view class="code-wrapper">
-            <wd-input v-model="registerForm.code" placeholder="请输入验证码" type="number" :maxlength="6" use-suffix-slot no-border>
+            <wd-input
+              v-model="registerForm.code"
+              placeholder="请输入验证码"
+              type="number"
+              :maxlength="6"
+              use-suffix-slot
+              no-border
+            >
               <template #suffix>
-                <view class="code-btn-text" :class="{ disabled: registerCountdown > 0 }" @click="registerCountdown === 0 && sendRegisterCode()">
+                <view
+                  class="code-btn-text"
+                  :class="{ disabled: registerCountdown > 0 }"
+                  @click="registerCountdown === 0 && sendRegisterCode()"
+                >
                   {{ registerCountdown > 0 ? `${registerCountdown}s后重试` : '获取验证码' }}
                 </view>
               </template>
@@ -80,15 +129,30 @@
       </view>
     </wd-popup>
 
-    <wd-popup v-model="showForgotPopup" position="bottom" custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+    <wd-popup
+      v-model="showForgotPopup"
+      position="bottom"
+      custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;"
+    >
       <view class="popup-content">
         <view class="popup-title">找回密码</view>
         <view class="input-group">
           <wd-input v-model="forgotForm.phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
           <view class="code-wrapper">
-            <wd-input v-model="forgotForm.code" placeholder="请输入验证码" type="number" :maxlength="6" use-suffix-slot no-border>
+            <wd-input
+              v-model="forgotForm.code"
+              placeholder="请输入验证码"
+              type="number"
+              :maxlength="6"
+              use-suffix-slot
+              no-border
+            >
               <template #suffix>
-                <view class="code-btn-text" :class="{ disabled: forgotCountdown > 0 }" @click="forgotCountdown === 0 && sendForgotCode()">
+                <view
+                  class="code-btn-text"
+                  :class="{ disabled: forgotCountdown > 0 }"
+                  @click="forgotCountdown === 0 && sendForgotCode()"
+                >
                   {{ forgotCountdown > 0 ? `${forgotCountdown}s后重试` : '获取验证码' }}
                 </view>
               </template>
@@ -102,15 +166,30 @@
       </view>
     </wd-popup>
 
-    <wd-popup v-model="showBindPhonePopup" position="bottom" custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+    <wd-popup
+      v-model="showBindPhonePopup"
+      position="bottom"
+      custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;"
+    >
       <view class="popup-content">
         <view class="popup-title">绑定手机号</view>
         <view class="input-group">
           <wd-input v-model="bindPhoneForm.phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
           <view class="code-wrapper">
-            <wd-input v-model="bindPhoneForm.code" placeholder="请输入验证码" type="number" :maxlength="6" use-suffix-slot no-border>
+            <wd-input
+              v-model="bindPhoneForm.code"
+              placeholder="请输入验证码"
+              type="number"
+              :maxlength="6"
+              use-suffix-slot
+              no-border
+            >
               <template #suffix>
-                <view class="code-btn-text" :class="{ disabled: bindPhoneCountdown > 0 }" @click="bindPhoneCountdown === 0 && sendBindPhoneCode()">
+                <view
+                  class="code-btn-text"
+                  :class="{ disabled: bindPhoneCountdown > 0 }"
+                  @click="bindPhoneCountdown === 0 && sendBindPhoneCode()"
+                >
                   {{ bindPhoneCountdown > 0 ? `${bindPhoneCountdown}s后重试` : '获取验证码' }}
                 </view>
               </template>
@@ -128,9 +207,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useToast } from 'wot-design-uni'
-import { sendSmsCode, loginByPhone, loginByPassword, register, forgotPassword, loginByWechat, thirdPartyLoginApi, bindThirdPartyPhone } from '@/api/login'
+import {
+  bindThirdPartyPhone,
+  forgotPassword,
+  loginByPassword,
+  loginByPhone,
+  loginByWechat,
+  loginByWechatPhone,
+  register,
+  sendSmsCode,
+  thirdPartyLoginApi
+} from '@/api/login'
 
 const toast = useToast()
 
@@ -139,9 +228,9 @@ const phone = ref('')
 const code = ref('')
 const password = ref('')
 const countdown = ref(0)
+const isAgreed = ref(false)
 let timer: ReturnType<typeof setInterval> | null = null
 
-// 注册相关
 const showRegisterPopup = ref(false)
 const registerCountdown = ref(0)
 let registerTimer: ReturnType<typeof setInterval> | null = null
@@ -152,7 +241,6 @@ const registerForm = ref({
   nickname: ''
 })
 
-// 找回密码相关
 const showForgotPopup = ref(false)
 const forgotCountdown = ref(0)
 let forgotTimer: ReturnType<typeof setInterval> | null = null
@@ -162,7 +250,6 @@ const forgotForm = ref({
   password: ''
 })
 
-// 绑定手机号相关
 const showBindPhonePopup = ref(false)
 const bindPhoneCountdown = ref(0)
 let bindPhoneTimer: ReturnType<typeof setInterval> | null = null
@@ -176,20 +263,95 @@ const bindPhoneForm = ref({
 onMounted(() => {
   const token = uni.getStorageSync('token')
   if (token) {
-    // 如果已经登录，直接进入首页
     uni.switchTab({ url: '/pages/home/index' })
   }
 })
+
+onUnmounted(() => {
+  clearLoginTimers()
+})
+
+const clearTimer = (currentTimer: ReturnType<typeof setInterval> | null) => {
+  if (currentTimer) {
+    clearInterval(currentTimer)
+  }
+}
+
+const clearLoginTimers = () => {
+  clearTimer(timer)
+  clearTimer(registerTimer)
+  clearTimer(forgotTimer)
+  clearTimer(bindPhoneTimer)
+}
+
+const startCountdown = (target: typeof countdown, setter: (value: ReturnType<typeof setInterval>) => void) => {
+  target.value = 60
+  const currentTimer = setInterval(() => {
+    target.value -= 1
+    if (target.value <= 0) {
+      clearInterval(currentTimer)
+    }
+  }, 1000)
+  setter(currentTimer)
+}
+
+const navigateAfterLogin = (isBoundStudent?: boolean, bindPhone?: string) => {
+  setTimeout(() => {
+    if (isBoundStudent) {
+      uni.switchTab({ url: '/pages/home/index' })
+      return
+    }
+
+    const targetPhone = bindPhone || phone.value
+    uni.redirectTo({
+      url: targetPhone ? `/pages/auth/bind-student?phone=${targetPhone}` : '/pages/auth/bind-student'
+    })
+  }, 1500)
+}
+
+const handleLoginSuccess = (
+  res: any,
+  options?: {
+    successMessage?: string
+    bindPhone?: string
+  }
+) => {
+  if (res.data?.token) {
+    uni.setStorageSync('token', res.data.token)
+  }
+
+  toast.success(options?.successMessage || '登录成功')
+  navigateAfterLogin(res.data?.isBoundStudent, options?.bindPhone)
+}
+
+const getWechatLoginCode = () => {
+  return new Promise<string>((resolve, reject) => {
+    uni.login({
+      provider: 'weixin',
+      success: (loginRes) => {
+        if (loginRes.code) {
+          resolve(loginRes.code)
+          return
+        }
+        reject(new Error('获取微信登录凭证失败'))
+      },
+      fail: () => {
+        reject(new Error('微信授权失败'))
+      }
+    })
+  })
+}
 
 const sendCode = async () => {
   if (!phone.value || phone.value.length !== 11) {
     toast.show('请输入正确的手机号')
     return
   }
-  
+
   try {
     await sendSmsCode(phone.value)
     toast.success('验证码已发送')
+<<<<<<< HEAD
     countdown.value = 60
     timer = setInterval(() => {
       countdown.value--
@@ -199,11 +361,25 @@ const sendCode = async () => {
     }, 1000)
   } catch (error: any) {
     toast.error(error?.msg || '验证码发送失败，请稍后重试')
+=======
+    clearTimer(timer)
+    startCountdown(countdown, (value) => {
+      timer = value
+    })
+  } catch (error) {
+>>>>>>> 36a210b1736669fdac9acb83d7cee807c68dc374
     console.error('发送验证码失败', error)
   }
 }
 
+const skipLogin = () => {
+  uni.switchTab({ url: '/pages/home/index' })
+}
+
 const handleLogin = async () => {
+  if (!isAgreed.value) {
+    return toast.show('请先勾选同意用户协议和隐私政策')
+  }
   if (!phone.value) {
     return toast.show('请输入手机号')
   }
@@ -215,38 +391,51 @@ const handleLogin = async () => {
   }
 
   try {
-    let res
-    if (loginType.value === 'phone') {
-      res = await loginByPhone({ phone: phone.value, code: code.value })
-    } else {
-      res = await loginByPassword({ phone: phone.value, password: password.value })
-    }
+    const res =
+      loginType.value === 'phone'
+        ? await loginByPhone({ phone: phone.value, code: code.value })
+        : await loginByPassword({ phone: phone.value, password: password.value })
 
     if (res.code === 200) {
-      if (res.data && res.data.token) {
-        uni.setStorageSync('token', res.data.token)
-      }
-      toast.success('登录成功')
-      
-      // 判断是否已经绑定学生
-      const isBound = res.data && res.data.isBoundStudent
-      
-      setTimeout(() => {
-        if (isBound) {
-          // 已绑定学生，直接进入首页
-          uni.switchTab({ url: '/pages/home/index' })
-        } else {
-          // 未绑定学生，跳转到绑定页面
-          uni.redirectTo({ 
-            url: `/pages/auth/bind-student?phone=${phone.value}` 
-          })
-        }
-      }, 1500)
-    } else {
-      toast.error(res.msg || '登录失败')
+      handleLoginSuccess(res, { bindPhone: phone.value })
+      return
     }
+
+    toast.error(res.msg || '登录失败')
   } catch (error: any) {
     toast.error(error.msg || '网络错误，请稍后重试')
+  }
+}
+
+const handleWechatPhoneLogin = async (event: any) => {
+  const phoneCode = event?.detail?.code
+  if (!phoneCode) {
+    if (event?.detail?.errMsg?.includes('deny')) {
+      toast.show('您已取消手机号授权')
+      return
+    }
+    toast.show('获取手机号失败，请稍后重试')
+    return
+  }
+
+  try {
+    const wxCode = await getWechatLoginCode()
+    const res = await loginByWechatPhone({
+      phoneCode,
+      wxCode
+    })
+
+    if (res.code === 200) {
+      handleLoginSuccess(res, {
+        successMessage: '手机号授权登录成功',
+        bindPhone: res.data?.userInfo?.phone
+      })
+      return
+    }
+
+    toast.error(res.msg || '手机号授权登录失败')
+  } catch (error: any) {
+    toast.error(error.msg || error.message || '手机号授权登录失败')
   }
 }
 
@@ -255,19 +444,19 @@ const goToRegister = () => {
 }
 
 const goToForgotPassword = () => {
-  // 注意：如果 forgot-password 也是独立页面，建议检查其返回逻辑
   uni.navigateTo({ url: '/pages/auth/forgot-password' })
 }
 
-// 注册逻辑
 const sendRegisterCode = async () => {
   if (!registerForm.value.phone || registerForm.value.phone.length !== 11) {
     toast.show('请输入正确的手机号')
     return
   }
+
   try {
     await sendSmsCode(registerForm.value.phone)
     toast.success('验证码已发送')
+<<<<<<< HEAD
     registerCountdown.value = 60
     registerTimer = setInterval(() => {
       registerCountdown.value--
@@ -277,6 +466,14 @@ const sendRegisterCode = async () => {
     }, 1000)
   } catch (error: any) {
     toast.error(error?.msg || '验证码发送失败，请稍后重试')
+=======
+    clearTimer(registerTimer)
+    startCountdown(registerCountdown, (value) => {
+      registerTimer = value
+    })
+  } catch (error) {
+    console.error('发送注册验证码失败', error)
+>>>>>>> 36a210b1736669fdac9acb83d7cee807c68dc374
   }
 }
 
@@ -290,23 +487,25 @@ const handleRegister = async () => {
     if (res.code === 200) {
       toast.success('注册成功')
       showRegisterPopup.value = false
-    } else {
-      toast.error(res.msg || '注册失败')
+      return
     }
+
+    toast.error(res.msg || '注册失败')
   } catch (error: any) {
     toast.error(error.msg || '网络错误')
   }
 }
 
-// 找回密码逻辑
 const sendForgotCode = async () => {
   if (!forgotForm.value.phone || forgotForm.value.phone.length !== 11) {
     toast.show('请输入正确的手机号')
     return
   }
+
   try {
     await sendSmsCode(forgotForm.value.phone)
     toast.success('验证码已发送')
+<<<<<<< HEAD
     forgotCountdown.value = 60
     forgotTimer = setInterval(() => {
       forgotCountdown.value--
@@ -316,6 +515,14 @@ const sendForgotCode = async () => {
     }, 1000)
   } catch (error: any) {
     toast.error(error?.msg || '验证码发送失败，请稍后重试')
+=======
+    clearTimer(forgotTimer)
+    startCountdown(forgotCountdown, (value) => {
+      forgotTimer = value
+    })
+  } catch (error) {
+    console.error('发送找回密码验证码失败', error)
+>>>>>>> 36a210b1736669fdac9acb83d7cee807c68dc374
   }
 }
 
@@ -329,23 +536,25 @@ const handleForgot = async () => {
     if (res.code === 200) {
       toast.success('密码重置成功')
       showForgotPopup.value = false
-    } else {
-      toast.error(res.msg || '重置失败')
+      return
     }
+
+    toast.error(res.msg || '重置失败')
   } catch (error: any) {
     toast.error(error.msg || '网络错误')
   }
 }
 
-// 绑定手机号逻辑
 const sendBindPhoneCode = async () => {
   if (!bindPhoneForm.value.phone || bindPhoneForm.value.phone.length !== 11) {
     toast.show('请输入正确的手机号')
     return
   }
+
   try {
     await sendSmsCode(bindPhoneForm.value.phone)
     toast.success('验证码已发送')
+<<<<<<< HEAD
     bindPhoneCountdown.value = 60
     bindPhoneTimer = setInterval(() => {
       bindPhoneCountdown.value--
@@ -355,6 +564,14 @@ const sendBindPhoneCode = async () => {
     }, 1000)
   } catch (error: any) {
     toast.error(error?.msg || '验证码发送失败，请稍后重试')
+=======
+    clearTimer(bindPhoneTimer)
+    startCountdown(bindPhoneCountdown, (value) => {
+      bindPhoneTimer = value
+    })
+  } catch (error) {
+    console.error('发送绑定手机号验证码失败', error)
+>>>>>>> 36a210b1736669fdac9acb83d7cee807c68dc374
   }
 }
 
@@ -366,50 +583,34 @@ const handleBindPhone = async () => {
   try {
     const res = await bindThirdPartyPhone(bindPhoneForm.value)
     if (res.code === 200) {
-      if (res.data && res.data.token) {
-        uni.setStorageSync('token', res.data.token)
-      }
-      toast.success('绑定成功')
       showBindPhonePopup.value = false
-      
-      const isBound = res.data && res.data.isBoundStudent
-      
-      setTimeout(() => {
-        if (isBound) {
-          uni.switchTab({ url: '/pages/home/index' })
-        } else {
-          uni.redirectTo({ 
-            url: `/pages/auth/bind-student?phone=${bindPhoneForm.value.phone}` 
-          })
-        }
-      }, 1500)
-    } else {
-      toast.error(res.msg || '绑定失败')
+      handleLoginSuccess(res, {
+        successMessage: '绑定成功',
+        bindPhone: bindPhoneForm.value.phone
+      })
+      return
     }
+
+    toast.error(res.msg || '绑定失败')
   } catch (error: any) {
     toast.error(error.msg || '网络错误')
   }
 }
 
 const handleThirdPartySuccess = (res: any, type: string) => {
-  if (res.data && res.data.needBind) {
-    toast.show('请绑定手机号')
+  if (res.data?.needBind) {
+    toast.show('请先绑定手机号')
     bindPhoneForm.value.openid = res.data.openid
     bindPhoneForm.value.type = type
     showBindPhonePopup.value = true
-  } else if (res.data && res.data.token) {
-    uni.setStorageSync('token', res.data.token)
-    toast.success(`${type === 'wechat' ? '微信' : 'QQ'}登录成功`)
-    
-    const isBound = res.data && res.data.isBoundStudent
-    
-    setTimeout(() => {
-      if (isBound) {
-        uni.switchTab({ url: '/pages/home/index' })
-      } else {
-        uni.redirectTo({ url: '/pages/auth/bind-student' })
-      }
-    }, 1500)
+    return
+  }
+
+  if (res.data?.token) {
+    handleLoginSuccess(res, {
+      successMessage: `${type === 'wechat' ? '微信' : 'QQ'}登录成功`,
+      bindPhone: res.data?.userInfo?.phone
+    })
   }
 }
 
@@ -418,37 +619,43 @@ const thirdPartyLogin = (type: string) => {
     uni.login({
       provider: 'weixin',
       success: async (loginRes) => {
-        if (loginRes.code) {
-          try {
-            const res = await loginByWechat(loginRes.code)
-            if (res.code === 200) {
-              handleThirdPartySuccess(res, 'wechat')
-            } else {
-              toast.error(res.msg || '微信登录失败')
-            }
-          } catch (error: any) {
-            toast.error(error.msg || '微信登录异常')
+        if (!loginRes.code) {
+          toast.error('获取微信登录凭证失败')
+          return
+        }
+
+        try {
+          const res = await loginByWechat(loginRes.code)
+          if (res.code === 200) {
+            handleThirdPartySuccess(res, 'wechat')
+            return
           }
+          toast.error(res.msg || '微信登录失败')
+        } catch (error: any) {
+          toast.error(error.msg || '微信登录异常')
         }
       },
       fail: () => {
         toast.show('微信授权失败')
       }
     })
-  } else if (type === 'qq') {
-    uni.login({
-      provider: 'qq',
-      success: async (loginRes) => {
-        try {
-          const res = await thirdPartyLoginApi('qq', 'mock_qq_openid')
-          handleThirdPartySuccess(res, 'qq')
-        } catch (error) {}
-      },
-      fail: () => {
-        mockThirdPartyLogin('qq')
-      }
-    })
+    return
   }
+
+  uni.login({
+    provider: 'qq',
+    success: async () => {
+      try {
+        const res = await thirdPartyLoginApi('qq', 'mock_qq_openid')
+        handleThirdPartySuccess(res, 'qq')
+      } catch (error) {
+        console.error('QQ 登录失败', error)
+      }
+    },
+    fail: () => {
+      mockThirdPartyLogin('qq')
+    }
+  })
 }
 
 const mockThirdPartyLogin = async (type: string) => {
@@ -456,145 +663,237 @@ const mockThirdPartyLogin = async (type: string) => {
   try {
     const res = await thirdPartyLoginApi(type, `mock_${type}_openid_123`)
     handleThirdPartySuccess(res, type)
-  } catch (error) {}
+  } catch (error) {
+    console.error('模拟第三方登录失败', error)
+  }
 }
 </script>
 
 <style lang="scss" scoped>
 .login-container {
   min-height: 100vh;
-  background-color: #fff;
+  background: linear-gradient(180deg, #eef7ff 0%, #ffffff 300rpx);
   padding: 40rpx;
   display: flex;
   flex-direction: column;
 
   .header {
-    margin-top: 100rpx;
+    margin-top: 120rpx;
     margin-bottom: 80rpx;
-    .title {
-      font-size: 56rpx;
-      font-weight: bold;
-      color: #333;
+    display: flex;
+    justify-content: center;
+
+    .logo-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      
+      .logo-img {
+        width: 160rpx;
+        height: 160rpx;
+        background: #fff;
+        border-radius: 40rpx;
+        box-shadow: 0 10rpx 30rpx rgba(26, 95, 142, 0.1);
+        padding: 20rpx;
+      }
+      
+      .brand-name {
+        margin-top: 24rpx;
+        font-size: 36rpx;
+        font-weight: bold;
+        color: #1a5f8e;
+        letter-spacing: 4rpx;
+      }
     }
   }
 
   .form-container {
     flex: 1;
+    padding: 0 20rpx;
 
-    .input-group {
-      margin-top: 40rpx;
-      display: flex;
-      flex-direction: column;
-      
-      :deep(.wd-input) {
-        margin-bottom: 40rpx;
-        background-color: #f8f9fa;
-        border-radius: 16rpx;
-        padding: 0 30rpx;
-        height: 100rpx;
-        display: flex;
-        align-items: center;
+    :deep(.login-tabs) {
+      .wd-tabs__nav {
+        background-color: transparent;
+        margin-bottom: 60rpx;
       }
-      :deep(.wd-input__inner) {
-        height: 100rpx;
-        line-height: 100rpx;
-        display: flex;
-        align-items: center;
+      .wd-tabs__nav-item {
+        font-size: 34rpx;
+        color: #999;
+        font-weight: normal;
+        &.is-active {
+          color: #333;
+          font-weight: bold;
+          font-size: 38rpx;
+        }
       }
-      :deep(.wd-input__placeholder) {
-        line-height: 100rpx;
-      }
-      :deep(.wd-input__placeholder) {
-        line-height: 100rpx;
-      }
-      :deep(.wd-input__placeholder) {
-        line-height: 100rpx;
-      }
-      :deep(.wd-input__placeholder) {
-        line-height: 100rpx;
+      .wd-tabs__line {
+        background-color: #1a5f8e;
+        width: 40rpx !important;
+        height: 6rpx;
+        border-radius: 3rpx;
       }
     }
 
-    .code-wrapper {
-      margin-bottom: 40rpx;
+    .input-group {
+      margin-top: 20rpx;
+      display: flex;
+      flex-direction: column;
+      gap: 30rpx;
 
-      :deep(.wd-input) {
-        margin-bottom: 0;
-      }
-
-      .code-btn-text {
-        font-size: 30rpx;
-        color: #1a5f8e;
-        padding: 20rpx 10rpx;
+      .input-item {
+        background-color: #f5f7f9;
+        border-radius: 50rpx;
+        padding: 0 40rpx;
+        height: 100rpx;
+        display: flex;
+        align-items: center;
         
-        &.disabled {
-          color: #999;
+        .prefix {
+          font-size: 30rpx;
+          color: #333;
+          margin-right: 20rpx;
+          padding-right: 20rpx;
+          border-right: 1rpx solid #ddd;
         }
+
+        :deep(.wd-input) {
+          flex: 1;
+          background-color: transparent;
+          height: 100rpx;
+          padding: 0;
+        }
+
+        :deep(.wd-input__inner) {
+          height: 100rpx;
+          font-size: 30rpx;
+        }
+      }
+    }
+
+    .code-btn-text {
+      font-size: 28rpx;
+      color: #1a5f8e;
+      font-weight: 500;
+
+      &.disabled {
+        color: #999;
       }
     }
 
     .action-btn {
       margin-top: 80rpx;
+
+      :deep(.submit-btn) {
+        height: 100rpx !important;
+        border-radius: 50rpx !important;
+        background: linear-gradient(90deg, #1a5f8e 0%, #3a8fcc 100%) !important;
+        font-size: 32rpx !important;
+        font-weight: bold !important;
+        border: none !important;
+        box-shadow: 0 10rpx 20rpx rgba(26, 95, 142, 0.2) !important;
+      }
     }
 
-    .sub-actions {
-      display: flex;
-      justify-content: space-between;
+    .agreement-row {
       margin-top: 40rpx;
+      display: flex;
+      align-items: flex-start;
+      gap: 12rpx;
       padding: 0 10rpx;
 
-      .link {
-        font-size: 28rpx;
-        color: #666;
+      .agreement-checkbox {
+        transform: scale(0.8);
+        margin-top: -4rpx;
+      }
+
+      .agreement-text {
+        font-size: 24rpx;
+        color: #999;
+        line-height: 1.6;
         
-        &:active {
+        .link {
           color: #1a5f8e;
         }
       }
     }
+
+    .sub-actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 60rpx;
+
+      .skip-link {
+        font-size: 28rpx;
+        color: #666;
+      }
+    }
+  }
+
+  .footer-slogan {
+    text-align: center;
+    font-size: 28rpx;
+    color: #ccc;
+    font-family: "STXingkai", "KaiTi", serif;
+    margin-bottom: 60rpx;
+    letter-spacing: 4rpx;
   }
 
   .third-party {
-    margin-top: auto;
-    padding-bottom: 100rpx;
+    padding-bottom: 60rpx;
 
     .divider {
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 60rpx;
+      margin-bottom: 40rpx;
 
       .line {
         height: 1rpx;
-        width: 120rpx;
+        width: 100rpx;
         background-color: #eee;
       }
 
       .text {
-        font-size: 24rpx;
-        color: #999;
-        margin: 0 30rpx;
+        font-size: 22rpx;
+        color: #ccc;
+        margin: 0 20rpx;
       }
     }
 
     .icons {
       display: flex;
       justify-content: center;
-      gap: 100rpx;
+      gap: 80rpx;
 
       .icon-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16rpx;
+
+        .icon-circle {
+          width: 88rpx;
+          height: 88rpx;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 16rpx;
+          transition: all 0.2s;
+
+          &.wechat {
+            background-color: #07c160;
+            box-shadow: 0 4rpx 16rpx rgba(7, 193, 96, 0.2);
+          }
+
+          &:active {
+            opacity: 0.8;
+            transform: scale(0.9);
+          }
+        }
 
         .icon-text {
-          font-size: 24rpx;
-          color: #666;
-        }
-        
-        &:active {
-          opacity: 0.7;
+          font-size: 22rpx;
+          color: #999;
         }
       }
     }
@@ -608,11 +907,11 @@ const mockThirdPartyLogin = async (type: string) => {
       margin-bottom: 40rpx;
       text-align: center;
     }
-    
+
     .input-group {
       display: flex;
       flex-direction: column;
-      
+
       :deep(.wd-input) {
         margin-bottom: 40rpx;
         background-color: #f8f9fa;
@@ -622,6 +921,7 @@ const mockThirdPartyLogin = async (type: string) => {
         display: flex;
         align-items: center;
       }
+
       :deep(.wd-input__inner) {
         height: 100rpx;
         line-height: 100rpx;
@@ -629,7 +929,7 @@ const mockThirdPartyLogin = async (type: string) => {
         align-items: center;
       }
     }
-    
+
     .code-wrapper {
       margin-bottom: 40rpx;
 
@@ -641,13 +941,13 @@ const mockThirdPartyLogin = async (type: string) => {
         font-size: 30rpx;
         color: #1a5f8e;
         padding: 20rpx 10rpx;
-        
+
         &.disabled {
           color: #999;
         }
       }
     }
-    
+
     .action-btn {
       margin-top: 60rpx;
     }
