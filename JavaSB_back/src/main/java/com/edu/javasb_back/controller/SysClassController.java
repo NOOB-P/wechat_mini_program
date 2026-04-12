@@ -2,23 +2,16 @@ package com.edu.javasb_back.controller;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.SysClass;
+import com.edu.javasb_back.service.OrganizationImportService;
 import com.edu.javasb_back.service.SysClassService;
-import com.edu.javasb_back.listener.ClassImportListener;
-import com.edu.javasb_back.model.dto.ClassImportDTO;
-import com.alibaba.excel.EasyExcel;
-import com.alibaba.excel.exception.ExcelAnalysisException;
+import com.edu.javasb_back.util.TemplateDownloadUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -29,6 +22,9 @@ public class SysClassController {
 
     @Autowired
     private SysClassService sysClassService;
+
+    @Autowired
+    private OrganizationImportService organizationImportService;
 
     @GetMapping("/list")
     public Result<?> getClasses(
@@ -71,15 +67,11 @@ public class SysClassController {
     }
 
     @PostMapping("/import")
-    public Result<Void> importClasses(@RequestParam("file") MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            return Result.error("文件内容为空");
-        }
+    public Result<Void> importClasses(@RequestParam("file") MultipartFile file,
+                                      @RequestParam(value = "schoolId", required = false) String schoolId) {
         try {
-            ClassImportListener listener = new ClassImportListener();
-            EasyExcel.read(file.getInputStream(), ClassImportDTO.class, listener).sheet().doRead();
-            return sysClassService.importClasses(listener.getList());
-        } catch (ExcelAnalysisException e) {
+            return organizationImportService.importClassStructure(file, schoolId);
+        } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
@@ -89,29 +81,10 @@ public class SysClassController {
 
     @GetMapping("/download-template")
     public ResponseEntity<Resource> downloadTemplate() {
-        try {
-            File file = new File("JavaSB_back/src/main/assests/学校-班级模板.xlsx");
-            if (!file.exists()) {
-                file = new File("src/main/assests/学校-班级模板.xlsx");
-            }
-            if (!file.exists()) {
-                file = new File("c:/Users/31585/Desktop/wechat_mini_program/JavaSB_back/src/main/assests/学校-班级模板.xlsx");
-            }
-            if (!file.exists()) {
-                System.out.println("找不到模板文件: " + file.getAbsolutePath());
-                return ResponseEntity.notFound().build();
-            }
-
-            Resource resource = new FileSystemResource(file);
-            String filename = URLEncoder.encode("学校-班级模板.xlsx", StandardCharsets.UTF_8.toString());
-
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                    .body(resource);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().build();
-        }
+        return TemplateDownloadUtils.buildDownloadResponse(
+                List.of("static/resource/班级导入模板.zip", "templates/班级导入模板.zip"),
+                "班级导入模板.zip"
+        );
     }
 
     @PutMapping("/update/{id}")
