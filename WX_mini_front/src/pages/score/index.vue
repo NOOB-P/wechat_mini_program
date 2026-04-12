@@ -107,7 +107,7 @@
             <view class="vip-analysis-content" :class="{ 'blurred': !isVIPUser }">
               
               <!-- 详细的成绩构成分析 -->
-              <view class="analysis-card detail-card" v-if="analysisData && analysisData.composition" @click="goToDetail('composition')">
+              <view class="analysis-card detail-card" @click="goToDetail('composition')">
                 <view class="card-header">
                   <view class="header-left">
                     <view class="blue-bar"></view>
@@ -118,7 +118,7 @@
               </view>
 
               <!-- 详细的成绩分布统计 -->
-              <view class="analysis-card detail-card" v-if="analysisData && analysisData.distribution" @click="goToDetail('distribution')">
+              <view class="analysis-card detail-card" @click="goToDetail('distribution')">
                 <view class="card-header">
                   <view class="header-left">
                     <view class="blue-bar"></view>
@@ -329,7 +329,7 @@ import { ref, computed, watch } from 'vue'
 import { onShow, onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { getStudentScoresApi, getSemesterListApi } from '@/api/score'
-import { getVipAnalysisDataApi, getVipWrongBookApi, submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
+import { getVipWrongBookApi, submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
 import { getUserInfoApi } from '@/api/mine'
 
 const toast = useToast()
@@ -484,7 +484,7 @@ const goToDetail = (type: string) => {
   uni.setStorageSync('currentAnalysisData', analysisData.value)
   uni.setStorageSync('currentScoreData', scoreData.value)
   uni.navigateTo({
-    url: `/pages/score/${type}`
+    url: `/pages/score/${type}?examId=${pickerValue.value[1] || ''}`
   })
 }
 
@@ -557,22 +557,25 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
     // VIP 权限已在 onShow 中通过 checkVipStatus 更新
 
     const p1 = getStudentScoresApi({ semester: semesterVal, examId: examIdVal })
-    const p2 = isVIPUser.value ? getVipAnalysisDataApi() : Promise.resolve({ code: 200, data: null })
-    const p3 = isVIPUser.value ? getVipWrongBookApi({}) : Promise.resolve({ code: 200, data: [] })
+    const p2 = isVIPUser.value ? getVipWrongBookApi({}) : Promise.resolve({ code: 200, data: [] })
 
-    const [res, anaRes, wrongRes] = await Promise.all([p1, p2, p3])
+    const [res, wrongRes] = await Promise.all([p1, p2])
     
     if (res.code === 200) {
       scoreData.value = res.data
       currentSubject.value = '总分'
+      
+      // 初始化分析数据入口所需的学科列表
+      analysisData.value = {
+        composition: true,
+        distribution: true,
+        trend: true,
+        subjects: res.data?.subjects || []
+      }
     } else {
       uni.hideLoading()
       uni.showToast({ title: res.msg || '获取数据失败', icon: 'none' })
       return // 发生错误时停止后续逻辑
-    }
-
-    if (anaRes.code === 200 && isVIPUser.value) {
-      analysisData.value = anaRes.data
     }
 
     if (wrongRes.code === 200) {

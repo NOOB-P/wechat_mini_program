@@ -197,7 +197,8 @@ const sendCode = async () => {
         clearInterval(timer!)
       }
     }, 1000)
-  } catch (error) {
+  } catch (error: any) {
+    toast.error(error?.msg || '验证码发送失败，请稍后重试')
     console.error('发送验证码失败', error)
   }
 }
@@ -274,7 +275,9 @@ const sendRegisterCode = async () => {
         clearInterval(registerTimer!)
       }
     }, 1000)
-  } catch (error) {}
+  } catch (error: any) {
+    toast.error(error?.msg || '验证码发送失败，请稍后重试')
+  }
 }
 
 const handleRegister = async () => {
@@ -311,7 +314,9 @@ const sendForgotCode = async () => {
         clearInterval(forgotTimer!)
       }
     }, 1000)
-  } catch (error) {}
+  } catch (error: any) {
+    toast.error(error?.msg || '验证码发送失败，请稍后重试')
+  }
 }
 
 const handleForgot = async () => {
@@ -348,7 +353,9 @@ const sendBindPhoneCode = async () => {
         clearInterval(bindPhoneTimer!)
       }
     }, 1000)
-  } catch (error) {}
+  } catch (error: any) {
+    toast.error(error?.msg || '验证码发送失败，请稍后重试')
+  }
 }
 
 const handleBindPhone = async () => {

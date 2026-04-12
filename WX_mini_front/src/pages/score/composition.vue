@@ -120,21 +120,27 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { getScoreCompositionApi } from '@/api/score'
+import { useToast } from 'wot-design-uni'
 
 const subjects = ref(['数学', '语文', '英语', '物理', '化学', '生物'])
 const currentSubject = ref('数学')
 const compositionData = ref<any>(null)
 const loading = ref(false)
+const examId = ref('')
+const toast = useToast()
 
 const fetchCompositionData = async (subject: string) => {
   loading.value = true
   try {
-    const res: any = await getScoreCompositionApi({ subject })
+    const res: any = await getScoreCompositionApi({ examId: examId.value, subject })
     if (res.code === 200) {
       compositionData.value = res.data
     }
-  } catch (e) {
+  } catch (e: any) {
+    compositionData.value = null
+    toast.error(e?.msg || '获取成绩构成分析失败')
     console.error('获取构成分析失败:', e)
   } finally {
     loading.value = false
@@ -163,6 +169,11 @@ const getStatusText = (status: string) => {
     default: return '学习中'
   }
 }
+
+onLoad((options) => {
+  const currentScoreData = uni.getStorageSync('currentScoreData')
+  examId.value = options?.examId || currentScoreData?.examId || ''
+})
 
 onMounted(() => {
   // 尝试从缓存中读取当前考试的学科列表，如果没有则用默认的

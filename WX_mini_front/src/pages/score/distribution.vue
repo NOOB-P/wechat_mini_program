@@ -163,21 +163,27 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { getScoreDistributionApi } from '@/api/score'
+import { useToast } from 'wot-design-uni'
 
 const subjects = ref(['数学', '语文', '英语', '物理', '化学', '生物'])
 const currentSubject = ref('数学')
 const distributionData = ref<any>(null)
 const loading = ref(false)
+const examId = ref('')
+const toast = useToast()
 
 const fetchDistributionData = async (subject: string) => {
   loading.value = true
   try {
-    const res: any = await getScoreDistributionApi({ subject })
+    const res: any = await getScoreDistributionApi({ examId: examId.value, subject })
     if (res.code === 200) {
       distributionData.value = res.data
     }
-  } catch (e) {
+  } catch (e: any) {
+    distributionData.value = null
+    toast.error(e?.msg || '获取分数分布统计失败')
     console.error('获取分布数据失败:', e)
   } finally {
     loading.value = false
@@ -197,6 +203,11 @@ const getMostPopulatedRange = (levels: any[]) => {
   const most = levels.reduce((prev, current) => (prev.count > current.count) ? prev : current)
   return most ? `${most.level}级 (${most.label})` : '未知'
 }
+
+onLoad((options) => {
+  const currentScoreData = uni.getStorageSync('currentScoreData')
+  examId.value = options?.examId || currentScoreData?.examId || ''
+})
 
 onMounted(() => {
   const historyData = uni.getStorageSync('currentAnalysisData')
