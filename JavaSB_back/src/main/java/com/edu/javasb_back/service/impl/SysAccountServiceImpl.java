@@ -1,44 +1,43 @@
 package com.edu.javasb_back.service.impl;
 
+import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.config.GlobalConfigProperties;
+import com.edu.javasb_back.model.dto.AccountLoginDTO;
+import com.edu.javasb_back.model.dto.AccountUpdateDTO;
+import com.edu.javasb_back.model.entity.StudentParentBinding;
+import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.model.entity.SysRole;
+import com.edu.javasb_back.model.entity.SysStudent;
+import com.edu.javasb_back.model.entity.SysUserModule;
+import com.edu.javasb_back.model.vo.LoginVO;
+import com.edu.javasb_back.repository.StudentParentBindingRepository;
+import com.edu.javasb_back.repository.SysAccountRepository;
+import com.edu.javasb_back.repository.SysRoleRepository;
+import com.edu.javasb_back.repository.SysStudentRepository;
+import com.edu.javasb_back.repository.SysUserModuleRepository;
+import com.edu.javasb_back.service.SysAccountService;
+import com.edu.javasb_back.utils.JwtUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-
-import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.config.GlobalConfigProperties;
-import com.edu.javasb_back.model.dto.AccountLoginDTO;
-import com.edu.javasb_back.model.entity.StudentParentBinding;
-import com.edu.javasb_back.model.entity.SysAccount;
-import com.edu.javasb_back.model.entity.SysRole;
-import com.edu.javasb_back.model.entity.SysStudent;
-import com.edu.javasb_back.model.vo.LoginVO;
-import com.edu.javasb_back.repository.StudentParentBindingRepository;
-import com.edu.javasb_back.repository.SysAccountRepository;
-import com.edu.javasb_back.repository.SysRoleRepository;
-import com.edu.javasb_back.repository.SysStudentRepository;
-import com.edu.javasb_back.model.entity.SysUserModule;
-import com.edu.javasb_back.repository.SysUserModuleRepository;
-import com.edu.javasb_back.service.SysAccountService;
-import com.edu.javasb_back.utils.JwtUtils;
-
 import org.springframework.web.client.RestTemplate;
-import java.util.Map;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class SysAccountServiceImpl implements SysAccountService {
+
+    private static final ConcurrentHashMap<String, String> smsCodeMap = new ConcurrentHashMap<>();
 
     @Autowired
     private SysAccountRepository accountRepository;
@@ -70,9 +69,6 @@ public class SysAccountServiceImpl implements SysAccountService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // 模拟验证码缓存
-    private static final ConcurrentHashMap<String, String> smsCodeMap = new ConcurrentHashMap<>();
-
     @Override
     public Result<String> sendSmsCode(String phone) {
         if (!StringUtils.hasText(phone) || phone.length() != 11) {
@@ -86,7 +82,6 @@ public class SysAccountServiceImpl implements SysAccountService {
 
     @Override
     public Result<List<SysRole>> getLoginRoles() {
-        // 通过 roleCode 获取超级管理员和后台管理角色，比 ID 更稳健
         List<SysRole> roles = new ArrayList<>();
         sysRoleRepository.findByRoleCode("super_admin").ifPresent(roles::add);
         sysRoleRepository.findByRoleCode("admin").ifPresent(roles::add);
@@ -96,7 +91,7 @@ public class SysAccountServiceImpl implements SysAccountService {
     @Override
     public Result<LoginVO> adminLogin(AccountLoginDTO loginDTO) {
         if (loginDTO.getRoleId() == null) {
-            return Result.error("请选择登录角色身份");
+            return Result.error("请选择登录角色");
         }
         if (!StringUtils.hasText(loginDTO.getUsername())) {
             return Result.error("账号不能为空");
@@ -106,48 +101,24 @@ public class SysAccountServiceImpl implements SysAccountService {
         }
 
         Optional<SysAccount> accountOpt = accountRepository.findByUsername(loginDTO.getUsername());
-
-        // 强制区分大小写匹配（因为 MySQL 的 utf8mb4_general_ci 默认是不区分大小写的）
-        if (accountOpt.isEmpty() || !accountOpt.get().getUsername().equals(loginDTO.getUsername())) {
-            return Result.error("账号或密码错误"); 
+        if (accountOpt.isEmpty() || !loginDTO.getUsername().equals(accountOpt.get().getUsername())) {
+            return Result.error("账号或密码错误");
         }
 
         SysAccount account = accountOpt.get();
-
-        // 校验选择的角色是否与账号实际角色匹配
         if (!loginDTO.getRoleId().equals(account.getRoleId())) {
-            return Result.error("所选角色与账号实际角色不匹配");
+            return Result.error("所选角色与账号不匹配");
         }
-
         if (account.getRoleId() == null || (account.getRoleId() != 1 && account.getRoleId() != 2)) {
             return Result.error("该账号没有后台登录权限");
         }
 
-        if (account.getIsEnabled() == 0 || "banned".equals(account.getOnlineStatus())) {
-            return Result.error("账号已被禁用或封禁");
+        Result<Void> enabledResult = validateAccountEnabled(account);
+        if (enabledResult.getCode() != 200) {
+            return Result.error(enabledResult.getMsg());
         }
 
-        String password = loginDTO.getPassword();
-        boolean isMatch = false;
-        
-        if (account.getPassword() != null) {
-            if (password.equals(account.getPassword())) {
-                isMatch = true;
-                account.setPassword(passwordEncoder.encode(password));
-                accountRepository.save(account);
-            } else if (passwordEncoder.matches(password, account.getPassword())) {
-                isMatch = true;
-            }
-        } else {
-            // 之前因为 Open-In-View 导致密码被清空，这里做个自动恢复修复
-            if ("123456".equals(password)) {
-                isMatch = true;
-                account.setPassword(passwordEncoder.encode("123456"));
-                accountRepository.save(account);
-            }
-        }
-
-        if (!isMatch) {
+        if (!matchPassword(account, loginDTO.getPassword())) {
             return Result.error("账号或密码错误");
         }
 
@@ -164,36 +135,17 @@ public class SysAccountServiceImpl implements SysAccountService {
         }
 
         Optional<SysAccount> accountOpt = accountRepository.findByPhone(loginDTO.getPhone());
-        
         if (accountOpt.isEmpty()) {
             return Result.error("该手机号未注册");
         }
 
         SysAccount account = accountOpt.get();
-
-        if (account.getIsEnabled() == 0 || "banned".equals(account.getOnlineStatus())) {
-            return Result.error("账号已被禁用或封禁");
+        Result<Void> enabledResult = validateAccountEnabled(account);
+        if (enabledResult.getCode() != 200) {
+            return Result.error(enabledResult.getMsg());
         }
 
-        String password = loginDTO.getPassword();
-        boolean isMatch = false;
-        if (account.getPassword() != null) {
-            if (password.equals(account.getPassword())) {
-                isMatch = true;
-                account.setPassword(passwordEncoder.encode(password));
-                accountRepository.save(account);
-            } else if (passwordEncoder.matches(password, account.getPassword())) {
-                isMatch = true;
-            }
-        } else {
-            if ("123456".equals(password)) {
-                isMatch = true;
-                account.setPassword(passwordEncoder.encode("123456"));
-                accountRepository.save(account);
-            }
-        }
-
-        if (!isMatch) {
+        if (!matchPassword(account, loginDTO.getPassword())) {
             return Result.error("手机号或密码错误");
         }
 
@@ -213,27 +165,20 @@ public class SysAccountServiceImpl implements SysAccountService {
 
         Optional<SysAccount> accountOpt = accountRepository.findByPhone(loginDTO.getPhone());
         SysAccount account;
-        if (accountOpt.isEmpty()) {
-            // 如果家长不存在，则自动注册
-            account = new SysAccount();
-            account.setPhone(loginDTO.getPhone());
-            // 设置默认密码
-            account.setPassword(passwordEncoder.encode(globalConfigProperties.getDefaultPassword()));
-            account.setNickname("家长_" + loginDTO.getPhone().substring(7));
-            account.setRoleId(3); // 假设 3 是家长角色
-            account.setIsEnabled(1);
-            account.setOnlineStatus("online");
-            accountRepository.save(account);
-        } else {
+        if (accountOpt.isPresent()) {
             account = accountOpt.get();
-            if (account.getIsEnabled() == 0 || "banned".equals(account.getOnlineStatus())) {
-                return Result.error("账号已被禁用或封禁");
+            Result<Void> enabledResult = validateAccountEnabled(account);
+            if (enabledResult.getCode() != 200) {
+                return Result.error(enabledResult.getMsg());
             }
+        } else {
+            account = new SysAccount();
+            initParentAccount(account, loginDTO.getPhone(), null);
+            account.setPhone(loginDTO.getPhone());
+            account = accountRepository.save(account);
         }
 
-        // 验证通过，清除验证码
         smsCodeMap.remove(loginDTO.getPhone());
-
         return generateLoginResult(account);
     }
 
@@ -243,48 +188,26 @@ public class SysAccountServiceImpl implements SysAccountService {
             return Result.error("微信登录凭证不能为空");
         }
 
-        // 1. 调用微信 API 换取 openid
-        String appId = globalConfigProperties.getWechatAppId();
-        String secret = globalConfigProperties.getWechatAppSecret();
-        String url = String.format("https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
-                appId, secret, code);
-
         try {
-            String response = restTemplate.getForObject(url, String.class);
-            Map<String, Object> resultMap = objectMapper.readValue(response, Map.class);
-
-            if (resultMap.containsKey("errcode") && (int)resultMap.get("errcode") != 0) {
-                return Result.error("微信授权失败: " + resultMap.get("errmsg"));
-            }
-
-            String openid = (String) resultMap.get("openid");
-            if (!StringUtils.hasText(openid)) {
-                return Result.error("获取微信 OpenID 失败");
-            }
-
-            // 2. 根据 openid 查询用户
+            String openid = extractWechatOpenid(code);
             Optional<SysAccount> accountOpt = accountRepository.findByWxid(openid);
-            SysAccount account;
             if (accountOpt.isEmpty()) {
-                // 3. 如果用户不存在，则自动注册
-                account = new SysAccount();
-                account.setWxid(openid);
-                account.setUsername("wx_" + openid.substring(0, 8)); // 临时用户名
-                account.setNickname("微信用户_" + openid.substring(openid.length() - 4));
-                account.setRoleId(3); // 家长角色
-                account.setIsEnabled(1);
-                account.setOnlineStatus("online");
-                // 设置一个随机或默认密码，防止密码登录报错
-                account.setPassword(passwordEncoder.encode(globalConfigProperties.getDefaultPassword()));
-                accountRepository.save(account);
-            } else {
-                account = accountOpt.get();
-                if (account.getIsEnabled() == 0 || "banned".equals(account.getOnlineStatus())) {
-                    return Result.error("账号已被禁用或封禁");
-                }
+                return buildWechatBindResult(openid);
+            }
+
+            SysAccount account = accountOpt.get();
+            Result<Void> enabledResult = validateAccountEnabled(account);
+            if (enabledResult.getCode() != 200) {
+                return Result.error(enabledResult.getMsg());
+            }
+
+            if (!StringUtils.hasText(account.getPhone())) {
+                return buildWechatBindResult(openid);
             }
 
             return generateLoginResult(account);
+        } catch (IllegalStateException e) {
+            return Result.error(e.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
             return Result.error("微信登录异常: " + e.getMessage());
@@ -292,100 +215,105 @@ public class SysAccountServiceImpl implements SysAccountService {
     }
 
     @Override
-    public Result<SysAccount> getUserInfo(Long uid) {
-        // 使用原生 SQL 查询用户信息
-        Optional<SysAccount> accountOpt = accountRepository.findByUidSql(uid);
-        if (accountOpt.isPresent()) {
-            SysAccount account = accountOpt.get();
-            checkVipExpiration(account);
-            
-            // 获取绑定的学生信息 (如果是家长角色)
-            if (account.getRoleId() != null && account.getRoleId() == 3) {
-                List<StudentParentBinding> bindings = bindingRepository.findByParentUid(account.getUid());
-                if (!bindings.isEmpty()) {
-                    StudentParentBinding binding = bindings.get(0);
-                    Optional<SysStudent> studentOpt = studentRepository.findById(binding.getStudentId());
-                    if (studentOpt.isPresent()) {
-                        SysStudent student = studentOpt.get();
-                        java.util.Map<String, Object> studentMap = new java.util.HashMap<>();
-                        studentMap.put("id", student.getId());
-                        studentMap.put("name", student.getName());
-                        studentMap.put("school", student.getSchool());
-                        studentMap.put("grade", student.getGrade());
-                        studentMap.put("className", student.getClassName());
-                        studentMap.put("studentNo", student.getStudentNo());
-                        account.setBoundStudentInfo(studentMap);
-                        account.setGrade(student.getGrade());
-                    }
+    @Transactional
+    public Result<LoginVO> bindWechatPhone(AccountLoginDTO loginDTO) {
+        if (!StringUtils.hasText(loginDTO.getPhone()) || !StringUtils.hasText(loginDTO.getCode())) {
+            return Result.error("手机号和验证码不能为空");
+        }
+        if (!StringUtils.hasText(loginDTO.getOpenid())) {
+            return Result.error("微信OpenID不能为空");
+        }
+
+        String cachedCode = smsCodeMap.get(loginDTO.getPhone());
+        if (cachedCode == null || !cachedCode.equals(loginDTO.getCode())) {
+            return Result.error("验证码错误或已过期");
+        }
+
+        String phone = loginDTO.getPhone();
+        String openid = loginDTO.getOpenid();
+        Optional<SysAccount> wxAccountOpt = accountRepository.findByWxid(openid);
+        Optional<SysAccount> phoneAccountOpt = accountRepository.findByPhone(phone);
+
+        SysAccount loginAccount;
+        if (phoneAccountOpt.isPresent()) {
+            SysAccount phoneAccount = phoneAccountOpt.get();
+            Result<Void> enabledResult = validateAccountEnabled(phoneAccount);
+            if (enabledResult.getCode() != 200) {
+                return Result.error(enabledResult.getMsg());
+            }
+
+            if (StringUtils.hasText(phoneAccount.getWxid()) && !openid.equals(phoneAccount.getWxid())) {
+                return Result.error("该手机号已绑定其他微信账号");
+            }
+
+            if (wxAccountOpt.isPresent() && !wxAccountOpt.get().getUid().equals(phoneAccount.getUid())) {
+                Result<Void> mergeResult = mergeWechatAccount(phoneAccount, wxAccountOpt.get());
+                if (mergeResult.getCode() != 200) {
+                    return Result.error(mergeResult.getMsg());
                 }
             }
-            
-            // 如果是后台管理人员，下发允许访问的模块列表
-            if (account.getRoleId() != null && account.getRoleId() == 2) {
-                List<String> allowedModules = sysUserModuleRepository.findByUid(account.getUid())
-                        .stream()
-                        .map(SysUserModule::getModulePath)
-                        .collect(Collectors.toList());
-                account.setAllowedModules(allowedModules);
+
+            initParentAccount(phoneAccount, phone, openid);
+            phoneAccount.setPhone(phone);
+            phoneAccount.setWxid(openid);
+            loginAccount = accountRepository.save(phoneAccount);
+        } else if (wxAccountOpt.isPresent()) {
+            SysAccount wxAccount = wxAccountOpt.get();
+            Result<Void> enabledResult = validateAccountEnabled(wxAccount);
+            if (enabledResult.getCode() != 200) {
+                return Result.error(enabledResult.getMsg());
             }
-            
-            return Result.success("获取成功", account);
+
+            if (StringUtils.hasText(wxAccount.getPhone()) && !phone.equals(wxAccount.getPhone())) {
+                return Result.error("当前微信已绑定其他手机号");
+            }
+
+            initParentAccount(wxAccount, phone, openid);
+            wxAccount.setPhone(phone);
+            wxAccount.setWxid(openid);
+            loginAccount = accountRepository.save(wxAccount);
+        } else {
+            SysAccount newAccount = new SysAccount();
+            initParentAccount(newAccount, phone, openid);
+            newAccount.setPhone(phone);
+            newAccount.setWxid(openid);
+            loginAccount = accountRepository.save(newAccount);
         }
-        return Result.error("用户不存在");
+
+        smsCodeMap.remove(phone);
+        return generateLoginResult(loginAccount);
     }
 
     @Override
-    public Result<SysAccount> getUserInfoByUsername(String username) {
-        // 使用原生 SQL 查询用户信息
-        Optional<SysAccount> accountOpt = accountRepository.findByUsernameSql(username);
-        if (accountOpt.isPresent()) {
-            SysAccount account = accountOpt.get();
-            checkVipExpiration(account);
-            
-            // 如果是后台管理人员，下发允许访问的模块列表
-            if (account.getRoleId() != null && account.getRoleId() == 2) {
-                List<String> allowedModules = sysUserModuleRepository.findByUid(account.getUid())
-                        .stream()
-                        .map(SysUserModule::getModulePath)
-                        .collect(Collectors.toList());
-                account.setAllowedModules(allowedModules);
-            }
-            
-            return Result.success("获取成功", account);
+    public Result<SysAccount> getUserInfo(Long uid) {
+        Optional<SysAccount> accountOpt = accountRepository.findByUidSql(uid);
+        if (accountOpt.isEmpty()) {
+            return Result.error("用户不存在");
         }
-        return Result.error("用户不存在");
-    }
 
-    private void checkVipExpiration(SysAccount account) {
-        if (account == null || account.getVipExpireTime() == null) {
-            return;
-        }
-        
-        // 只有家长角色 (roleId = 3) 需要检查 VIP 过期
-        if (account.getRoleId() != null && account.getRoleId() == 3) {
-            if (account.getVipExpireTime().isBefore(java.time.LocalDateTime.now())) {
-                boolean changed = false;
-                if (account.getIsVip() != null && account.getIsVip() == 1) {
-                    account.setIsVip(0);
-                    changed = true;
-                }
-                if (account.getIsSvip() != null && account.getIsSvip() == 1) {
-                    account.setIsSvip(0);
-                    changed = true;
-                }
-                if (changed) {
-                    accountRepository.save(account);
-                }
-            }
-        }
-    }
-
-    private Result<LoginVO> generateLoginResult(SysAccount account) {
+        SysAccount account = accountOpt.get();
         checkVipExpiration(account);
-        // 使用原生 SQL 更新最后登录时间和状态
-        accountRepository.updateLoginStatusSql(account.getUid(), "online");
 
-        // 如果是后台管理人员，下发允许访问的模块列表
+        if (account.getRoleId() != null && account.getRoleId() == 3) {
+            List<StudentParentBinding> bindings = bindingRepository.findByParentUid(account.getUid());
+            if (!bindings.isEmpty()) {
+                StudentParentBinding binding = bindings.get(0);
+                Optional<SysStudent> studentOpt = studentRepository.findById(binding.getStudentId());
+                if (studentOpt.isPresent()) {
+                    SysStudent student = studentOpt.get();
+                    Map<String, Object> studentMap = new java.util.HashMap<>();
+                    studentMap.put("id", student.getId());
+                    studentMap.put("name", student.getName());
+                    studentMap.put("school", student.getSchool());
+                    studentMap.put("grade", student.getGrade());
+                    studentMap.put("className", student.getClassName());
+                    studentMap.put("studentNo", student.getStudentNo());
+                    account.setBoundStudentInfo(studentMap);
+                    account.setGrade(student.getGrade());
+                }
+            }
+        }
+
         if (account.getRoleId() != null && account.getRoleId() == 2) {
             List<String> allowedModules = sysUserModuleRepository.findByUid(account.getUid())
                     .stream()
@@ -394,25 +322,31 @@ public class SysAccountServiceImpl implements SysAccountService {
             account.setAllowedModules(allowedModules);
         }
 
-        // 生成真实 JWT Token (由前端统一加 Bearer 前缀)
-        String token = jwtUtils.generateToken(account.getUid(), account.getUsername(), account.getRoleId());
-        String refreshToken = jwtUtils.generateRefreshToken(account.getUid(), account.getUsername());
+        return Result.success("获取成功", account);
+    }
 
-        // 因为使用了 @JsonIgnore 注解，JackSon 在序列化的时候会自动忽略 password 字段。
-        // 我们不需要，也不能在此时通过 account.setPassword(null) 去清空它，
-        // 否则如果在 Open-In-View 模式下或者事务内，JPA 会在请求结束时自动将 null 更新到数据库！
-        
-        // 使用账号表中的冗余字段
-        boolean isBoundStudent = account.getIsBoundStudent() != null && account.getIsBoundStudent() == 1;
-        
-        LoginVO loginVO = new LoginVO(token, refreshToken, account, isBoundStudent);
-        return Result.success("登录成功", loginVO);
+    @Override
+    public Result<SysAccount> getUserInfoByUsername(String username) {
+        Optional<SysAccount> accountOpt = accountRepository.findByUsernameSql(username);
+        if (accountOpt.isEmpty()) {
+            return Result.error("用户不存在");
+        }
+
+        SysAccount account = accountOpt.get();
+        checkVipExpiration(account);
+        if (account.getRoleId() != null && account.getRoleId() == 2) {
+            List<String> allowedModules = sysUserModuleRepository.findByUid(account.getUid())
+                    .stream()
+                    .map(SysUserModule::getModulePath)
+                    .collect(Collectors.toList());
+            account.setAllowedModules(allowedModules);
+        }
+        return Result.success("获取成功", account);
     }
 
     @Override
     public Result<Void> logout(String token) {
         if (StringUtils.hasText(token)) {
-            // 将 Token 加入 Redis 黑名单，增加容错
             try {
                 stringRedisTemplate.opsForValue().set("jwt_blacklist:" + token, "logout", 7, TimeUnit.DAYS);
             } catch (Exception e) {
@@ -423,49 +357,40 @@ public class SysAccountServiceImpl implements SysAccountService {
     }
 
     @Override
-    public Result<Void> updateBasicInfo(Long uid, com.edu.javasb_back.model.dto.AccountUpdateDTO updateDTO) {
-        // 使用原生 SQL 查询当前用户信息
+    public Result<Void> updateBasicInfo(Long uid, AccountUpdateDTO updateDTO) {
         Optional<SysAccount> accountOpt = accountRepository.findByUidSql(uid);
         if (accountOpt.isEmpty()) {
             return Result.error("用户不存在");
         }
+
         SysAccount account = accountOpt.get();
-        
         String newNickname = StringUtils.hasText(updateDTO.getNickname()) ? updateDTO.getNickname() : account.getNickname();
         String newAvatar = StringUtils.hasText(updateDTO.getAvatar()) ? updateDTO.getAvatar() : account.getAvatar();
         String newPhone = account.getPhone();
         String newEmail = StringUtils.hasText(updateDTO.getEmail()) ? updateDTO.getEmail() : account.getEmail();
 
         if (StringUtils.hasText(updateDTO.getPhone())) {
-            // 如果是修改手机号，必须提供验证码
             if (!StringUtils.hasText(updateDTO.getCode())) {
                 return Result.error("修改手机号需要提供验证码");
             }
             String cachedCode = smsCodeMap.get(updateDTO.getPhone());
-            if (cachedCode == null || !cachedCode.equals(updateDTO.getCode())) {
-                // 特殊兼容逻辑：如果是模拟环境且输入 123456 则放行
-                if (!"123456".equals(updateDTO.getCode())) {
-                    return Result.error("验证码不正确或已过期");
-                }
+            if ((cachedCode == null || !cachedCode.equals(updateDTO.getCode())) && !"123456".equals(updateDTO.getCode())) {
+                return Result.error("验证码不正确或已过期");
             }
-            
-            // 使用原生 SQL 查重：如果手机号被别人占用了
+
             Optional<SysAccount> existPhone = accountRepository.findByPhoneSql(updateDTO.getPhone());
             if (existPhone.isPresent() && !existPhone.get().getUid().equals(uid)) {
                 return Result.error("该手机号已被其他账号绑定");
             }
             newPhone = updateDTO.getPhone();
-            // 验证通过后移除缓存
             smsCodeMap.remove(updateDTO.getPhone());
         }
-        
-        // 使用原生 SQL 将数据写入数据库
+
         int rows = accountRepository.updateBasicInfoSql(uid, newNickname, newPhone, newEmail, newAvatar);
         if (rows > 0) {
             return Result.success("修改成功", null);
-        } else {
-            return Result.error("修改失败");
         }
+        return Result.error("修改失败");
     }
 
     @Override
@@ -474,65 +399,36 @@ public class SysAccountServiceImpl implements SysAccountService {
             return Result.error("密码不能为空");
         }
 
-        // 使用原生 SQL 查询用户信息
         Optional<SysAccount> accountOpt = accountRepository.findByUidSql(uid);
         if (accountOpt.isEmpty()) {
             return Result.error("用户不存在");
         }
 
         SysAccount account = accountOpt.get();
-
-        // 验证旧密码
-        boolean isMatch = false;
-        if (account.getPassword() != null) {
-            if (oldPassword.equals(account.getPassword())) {
-                isMatch = true;
-            } else if (passwordEncoder.matches(oldPassword, account.getPassword())) {
-                isMatch = true;
-            }
-        } else {
-            // 兼容之前可能被置空的密码，如果旧密码输入 123456 则放行
-            if ("123456".equals(oldPassword)) {
-                isMatch = true;
-            }
-        }
-
-        if (!isMatch) {
+        if (!matchPassword(account, oldPassword)) {
             return Result.error("当前密码不正确");
         }
 
-        // 设置新密码，并使用原生 SQL 写入数据库
-        String encodedPassword = passwordEncoder.encode(newPassword);
-        int rows = accountRepository.updatePasswordSql(uid, encodedPassword);
-        
+        int rows = accountRepository.updatePasswordSql(uid, passwordEncoder.encode(newPassword));
         if (rows > 0) {
             return Result.success("密码修改成功", null);
-        } else {
-            return Result.error("密码修改失败");
         }
+        return Result.error("密码修改失败");
     }
 
     @Override
     @Transactional
     public Result<Void> bindStudent(Long uid, String studentName, String studentId) {
-        // 由于前端现在传的是 studentId，我们直接通过 ID 查找学生
         if (!StringUtils.hasText(studentId)) {
             return Result.error("请选择要绑定的学生");
         }
 
-        // 1. 验证学生是否存在
         Optional<SysStudent> studentOpt = studentRepository.findById(studentId);
         if (studentOpt.isEmpty()) {
             return Result.error("选中的学生不存在，请刷新后重试");
         }
 
         SysStudent student = studentOpt.get();
-
-        // 2. 验证短信验证码 (此处假设您已有验证码校验逻辑，通常从 Redis 获取)
-        // String cachedCode = redisTemplate.opsForValue().get("sms:bind:" + phone);
-        // if (cachedCode == null || !cachedCode.equals(inputCode)) return Result.error("验证码错误");
-
-        // 3. 检查家长是否已经绑定过学生 (核心规则：一个家长/手机号只能绑定一个学生)
         List<StudentParentBinding> parentBindings = bindingRepository.findByParentUid(uid);
         if (!parentBindings.isEmpty()) {
             if (parentBindings.get(0).getStudentId().equals(studentId)) {
@@ -541,30 +437,24 @@ public class SysAccountServiceImpl implements SysAccountService {
             return Result.error("您的账号已绑定过学生，请先解绑后再操作");
         }
 
-        // 4. 检查学生绑定上限 (一个学生最多5个家长)
         long boundCount = bindingRepository.countByStudentId(student.getId());
         if (boundCount >= 5) {
             return Result.error("该学生绑定的家长数量已达上限(5人)");
         }
 
-        // 5. 创建绑定关系
         StudentParentBinding binding = new StudentParentBinding();
         binding.setStudentId(student.getId());
         binding.setParentUid(uid);
         binding.setBindingType("parent");
         bindingRepository.save(binding);
 
-        // 6. 更新学生表中的绑定数量冗余字段
         student.setBoundCount((int) (boundCount + 1));
         studentRepository.save(student);
 
-        // 7. 更新账号表中的绑定状态冗余字段
-        Optional<SysAccount> parentOpt = accountRepository.findById(uid);
-        if (parentOpt.isPresent()) {
-            SysAccount parent = parentOpt.get();
+        accountRepository.findById(uid).ifPresent(parent -> {
             parent.setIsBoundStudent(1);
             accountRepository.save(parent);
-        }
+        });
 
         return Result.success("绑定成功", null);
     }
@@ -576,46 +466,37 @@ public class SysAccountServiceImpl implements SysAccountService {
             return Result.error("学生ID不能为空");
         }
 
-        // 1. 验证学生是否存在
         Optional<SysStudent> studentOpt = studentRepository.findById(studentId);
         if (studentOpt.isEmpty()) {
             return Result.error("学生不存在");
         }
 
         SysStudent student = studentOpt.get();
-
-        // 2. 检查家长是否已经绑定过学生 (一个家长只能绑定一个学生)
         List<StudentParentBinding> parentBindings = bindingRepository.findByParentUid(uid);
         if (!parentBindings.isEmpty()) {
-            // 如果已经绑定了当前学生，直接返回成功
             if (parentBindings.get(0).getStudentId().equals(studentId)) {
                 return Result.success("已绑定该学生", null);
             }
             return Result.error("您的账号已绑定过学生，一个账号只能绑定一名学生");
         }
 
-        // 3. 检查学生绑定上限
         long boundCount = bindingRepository.countByStudentId(studentId);
         if (boundCount >= 5) {
             return Result.error("该学生绑定的家长数量已达上限(5人)");
         }
 
-        // 4. 创建绑定
         StudentParentBinding binding = new StudentParentBinding();
         binding.setStudentId(studentId);
         binding.setParentUid(uid);
         bindingRepository.save(binding);
 
-        // 5. 更新冗余字段
         student.setBoundCount((int) (boundCount + 1));
         studentRepository.save(student);
 
-        Optional<SysAccount> parentOpt = accountRepository.findById(uid);
-        if (parentOpt.isPresent()) {
-            SysAccount parent = parentOpt.get();
+        accountRepository.findById(uid).ifPresent(parent -> {
             parent.setIsBoundStudent(1);
             accountRepository.save(parent);
-        }
+        });
 
         return Result.success("绑定成功", null);
     }
@@ -629,7 +510,6 @@ public class SysAccountServiceImpl implements SysAccountService {
         }
 
         for (StudentParentBinding binding : bindings) {
-            // 1. 更新学生的绑定数
             Optional<SysStudent> studentOpt = studentRepository.findById(binding.getStudentId());
             if (studentOpt.isPresent()) {
                 SysStudent student = studentOpt.get();
@@ -638,18 +518,190 @@ public class SysAccountServiceImpl implements SysAccountService {
                     studentRepository.save(student);
                 }
             }
-            // 2. 删除绑定记录
             bindingRepository.delete(binding);
         }
 
-        // 3. 更新账号标志
-        Optional<SysAccount> parentOpt = accountRepository.findById(uid);
-        if (parentOpt.isPresent()) {
-            SysAccount parent = parentOpt.get();
+        accountRepository.findById(uid).ifPresent(parent -> {
             parent.setIsBoundStudent(0);
             accountRepository.save(parent);
-        }
+        });
 
         return Result.success("解绑成功", null);
+    }
+
+    private Result<Void> validateAccountEnabled(SysAccount account) {
+        if (account.getIsEnabled() != null && account.getIsEnabled() == 0) {
+            return Result.error("账号已被禁用");
+        }
+        if ("banned".equals(account.getOnlineStatus())) {
+            return Result.error("账号已被封禁");
+        }
+        return Result.success("校验通过", null);
+    }
+
+    private boolean matchPassword(SysAccount account, String password) {
+        boolean isMatch = false;
+        if (account.getPassword() != null) {
+            if (password.equals(account.getPassword())) {
+                isMatch = true;
+                account.setPassword(passwordEncoder.encode(password));
+                accountRepository.save(account);
+            } else if (passwordEncoder.matches(password, account.getPassword())) {
+                isMatch = true;
+            }
+        } else if ("123456".equals(password)) {
+            isMatch = true;
+            account.setPassword(passwordEncoder.encode("123456"));
+            accountRepository.save(account);
+        }
+        return isMatch;
+    }
+
+    private void initParentAccount(SysAccount account, String phone, String openid) {
+        if (!StringUtils.hasText(account.getUsername())) {
+            String suffix = StringUtils.hasText(openid) ? openid.substring(0, Math.min(8, openid.length())) : phone;
+            account.setUsername("app_" + suffix);
+        }
+        if (!StringUtils.hasText(account.getNickname())) {
+            account.setNickname("家长_" + phone.substring(Math.max(0, phone.length() - 4)));
+        }
+        if (!StringUtils.hasText(account.getPassword())) {
+            account.setPassword(passwordEncoder.encode(globalConfigProperties.getDefaultPassword()));
+        }
+        if (account.getRoleId() == null) {
+            account.setRoleId(3);
+        }
+        if (account.getIsEnabled() == null) {
+            account.setIsEnabled(1);
+        }
+        if (!StringUtils.hasText(account.getOnlineStatus())) {
+            account.setOnlineStatus("offline");
+        }
+    }
+
+    private String extractWechatOpenid(String code) throws Exception {
+        String appId = globalConfigProperties.getWechatAppId();
+        String secret = globalConfigProperties.getWechatAppSecret();
+        String url = String.format(
+                "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
+                appId, secret, code);
+
+        String response = restTemplate.getForObject(url, String.class);
+        Map<String, Object> resultMap = objectMapper.readValue(response, Map.class);
+        Object errcode = resultMap.get("errcode");
+        if (errcode instanceof Number && ((Number) errcode).intValue() != 0) {
+            throw new IllegalStateException("微信授权失败: " + resultMap.get("errmsg"));
+        }
+
+        String openid = (String) resultMap.get("openid");
+        if (!StringUtils.hasText(openid)) {
+            throw new IllegalStateException("获取微信OpenID失败");
+        }
+        return openid;
+    }
+
+    private Result<LoginVO> buildWechatBindResult(String openid) {
+        LoginVO loginVO = new LoginVO();
+        loginVO.setNeedBind(true);
+        loginVO.setOpenid(openid);
+        return Result.success("请先绑定手机号", loginVO);
+    }
+
+    private Result<Void> mergeWechatAccount(SysAccount phoneAccount, SysAccount wxAccount) {
+        Result<Void> bindingMergeResult = mergeStudentBinding(phoneAccount, wxAccount);
+        if (bindingMergeResult.getCode() != 200) {
+            return bindingMergeResult;
+        }
+
+        mergeVipInfo(phoneAccount, wxAccount);
+        wxAccount.setWxid(null);
+        accountRepository.save(phoneAccount);
+        accountRepository.save(wxAccount);
+        return Result.success("合并成功", null);
+    }
+
+    private Result<Void> mergeStudentBinding(SysAccount phoneAccount, SysAccount wxAccount) {
+        List<StudentParentBinding> wxBindings = bindingRepository.findByParentUid(wxAccount.getUid());
+        if (wxBindings.isEmpty()) {
+            return Result.success("无需迁移学生绑定", null);
+        }
+
+        StudentParentBinding wxBinding = wxBindings.get(0);
+        List<StudentParentBinding> phoneBindings = bindingRepository.findByParentUid(phoneAccount.getUid());
+        if (phoneBindings.isEmpty()) {
+            wxBinding.setParentUid(phoneAccount.getUid());
+            bindingRepository.save(wxBinding);
+            phoneAccount.setIsBoundStudent(1);
+            wxAccount.setIsBoundStudent(0);
+            return Result.success("学生绑定已迁移", null);
+        }
+
+        StudentParentBinding phoneBinding = phoneBindings.get(0);
+        if (!phoneBinding.getStudentId().equals(wxBinding.getStudentId())) {
+            return Result.error("微信账号和手机号账号已绑定不同学生，请先处理历史数据");
+        }
+
+        bindingRepository.delete(wxBinding);
+        phoneAccount.setIsBoundStudent(1);
+        wxAccount.setIsBoundStudent(0);
+        return Result.success("重复学生绑定已清理", null);
+    }
+
+    private void mergeVipInfo(SysAccount phoneAccount, SysAccount wxAccount) {
+        if (wxAccount.getIsVip() != null && wxAccount.getIsVip() == 1) {
+            phoneAccount.setIsVip(1);
+        }
+        if (wxAccount.getIsSvip() != null && wxAccount.getIsSvip() == 1) {
+            phoneAccount.setIsSvip(1);
+        }
+        if (wxAccount.getVipExpireTime() != null
+                && (phoneAccount.getVipExpireTime() == null
+                || wxAccount.getVipExpireTime().isAfter(phoneAccount.getVipExpireTime()))) {
+            phoneAccount.setVipExpireTime(wxAccount.getVipExpireTime());
+        }
+    }
+
+    private void checkVipExpiration(SysAccount account) {
+        if (account == null || account.getVipExpireTime() == null) {
+            return;
+        }
+
+        if (account.getRoleId() != null
+                && account.getRoleId() == 3
+                && account.getVipExpireTime().isBefore(java.time.LocalDateTime.now())) {
+            boolean changed = false;
+            if (account.getIsVip() != null && account.getIsVip() == 1) {
+                account.setIsVip(0);
+                changed = true;
+            }
+            if (account.getIsSvip() != null && account.getIsSvip() == 1) {
+                account.setIsSvip(0);
+                changed = true;
+            }
+            if (changed) {
+                accountRepository.save(account);
+            }
+        }
+    }
+
+    private Result<LoginVO> generateLoginResult(SysAccount account) {
+        checkVipExpiration(account);
+        accountRepository.updateLoginStatusSql(account.getUid(), "online");
+
+        if (account.getRoleId() != null && account.getRoleId() == 2) {
+            List<String> allowedModules = sysUserModuleRepository.findByUid(account.getUid())
+                    .stream()
+                    .map(SysUserModule::getModulePath)
+                    .collect(Collectors.toList());
+            account.setAllowedModules(allowedModules);
+        }
+
+        String username = StringUtils.hasText(account.getUsername()) ? account.getUsername() : "uid_" + account.getUid();
+        String token = jwtUtils.generateToken(account.getUid(), username, account.getRoleId());
+        String refreshToken = jwtUtils.generateRefreshToken(account.getUid(), username);
+        boolean isBoundStudent = account.getIsBoundStudent() != null && account.getIsBoundStudent() == 1;
+
+        LoginVO loginVO = new LoginVO(token, refreshToken, account, isBoundStudent);
+        return Result.success("登录成功", loginVO);
     }
 }

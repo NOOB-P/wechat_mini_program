@@ -174,7 +174,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   },
-  '/login/bindPhone': (data) => {
+  '/api/app/auth/login/wechat/bind-phone': (data) => {
     const { phone, code, openid, type } = data;
     if (code !== '114514') {
       return {
