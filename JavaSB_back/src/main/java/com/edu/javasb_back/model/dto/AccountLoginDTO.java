@@ -5,17 +5,17 @@ import lombok.Data;
 
 @Data
 public class AccountLoginDTO {
-    
-    @JsonAlias({"username", "userName"})
-    private String username; // 后台管理账号登录使用
-    
-    private String phone;    // 家长端手机号登录使用
-    private String password;
-    private String code;     // 手机号验证码登录使用
-    private String loginType; // 登录类型：password, phone
-    private Integer roleId;   // 后台登录所选角色ID
 
-    // 手动添加 Getter/Setter 解决部分环境 Lombok 未生效问题
+    @JsonAlias({"username", "userName"})
+    private String username;
+
+    private String phone;
+    private String password;
+    private String code;
+    private String openid;
+    private String loginType;
+    private Integer roleId;
+
     public String getUsername() {
         return username;
     }
@@ -46,6 +46,14 @@ public class AccountLoginDTO {
 
     public void setCode(String code) {
         this.code = code;
+    }
+
+    public String getOpenid() {
+        return openid;
+    }
+
+    public void setOpenid(String openid) {
+        this.openid = openid;
     }
 
     public String getLoginType() {

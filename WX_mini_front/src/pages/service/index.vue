@@ -8,11 +8,11 @@ import { useToast } from 'wot-design-uni'
 
 const toast = useToast()
 const searchValue = ref('')
-const currentTab = ref<string | null>(null) // 改为 string，存储分类名称
-const categories = ref<any[]>([])
+const currentTab = ref<string | null>(null)
+const categories = ref<Array<{ id: string; name: string }>>([])
 const faqs = ref<any[]>([])
 const activeFaq = ref<string[]>([])
-const isLoading = ref(false) // 增加请求锁，防止并发
+const isLoading = ref(false)
 
 const staticBaseUrl = __VITE_SERVER_BASEURL__ + '/static'
 
@@ -48,18 +48,29 @@ const handleContactClick = async () => {
   }
 }
 
+const normalizeCategoryName = (category: any) => {
+  if (typeof category === 'string') return category
+  return category?.name || category?.categoryName || category?.label || ''
+}
+
 // 核心：手动加载 FAQ 方法
 const loadFaqData = async () => {
   if (isLoading.value || currentTab.value === null) return
   
   isLoading.value = true
   try {
-    const res = await getFaqListApi({
-      categoryName: currentTab.value === '全部' ? undefined : currentTab.value,
-      question: searchValue.value
-    })
+    const params: { categoryName?: string; question?: string } = {}
+    const keyword = searchValue.value.trim()
+
+    if (currentTab.value && currentTab.value !== '全部') {
+      params.categoryName = currentTab.value
+    }
+    if (keyword) {
+      params.question = keyword
+    }
+
+    const res = await getFaqListApi(params)
     if (res.code === 200) {
-      // 后端返回的是分页对象，records 是列表
       faqs.value = res.data.records || []
       activeFaq.value = [] 
     }
@@ -75,11 +86,12 @@ const getCategories = async () => {
   try {
     const res = await getFaqCategoryApi()
     if (res.code === 200) {
-      // 组装“全部”分类和后端返回的分类
-      const catList = ['全部', ...(res.data || [])]
+      const categoryNames = (res.data || [])
+        .map(normalizeCategoryName)
+        .filter(Boolean)
+      const catList = ['全部', ...categoryNames]
       categories.value = catList.map(name => ({ id: name, name }))
       
-      // 设置初始 Tab 并手动触发第一次加载
       currentTab.value = '全部'
       loadFaqData()
     }
@@ -130,16 +142,14 @@ onMounted(() => {
       </view>
       
       <!-- 悬浮搜索框 -->
-      <view class="search-box-wrap">
-        <wd-search 
-          v-model="searchValue" 
-          placeholder="搜索您想了解的问题" 
-          hide-cancel 
-          @search="handleSearch" 
-          @clear="handleSearch" 
-          custom-style="background: transparent;"
-        />
-      </view>
+      <wd-search 
+        v-model="searchValue" 
+        placeholder="搜索您想了解的问题" 
+        hide-cancel 
+        @search="handleSearch" 
+        @clear="handleSearch" 
+        custom-style="margin-top: 28rpx; border-radius: 44rpx; bg-color=#fff;"
+      />
     </view>
 
     <view class="content-body animate-fade-in">
@@ -298,56 +308,10 @@ onMounted(() => {
   }
 }
 
-/* 悬浮搜索框 */
-.search-box-wrap {
-  margin-top: 28rpx;
-  padding: 10rpx;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(244, 251, 255, 0.82) 100%);
-  border-radius: 44rpx;
-  box-shadow: 0 12rpx 30rpx rgba(79, 172, 254, 0.16);
-  border: 2rpx solid rgba(255, 255, 255, 0.92);
-  z-index: 1;
-}
-
 .content-body {
   position: relative;
   z-index: 1;
   padding: 34rpx 30rpx 30rpx;
-}
-
-:deep(.search-box-wrap .wd-search),
-:deep(.search-box-wrap .wd-search__container),
-:deep(.search-box-wrap .wd-search__field) {
-  padding: 0 !important;
-  background: transparent !important;
-}
-
-:deep(.search-box-wrap .wd-search__block),
-:deep(.search-box-wrap .wd-search__cover) {
-  background: rgba(255, 255, 255, 0.98) !important;
-  border-radius: 36rpx !important;
-  box-shadow:
-    inset 0 0 0 2rpx rgba(141, 196, 255, 0.24),
-    0 6rpx 18rpx rgba(144, 198, 255, 0.14);
-}
-
-:deep(.search-box-wrap .wd-search__input),
-:deep(.search-box-wrap .wd-search__placeholder-txt) {
-  font-size: 26rpx !important;
-}
-
-:deep(.search-box-wrap .wd-search__input) {
-  color: #4f6072 !important;
-}
-
-:deep(.search-box-wrap .wd-search__placeholder-txt) {
-  color: #9caaba !important;
-}
-
-:deep(.search-box-wrap .wd-search__search-icon),
-:deep(.search-box-wrap .wd-search__search-left-icon) {
-  color: #6eaef6 !important;
-  font-size: 28rpx !important;
 }
 
 /* 快捷分类 */
@@ -550,4 +514,3 @@ onMounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 </style>
-
