@@ -62,12 +62,16 @@ export function fetchBatchUpdateStatus(params: Api.Student.BatchOpParams) {
 }
 
 /** 导入学生 Excel */
-export function fetchImportStudents(file: File) {
+export function fetchImportStudents(file: File, schoolId?: string, classId?: string) {
   const formData = new FormData()
   formData.append('file', file)
   
   return api.post<any>({
     url: '/api/students/import',
+    params: {
+      schoolId,
+      classId
+    },
     data: formData,
     headers: {
       'Content-Type': 'multipart/form-data'
