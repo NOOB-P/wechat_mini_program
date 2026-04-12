@@ -72,7 +72,7 @@
       <view class="parent-info-section">
         <wd-cell-group border custom-class="cell-group-custom">
           <wd-input v-model="form.phone" label="手机号" placeholder="请输入手机号" disabled align-right />
-          <wd-input v-model="form.code" label="验证码" placeholder="请输入验证码" use-suffix-slot align-right>
+          <wd-input v-model="form.code" label="验证码" placeholder="请输入验证码" type="number" use-suffix-slot align-right>
             <template #suffix>
               <view class="code-btn-text" :class="{ disabled: countdown > 0 }" @click="countdown === 0 && sendCode()">
                 {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
@@ -176,7 +176,7 @@ const handleCityConfirm = async (e: any) => {
 
   const res = await getSchools(city)
   if (res.code === 200) {
-    schools.value = res.data.map((s: any) => ({ label: s.name, value: s.id }))
+    schools.value = res.data.map((s: any) => ({ label: s.name, value: s.schoolId }))
   }
 }
 
@@ -353,10 +353,22 @@ const gotoForgotPassword = () => {
   .code-btn-text {
     font-size: 28rpx;
     color: #1a5f8e;
-    padding: 10rpx 0;
+    padding-left: 24rpx;
+    margin-left: 20rpx;
+    border-left: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 160rpx;
+    white-space: nowrap;
+    height: 48rpx;
     
     &.disabled {
       color: #999;
+    }
+
+    &:active:not(.disabled) {
+      opacity: 0.7;
     }
   }
 
