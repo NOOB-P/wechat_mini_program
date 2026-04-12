@@ -174,22 +174,28 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { getScoreTrendApi } from '@/api/score'
+import { useToast } from 'wot-design-uni'
 
 const trendData = ref<any>(null)
 const currentSubject = ref('总分')
 const loading = ref(false)
 const showPopup = ref(false)
 const selectedExam = ref<any>(null)
+const examId = ref('')
+const toast = useToast()
 
 const fetchTrendData = async () => {
   loading.value = true
   try {
-    const res: any = await getScoreTrendApi({})
+    const res: any = await getScoreTrendApi({ examId: examId.value })
     if (res.code === 200) {
       trendData.value = res.data
     }
-  } catch (e) {
+  } catch (e: any) {
+    trendData.value = null
+    toast.error(e?.msg || '获取趋势分析失败')
     console.error('获取趋势数据失败:', e)
   } finally {
     loading.value = false
@@ -206,11 +212,16 @@ const showDetail = (exam: any) => {
 }
 
 const getTrendSummary = () => {
-  if (!trendData.value) return ''
+  if (!trendData.value || !trendData.value.history || trendData.value.history.length < 1) return ''
   const history = trendData.value.history
   const latest = history[history.length - 1].score
+  
+  if (history.length < 2) {
+    return `${latest}分`
+  }
+  
   const prev = history[history.length - 2].score
-  const diff = latest - prev
+  const diff = Math.round((latest - prev) * 10) / 10
   return diff >= 0 ? `+${diff}分` : `${diff}分`
 }
 
@@ -233,6 +244,11 @@ const getChartColor = (index: number) => {
   }
   return 'linear-gradient(to top, #4364f7 0%, #6fb1fc 100%)'
 }
+
+onLoad((options) => {
+  const currentScoreData = uni.getStorageSync('currentScoreData')
+  examId.value = options?.examId || currentScoreData?.examId || ''
+})
 
 onMounted(() => {
   fetchTrendData()
