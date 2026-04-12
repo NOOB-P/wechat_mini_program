@@ -32,7 +32,7 @@
     <el-card shadow="never" class="list-card">
       <div class="list-header">
         <div class="list-header__left">
-          <h2 class="list-title">{{ subjectName }} 成绩管理</h2>
+          <h2 class="list-title">{{ subjectName }} 单科管理</h2>
           <span class="list-count">项目ID: {{ projectId }}</span>
         </div>
         <div class="list-header__right">
@@ -43,64 +43,41 @@
       </div>
 
       <el-table :data="tableData" stripe class="custom-table">
-        <el-table-column prop="studentNo" label="考号" width="140" fixed="left" />
-        <el-table-column prop="studentName" label="姓名" width="120" fixed="left" />
+        <el-table-column prop="studentNo" label="考号" width="140" />
+        <el-table-column prop="studentName" label="姓名" width="120" />
         <el-table-column prop="school" label="学校" min-width="180" />
         <el-table-column prop="className" label="班级" width="150" />
-        <el-table-column prop="totalScore" label="总分" width="120" align="center">
-          <template #default="{ row }">
-            <el-input-number
-              v-model="row.totalScore"
-              :min="0"
-              :max="150"
-              size="small"
-              controls-position="right"
-              @change="handleScoreChange(row)"
-            />
-          </template>
-        </el-table-column>
         
-        <!-- 小题分动态列 -->
-        <el-table-column
-          v-for="(score, index) in maxQuestionCount"
-          :key="index"
-          :label="`第${index + 1}题`"
-          width="80"
-          align="center"
-        >
+        <el-table-column label="试卷录入" width="120" align="center">
           <template #default="{ row }">
-            <el-input
-              v-model="row.questionScores[index]"
-              size="small"
-              class="score-input"
-              @change="handleSubScoreChange(row, index)"
-            />
+            <el-tag :type="row.hasAnswerSheet ? 'success' : 'info'" effect="light">
+              {{ row.hasAnswerSheet ? '已上传' : '未上传' }}
+            </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column label="答题卡" width="150" align="center" fixed="right">
+        <el-table-column label="成绩录入" width="120" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.hasScore ? 'success' : 'info'" effect="light">
+              {{ row.hasScore ? '已录入' : '未录入' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="200" align="center" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-upload
                 action="#"
                 :auto-upload="false"
                 :show-file-list="false"
+                accept=".pdf,.png,.jpg,.jpeg"
                 :on-change="(file) => handleUploadAnswerSheet(row, file)"
               >
-                <el-button type="primary" link :icon="Picture">
-                  {{ row.hasAnswerSheet ? '更新' : '上传' }}
-                </el-button>
+                <el-button type="primary" link>上传试卷</el-button>
               </el-upload>
-              <el-button v-if="row.hasAnswerSheet" type="success" link :icon="View" @click="handlePreview(row)">
-                查看
-              </el-button>
+              <el-button type="primary" link @click="handleEditScore(row)">编辑成绩</el-button>
             </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="100" align="center" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link @click="handleSave(row)">保存</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -125,9 +102,9 @@
           <el-tooltip placement="right" effect="light">
             <template #content>
               <div class="text-xs leading-6 text-gray-600 p-2">
-                <p v-if="importType === 'answerSheet'">1. 请将考生的答题卡扫描件（图片格式）打包上传。</p>
+                <p v-if="importType === 'answerSheet'">1. 请上传 zip 压缩包，压缩包内试卷命名支持“学号_姓名”、“学号”或“姓名”。</p>
                 <p v-else>1. 请先<b>下载导入模板</b>，按照模板格式填写考生成绩信息。</p>
-                <p>2. 支持<b>多文件批量上传</b>，系统将自动解析并匹配考生。</p>
+                <p>2. 试卷仅支持 <b>jpg / jpeg / png / pdf</b>，成绩仅支持 <b>xlsx / xls</b>。</p>
                 <p>3. 若数据已存在，系统将根据规则进行<b>更新</b>。</p>
               </div>
             </template>
@@ -148,7 +125,7 @@
           :on-change="handleFileChange"
           :file-list="fileList"
           :show-file-list="false"
-          :accept="importType === 'answerSheet' ? '.zip, .rar, .jpg, .png' : '.xlsx, .xls'"
+          :accept="importType === 'answerSheet' ? '.zip' : '.xlsx, .xls'"
         >
           <div v-if="fileList.length === 0" class="upload-empty-content">
             <el-icon class="el-icon--upload"><upload-filled /></el-icon>
@@ -156,7 +133,7 @@
               将文件拖到此处，或<em>点击上传</em>
             </div>
             <div class="el-upload__tip mt-2">
-              {{ importType === 'answerSheet' ? '支持 .zip / .rar 或图片格式' : '仅支持 .xlsx / .xls 格式文件' }}
+              {{ importType === 'answerSheet' ? '仅支持 .zip 压缩包' : '仅支持 .xlsx / .xls 格式文件' }}
             </div>
           </div>
           
@@ -216,12 +193,13 @@
       </div>
     </el-dialog>
 
-    <!-- 答题卡预览弹窗 -->
-    <el-dialog v-model="previewVisible" title="答题卡预览" width="800px">
-      <div class="answer-sheet-preview">
-        <img :src="previewUrl" alt="答题卡" />
-      </div>
-    </el-dialog>
+    <ScoreEditDialog
+      v-model="scoreEditVisible"
+      :project-id="projectId"
+      :subject-name="subjectName"
+      :student="currentStudent"
+      @saved="loadData"
+    />
   </div>
 </template>
 
@@ -229,11 +207,18 @@
   import { onMounted, reactive, ref, computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { 
-    Back, Search, Refresh, Upload, Download, Picture, View,
+    Back, Search, Refresh, Upload, Download,
     InfoFilled, UploadFilled, Delete, Plus, Document, Loading as LoadingIcon
   } from '@element-plus/icons-vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
-  import { fetchProjectScoreList } from '@/api/core-business/exam/project-editor'
+  import ScoreEditDialog from './components/ScoreEditDialog.vue'
+  import { 
+    fetchProjectScoreList,
+    fetchDownloadScoreTemplate,
+    fetchImportScore,
+    fetchImportAnswerSheetZip,
+    fetchUploadStudentAnswerSheet
+  } from '@/api/core-business/exam/project-editor'
   import { fetchProjectOptions } from '@/api/core-business/exam/project'
 
   const route = useRoute()
@@ -246,7 +231,8 @@
   const pageSize = ref(10)
   const total = ref(0)
   const tableData = ref<any[]>([])
-  const maxQuestionCount = ref(10) // 默认显示10道小题
+  const scoreEditVisible = ref(false)
+  const currentStudent = ref<any>(null)
 
   const schoolOptions = ref<any[]>([])
   const classOptions = ref<any[]>([])
@@ -256,9 +242,6 @@
     classId: '',
     keyword: ''
   })
-
-  const previewVisible = ref(false)
-  const previewUrl = ref('')
 
   // 导入相关
   const importVisible = ref(false)
@@ -293,12 +276,7 @@
         keyword: searchForm.keyword
       })
       
-      // 模拟添加小题分数据
-      tableData.value = (res.records || []).map(item => ({
-        ...item,
-        questionScores: Array.from({ length: maxQuestionCount.value }).map(() => Math.floor(Math.random() * 10)),
-        hasAnswerSheet: Math.random() > 0.5
-      }))
+      tableData.value = res.records || []
       total.value = res.total || 0
     } finally {
       loading.value = false
@@ -323,28 +301,29 @@
     loadData()
   }
 
-  function handleScoreChange(row: any) {
-    console.log('总分变更', row.totalScore)
+  function handleEditScore(row: any) {
+    currentStudent.value = row
+    scoreEditVisible.value = true
   }
 
-  function handleSubScoreChange(row: any, index: number) {
-    // 重新计算总分
-    const newTotal = row.questionScores.reduce((sum: number, s: any) => sum + (Number(s) || 0), 0)
-    row.totalScore = newTotal
-  }
-
-  function handleUploadAnswerSheet(row: any, file: any) {
-    ElMessage.success(`学生 ${row.studentName} 的答题卡上传成功`)
-    row.hasAnswerSheet = true
-  }
-
-  function handlePreview(row: any) {
-    previewUrl.value = 'https://img.zcool.cn/community/01f1145b34d700a80120b9595d2890.jpg@1280w_1l_2o_100sh.jpg' // 模拟预览图
-    previewVisible.value = true
-  }
-
-  function handleSave(row: any) {
-    ElMessage.success(`学生 ${row.studentName} 的成绩已保存`)
+  async function handleUploadAnswerSheet(row: any, file: any) {
+    const rawFile = file?.raw as File | undefined
+    if (!rawFile) {
+      ElMessage.error('未获取到试卷文件')
+      return
+    }
+    try {
+      await fetchUploadStudentAnswerSheet({
+        projectId: projectId.value,
+        subjectName: subjectName.value,
+        studentNo: row.studentNo,
+        file: rawFile
+      })
+      row.hasAnswerSheet = true
+      await loadData()
+    } catch (error: any) {
+      ElMessage.error(error.message || '试卷上传失败')
+    }
   }
 
   function handleBatchUpload(type: 'answerSheet' | 'score') {
@@ -354,6 +333,13 @@
   }
 
   function handleFileChange(file: any) {
+    if (importType.value === 'answerSheet') {
+      const isZip = /\.zip$/i.test(file.name || '')
+      if (!isZip) {
+        ElMessage.error('试卷批量导入仅支持 zip 压缩包')
+        return
+      }
+    }
     fileList.value.push(file)
   }
 
@@ -361,18 +347,75 @@
     uploadRef.value?.$el.querySelector('input').click()
   }
 
-  function submitImport() {
+  async function submitImport() {
+    if (fileList.value.length === 0) return
+    
     importLoading.value = true
-    setTimeout(() => {
+    try {
+      if (importType.value === 'score') {
+        for (const file of fileList.value) {
+          file.status = 'uploading'
+          try {
+            await fetchImportScore({
+              projectId: projectId.value,
+              subjectName: subjectName.value,
+              file: file.raw
+            })
+            file.status = 'success'
+          } catch (error: any) {
+            file.status = 'fail'
+            ElMessage.error(`${file.name} 导入失败: ${error.message || '未知错误'}`)
+          }
+        }
+        
+        const allSuccess = fileList.value.every(f => f.status === 'success')
+        if (allSuccess) {
+          ElMessage.success('全部成绩导入成功')
+          importVisible.value = false
+          await loadData()
+        }
+      } else {
+        for (const file of fileList.value) {
+          file.status = 'uploading'
+          try {
+            await fetchImportAnswerSheetZip({
+              projectId: projectId.value,
+              subjectName: subjectName.value,
+              file: file.raw
+            })
+            file.status = 'success'
+          } catch (error: any) {
+            file.status = 'fail'
+            ElMessage.error(`${file.name} 导入失败: ${error.message || '未知错误'}`)
+          }
+        }
+
+        const allSuccess = fileList.value.every(f => f.status === 'success')
+        if (allSuccess) {
+          ElMessage.success('全部试卷导入成功')
+          importVisible.value = false
+          await loadData()
+        }
+      }
+    } finally {
       importLoading.value = false
-      importVisible.value = false
-      ElMessage.success('批量导入成功')
-      loadData()
-    }, 1500)
+    }
   }
 
-  function downloadTemplate() {
-    ElMessage.info('模板下载中...')
+  async function downloadTemplate() {
+    try {
+      const blob = await fetchDownloadScoreTemplate()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', '成绩导入模板.xlsx')
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      ElMessage.error('模板下载失败')
+    }
   }
 
   function handleExport() {

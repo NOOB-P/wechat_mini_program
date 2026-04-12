@@ -27,4 +27,15 @@ public interface ExamProjectService {
             String keyword,
             String schoolId,
             String classId);
+
+    void downloadScoreTemplate(jakarta.servlet.http.HttpServletResponse response);
+
+    Result<Void> importScores(String projectId, String subjectName, org.springframework.web.multipart.MultipartFile file);
+    Result<Void> importAnswerSheets(String projectId, String subjectName, org.springframework.web.multipart.MultipartFile file);
+    Result<String> uploadAnswerSheet(String projectId, String subjectName, String studentNo, org.springframework.web.multipart.MultipartFile file);
+    
+    /**
+     * 保存单个学生成绩
+     */
+    Result<Void> saveStudentScore(String projectId, String subjectName, String studentNo, java.util.List<Double> questionScores);
 }

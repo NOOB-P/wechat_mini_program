@@ -10,6 +10,7 @@ public class ExamProjectSaveDTO {
     private List<String> schoolIds;
     private List<String> classIds;
     private List<String> subjects;
+    private java.util.Map<String, Object> benchmarks;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -28,4 +29,7 @@ public class ExamProjectSaveDTO {
 
     public List<String> getSubjects() { return subjects; }
     public void setSubjects(List<String> subjects) { this.subjects = subjects; }
+
+    public java.util.Map<String, Object> getBenchmarks() { return benchmarks; }
+    public void setBenchmarks(java.util.Map<String, Object> benchmarks) { this.benchmarks = benchmarks; }
 }

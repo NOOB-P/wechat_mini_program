@@ -70,6 +70,7 @@
           :total="total"
           :page-sizes="[10, 20, 50, 100]"
           layout="total, sizes, prev, pager, next, jumper"
+          background
           @size-change="handleSizeChange"
           @current-change="loadData"
         />
@@ -189,7 +190,8 @@
         name: res.project.name,
         schoolIds: res.project.selectedSchoolIds || [],
         classIds: res.project.selectedClassIds || [],
-        subjects: res.project.subjects || []
+        subjects: res.project.subjects || [],
+        benchmarks: res.benchmarks || {}
       }
       dialogVisible.value = true
     } finally {
