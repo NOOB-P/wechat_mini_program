@@ -1,12 +1,6 @@
 import request from '@/utils/request'
-import type { resultData } from '@/types/request'
 
-/**
- * @Description: 发送验证码
- * @param {string} phone 手机号
- */
 export const sendSmsCode = (phone: string) => {
-  
   return request({
     url: '/api/app/auth/sendCode',
     method: 'POST',
@@ -14,10 +8,6 @@ export const sendSmsCode = (phone: string) => {
   })
 }
 
-/**
- * @Description: 验证码登录
- * @param {object} data { phone, code }
- */
 export const loginByPhone = (data: { phone: string; code: string }) => {
   return request({
     url: '/api/app/auth/login/phone',
@@ -26,10 +16,6 @@ export const loginByPhone = (data: { phone: string; code: string }) => {
   })
 }
 
-/**
- * @Description: 密码登录
- * @param {object} data { phone, password }
- */
 export const loginByPassword = (data: { phone: string; password: string }) => {
   return request({
     url: '/api/app/auth/login/password',
@@ -38,15 +24,6 @@ export const loginByPassword = (data: { phone: string; password: string }) => {
   })
 }
 
-
-
-/**
- * @Description: 注册账号
- * @param {string} phone 手机号
- * @param {string} password 密码
- * @param {string} nickname 昵称
- * @param {string} code 验证码
- */
 export const register = (data: { phone: string; password: string; nickname?: string; code: string }) => {
   return request({
     url: '/api/app/auth/register',
@@ -55,12 +32,6 @@ export const register = (data: { phone: string; password: string; nickname?: str
   })
 }
 
-/**
- * @Description: 找回密码
- * @param {string} phone 手机号
- * @param {string} password 新密码
- * @param {string} code 验证码
- */
 export const forgotPassword = (data: { phone: string; password?: string; code?: string }) => {
   return request({
     url: '/login/forgotPassword',
@@ -69,10 +40,6 @@ export const forgotPassword = (data: { phone: string; password?: string; code?: 
   })
 }
 
-/**
- * @Description: 微信登录
- * @param {string} code 微信登录凭证
- */
 export const loginByWechat = (code: string) => {
   return request({
     url: '/api/app/auth/login/wechat',
@@ -81,11 +48,6 @@ export const loginByWechat = (code: string) => {
   })
 }
 
-/**
- * @Description: 第三方登录 (保留兼容性)
- * @param {string} type 登录类型 wechat | qq
- * @param {string} code 登录凭证
- */
 export const thirdPartyLoginApi = (type: string, code: string) => {
   if (type === 'wechat') {
     return loginByWechat(code)
@@ -97,21 +59,19 @@ export const thirdPartyLoginApi = (type: string, code: string) => {
   })
 }
 
-/**
- * @Description: 第三方登录绑定手机号
- * @param {object} data { phone, code, openid, type }
- */
-export const bindThirdPartyPhone = (data: { phone: string; code: string; openid: string; type: string }) => {
+export const bindThirdPartyPhone = (data: {
+  phone: string
+  code: string
+  openid: string
+  type?: string
+}) => {
   return request({
-    url: '/login/bindPhone',
+    url: '/api/app/auth/login/wechat/bind-phone',
     method: 'POST',
     data
   })
 }
 
-/**
- * @Description: 退出登录
- */
 export const logout = () => {
   return request({
     url: '/api/auth/logout',
