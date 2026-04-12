@@ -42,12 +42,15 @@ export const batchDeleteClasses = (ids: (string | number)[]) => {
   })
 }
 
-export function fetchImportClass(file: File) {
+export function fetchImportClass(file: File, schoolId?: string) {
   const formData = new FormData()
   formData.append('file', file)
   
   return api.post<any>({
     url: '/api/system/class/import',
+    params: {
+      schoolId
+    },
     data: formData,
     headers: {
       'Content-Type': 'multipart/form-data'
