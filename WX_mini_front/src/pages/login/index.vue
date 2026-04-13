@@ -351,23 +351,12 @@ const sendCode = async () => {
   try {
     await sendSmsCode(phone.value)
     toast.success('验证码已发送')
-<<<<<<< HEAD
-    countdown.value = 60
-    timer = setInterval(() => {
-      countdown.value--
-      if (countdown.value <= 0) {
-        clearInterval(timer!)
-      }
-    }, 1000)
-  } catch (error: any) {
-    toast.error(error?.msg || '验证码发送失败，请稍后重试')
-=======
     clearTimer(timer)
     startCountdown(countdown, (value) => {
       timer = value
     })
-  } catch (error) {
->>>>>>> 36a210b1736669fdac9acb83d7cee807c68dc374
+  } catch (error: any) {
+    toast.error(error?.msg || '验证码发送失败，请稍后重试')
     console.error('发送验证码失败', error)
   }
 }
@@ -456,24 +445,13 @@ const sendRegisterCode = async () => {
   try {
     await sendSmsCode(registerForm.value.phone)
     toast.success('验证码已发送')
-<<<<<<< HEAD
-    registerCountdown.value = 60
-    registerTimer = setInterval(() => {
-      registerCountdown.value--
-      if (registerCountdown.value <= 0) {
-        clearInterval(registerTimer!)
-      }
-    }, 1000)
-  } catch (error: any) {
-    toast.error(error?.msg || '验证码发送失败，请稍后重试')
-=======
     clearTimer(registerTimer)
     startCountdown(registerCountdown, (value) => {
       registerTimer = value
     })
-  } catch (error) {
+  } catch (error: any) {
+    toast.error(error?.msg || '验证码发送失败，请稍后重试')
     console.error('发送注册验证码失败', error)
->>>>>>> 36a210b1736669fdac9acb83d7cee807c68dc374
   }
 }
 
@@ -505,24 +483,13 @@ const sendForgotCode = async () => {
   try {
     await sendSmsCode(forgotForm.value.phone)
     toast.success('验证码已发送')
-<<<<<<< HEAD
-    forgotCountdown.value = 60
-    forgotTimer = setInterval(() => {
-      forgotCountdown.value--
-      if (forgotCountdown.value <= 0) {
-        clearInterval(forgotTimer!)
-      }
-    }, 1000)
-  } catch (error: any) {
-    toast.error(error?.msg || '验证码发送失败，请稍后重试')
-=======
     clearTimer(forgotTimer)
     startCountdown(forgotCountdown, (value) => {
       forgotTimer = value
     })
-  } catch (error) {
+  } catch (error: any) {
+    toast.error(error?.msg || '验证码发送失败，请稍后重试')
     console.error('发送找回密码验证码失败', error)
->>>>>>> 36a210b1736669fdac9acb83d7cee807c68dc374
   }
 }
 
@@ -554,24 +521,13 @@ const sendBindPhoneCode = async () => {
   try {
     await sendSmsCode(bindPhoneForm.value.phone)
     toast.success('验证码已发送')
-<<<<<<< HEAD
-    bindPhoneCountdown.value = 60
-    bindPhoneTimer = setInterval(() => {
-      bindPhoneCountdown.value--
-      if (bindPhoneCountdown.value <= 0) {
-        clearInterval(bindPhoneTimer!)
-      }
-    }, 1000)
-  } catch (error: any) {
-    toast.error(error?.msg || '验证码发送失败，请稍后重试')
-=======
     clearTimer(bindPhoneTimer)
     startCountdown(bindPhoneCountdown, (value) => {
       bindPhoneTimer = value
     })
-  } catch (error) {
+  } catch (error: any) {
+    toast.error(error?.msg || '验证码发送失败，请稍后重试')
     console.error('发送绑定手机号验证码失败', error)
->>>>>>> 36a210b1736669fdac9acb83d7cee807c68dc374
   }
 }
 

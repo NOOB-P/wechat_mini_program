@@ -2,6 +2,7 @@ package com.edu.javasb_back.model.entity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -68,6 +69,9 @@ public class Course {
     @Transient
     private Integer progress = 0;
 
+    @Transient
+    private List<CourseEpisode> episodeList;
+
     @Column(name = "create_time", updatable = false)
     private LocalDateTime createTime;
 
@@ -109,4 +113,6 @@ public class Course {
     public void setIsPurchased(Boolean isPurchased) { this.isPurchased = isPurchased; }
     public Integer getProgress() { return progress; }
     public void setProgress(Integer progress) { this.progress = progress; }
+    public List<CourseEpisode> getEpisodeList() { return episodeList; }
+    public void setEpisodeList(List<CourseEpisode> episodeList) { this.episodeList = episodeList; }
 }

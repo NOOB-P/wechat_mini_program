@@ -26,7 +26,7 @@
         <view class="overview-header">
           <view class="header-left">
             <text class="title">分数分布统计</text>
-            <view class="rank-badge">年级排名: 第25名</view>
+            <view class="rank-badge">年级排名: 第{{ distributionData.rank }}名</view>
           </view>
           <view class="overall-level">
             综合等级 <text class="level-val">{{ distributionData.overallLevel }}</text>
@@ -54,21 +54,25 @@
 
       <!-- 统计指标网格 -->
       <view class="stats-grid">
-        <view class="stats-card" v-for="(stat, index) in distributionData.stats" :key="index">
-          <view class="stats-icon-wrap">
-            <wd-icon :name="stat.icon" size="22px" color="#4364f7" />
-          </view>
-          <view class="stats-info">
-            <view class="val-row">
-              <text class="stats-val">{{ stat.value }}</text>
-              <text class="stats-compare" :class="{ up: stat.compare.startsWith('+') }">
-                {{ stat.compare }}
-              </text>
-            </view>
-            <text class="stats-name">{{ stat.name }}</text>
-          </view>
-        </view>
-      </view>
+         <view class="stats-card" v-for="(stat, index) in distributionData.stats" :key="index" :class="'card-' + index">
+           <view class="stats-icon-wrap" :class="'icon-' + index">
+             <wd-icon :name="stat.icon" size="20px" />
+           </view>
+           <view class="stats-info">
+             <view class="val-row">
+               <text class="stats-val">{{ stat.value }}</text>
+               <text 
+                 v-if="stat.compare" 
+                 class="stats-compare" 
+                 :class="{ up: stat.compare.includes('+'), neutral: !stat.compare.includes('+') && !stat.compare.includes('-') }"
+               >
+                 {{ stat.compare }}
+               </text>
+             </view>
+             <text class="stats-name">{{ stat.name }}</text>
+           </view>
+         </view>
+       </view>
 
       <!-- 个人定位与均分对比 (新增) -->
       <view class="analysis-card compare-card">
@@ -79,7 +83,7 @@
           <view class="compare-visual">
             <view class="circle-chart">
               <view class="circle-val">
-                <text class="num">{{ Math.round((1 - 25/1000) * 100) }}%</text>
+                <text class="num">{{ Math.round((1 - distributionData.rank / distributionData.studentCount) * 100) }}%</text>
                 <text class="label">击败同级</text>
               </view>
             </view>
@@ -87,15 +91,20 @@
           <view class="compare-details">
             <view class="detail-item">
               <text class="d-label">高于年级平均</text>
-              <text class="d-val">+{{ distributionData.averageScore - distributionData.gradeAverageScore }}分</text>
+              <text class="d-val">{{ (distributionData.score - distributionData.gradeAverageScore) >= 0 ? '+' : '' }}{{ (distributionData.score - distributionData.gradeAverageScore).toFixed(1) }}分</text>
             </view>
             <view class="detail-item">
               <text class="d-label">距离最高分</text>
-              <text class="d-val">-{{ distributionData.highestScore - distributionData.averageScore }}分</text>
+              <text class="d-val">{{ (distributionData.highestScore - distributionData.score) === 0 ? '已达最高' : (distributionData.highestScore - distributionData.score).toFixed(1) + '分' }}</text>
             </view>
             <view class="progress-line">
-              <view class="line-bg"><view class="line-fill" :style="{width: '85%'}"></view></view>
-              <text class="line-desc">当前水平：拔尖</text>
+              <view class="line-bg">
+                <view 
+                  class="line-fill" 
+                  :style="{ width: Math.round((1 - distributionData.rank / distributionData.studentCount) * 100) + '%' }"
+                ></view>
+              </view>
+              <text class="line-desc">当前水平：{{ getLevelText(distributionData.rank / distributionData.studentCount) }}</text>
             </view>
           </view>
         </view>
@@ -167,8 +176,8 @@ import { onLoad } from '@dcloudio/uni-app'
 import { getScoreDistributionApi } from '@/api/score'
 import { useToast } from 'wot-design-uni'
 
-const subjects = ref(['数学', '语文', '英语', '物理', '化学', '生物'])
-const currentSubject = ref('数学')
+const subjects = ref(['语文', '数学', '英语', '物理', '化学', '生物'])
+const currentSubject = ref('语文')
 const distributionData = ref<any>(null)
 const loading = ref(false)
 const examId = ref('')
@@ -202,6 +211,15 @@ const getMaxCount = (levels: any[]) => {
 const getMostPopulatedRange = (levels: any[]) => {
   const most = levels.reduce((prev, current) => (prev.count > current.count) ? prev : current)
   return most ? `${most.level}级 (${most.label})` : '未知'
+}
+
+const getLevelText = (ratio: number) => {
+  const percent = (1 - ratio) * 100
+  if (percent >= 90) return '拔尖'
+  if (percent >= 70) return '优秀'
+  if (percent >= 50) return '良好'
+  if (percent >= 30) return '及格'
+  return '需努力'
 }
 
 onLoad((options) => {
@@ -378,22 +396,18 @@ onMounted(() => {
 
 /* 统计网格优化 */
 .stats-grid {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
   margin-bottom: 30rpx;
   
   .stats-card {
-    flex: 1;
     background: #fff;
-    margin: 0 10rpx;
     padding: 24rpx 20rpx;
     border-radius: 28rpx;
     display: flex;
     align-items: center;
     box-shadow: 0 4rpx 12rpx rgba(149, 157, 165, 0.05);
-    
-    &:first-child { margin-left: 0; }
-    &:last-child { margin-right: 0; }
     
     .stats-icon-wrap {
       width: 72rpx;
@@ -420,10 +434,17 @@ onMounted(() => {
           margin-left: 6rpx;
           color: #ee0a24;
           &.up { color: #07c160; }
+          &.neutral { color: #999; }
         }
       }
       .stats-name { font-size: 22rpx; color: #999; margin-top: 4rpx; }
     }
+    
+    /* 图标与背景色差异化 */
+    &.card-0 .stats-icon-wrap { background: #eef2ff; color: #4364f7; }
+    &.card-1 .stats-icon-wrap { background: #fff7e6; color: #ffa940; }
+    &.card-2 .stats-icon-wrap { background: #f6ffed; color: #73d13d; }
+    &.card-3 .stats-icon-wrap { background: #fff1f0; color: #ff4d4f; }
   }
 }
 

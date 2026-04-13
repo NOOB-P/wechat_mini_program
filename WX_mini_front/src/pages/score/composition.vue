@@ -37,7 +37,7 @@
           </view>
           <view class="rank-divider"></view>
           <view class="rank-item">
-            <text class="rank-val">{{ Math.round((compositionData.rank / compositionData.totalStudents) * 100) }}%</text>
+            <text class="rank-val">{{ Math.round((1 - compositionData.rank / compositionData.totalStudents) * 100) }}%</text>
             <text class="rank-label">超过同级</text>
           </view>
         </view>
@@ -124,8 +124,8 @@ import { onLoad } from '@dcloudio/uni-app'
 import { getScoreCompositionApi } from '@/api/score'
 import { useToast } from 'wot-design-uni'
 
-const subjects = ref(['数学', '语文', '英语', '物理', '化学', '生物'])
-const currentSubject = ref('数学')
+const subjects = ref(['语文', '数学', '英语', '物理', '化学', '生物'])
+const currentSubject = ref('语文')
 const compositionData = ref<any>(null)
 const loading = ref(false)
 const examId = ref('')
