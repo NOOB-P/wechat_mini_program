@@ -38,3 +38,76 @@ export function changeCourseStatus(id: string, status: number) {
     data: { id, status }
   })
 }
+
+/** 获取课程章节列表 */
+export function getEpisodeList(courseId: string) {
+  return request.get<any[]>({
+    url: '/api/system/course/episode/list',
+    params: { courseId }
+  })
+}
+
+/** 新增课程章节 */
+export function addEpisode(data: any) {
+  return request.post({
+    url: '/api/system/course/episode/add',
+    data
+  })
+}
+
+/** 更新课程章节 */
+export function updateEpisode(data: any) {
+  return request.put({
+    url: '/api/system/course/episode/update',
+    data
+  })
+}
+
+/** 删除课程章节 */
+export function deleteEpisode(id: string) {
+  return request.del({
+    url: `/api/system/course/episode/delete/${id}`
+  })
+}
+
+/** 获取章节视频列表 */
+export function getVideoList(episodeId: string) {
+  return request.get<any[]>({
+    url: '/api/system/course/video/list',
+    params: { episodeId }
+  })
+}
+
+/** 新增章节视频 */
+export function addVideo(data: any) {
+  return request.post({
+    url: '/api/system/course/video/add',
+    data
+  })
+}
+
+/** 更新章节视频 */
+export function updateVideo(data: any) {
+  return request.put({
+    url: '/api/system/course/video/update',
+    data
+  })
+}
+
+/** 删除章节视频 */
+export function deleteVideo(id: string) {
+  return request.del({
+    url: `/api/system/course/video/delete/${id}`
+  })
+}
+
+/** 上传封面 */
+export function uploadCourseCover(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post<string>({
+    url: '/api/system/course/upload-cover',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}

@@ -15,6 +15,15 @@ import com.edu.javasb_back.repository.CourseRepository;
 import com.edu.javasb_back.service.CourseService;
 import com.edu.javasb_back.service.CourseOrderService;
 
+import com.edu.javasb_back.model.entity.CourseEpisode;
+import com.edu.javasb_back.model.entity.CourseVideo;
+import com.edu.javasb_back.repository.CourseEpisodeRepository;
+import com.edu.javasb_back.repository.CourseVideoRepository;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+
 @Service
 public class CourseServiceImpl implements CourseService {
 
@@ -22,7 +31,13 @@ public class CourseServiceImpl implements CourseService {
     private CourseRepository courseRepository;
 
     @Autowired
+    private CourseEpisodeRepository episodeRepository;
+
+    @Autowired
     private CourseInteractionRepository interactionRepository;
+
+    @Autowired
+    private CourseVideoRepository videoRepository;
 
     @Autowired
     private CourseOrderService orderService;
@@ -46,6 +61,12 @@ public class CourseServiceImpl implements CourseService {
                 // 检查是否已购买
                 course.setIsPurchased(orderService.isCoursePurchased(uid, courseId));
             }
+            // 获取章节列表
+            List<CourseEpisode> episodes = episodeRepository.findByCourseIdOrderBySortOrderAsc(courseId);
+            for (CourseEpisode episode : episodes) {
+                episode.setVideoList(videoRepository.findByEpisodeIdOrderBySortOrderAsc(episode.getId()));
+            }
+            course.setEpisodeList(episodes);
             return Result.success(course);
         }
         return Result.error("课程不存在");
@@ -144,5 +165,150 @@ public class CourseServiceImpl implements CourseService {
             return Result.success("操作成功", null);
         }
         return Result.error("课程不存在");
+    }
+
+    @Override
+    public Result<List<CourseEpisode>> getCourseEpisodes(String courseId) {
+        return Result.success(episodeRepository.findByCourseIdOrderBySortOrderAsc(courseId));
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> addEpisode(CourseEpisode episode) {
+        if (episode.getId() == null || episode.getId().isEmpty()) {
+            episode.setId("EP" + System.currentTimeMillis());
+        }
+        episode.setCreateTime(LocalDateTime.now());
+        
+        // 优化排序：处理冲突并递增
+        optimizeEpisodeSort(episode.getCourseId(), episode.getSortOrder(), null);
+        
+        episodeRepository.save(episode);
+        
+        // 更新课程总节数
+        updateCourseEpisodeCount(episode.getCourseId());
+        
+        return Result.success("添加成功", null);
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> updateEpisode(CourseEpisode episode) {
+        Optional<CourseEpisode> oldOpt = episodeRepository.findById(episode.getId());
+        if (oldOpt.isEmpty()) {
+            return Result.error("章节不存在");
+        }
+        
+        // 如果排序发生了变化，处理冲突
+        if (!oldOpt.get().getSortOrder().equals(episode.getSortOrder())) {
+            optimizeEpisodeSort(episode.getCourseId(), episode.getSortOrder(), episode.getId());
+        }
+        
+        episodeRepository.save(episode);
+        return Result.success("更新成功", null);
+    }
+
+    /**
+     * 优化章节排序逻辑：如果出现相同排序，则该排序及之后的章节全部序号+1
+     */
+    private void optimizeEpisodeSort(String courseId, Integer targetSort, String excludeId) {
+        List<CourseEpisode> list = episodeRepository.findByCourseIdOrderBySortOrderAsc(courseId);
+        int currentSort = targetSort;
+        for (CourseEpisode ep : list) {
+            if (excludeId != null && ep.getId().equals(excludeId)) continue;
+            
+            if (ep.getSortOrder() >= currentSort) {
+                ep.setSortOrder(ep.getSortOrder() + 1);
+                episodeRepository.save(ep);
+            }
+        }
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> deleteEpisode(String id) {
+        Optional<CourseEpisode> epOpt = episodeRepository.findById(id);
+        if (epOpt.isPresent()) {
+            String courseId = epOpt.get().getCourseId();
+            episodeRepository.deleteById(id);
+            // 更新课程总节数
+            updateCourseEpisodeCount(courseId);
+            return Result.success("删除成功", null);
+        }
+        return Result.error("章节不存在");
+    }
+
+    private void updateCourseEpisodeCount(String courseId) {
+        List<CourseEpisode> episodes = episodeRepository.findByCourseIdOrderBySortOrderAsc(courseId);
+        Optional<Course> courseOpt = courseRepository.findById(courseId);
+        if (courseOpt.isPresent()) {
+            Course course = courseOpt.get();
+            course.setEpisodes(episodes.size());
+            courseRepository.save(course);
+        }
+    }
+
+    @Override
+    public Result<List<CourseVideo>> getEpisodeVideos(String episodeId) {
+        return Result.success(videoRepository.findByEpisodeIdOrderBySortOrderAsc(episodeId));
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> addVideo(CourseVideo video) {
+        if (video.getId() == null || video.getId().isEmpty()) {
+            video.setId("VID" + System.currentTimeMillis());
+        }
+        video.setCreateTime(LocalDateTime.now());
+        video.setUpdateTime(LocalDateTime.now());
+        
+        // 优化视频排序
+        optimizeVideoSort(video.getEpisodeId(), video.getSortOrder(), null);
+        
+        videoRepository.save(video);
+        return Result.success("添加视频成功", null);
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> updateVideo(CourseVideo video) {
+        Optional<CourseVideo> oldOpt = videoRepository.findById(video.getId());
+        if (oldOpt.isEmpty()) {
+            return Result.error("视频不存在");
+        }
+        
+        if (!oldOpt.get().getSortOrder().equals(video.getSortOrder())) {
+            optimizeVideoSort(video.getEpisodeId(), video.getSortOrder(), video.getId());
+        }
+        
+        video.setUpdateTime(LocalDateTime.now());
+        videoRepository.save(video);
+        return Result.success("更新视频成功", null);
+    }
+
+    /**
+     * 优化视频排序逻辑
+     */
+    private void optimizeVideoSort(String episodeId, Integer targetSort, String excludeId) {
+        List<CourseVideo> list = videoRepository.findByEpisodeIdOrderBySortOrderAsc(episodeId);
+        int currentSort = targetSort;
+        for (CourseVideo v : list) {
+            if (excludeId != null && v.getId().equals(excludeId)) continue;
+            
+            if (v.getSortOrder() >= currentSort) {
+                v.setSortOrder(v.getSortOrder() + 1);
+                videoRepository.save(v);
+            }
+        }
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> deleteVideo(String id) {
+        if (videoRepository.existsById(id)) {
+            videoRepository.deleteById(id);
+            return Result.success("删除视频成功", null);
+        }
+        return Result.error("视频不存在");
     }
 }

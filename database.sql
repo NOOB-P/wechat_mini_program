@@ -293,6 +293,31 @@ CREATE TABLE `courses` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='课程与学习资源表';
 
+-- 7.0 课程章节表
+DROP TABLE IF EXISTS `course_episodes`;
+CREATE TABLE `course_episodes` (
+    `id` VARCHAR(50) PRIMARY KEY COMMENT '章节ID',
+    `course_id` VARCHAR(50) NOT NULL COMMENT '所属课程ID',
+    `title` VARCHAR(200) NOT NULL COMMENT '章节标题',
+    `sort_order` INT DEFAULT 0 COMMENT '排序',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    CONSTRAINT `fk_episode_course` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='课程章节明细表';
+
+-- 7.0.1 章节视频表 (支持一个章节多个视频)
+DROP TABLE IF EXISTS `course_videos`;
+CREATE TABLE `course_videos` (
+    `id` VARCHAR(50) PRIMARY KEY COMMENT '视频ID',
+    `episode_id` VARCHAR(50) NOT NULL COMMENT '所属章节ID',
+    `title` VARCHAR(200) NOT NULL COMMENT '视频名称',
+    `video_url` VARCHAR(500) COMMENT '视频文件路径',
+    `sort_order` INT DEFAULT 0 COMMENT '排序',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    CONSTRAINT `fk_video_episode` FOREIGN KEY (`episode_id`) REFERENCES `course_episodes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='课程视频资源表';
+
 -- 7.1 用户与课程交互表 (我的课程/最近查看)
 DROP TABLE IF EXISTS `user_courses`;
 CREATE TABLE `user_courses` (
@@ -700,6 +725,12 @@ CREATE TABLE IF NOT EXISTS `course_orders` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX `idx_user_course` (`user_uid`, `course_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 16. 初始化课程数据 (仅保留结构，不使用外部链接)
+INSERT IGNORE INTO `courses` (`id`, `title`, `type`, `status`, `is_recommend`, `price`) VALUES
+('CRS001', '初中数学基础巩固', 'general', 1, 1, 0.00),
+('CRS002', '中考物理冲刺班', 'general', 1, 1, 99.00),
+('CRS003', '小学英语启蒙课', 'general', 1, 0, 0.00);
 
 -- 14. 初始化试卷数据
 INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `tags`, `download_count`, `is_recommend`, `file_path`) VALUES

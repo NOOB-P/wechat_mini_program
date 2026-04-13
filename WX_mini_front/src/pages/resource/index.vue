@@ -61,11 +61,11 @@
         </view>
       </view>
       <view class="recommend-grid">
-        <view class="recommend-item" @click="navTo('/pages/course/index')">
+        <view class="recommend-item">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_ai.png'" mode="aspectFill" />
           <text class="recommend-text">精选AI</text>
         </view>
-        <view class="recommend-item" @click="navTo('/pages/course/index')">
+        <view class="recommend-item">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_tutor.png'" mode="aspectFill" />
           <text class="recommend-text">精选家教</text>
         </view>
@@ -85,13 +85,13 @@
         </view>
       </view>
       <view class="recommend-grid">
-        <view class="recommend-item" @click="navTo('/pages/course/index')">
+        <view class="recommend-item">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/ai_study_1.png'" mode="aspectFill" />
         </view>
-        <view class="recommend-item" @click="navTo('/pages/course/index')">
+        <view class="recommend-item">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/ai_study_2.png'" mode="aspectFill" />
         </view>
-        <view class="recommend-item" @click="navTo('/pages/course/index')">
+        <view class="recommend-item">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/ai_study_3.png'" mode="aspectFill" />
         </view>
       </view>
