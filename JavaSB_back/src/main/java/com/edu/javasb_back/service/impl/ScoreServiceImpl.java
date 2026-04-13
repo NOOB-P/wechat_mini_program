@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -279,6 +280,8 @@ public class ScoreServiceImpl implements ScoreService {
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("subject", targetSubject);
+        data.put("score", roundScore(studentScoreOpt.get().getTotalScore()));
+        data.put("rank", rank);
         data.put("rankInfo", projectScores.isEmpty() ? "暂无排名" : "第" + rank + "名 / 共" + projectScores.size() + "人");
         data.put("overallLevel", calcLevel(studentScoreOpt.get().getTotalScore(), fullScore));
         data.put("averageScore", roundScore(classAverage));
@@ -287,9 +290,10 @@ public class ScoreServiceImpl implements ScoreService {
         data.put("studentCount", projectScores.size());
         data.put("levels", buildDistributionLevels(projectScores, fullScore));
         data.put("stats", List.of(
-                statItem("班级均分", classAverage, "chart-bar", compareText(classAverage - projectAverage)),
-                statItem("年级均分", projectAverage, "user", compareText(studentScoreOpt.get().getTotalScore() - projectAverage)),
-                statItem("最高分", highestScore, "award", compareText(highestScore - studentScoreOpt.get().getTotalScore()))
+                statItem("我的得分", studentScoreOpt.get().getTotalScore(), "user", ""),
+                statItem("年级均分", projectAverage, "chart-bar", compareText(studentScoreOpt.get().getTotalScore() - projectAverage)),
+                statItem("班级均分", classAverage, "home", compareText(studentScoreOpt.get().getTotalScore() - classAverage)),
+                statItem("最高分", highestScore, "medal", "距榜首 " + roundScore(highestScore - studentScoreOpt.get().getTotalScore()))
         ));
         return Result.success(data);
     }
@@ -299,44 +303,117 @@ public class ScoreServiceImpl implements ScoreService {
         Optional<SysStudent> studentOpt = getBoundStudent(uid);
         if (studentOpt.isEmpty()) return Result.error("未绑定学生账号");
 
-        List<ProjectSnapshot> snapshots = buildProjectSnapshots(studentOpt.get());
-        if (snapshots.isEmpty()) return Result.error("暂无趋势数据");
+        SysStudent student = studentOpt.get();
+        List<ProjectSnapshot> snapshots = buildProjectSnapshots(student);
+        if (snapshots.isEmpty()) return Result.error("暂无趋势分析数据");
 
         List<ProjectSnapshot> trendSnapshots = pickTrendSnapshots(snapshots, examId);
         List<Map<String, Object>> history = new ArrayList<>();
-        LinkedHashMap<String, Double> subjectAverageMap = new LinkedHashMap<>();
-        LinkedHashMap<String, Integer> subjectSampleMap = new LinkedHashMap<>();
+        
+        // 提前预加载所有可能需要的成绩数据，减少循环内的数据库查询
+        List<String> allClassIds = trendSnapshots.stream().map(s -> s.examClass().getId()).collect(Collectors.toList());
+        List<ExamSubject> allTrendSubjects = examSubjectRepository.findByClassIdIn(allClassIds);
+        Map<String, List<ExamSubject>> subjectsByClassId = allTrendSubjects.stream()
+                .collect(Collectors.groupingBy(ExamSubject::getClassId));
+
+        Set<String> uniqueSubjectNames = new TreeSet<>();
 
         for (ProjectSnapshot snapshot : trendSnapshots) {
-            ProjectAggregate aggregate = buildProjectAggregate(snapshot, studentOpt.get());
-            if (aggregate.currentTotalScore() <= 0 && aggregate.currentSubjectScores().isEmpty()) continue;
+            try {
+                ProjectAggregate aggregate = buildFastProjectAggregate(snapshot, student, subjectsByClassId.getOrDefault(snapshot.examClass().getId(), Collections.emptyList()));
+                if (aggregate.currentTotalScore() <= 0 && aggregate.currentSubjectScores().isEmpty()) continue;
 
-            Map<String, Object> historyItem = new LinkedHashMap<>();
-            historyItem.put("period", snapshot.project().getName());
-            historyItem.put("score", roundScore(aggregate.currentTotalScore()));
-            historyItem.put("rank", aggregate.currentRank());
-            historyItem.put("classAvg", roundScore(aggregate.classAverage()));
-            historyItem.put("subjects", aggregate.currentSubjectScores());
-            history.add(historyItem);
+                Map<String, Object> historyItem = new LinkedHashMap<>();
+                historyItem.put("period", snapshot.project().getName());
+                historyItem.put("score", roundScore(aggregate.currentTotalScore()));
+                historyItem.put("rank", aggregate.currentRank());
+                historyItem.put("classAvg", roundScore(aggregate.classAverage()));
+                historyItem.put("subjects", aggregate.currentSubjectScores());
+                history.add(historyItem);
 
-            for (Map.Entry<String, Double> entry : aggregate.currentSubjectScores().entrySet()) {
-                subjectAverageMap.merge(entry.getKey(), entry.getValue(), Double::sum);
-                subjectSampleMap.merge(entry.getKey(), 1, Integer::sum);
+                uniqueSubjectNames.addAll(aggregate.currentSubjectScores().keySet());
+            } catch (Exception e) {
+                // 单个考试处理失败不影响整体趋势展示
+                continue;
             }
         }
 
-        if (history.isEmpty()) return Result.error("暂无趋势数据");
+        if (history.isEmpty()) return Result.error("暂无可用趋势数据");
 
-        List<String> subjects = sortSubjectNames(subjectAverageMap.keySet());
+        List<String> subjects = sortSubjectNames(uniqueSubjectNames);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("history", history);
         data.put("subjects", subjects);
         data.put("volatility", calcMostVolatileSubject(history, subjects));
-        data.put("strengths", calcStrengthSubjects(subjectAverageMap, subjectSampleMap, subjects, true));
-        data.put("improvements", calcStrengthSubjects(subjectAverageMap, subjectSampleMap, subjects, false));
+        
+        // 计算各科平均分用于强弱分析
+        Map<String, Double> subjectTotalMap = new HashMap<>();
+        Map<String, Integer> subjectCountMap = new HashMap<>();
+        for (Map<String, Object> item : history) {
+            Map<String, Double> subScores = (Map<String, Double>) item.get("subjects");
+            for (Map.Entry<String, Double> entry : subScores.entrySet()) {
+                subjectTotalMap.merge(entry.getKey(), entry.getValue(), Double::sum);
+                subjectCountMap.merge(entry.getKey(), 1, Integer::sum);
+            }
+        }
+
+        data.put("strengths", calcStrengthSubjects(subjectTotalMap, subjectCountMap, subjects, true));
+        data.put("improvements", calcStrengthSubjects(subjectTotalMap, subjectCountMap, subjects, false));
         data.put("milestones", buildMilestones(history));
         data.put("insight", buildTrendInsight(history));
+        
         return Result.success(data);
+    }
+
+    private ProjectAggregate buildFastProjectAggregate(ProjectSnapshot snapshot, SysStudent student, List<ExamSubject> classSubjects) {
+        // 获取该考试项目下所有科目的成绩，用于计算排名
+        List<String> allSubjectIds = snapshot.projectSubjectsByName().values().stream()
+                .flatMap(Collection::stream)
+                .map(ExamSubject::getId)
+                .toList();
+        
+        List<ExamStudentScore> allScores = examStudentScoreRepository.findBySubjectIdIn(allSubjectIds).stream()
+                .filter(this::isScoreEntered)
+                .toList();
+
+        Map<String, Double> totalMap = new HashMap<>();
+        for (ExamStudentScore score : allScores) {
+            totalMap.merge(score.getStudentNo(), score.getTotalScore(), Double::sum);
+        }
+
+        // 计算班级平均分
+        List<String> currentClassSubjectIds = classSubjects.stream().map(ExamSubject::getId).toList();
+        double classAvg = allScores.stream()
+                .filter(s -> currentClassSubjectIds.contains(s.getSubjectId()))
+                .collect(Collectors.groupingBy(ExamStudentScore::getStudentNo, Collectors.summingDouble(ExamStudentScore::getTotalScore)))
+                .values().stream().mapToDouble(Double::doubleValue).average().orElse(0D);
+
+        // 计算个人各科分数
+        Map<String, Double> currentSubjectScores = new LinkedHashMap<>();
+        double currentTotalScore = 0D;
+        for (ExamSubject subject : classSubjects) {
+            double score = allScores.stream()
+                    .filter(s -> s.getSubjectId().equals(subject.getId()) && s.getStudentNo().equals(student.getStudentNo()))
+                    .findFirst()
+                    .map(ExamStudentScore::getTotalScore)
+                    .orElse(0D);
+            currentSubjectScores.put(subject.getSubjectName(), roundScore(score));
+            currentTotalScore += score;
+        }
+
+        int rank = 1;
+        double myTotal = currentTotalScore;
+        for (Double total : totalMap.values()) {
+            if (total > myTotal + 0.01) rank++;
+        }
+
+        return new ProjectAggregate(
+                roundScore(currentTotalScore),
+                roundScore(classAvg),
+                rank,
+                totalMap.size(),
+                currentSubjectScores
+        );
     }
 
     private List<ProjectSnapshot> buildProjectSnapshots(SysStudent student) {
@@ -412,7 +489,9 @@ public class ScoreServiceImpl implements ScoreService {
                 }
             }
         }
-        int endIndex = Math.min(startIndex + 6, snapshots.size());
+        // 修改逻辑：默认显示最近 6 次，如果总次数不足 6 次，则显示所有可用次数
+        int limit = 6;
+        int endIndex = Math.min(startIndex + limit, snapshots.size());
         List<ProjectSnapshot> picked = new ArrayList<>(snapshots.subList(startIndex, endIndex));
         Collections.reverse(picked);
         return picked;

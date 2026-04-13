@@ -55,7 +55,9 @@
                 <view class="fill-light"></view>
               </view>
             </view>
-            <view class="bar-label">{{ item.period }}</view>
+            <view class="bar-label">
+              <text v-for="(line, lIdx) in formatLabel(item.period)" :key="lIdx">{{ line }}</text>
+            </view>
           </view>
         </view>
       </view>
@@ -211,10 +213,32 @@ const showDetail = (exam: any) => {
   showPopup.value = true
 }
 
+const formatLabel = (period: string) => {
+  if (!period) return []
+  // 按照空格、横杠或者学年学期关键字进行拆分，模拟图二竖直正面显示效果
+  // 比如 "2023-2024学年第一学期期中考试" 拆分为几段
+  const year = period.match(/\d{4}-\d{4}/)?.[0] || ''
+  let rest = period.replace(year, '').trim()
+  
+  const result = []
+  if (year) result.push(year)
+  
+  // 进一步拆分剩余部分，比如“第一学期”和“期中考试”
+  if (rest.includes('学期')) {
+    const termIdx = rest.indexOf('学期') + 2
+    result.push(rest.substring(0, termIdx))
+    result.push(rest.substring(termIdx))
+  } else {
+    result.push(rest)
+  }
+  return result.filter(item => item.length > 0)
+}
+
 const getTrendSummary = () => {
-  if (!trendData.value) return ''
+  if (!trendData.value || !trendData.value.history || trendData.value.history.length === 0) return ''
   const history = trendData.value.history
   const latest = history[history.length - 1].score
+  if (history.length < 2) return '首考记录'
   const prev = history[history.length - 2].score
   const diff = latest - prev
   return diff >= 0 ? `+${diff}分` : `${diff}分`
@@ -375,13 +399,18 @@ onMounted(() => {
     
     .bar-label {
       position: absolute;
-      bottom: -100rpx;
-      font-size: 22rpx;
+      bottom: -110rpx;
+      font-size: 20rpx;
       color: #888;
-      writing-mode: vertical-rl;
       text-align: center;
-      height: 100rpx;
-      line-height: 1.2;
+      width: 100rpx;
+      line-height: 1.4;
+      white-space: normal;
+      word-break: break-all;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
     }
   }
 }
