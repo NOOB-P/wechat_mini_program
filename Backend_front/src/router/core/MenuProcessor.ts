@@ -64,7 +64,11 @@ export class MenuProcessor {
   /**
    * 根据角色过滤菜单
    */
-  private filterMenuByRoles(menu: AppRouteRecord[], roles: string[], isParentAllowed: boolean = false): AppRouteRecord[] {
+  private filterMenuByRoles(
+    menu: AppRouteRecord[],
+    roles: string[],
+    isParentAllowed: boolean = false
+  ): AppRouteRecord[] {
     const userStore = useUserStore()
     const permissions = userStore.info?.permissions ?? []
 
@@ -78,13 +82,11 @@ export class MenuProcessor {
       const isAuxiliaryRoute = item.meta?.isHide === true || item.meta?.isHideTab === true
       const selfPermission = item.meta?.authMark
 
-      let isCurrentAllowed = true
-      if (isPermissionFilteringEnabled) {
-        isCurrentAllowed =
-          isParentAllowed ||
+      const isCurrentAllowed = !isPermissionFilteringEnabled
+        ? true
+        : isParentAllowed ||
           Boolean(selfPermission && permissions.includes(selfPermission)) ||
           isAuxiliaryRoute
-      }
 
       if (hasRolePermission) {
         const filteredItem = { ...item }

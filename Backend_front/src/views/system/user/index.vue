@@ -22,7 +22,7 @@
       <!-- 表格 -->
       <ArtTable
         :loading="loading"
-        :data="data"
+        :data="data as any"
         :columns="columns"
         :pagination="pagination"
         @selection-change="handleSelectionChange"
@@ -258,7 +258,7 @@
           prop: 'userInfo',
           label: '用户信息',
           width: 200,
-          formatter: (row) => {
+          formatter: (row: any) => {
             const avatar = row.avatar || defaultAvatar
             return h('div', { class: 'user flex-c' }, [
               h(ElImage, {
@@ -278,7 +278,7 @@
           prop: 'userType',
           label: '角色类型',
           width: 100,
-          formatter: (row) => {
+          formatter: (row: any) => {
             // 根据接口返回的角色字典进行映射
             const roleName = roleMap.value[row.userType] || '未知角色'
             // 根据角色类型简单分配颜色（这里依然按 ID 粗略分配）
@@ -295,7 +295,7 @@
           label: 'VIP',
           width: 80,
           align: 'center',
-          formatter: (row) => {
+          formatter: (row: any) => {
             return h(
               ElTag,
               { type: row.isVip === 1 ? 'success' : 'info', effect: row.isVip === 1 ? 'dark' : 'plain' },
@@ -308,7 +308,7 @@
           label: 'SVIP',
           width: 80,
           align: 'center',
-          formatter: (row) => {
+          formatter: (row: any) => {
             return h(
               ElTag,
               { type: row.isSvip === 1 ? 'warning' : 'info', effect: row.isSvip === 1 ? 'dark' : 'plain' },
@@ -320,7 +320,7 @@
           prop: 'bindingInfo',
           label: '绑定详情',
           minWidth: 250,
-          formatter: (row) => {
+          formatter: (row: any) => {
             const info = []
             if (row.userType === '1' || row.userType === '2') {
               // 管理员和后台管理不需要绑定
@@ -356,7 +356,7 @@
           prop: 'status',
           label: '状态',
           width: 80,
-          formatter: (row) => {
+          formatter: (row: any) => {
             const statusConfig = getUserStatusConfig(row.status)
             return h(ElTag, { type: statusConfig.type }, () => statusConfig.text)
           }
@@ -372,15 +372,15 @@
           label: '操作',
           width: 120,
           fixed: 'right', // 固定列
-          formatter: (row) =>
+          formatter: (row: any) =>
             h('div', [
               h(ArtButtonTable, {
                 type: 'edit',
-                onClick: () => showDialog('edit', row)
+                onClick: () => showDialog('edit', row as any)
               }),
               h(ArtButtonTable, {
                 type: 'delete',
-                onClick: () => deleteUser(row)
+                onClick: () => deleteUser(row as any)
               })
             ])
         }

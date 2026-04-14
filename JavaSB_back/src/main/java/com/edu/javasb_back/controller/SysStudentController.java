@@ -101,14 +101,12 @@ public class SysStudentController {
         int successCount = 0;
         int failCount = 0;
         java.util.List<String> failedNames = new java.util.ArrayList<>();
-
         for (String id : ids) {
             String studentName = "未知学生";
             java.util.Optional<SysStudent> studentOpt = sysStudentRepository.findById(id);
             if (studentOpt.isPresent()) {
                 studentName = studentOpt.get().getName();
             }
-
             Result<Void> result = sysStudentService.deleteStudent(id);
             if (result.getCode() == 200) {
                 successCount++;

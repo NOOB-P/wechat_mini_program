@@ -21,7 +21,6 @@ export function fetchGetSchoolOptions() {
     url: '/api/system/school/options'
   })
 }
-
 /** 新增学校 */
 export function fetchAddSchool(params: { province: string, city: string, name: string }) {
   return api.post<any>({

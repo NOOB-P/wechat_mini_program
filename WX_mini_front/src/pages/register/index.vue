@@ -8,9 +8,9 @@
     <view class="form-container">
       <view class="input-group">
         <wd-input v-model="nickname" placeholder="请输入昵称" no-border />
-        <wd-input v-model="phone" placeholder="请输入手机号" type="number" maxlength="11" no-border />
+        <wd-input v-model="phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
         <view class="code-wrapper">
-          <wd-input v-model="code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+          <wd-input v-model="code" placeholder="请输入验证码" type="number" :maxlength="6" use-suffix-slot no-border>
             <template #suffix>
               <view class="code-btn-text" :class="{ disabled: countdown > 0 }" @click="countdown === 0 && sendCode()">
                 {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}

@@ -19,8 +19,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.service.RolePermissionService;
 import com.edu.javasb_back.repository.SysRoleRepository;
+import com.edu.javasb_back.service.RolePermissionService;
 
 @RestController
 @RequestMapping("/api/admin/content-management")

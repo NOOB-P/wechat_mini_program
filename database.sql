@@ -455,6 +455,7 @@ CREATE TABLE `vip_orders` (
     `price` DECIMAL(10,2) NOT NULL COMMENT '支付金额',
     `payment_status` TINYINT DEFAULT 0 COMMENT '支付状态: 0-待支付, 1-已支付, 2-已退款',
     `payment_method` VARCHAR(50) COMMENT '支付方式(微信/支付宝)',
+    `source_type` VARCHAR(50) NOT NULL DEFAULT 'ONLINE_PURCHASE' COMMENT '订单来源: ONLINE_PURCHASE-在线购买, SCHOOL_GIFT-校讯通赠送',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='VIP/SVIP购买订单表';

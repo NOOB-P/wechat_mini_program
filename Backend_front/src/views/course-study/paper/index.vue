@@ -203,10 +203,10 @@ const loading = ref(false)
 const uploadLoading = ref(false)
 const submitLoading = ref(false)
 const total = ref(0)
-const paperList = ref([])
-const subjects = ref([])
+const paperList = ref<any[]>([])
+const subjects = ref<any[]>([])
 
-const typeMap = {
+const typeMap: Record<string, string> = {
   FAMOUS: '名校试卷',
   MONTHLY: '月考试卷',
   JOINT: '联考试卷'

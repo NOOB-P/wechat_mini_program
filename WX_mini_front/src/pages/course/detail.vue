@@ -57,14 +57,43 @@
         </wd-tab>
         <wd-tab title="课程大纲" name="outline">
           <view class="outline-content">
-            <view class="chapter-item" v-for="(chapter, index) in chapters" :key="index">
-              <view class="chapter-info">
-                <text class="chapter-index">第 {{ index + 1 }} 讲</text>
+            <view class="chapter-container" v-for="(chapter, cIndex) in chapters" :key="cIndex">
+              <view class="chapter-header">
+                <text class="chapter-index">第 {{ cIndex + 1 }} 讲</text>
                 <text class="chapter-name">{{ chapter.title }}</text>
               </view>
-              <view class="chapter-status" :class="{ 'is-playing': currentChapter === index }" @click="playChapter(index)">
-                <wd-icon :name="currentChapter === index ? 'pause-circle' : 'play-circle'" size="20px" />
-                <text>{{ currentChapter === index ? '播放中' : '去学习' }}</text>
+              
+              <view class="video-list">
+                <view
+                  class="video-item"
+                  v-for="(video, vIndex) in chapter.videoList"
+                  :key="vIndex"
+                  :class="{ 'is-playing': currentChapter === cIndex && currentVideoIndex === vIndex }"
+                  @click="playVideo(cIndex, vIndex)"
+                >
+                  <view class="video-info">
+                    <wd-icon name="play-circle" size="16px" class="v-icon" />
+                    <text class="v-title">{{ video.title }}</text>
+                  </view>
+                  <view class="v-status">
+                    <text>{{ (currentChapter === cIndex && currentVideoIndex === vIndex) ? '播放中' : '去学习' }}</text>
+                  </view>
+                </view>
+                
+                <view
+                  v-if="(!chapter.videoList || chapter.videoList.length === 0) && chapter.videoUrl"
+                  class="video-item"
+                  :class="{ 'is-playing': currentChapter === cIndex && currentVideoIndex === -1 }"
+                  @click="playChapter(cIndex)"
+                >
+                  <view class="video-info">
+                    <wd-icon name="play-circle" size="16px" class="v-icon" />
+                    <text class="v-title">完整视频</text>
+                  </view>
+                  <view class="v-status">
+                    <text>{{ (currentChapter === cIndex && currentVideoIndex === -1) ? '播放中' : '去学习' }}</text>
+                  </view>
+                </view>
               </view>
             </view>
           </view>
@@ -104,12 +133,8 @@ const currentTab = ref('intro')
 const isCollected = ref(false)
 const isPurchased = ref(false)
 const currentChapter = ref(0)
-const chapters = ref<any[]>([
-  { title: '课程介绍与学习指南' },
-  { title: '核心知识点深度解析' },
-  { title: '实战案例演练' },
-  { title: '总结与提升' }
-])
+const chapters = ref<any[]>([])
+const currentVideoIndex = ref(-1)
 
 const loadCourseDetail = async (id: string) => {
   try {
@@ -117,7 +142,29 @@ const loadCourseDetail = async (id: string) => {
     const res = await getCourseDetailApi(id)
     if (res.code === 200) {
       const data = res.data
-      // 修正：处理图片和视频的服务器 BaseURL
+      
+      // 处理章节列表
+      if (data.episodeList && data.episodeList.length > 0) {
+        chapters.value = data.episodeList.map((ep: any) => ({
+          ...ep,
+          // 处理章节下的视频列表
+          videoList: (ep.videoList || []).map((v: any) => ({
+            ...v,
+            videoUrl: (v.videoUrl && !v.videoUrl.startsWith('http')) 
+              ? __VITE_SERVER_BASEURL__ + v.videoUrl 
+              : v.videoUrl
+          })),
+          // 兼容性处理：如果章节本身有视频地址
+          videoUrl: (ep.videoUrl && !ep.videoUrl.startsWith('http')) 
+            ? __VITE_SERVER_BASEURL__ + ep.videoUrl 
+            : ep.videoUrl
+        }))
+      } else {
+        // 兜底：如果课程没有章节，但有主视频
+        chapters.value = [{ title: data.title, videoUrl: data.videoUrl, videoList: [] }]
+      }
+
+      // 处理主封面
       if (data.cover && !data.cover.startsWith('http')) {
         data.cover = __VITE_SERVER_BASEURL__ + data.cover
       }
@@ -128,14 +175,46 @@ const loadCourseDetail = async (id: string) => {
       courseInfo.value = data
       isCollected.value = !!data.isCollected
       isPurchased.value = !!data.isPurchased
-      // 模拟一些详情页需要的数据，如果后端没有的话
-      if (!courseInfo.value.studentCount) courseInfo.value.studentCount = Math.floor(Math.random() * 1000)
-      if (!courseInfo.value.chapterCount) courseInfo.value.chapterCount = chapters.value.length
+      
+      // 设置默认播放视频
+      setDefaultVideo()
+
+      if (!courseInfo.value.studentCount) courseInfo.value.studentCount = data.buyers || 0
+      courseInfo.value.chapterCount = chapters.value.length
     }
     toast.close()
   } catch (e) {
     toast.error('获取课程详情失败')
   }
+}
+
+const setDefaultVideo = () => {
+  if (chapters.value.length > 0) {
+    const firstChapter = chapters.value[0]
+    if (firstChapter.videoList && firstChapter.videoList.length > 0) {
+      courseInfo.value.videoUrl = firstChapter.videoList[0].videoUrl
+      currentChapter.value = 0
+      currentVideoIndex.value = 0
+    } else if (firstChapter.videoUrl) {
+      courseInfo.value.videoUrl = firstChapter.videoUrl
+      currentChapter.value = 0
+    }
+  }
+}
+
+const playVideo = (cIndex: number, vIndex: number) => {
+  if (courseInfo.value.price > 0 && !isPurchased.value) {
+    toast.info('请先购买课程')
+    return
+  }
+  currentChapter.value = cIndex
+  currentVideoIndex.value = vIndex
+  const video = chapters.value[cIndex].videoList[vIndex]
+  if (video.videoUrl) {
+    courseInfo.value.videoUrl = video.videoUrl
+    toast.show(`正在播放：${video.title}`)
+  }
+  startLearning()
 }
 
 onLoad((options: any) => {
@@ -198,8 +277,16 @@ const playChapter = (index: number) => {
     return
   }
   currentChapter.value = index
-  toast.show(`正在切换至：${chapters.value[index].title}`)
-  // 点击具体章节也算开始学习
+  currentVideoIndex.value = -1
+  const selectedChapter = chapters.value[index]
+  if (selectedChapter.videoList && selectedChapter.videoList.length > 0) {
+    playVideo(index, 0)
+    return
+  }
+  if (selectedChapter.videoUrl) {
+    courseInfo.value.videoUrl = selectedChapter.videoUrl
+    toast.show(`正在播放：${selectedChapter.title}`)
+  }
   startLearning()
 }
 
@@ -328,52 +415,76 @@ const startLearning = async () => {
   }
 
   .outline-content {
-    padding: 20rpx 30rpx;
-    
-    .chapter-item {
+    padding: 30rpx;
+
+    .chapter-container {
+      margin-bottom: 40rpx;
+    }
+
+    .chapter-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20rpx;
+      padding-bottom: 10rpx;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .chapter-index {
+      font-size: 24rpx;
+      color: #999;
+      margin-right: 20rpx;
+      background: #f5f5f5;
+      padding: 4rpx 12rpx;
+      border-radius: 4rpx;
+    }
+
+    .chapter-name {
+      font-size: 30rpx;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .video-list {
+      padding-left: 20rpx;
+    }
+
+    .video-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 30rpx 0;
-      border-bottom: 1rpx solid #eee;
-      
-      &:last-child {
-        border-bottom: none;
-      }
+      padding: 24rpx 0;
+      border-bottom: 1px dashed #f5f5f5;
 
-      .chapter-info {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        
-        .chapter-index {
-          font-size: 24rpx;
-          color: #999;
-          margin-right: 20rpx;
-          white-space: nowrap;
+      &.is-playing {
+        .v-title {
+          color: #00b26a;
+          font-weight: bold;
         }
-        
-        .chapter-name {
-          font-size: 28rpx;
-          color: #333;
+        .v-icon {
+          color: #00b26a;
         }
       }
+    }
 
-      .chapter-status {
-        display: flex;
-        align-items: center;
-        gap: 8rpx;
-        font-size: 24rpx;
-        color: #999;
-        padding: 8rpx 20rpx;
-        border-radius: 30rpx;
-        background: #f5f5f5;
-        
-        &.is-playing {
-          color: #2ed573;
-          background: rgba(46, 213, 115, 0.1);
-        }
-      }
+    .video-info {
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+
+    .v-icon {
+      margin-right: 16rpx;
+      color: #ccc;
+    }
+
+    .v-title {
+      font-size: 28rpx;
+      color: #666;
+    }
+
+    .v-status {
+      font-size: 24rpx;
+      color: #00b26a;
     }
   }
 }

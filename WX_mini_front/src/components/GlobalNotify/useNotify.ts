@@ -4,10 +4,12 @@ import type { NotifyOptions,globalNotifyExport } from '@/components/GlobalNotify
 
 const globalNotifyState = ref<boolean>(false)
 const options = ref()
-let timer: NodeJS.Timeout;
+let timer: ReturnType<typeof setTimeout> | undefined
 export function useNotify ():globalNotifyExport {
     function show(o: NotifyOptions) {
-        clearTimeout(timer)
+        if (timer) {
+            clearTimeout(timer)
+        }
         options.value = o
         globalNotifyState.value = true
         if(options.value.duration !== false) {

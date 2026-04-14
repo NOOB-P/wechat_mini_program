@@ -24,12 +24,7 @@
         <el-table-column label="已分配权限" min-width="360">
           <template #default="{ row }">
             <div class="flex flex-wrap gap-2">
-              <el-tag
-                v-for="code in row.permissionCodes"
-                :key="code"
-                type="success"
-                effect="plain"
-              >
+              <el-tag v-for="code in row.permissionCodes" :key="code" type="success" effect="plain">
                 {{ getPermissionTitle(code) }}
               </el-tag>
             </div>
@@ -164,7 +159,7 @@ const handleSizeChange = (val: number) => {
 
 const handleEdit = (row: Api.ContentManage.RolePermissionItem) => {
   currentRole.value = row
-  selectedPermissions.value = [...row.permissionCodes]
+  selectedPermissions.value = [...(row.permissionCodes || [])]
   dialogVisible.value = true
 }
 

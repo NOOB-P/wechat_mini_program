@@ -6,7 +6,7 @@
           v-model="phone"
           placeholder="请输入手机号"
           type="number"
-          maxlength="11"
+          :maxlength="11"
           no-border
         />
       </view>

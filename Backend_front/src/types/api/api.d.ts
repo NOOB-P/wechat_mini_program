@@ -134,6 +134,14 @@ declare namespace Api {
       nickName: string
       isVip?: number
       isSvip?: number
+      userPhone?: string
+      userType?: '1' | '2' | '3' | '4'
+      schoolName?: string
+      gradeName?: string
+      className?: string
+      studentName?: string
+      parentName?: string
+      boundStudents?: Array<Record<string, any>>
     }
 
     type UserSearchParams = Partial<
@@ -325,27 +333,4 @@ declare namespace Api {
     >
   }
 
-  /** 内容管理 - 模块权限分配 */
-  namespace ContentManage {
-    interface RolePermissionItem {
-      id: number
-      roleName: string
-      roleCode: string
-      description?: string
-      status: number
-      permissionCodes: string[]
-    }
-
-    interface PermissionOption {
-      menuPermission: string
-      title: string
-      routePath: string
-      icon?: string
-      permissionCodes: string[]
-    }
-
-    interface PermissionSearchParams extends Api.Common.CommonSearchParams {
-      roleName?: string
-    }
-  }
 }

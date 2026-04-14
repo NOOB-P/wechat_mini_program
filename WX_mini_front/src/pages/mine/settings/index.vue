@@ -77,9 +77,9 @@
       <view class="popup-content">
         <view class="popup-title">修改手机号</view>
         <view class="input-group">
-          <wd-input v-model="phoneForm.newPhone" placeholder="请输入新手机号" type="number" maxlength="11" no-border />
+          <wd-input v-model="phoneForm.newPhone" placeholder="请输入新手机号" type="number" :maxlength="11" no-border />
           <view class="code-wrapper">
-            <wd-input v-model="phoneForm.code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+            <wd-input v-model="phoneForm.code" placeholder="请输入验证码" type="number" :maxlength="6" use-suffix-slot no-border>
               <template #suffix>
                 <view class="code-btn-text" :class="{ disabled: phoneCountdown > 0 }" @click="phoneCountdown === 0 && sendPhoneCode()">
                   {{ phoneCountdown > 0 ? `${phoneCountdown}s后重试` : '获取验证码' }}

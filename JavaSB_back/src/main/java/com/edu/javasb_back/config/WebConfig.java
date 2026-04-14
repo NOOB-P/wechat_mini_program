@@ -21,15 +21,20 @@ public class WebConfig implements WebMvcConfigurer {
         String uploadDir = globalConfigProperties.getUploadDir();
         String paperDir = globalConfigProperties.getPaperDir();
         String uploadRootDir = resolveUploadRootDir(uploadDir);
-        
-        // 核心：处理路径，确保它是绝对路径
+        String coverDir = globalConfigProperties.getCourseCoverDir();
+        String videoDir = globalConfigProperties.getCourseVideoDir();
+
         registerResourceHandler(registry, "/uploads/code/**", uploadDir);
         registerResourceHandler(registry, "/uploads/papers/**", paperDir);
-        
-        // 兼容老路径 /uploads/xxx 和当前 code/papers 子目录路径
-        registerResourceHandler(registry, "/uploads/**", uploadRootDir, uploadDir, paperDir);
+        registerResourceHandler(registry, "/uploads/course/cover/**", coverDir);
+        registerResourceHandler(registry, "/uploads/course/video/**", videoDir);
 
-        // 新增：将 /static/** 映射到 classpath 下的 static 目录
+        registerResourceHandler(registry, "/static/uploads/course/cover/**", coverDir);
+        registerResourceHandler(registry, "/static/uploads/course/video/**", videoDir);
+
+        registerResourceHandler(registry, "/uploads/**", uploadRootDir, uploadDir, paperDir, coverDir, videoDir);
+        registerResourceHandler(registry, "/static/uploads/**", uploadRootDir, uploadDir, paperDir, coverDir, videoDir);
+
         registry.addResourceHandler("/static/**")
                 .addResourceLocations("classpath:/static/");
     }

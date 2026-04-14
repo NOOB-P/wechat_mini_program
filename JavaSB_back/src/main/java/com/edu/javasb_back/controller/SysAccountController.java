@@ -84,10 +84,19 @@ public class SysAccountController {
 
     // 辅助方法：检查权限控制 (低权限不能操作高权限，同级可操作)
     private boolean canManageRole(SysAccount currentUser, Integer targetRoleId) {
-        if (currentUser == null) {
+        if (currentUser == null || currentUser.getRoleId() == null) {
+            return false;
+        }
+        if (targetRoleId == null) {
             return false;
         }
         return rolePermissionService.canManageRole(currentUser.getRoleId(), targetRoleId);
+    }
+
+    private boolean isAdmin(SysAccount currentUser) {
+        if (currentUser == null) return false;
+        if (currentUser.getRoleId() == null) return false;
+        return currentUser.getRoleId() == 1 || currentUser.getRoleId() == 2;
     }
 
     @LogOperation("查询账户列表")
@@ -96,7 +105,7 @@ public class SysAccountController {
     public Result<Map<String, Object>> getAccountList(
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String userName, // 适配前端字段名
+            @RequestParam(required = false) String userName,
             @RequestParam(required = false) String userPhone,
             @RequestParam(required = false) Integer roleId,
             @RequestParam(required = false) String schoolId,
@@ -106,75 +115,64 @@ public class SysAccountController {
         if (currentUser == null) {
             return Result.error(401, "未登录");
         }
-        
-        // if (!isAdmin(currentUser)) {
-        //     return Result.error(403, "无权限执行此操作，仅管理员可用");
-        // }
+        if (!isAdmin(currentUser)) {
+            return Result.error(403, "无权限执行此操作，仅管理员可用");
+        }
 
-        // 处理空字符串，将其转为 null，避免 SQL 匹配失败
         String finalUserName = (userName != null && !userName.trim().isEmpty()) ? userName : null;
         String finalUserPhone = (userPhone != null && !userPhone.trim().isEmpty()) ? userPhone : null;
         String finalSchoolId = (schoolId != null && !schoolId.trim().isEmpty()) ? schoolId : null;
         String finalClassId = (classId != null && !classId.trim().isEmpty()) ? classId : null;
 
-        // 查询 (使用 findAccountsAdvanced 支持学校、班级过滤)
         Pageable pageable = PageRequest.of(current - 1, size, Sort.by(Sort.Direction.DESC, "create_time"));
         Page<SysAccount> pageData = sysAccountRepository.findAccountsAdvanced(
                 finalUserName, finalUserPhone, roleId, finalSchoolId, finalClassId, pageable);
-        
-        // 映射为前端期望的字段名
-        List<Map<String, Object>> records = pageData.getContent().stream()
-            // 如果不是超级管理员，过滤掉等级比自己高的用户数据（比如 roleId=2 看不到 roleId=1）
-            .filter(account -> canManageRole(currentUser, account.getRoleId()))
-            .map(account -> {
-                Map<String, Object> map = new HashMap<>();
-                map.put("id", account.getUid());
-                map.put("userName", account.getUsername());
-                map.put("nickName", account.getNickname());
-                map.put("userPhone", account.getPhone());
-                map.put("email", account.getEmail());
-                map.put("userType", String.valueOf(account.getRoleId()));
-                map.put("isVip", account.getIsVip() != null ? account.getIsVip() : 0);
-                map.put("isSvip", account.getIsSvip() != null ? account.getIsSvip() : 0);
-                map.put("isBoundStudent", account.getIsBoundStudent() != null ? account.getIsBoundStudent() : 0);
-                // 前端的 status 期望 1在线 2离线，我们做个简单的转换
-                map.put("status", "online".equals(account.getOnlineStatus()) ? "1" : "2");
-                map.put("createTime", account.getCreateTime() != null ? account.getCreateTime().toString() : "");
 
-                // 获取绑定信息 (如果是家长)
-                if (account.getRoleId() != null && account.getRoleId() == 3) {
-                    List<StudentParentBinding> bindings = bindingRepository.findByParentUid(account.getUid());
-                    if (!bindings.isEmpty()) {
-                        // 取第一个绑定的学生信息（为了保持单学生绑定的向下兼容展示）
-                        Optional<SysStudent> studentOpt = sysStudentRepository.findById(bindings.get(0).getStudentId());
-                        if (studentOpt.isPresent()) {
-                            SysStudent student = studentOpt.get();
-                            map.put("schoolName", student.getSchool());
-                            map.put("className", student.getClassName());
-                            map.put("studentName", student.getName());
-                            // 还可以传一个完整的绑定学生列表，供前端做更复杂的展示
-                            map.put("boundStudents", bindings.stream().map(b -> {
-                                Optional<SysStudent> sOpt = sysStudentRepository.findById(b.getStudentId());
-                                return sOpt.map(s -> {
-                                    Map<String, Object> sMap = new HashMap<>();
-                                    sMap.put("id", s.getId());
-                                    sMap.put("name", s.getName());
-                                    sMap.put("school", s.getSchool());
-                                    sMap.put("className", s.getClassName());
-                                    return sMap;
-                                }).orElse(null);
-                            }).filter(java.util.Objects::nonNull).collect(Collectors.toList()));
+        List<Map<String, Object>> records = pageData.getContent().stream()
+                .filter(account -> canManageRole(currentUser, account.getRoleId()))
+                .map(account -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", account.getUid());
+                    map.put("userName", account.getUsername());
+                    map.put("nickName", account.getNickname());
+                    map.put("userPhone", account.getPhone());
+                    map.put("email", account.getEmail());
+                    map.put("userType", String.valueOf(account.getRoleId()));
+                    map.put("isVip", account.getIsVip() != null ? account.getIsVip() : 0);
+                    map.put("isSvip", account.getIsSvip() != null ? account.getIsSvip() : 0);
+                    map.put("isBoundStudent", account.getIsBoundStudent() != null ? account.getIsBoundStudent() : 0);
+                    map.put("status", "online".equals(account.getOnlineStatus()) ? "1" : "2");
+                    map.put("createTime", account.getCreateTime() != null ? account.getCreateTime().toString() : "");
+
+                    if (account.getRoleId() != null && account.getRoleId() == 3) {
+                        List<StudentParentBinding> bindings = bindingRepository.findByParentUid(account.getUid());
+                        if (!bindings.isEmpty()) {
+                            Optional<SysStudent> studentOpt = sysStudentRepository.findById(bindings.get(0).getStudentId());
+                            if (studentOpt.isPresent()) {
+                                SysStudent student = studentOpt.get();
+                                map.put("schoolName", student.getSchool());
+                                map.put("className", student.getClassName());
+                                map.put("studentName", student.getName());
+                                map.put("boundStudents", bindings.stream().map(b -> {
+                                    Optional<SysStudent> sOpt = sysStudentRepository.findById(b.getStudentId());
+                                    return sOpt.map(s -> {
+                                        Map<String, Object> sMap = new HashMap<>();
+                                        sMap.put("id", s.getId());
+                                        sMap.put("name", s.getName());
+                                        sMap.put("school", s.getSchool());
+                                        sMap.put("className", s.getClassName());
+                                        return sMap;
+                                    }).orElse(null);
+                                }).filter(java.util.Objects::nonNull).collect(Collectors.toList()));
+                            }
                         }
                     }
-                }
-                return map;
-            }).collect(Collectors.toList());
+                    return map;
+                }).collect(Collectors.toList());
 
         Map<String, Object> resultData = new HashMap<>();
         resultData.put("records", records);
-        // 使用数据库返回的总数，虽然内存过滤可能导致总数略有偏差（仅在跨权限查看时），
-        // 但对于分页显示来说，使用 getTotalElements() 是必须的，否则无法正常翻页。
-        resultData.put("total", pageData.getTotalElements()); 
+        resultData.put("total", pageData.getTotalElements());
         resultData.put("current", current);
         resultData.put("size", size);
 
@@ -189,6 +187,12 @@ public class SysAccountController {
     @PostMapping("/add")
     public Result<Void> addAccount(@RequestBody SysAccount account) {
         SysAccount currentUser = getCurrentUser();
+        if (currentUser == null) {
+            return Result.error(401, "未登录");
+        }
+        if (!isAdmin(currentUser)) {
+            return Result.error(403, "无权限执行此操作，仅管理员可用");
+        }
 
         if (account.getRoleId() == null) {
             account.setRoleId(3); // 默认家长
@@ -237,6 +241,12 @@ public class SysAccountController {
     @PostMapping("/import-parents")
     public Result<Void> importParents(@RequestParam("file") MultipartFile file) {
         SysAccount currentUser = getCurrentUser();
+        if (currentUser == null) {
+            return Result.error(401, "未登录");
+        }
+        if (!isAdmin(currentUser)) {
+            return Result.error(403, "无权限执行此操作，仅管理员可用");
+        }
         if (file == null || file.isEmpty()) {
             return Result.error("文件内容为空");
         }
@@ -345,6 +355,9 @@ public class SysAccountController {
     @GetMapping("/download-parent-template")
     public ResponseEntity<Resource> downloadParentTemplate() {
         SysAccount currentUser = getCurrentUser();
+        if (!isAdmin(currentUser)) {
+            return ResponseEntity.status(403).build();
+        }
         try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("家长导入模板");
             String[] headers = {"用户名", "昵称", "手机号", "密码", "VIP", "SVIP", "学生学号"};
@@ -387,6 +400,12 @@ public class SysAccountController {
     @PutMapping("/edit/{uid}")
     public Result<Void> editAccount(@PathVariable Long uid, @RequestBody SysAccount updateData) {
         SysAccount currentUser = getCurrentUser();
+        if (currentUser == null) {
+            return Result.error(401, "未登录");
+        }
+        if (!isAdmin(currentUser)) {
+            return Result.error(403, "无权限执行此操作，仅管理员可用");
+        }
 
         Optional<SysAccount> accountOpt = sysAccountRepository.findById(uid);
         if (accountOpt.isEmpty()) {
@@ -452,6 +471,12 @@ public class SysAccountController {
     @DeleteMapping("/delete/{uid}")
     public Result<Void> deleteAccount(@PathVariable Long uid) {
         SysAccount currentUser = getCurrentUser();
+        if (currentUser == null) {
+            return Result.error(401, "未登录");
+        }
+        if (!isAdmin(currentUser)) {
+            return Result.error(403, "无权限执行此操作，仅管理员可用");
+        }
 
         Optional<SysAccount> targetOpt = sysAccountRepository.findById(uid);
         if (targetOpt.isEmpty()) {

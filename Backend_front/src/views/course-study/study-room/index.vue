@@ -38,7 +38,7 @@ import { fetchGetStudyRoomApplyList, fetchHandleStudyRoomApply } from '@/api/cou
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const loading = ref(false)
-const tableData = ref([])
+const tableData = ref<any[]>([])
 
 const loadData = async () => {
   loading.value = true
@@ -49,13 +49,14 @@ const loadData = async () => {
   loading.value = false
 }
 
-const getStatusType = (status: string) => {
-  const types: Record<string, string> = {
-    pending: 'warning',
-    confirmed: 'success',
-    rejected: 'danger'
-  }
-  return types[status] || 'info'
+const statusTypeMap = {
+  pending: 'warning',
+  confirmed: 'success',
+  rejected: 'danger'
+} as const
+
+const getStatusType = (status: string): 'warning' | 'success' | 'danger' | 'info' => {
+  return (statusTypeMap as any)[status] || 'info'
 }
 
 const getStatusLabel = (status: string) => {

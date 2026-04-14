@@ -55,5 +55,20 @@ export const systemRoutes: AppRouteRecord = {
         authMark: 'system:permission:list'
       }
     }
+    // {
+    //   path: 'menu',
+    //   name: 'Menus',
+    //   component: '/system/menu',
+    //   meta: {
+    //     title: 'menus.system.menu',
+    //     keepAlive: true,
+    //     roles: ['R_SUPER'],
+    //     authList: [
+    //       { title: '新增', authMark: 'add' },
+    //       { title: '编辑', authMark: 'edit' },
+    //       { title: '删除', authMark: 'delete' }
+    //     ]
+    //   }
+    // }
   ]
 }

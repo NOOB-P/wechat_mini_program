@@ -1,5 +1,18 @@
 package com.edu.javasb_back.service.impl;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.DeliveryConfig;
 import com.edu.javasb_back.model.entity.PaperPrice;
@@ -16,22 +29,10 @@ import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.repository.VipConfigRepository;
 import com.edu.javasb_back.service.VipService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
 @Service
 public class VipServiceImpl implements VipService {
+
 
     @Autowired
     private PaperPriceRepository paperPriceRepository;
@@ -54,25 +55,32 @@ public class VipServiceImpl implements VipService {
     @Autowired
     private VipConfigRepository vipConfigRepository;
 
+    /**
+     * 内部校验 VIP 状态逻辑
+     */
     private Result<SysAccount> validateVipStatus(Long uid) {
         Optional<SysAccount> accountOpt = sysAccountRepository.findById(uid);
-        if (accountOpt.isEmpty()) {
-            return Result.error("用户不存在");
-        }
-
+        if (accountOpt.isEmpty()) return Result.error("用户不存在");
+        
         SysAccount account = accountOpt.get();
-        if ((account.getIsVip() == null || account.getIsVip() == 0)
-                && (account.getIsSvip() == null || account.getIsSvip() == 0)) {
+        // 如果没有 VIP 且没有 SVIP 权限
+        if ((account.getIsVip() == null || account.getIsVip() == 0) && 
+            (account.getIsSvip() == null || account.getIsSvip() == 0)) {
             return Result.error(403, "您尚未开通会员，请先开通后查看");
         }
 
-        if (account.getVipExpireTime() != null && account.getVipExpireTime().isBefore(LocalDateTime.now())) {
+        // 校验过期时间
+        if (account.getVipExpireTime() != null && 
+            account.getVipExpireTime().isBefore(java.time.LocalDateTime.now())) {
+            
+            // 自动重置权限标识
             account.setIsVip(0);
             account.setIsSvip(0);
             sysAccountRepository.save(account);
+            
             return Result.error(403, "您的会员已过期，请续费后继续使用");
         }
-
+        
         return Result.success(account);
     }
 
@@ -147,7 +155,6 @@ public class VipServiceImpl implements VipService {
         Map<String, Object> distribution = new HashMap<>();
         distribution.put("rankInfo", "年级前5%");
         distribution.put("overallLevel", "A");
-
         List<Map<String, Object>> levels = new ArrayList<>();
         Map<String, Object> l1 = new HashMap<>();
         l1.put("level", "A");
@@ -173,10 +180,10 @@ public class VipServiceImpl implements VipService {
         l5.put("level", "E");
         l5.put("count", 2);
         levels.add(l5);
-
         distribution.put("levels", levels);
         data.put("distribution", distribution);
 
+        // 趋势
         List<Map<String, Object>> trend = new ArrayList<>();
         Map<String, Object> t1 = new HashMap<>();
         t1.put("date", "第一周");
@@ -213,7 +220,6 @@ public class VipServiceImpl implements VipService {
         if (authResult.getCode() != 200) {
             return Result.error(authResult.getCode(), authResult.getMsg());
         }
-
         List<Map<String, Object>> list = new ArrayList<>();
         Map<String, Object> w1 = new HashMap<>();
         w1.put("id", 1);
@@ -242,29 +248,26 @@ public class VipServiceImpl implements VipService {
     @Override
     public Result<Map<String, Object>> getPrintConfig() {
         Map<String, Object> config = new HashMap<>();
-
         List<PaperPrice> prices = paperPriceRepository.findAll();
-        List<Map<String, Object>> paperConfigs = prices.stream().map(price -> {
-            Map<String, Object> item = new HashMap<>();
-            item.put("size", price.getType());
-            item.put("side", price.getSide());
-            item.put("color", price.getColor());
-            item.put("price", price.getPrice());
-            return item;
+        List<Map<String, Object>> paperConfigs = prices.stream().map(p -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("size", p.getType());
+            m.put("side", p.getSide());
+            m.put("color", p.getColor());
+            m.put("price", p.getPrice());
+            return m;
         }).collect(Collectors.toList());
         config.put("paperConfigs", paperConfigs);
 
         List<DeliveryConfig> deliveries = deliveryConfigRepository.findAll();
-        List<Map<String, Object>> deliveryConfigs = deliveries.stream().map(delivery -> {
-            Map<String, Object> item = new HashMap<>();
-            item.put("method",
-                    "标准快递".equals(delivery.getName()) ? "standard"
-                            : "极速达".equals(delivery.getName()) ? "express" : "pickup");
-            item.put("name", delivery.getName());
-            item.put("baseFee", delivery.getPrice());
-            item.put("freeThreshold", delivery.getFreeLimit());
-            item.put("desc", delivery.getDescription());
-            return item;
+        List<Map<String, Object>> deliveryConfigs = deliveries.stream().map(d -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("method", d.getName().equals("标准快递") ? "standard" : d.getName().equals("极速达") ? "express" : "pickup");
+            m.put("name", d.getName());
+            m.put("baseFee", d.getPrice());
+            m.put("freeThreshold", d.getFreeLimit());
+            m.put("desc", d.getDescription());
+            return m;
         }).collect(Collectors.toList());
         config.put("deliveryConfigs", deliveryConfigs);
 
@@ -273,68 +276,66 @@ public class VipServiceImpl implements VipService {
         globalParams.put("bindingFee", 2.00);
         config.put("globalParams", globalParams);
 
-        return Result.success(config);
+        return Result.success("获取成功", config);
     }
 
     @Override
     @Transactional
     public Result<Void> submitPrintOrder(Long uid, Map<String, Object> orderData) {
+        // 1. 参数提取
         String paperSize = (String) orderData.get("paperSize");
         String printSide = (String) orderData.get("printSide");
         String color = (String) orderData.get("color");
         Integer pages = (Integer) orderData.get("pages");
-        if (pages == null) {
-            pages = 20;
-        }
-
+        if (pages == null) pages = 20; // 默认页数，实际应从小程序传参
+        
         String deliveryMethod = (String) orderData.get("deliveryMethod");
         String userName = (String) orderData.get("userName");
         String userPhone = (String) orderData.get("userPhone");
         String documentName = (String) orderData.get("documentName");
-        if (documentName == null) {
-            documentName = "wrongbook_print_" + System.currentTimeMillis();
-        }
+        if (documentName == null) documentName = "错题打印文档_" + System.currentTimeMillis();
 
+        // 2. 核心价格计算 (后端校验)
+        // 查询纸张单价
         String finalPaperSize = paperSize;
         String finalPrintSide = printSide;
         String finalColor = color;
         BigDecimal paperUnitPrice = paperPriceRepository.findAll().stream()
-                .filter(price -> price.getType().equalsIgnoreCase(finalPaperSize)
-                        && price.getSide().equals(finalPrintSide)
-                        && price.getColor().equals(finalColor))
+                .filter(p -> p.getType().equalsIgnoreCase(finalPaperSize) && 
+                            p.getSide().equals(finalPrintSide) && 
+                            p.getColor().equals(finalColor))
                 .map(PaperPrice::getPrice)
-                .findFirst()
-                .orElse(new BigDecimal("0.50"));
+                .findFirst().orElse(new BigDecimal("0.50")); // 默认兜底价
 
         BigDecimal paperCost = paperUnitPrice.multiply(new BigDecimal(pages));
-        BigDecimal bindingFee = new BigDecimal("2.00");
-        BigDecimal minAmount = new BigDecimal("5.00");
-
+        BigDecimal bindingFee = new BigDecimal("2.00"); // 装订费配置
+        BigDecimal minAmount = new BigDecimal("5.00");  // 起印金额配置
+        
         BigDecimal totalBase = paperCost.add(bindingFee);
-        if (totalBase.compareTo(minAmount) < 0) {
-            totalBase = minAmount;
-        }
-
-        String methodName = "standard".equals(deliveryMethod) ? "标准快递"
-                : "express".equals(deliveryMethod) ? "极速达" : "自提";
-
+        if (totalBase.compareTo(minAmount) < 0) totalBase = minAmount;
+        
+        // 计算运费
+        String methodName = "standard".equals(deliveryMethod) ? "标准快递" : 
+                           "express".equals(deliveryMethod) ? "极速达" : "自提";
+        
         DeliveryConfig delivery = deliveryConfigRepository.findAll().stream()
-                .filter(item -> item.getName().equals(methodName))
-                .findFirst()
-                .orElse(null);
-
+                .filter(d -> d.getName().equals(methodName))
+                .findFirst().orElse(null);
+                
         BigDecimal shippingFee = BigDecimal.ZERO;
         if (delivery != null) {
-            if (delivery.getFreeLimit().compareTo(BigDecimal.ZERO) == 0
-                    || totalBase.compareTo(delivery.getFreeLimit()) < 0) {
+            // 如果不满足免邮额度
+            if (delivery.getFreeLimit().compareTo(BigDecimal.ZERO) == 0 || 
+                totalBase.compareTo(delivery.getFreeLimit()) < 0) {
                 shippingFee = delivery.getPrice();
             }
         }
-
+        
         BigDecimal finalPrice = totalBase.add(shippingFee);
 
+        // 3. 创建订单实体
         PrintOrder order = new PrintOrder();
-        order.setOrderNo("POD" + System.currentTimeMillis() + (int) (Math.random() * 900 + 100));
+        order.setOrderNo("POD" + System.currentTimeMillis() + (int)(Math.random() * 900 + 100));
         order.setUserName(userName != null ? userName : "微信用户");
         order.setUserPhone(userPhone != null ? userPhone : "");
         order.setDocumentName(documentName);
@@ -342,7 +343,9 @@ public class VipServiceImpl implements VipService {
         order.setPrintType(paperSize + "/" + printSide + "/" + color);
         order.setDeliveryMethod(methodName);
         order.setTotalPrice(finalPrice);
-        order.setOrderStatus(1);
+        order.setOrderStatus(1); // 1-待支付
+
+        // 4. 保存入库
         printOrderRepository.save(order);
 
         return Result.success("订单已提交，请前往支付", null);

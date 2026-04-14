@@ -2,6 +2,7 @@ package com.edu.javasb_back.controller;
 
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.model.dto.SchoolVipOpenDTO;
 import com.edu.javasb_back.model.entity.VipOrder;
 import com.edu.javasb_back.service.VipOrderService;
 import com.edu.javasb_back.service.VipService;
@@ -30,9 +31,7 @@ public class AppVipController {
 
     private Long getCurrentUid() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null
-                || !authentication.isAuthenticated()
-                || "anonymousUser".equals(authentication.getPrincipal())) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
             return null;
         }
         try {
@@ -42,63 +41,73 @@ public class AppVipController {
         }
     }
 
-    @LogOperation("mini app create vip order")
+    @LogOperation("App create VIP order")
     @PostMapping("/order/create")
     public Result<VipOrder> createVipOrder(@RequestBody Map<String, Object> orderData) {
         Long userUid = getCurrentUid();
         if (userUid == null) {
-            return Result.error(401, "请先登录");
+            return Result.error(401, "\u8bf7\u5148\u767b\u5f55");
         }
         return vipOrderService.createVipOrder(userUid, orderData);
     }
 
-    @LogOperation("mini app get vip recharge config")
+    @LogOperation("App open school VIP")
+    @PostMapping("/school/open")
+    public Result<Map<String, Object>> openSchoolVip(@RequestBody SchoolVipOpenDTO request) {
+        Long userUid = getCurrentUid();
+        if (userUid == null) {
+            return Result.error(401, "\u8bf7\u5148\u767b\u5f55");
+        }
+        return vipOrderService.openSchoolVip(userUid, request == null ? null : request.getMonths());
+    }
+
+    @LogOperation("App get VIP config")
     @GetMapping("/config")
     public Result<Map<String, Object>> getRechargeConfig() {
         Long userUid = getCurrentUid();
         if (userUid == null) {
-            return Result.error(401, "请先登录");
+            return Result.error(401, "\u8bf7\u5148\u767b\u5f55");
         }
         return vipService.getRechargeDisplayConfig(userUid);
     }
 
-    @LogOperation("mini app get vip analysis")
+    @LogOperation("Get VIP analysis")
     @GetMapping("/analysis")
     public Result<Map<String, Object>> getVipAnalysis() {
         Long userUid = getCurrentUid();
         if (userUid == null) {
-            return Result.error(401, "请先登录");
+            return Result.error(401, "\u8bf7\u5148\u767b\u5f55");
         }
         return vipService.getVipAnalysis(userUid);
     }
 
-    @LogOperation("mini app get wrong book list")
+    @LogOperation("Get VIP wrong book list")
     @GetMapping("/wrongbook/list")
     public Result<List<Map<String, Object>>> getWrongBookList(@RequestParam Map<String, Object> params) {
         Long userUid = getCurrentUid();
         if (userUid == null) {
-            return Result.error(401, "请先登录");
+            return Result.error(401, "\u8bf7\u5148\u767b\u5f55");
         }
         return vipService.getWrongBookList(userUid, params);
     }
 
-    @LogOperation("mini app get print config")
+    @LogOperation("Get print config")
     @GetMapping("/print/config")
     public Result<Map<String, Object>> getPrintConfig() {
         return vipService.getPrintConfig();
     }
 
-    @LogOperation("mini app submit print order")
+    @LogOperation("Submit print order")
     @PostMapping("/print/order")
     public Result<Void> submitPrintOrder(@RequestBody Map<String, Object> orderData) {
         Long userUid = getCurrentUid();
         if (userUid == null) {
-            return Result.error(401, "请先登录");
+            return Result.error(401, "\u8bf7\u5148\u767b\u5f55");
         }
         return vipService.submitPrintOrder(userUid, orderData);
     }
 
-    @LogOperation("mini app simulate payment callback")
+    @LogOperation("Mock VIP pay callback")
     @PostMapping("/order/callback")
     public Result<String> paySuccessCallback(@RequestBody Map<String, String> data) {
         String orderNo = data.get("orderNo");

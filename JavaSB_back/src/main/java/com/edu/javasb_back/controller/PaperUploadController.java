@@ -13,7 +13,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
-
 @RestController
 @RequestMapping("/api/admin/resource/paper")
 public class PaperUploadController {
@@ -38,7 +37,7 @@ public class PaperUploadController {
             return Result.error("仅支持上传 PDF 或 Word 文档");
         }
 
-        String fileName = UUID.randomUUID() + suffix;
+        String fileName = UUID.randomUUID().toString() + suffix;
         String paperDir = globalConfigProperties.getPaperDir();
         File destDir = new File(paperDir);
         if (!destDir.exists()) {

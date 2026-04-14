@@ -322,7 +322,7 @@
             
             // 修改成功后跳转到登录页
             setTimeout(() => {
-              userStore.logout()
+              userStore.logOut()
               router.push('/login')
             }, 1500)
           } catch (error: any) {

@@ -20,12 +20,23 @@ import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.Course;
 import com.edu.javasb_back.service.CourseService;
 
+import com.edu.javasb_back.model.entity.CourseEpisode;
+import com.edu.javasb_back.model.entity.CourseVideo;
+import com.edu.javasb_back.config.GlobalConfigProperties;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.UUID;
 @RestController
 @RequestMapping("/api/system/course")
 public class AdminCourseController {
 
     @Autowired
     private CourseService courseService;
+
+    @Autowired
+    private GlobalConfigProperties globalConfigProperties;
 
     @LogOperation("管理端：获取课程列表")
     @PreAuthorize("hasAuthority('course:manage:list')")
@@ -74,5 +85,105 @@ public class AdminCourseController {
         String id = (String) params.get("id");
         Integer status = (Integer) params.get("status");
         return courseService.changeStatus(id, status);
+    }
+
+    @LogOperation("管理端：获取课程章节列表")
+    @PreAuthorize("hasAuthority('course:manage:list')")
+    @GetMapping("/episode/list")
+    public Result<List<CourseEpisode>> getEpisodeList(@RequestParam String courseId) {
+        return courseService.getCourseEpisodes(courseId);
+    }
+
+    @LogOperation("管理端：新增课程章节")
+    @PreAuthorize("hasAuthority('course:manage:edit')")
+    @PostMapping("/episode/add")
+    public Result<Void> addEpisode(@RequestBody CourseEpisode episode) {
+        return courseService.addEpisode(episode);
+    }
+
+    @LogOperation("管理端：更新课程章节")
+    @PreAuthorize("hasAuthority('course:manage:edit')")
+    @PutMapping("/episode/update")
+    public Result<Void> updateEpisode(@RequestBody CourseEpisode episode) {
+        return courseService.updateEpisode(episode);
+    }
+
+    @LogOperation("管理端：删除课程章节")
+    @PreAuthorize("hasAuthority('course:manage:edit')")
+    @DeleteMapping("/episode/delete/{id}")
+    public Result<Void> deleteEpisode(@PathVariable String id) {
+        return courseService.deleteEpisode(id);
+    }
+
+    @LogOperation("管理端：获取章节视频列表")
+    @PreAuthorize("hasAuthority('course:manage:list')")
+    @GetMapping("/video/list")
+    public Result<List<CourseVideo>> getVideoList(@RequestParam String episodeId) {
+        return courseService.getEpisodeVideos(episodeId);
+    }
+
+    @LogOperation("管理端：新增章节视频")
+    @PreAuthorize("hasAuthority('course:manage:edit')")
+    @PostMapping("/video/add")
+    public Result<Void> addVideo(@RequestBody CourseVideo video) {
+        return courseService.addVideo(video);
+    }
+
+    @LogOperation("管理端：更新章节视频")
+    @PreAuthorize("hasAuthority('course:manage:edit')")
+    @PutMapping("/video/update")
+    public Result<Void> updateVideo(@RequestBody CourseVideo video) {
+        return courseService.updateVideo(video);
+    }
+
+    @LogOperation("管理端：删除章节视频")
+    @PreAuthorize("hasAuthority('course:manage:edit')")
+    @DeleteMapping("/video/delete/{id}")
+    public Result<Void> deleteVideo(@PathVariable String id) {
+        return courseService.deleteVideo(id);
+    }
+
+    @LogOperation("管理端 : 上传课程封面")
+    @PreAuthorize("hasAuthority('course:manage:edit')")
+    @PostMapping("/upload-cover")
+    public Result<String> uploadCover(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return Result.error("上传文件为空");
+        }
+        String originalFilename = file.getOriginalFilename();
+        String suffix = originalFilename.substring(originalFilename.lastIndexOf("."));
+        String fileName = UUID.randomUUID().toString() + suffix;
+        
+        File destDir = new File(globalConfigProperties.getCourseCoverDir());
+        if (!destDir.exists()) destDir.mkdirs();
+        
+        try {
+            file.transferTo(new File(destDir.getAbsolutePath() + File.separator + fileName));
+            return Result.success("上传成功", "/uploads/course/cover/" + fileName);
+        } catch (IOException e) {
+            return Result.error("上传失败 : " + e.getMessage());
+        }
+    }
+
+    @LogOperation("管理端 : 上传课程视频")
+    @PreAuthorize("hasAuthority('course:manage:edit')")
+    @PostMapping("/upload-video")
+    public Result<String> uploadVideo(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return Result.error("上传文件为空");
+        }
+        String originalFilename = file.getOriginalFilename();
+        String suffix = originalFilename.substring(originalFilename.lastIndexOf("."));
+        String fileName = UUID.randomUUID().toString() + suffix;
+        
+        File destDir = new File(globalConfigProperties.getCourseVideoDir());
+        if (!destDir.exists()) destDir.mkdirs();
+        
+        try {
+            file.transferTo(new File(destDir.getAbsolutePath() + File.separator + fileName));
+            return Result.success("上传成功", "/uploads/course/video/" + fileName);
+        } catch (IOException e) {
+            return Result.error("上传失败 : " + e.getMessage());
+        }
     }
 }

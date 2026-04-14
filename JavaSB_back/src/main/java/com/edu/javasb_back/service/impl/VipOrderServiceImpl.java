@@ -3,6 +3,7 @@ package com.edu.javasb_back.service.impl;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.VipOrder;
+import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.VipOrderRepository;
 import com.edu.javasb_back.service.VipOrderService;
@@ -13,16 +14,24 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class VipOrderServiceImpl implements VipOrderService {
+
+    private static final String SOURCE_ONLINE_PURCHASE = "ONLINE_PURCHASE";
+    private static final String SOURCE_SCHOOL_GIFT = "SCHOOL_GIFT";
+    private static final String SCHOOL_PAYMENT_METHOD = "\u6821\u8baf\u901a\u8d60\u9001";
+    private static final String ONLINE_PAYMENT_METHOD = "\u5fae\u4fe1";
+    private static final String SCHOOL_VIP_PACKAGE = "VIP";
 
     @Autowired
     private VipOrderRepository vipOrderRepository;
@@ -30,30 +39,37 @@ public class VipOrderServiceImpl implements VipOrderService {
     @Autowired
     private SysAccountRepository sysAccountRepository;
 
+    @Autowired
+    private StudentParentBindingRepository studentParentBindingRepository;
+
     @Override
     @Transactional
     public Result<VipOrder> createVipOrder(Long userUid, Map<String, Object> orderData) {
         Optional<SysAccount> accountOptional = sysAccountRepository.findById(userUid);
-        if (!accountOptional.isPresent()) {
-            return Result.error("用户不存在");
+        if (accountOptional.isEmpty()) {
+            return Result.error("\u7528\u6237\u4e0d\u5b58\u5728");
         }
-        SysAccount account = accountOptional.get();
 
+        BigDecimal price = parsePrice(orderData.get("price"));
+        if (price == null) {
+            return Result.error("\u8ba2\u5355\u91d1\u989d\u4e0d\u80fd\u4e3a\u7a7a");
+        }
+
+        SysAccount account = accountOptional.get();
         VipOrder order = new VipOrder();
-        order.setOrderNo("VOD" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + (new Random().nextInt(900) + 100));
+        order.setOrderNo(buildOrderNo());
         order.setUserUid(userUid);
-        order.setUserName(account.getNickname());
-        order.setUserPhone(account.getPhone());
-        
-        // 修正：保存时优先保存 tierCode 到 packageType，方便回调判断
-        String tierCode = (String) orderData.get("tierCode");
-        String title = (String) orderData.get("packageType");
-        order.setPackageType(tierCode != null ? tierCode : title);
-        
-        order.setPeriod((String) orderData.get("period"));
-        order.setPrice(new BigDecimal(orderData.get("price").toString()));
-        order.setPaymentStatus(0); // 待支付
-        order.setPaymentMethod("微信");
+        order.setUserName(resolveUserName(account));
+        order.setUserPhone(resolveUserPhone(account));
+
+        String tierCode = asString(orderData.get("tierCode"));
+        String title = asString(orderData.get("packageType"));
+        order.setPackageType(StringUtils.hasText(tierCode) ? tierCode : title);
+        order.setPeriod(asString(orderData.get("period")));
+        order.setPrice(price);
+        order.setPaymentStatus(0);
+        order.setPaymentMethod(ONLINE_PAYMENT_METHOD);
+        order.setSourceType(SOURCE_ONLINE_PURCHASE);
 
         VipOrder savedOrder = vipOrderRepository.save(order);
         return Result.success(savedOrder);
@@ -61,77 +77,193 @@ public class VipOrderServiceImpl implements VipOrderService {
 
     @Override
     @Transactional
-    public Result<String> paySuccessCallback(String orderNo) {
-        Optional<VipOrder> orderOptional = vipOrderRepository.findByOrderNo(orderNo);
-        if (!orderOptional.isPresent()) {
-            return Result.error("订单不存在");
-        }
-        VipOrder order = orderOptional.get();
-        if (order.getPaymentStatus() == 1) {
-            return Result.success("支付已处理");
+    public Result<Map<String, Object>> openSchoolVip(Long userUid, Integer months) {
+        if (months == null || months <= 0 || months > 12) {
+            return Result.error(400, "\u5f00\u901a\u6708\u6570\u5fc5\u987b\u5728 1 \u5230 12 \u4e2a\u6708\u4e4b\u95f4");
         }
 
-        // 更新订单状态
+        Optional<SysAccount> accountOptional = sysAccountRepository.findById(userUid);
+        if (accountOptional.isEmpty()) {
+            return Result.error("\u7528\u6237\u4e0d\u5b58\u5728");
+        }
+
+        if (studentParentBindingRepository.findByParentUid(userUid).isEmpty()) {
+            return Result.error(400, "\u8bf7\u5148\u7ed1\u5b9a\u5b66\u751f\u540e\u518d\u5f00\u901a\u6821\u8baf\u901a");
+        }
+
+        SysAccount account = accountOptional.get();
+        grantVip(account, months, false);
+        sysAccountRepository.save(account);
+
+        VipOrder order = new VipOrder();
+        order.setOrderNo(buildOrderNo());
+        order.setUserUid(userUid);
+        order.setUserName(resolveUserName(account));
+        order.setUserPhone(resolveUserPhone(account));
+        order.setPackageType(SCHOOL_VIP_PACKAGE);
+        order.setPeriod(formatMonthPeriod(months));
+        order.setPrice(BigDecimal.ZERO);
         order.setPaymentStatus(1);
-        vipOrderRepository.save(order);
+        order.setPaymentMethod(SCHOOL_PAYMENT_METHOD);
+        order.setSourceType(SOURCE_SCHOOL_GIFT);
 
-        // 更新用户VIP权限
-        Optional<SysAccount> accountOptional = sysAccountRepository.findById(order.getUserUid());
-        if (accountOptional.isPresent()) {
-            SysAccount account = accountOptional.get();
-            // 修正：根据 tierCode 判断，支持后台动态配置
-            if (order.getPackageType().contains("SVIP") || "SVIP".equalsIgnoreCase(order.getPackageType())) {
-                account.setIsSvip(1);
-                account.setIsVip(1); // SVIP 默认包含 VIP 权限
-            } else if (order.getPackageType().contains("VIP") || "VIP".equalsIgnoreCase(order.getPackageType())) {
-                account.setIsVip(1);
-            }
+        VipOrder savedOrder = vipOrderRepository.save(order);
 
-            // 计算过期时间
-            int months = 0;
-            if ("月包".equals(order.getPeriod())) {
-                months = 1;
-            } else if ("季包".equals(order.getPeriod())) {
-                months = 4;
-            } else if ("年包".equals(order.getPeriod())) {
-                months = 12;
-            }
-
-            if (months > 0) {
-                LocalDateTime currentExpire = account.getVipExpireTime();
-                LocalDateTime now = LocalDateTime.now();
-                if (currentExpire == null || currentExpire.isBefore(now)) {
-                    account.setVipExpireTime(now.plusMonths(months));
-                } else {
-                    account.setVipExpireTime(currentExpire.plusMonths(months));
-                }
-            }
-            sysAccountRepository.save(account);
-        }
-
-        return Result.success("支付处理成功");
+        Map<String, Object> result = new HashMap<>();
+        result.put("orderNo", savedOrder.getOrderNo());
+        result.put("months", months);
+        result.put("sourceType", savedOrder.getSourceType());
+        result.put("vipExpireTime", account.getVipExpireTime());
+        return Result.success("\u6821\u8baf\u901a\u5f00\u901a\u6210\u529f", result);
     }
 
     @Override
-    public Result<java.util.Map<String, Object>> getVipOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus) {
+    @Transactional
+    public Result<String> paySuccessCallback(String orderNo) {
+        Optional<VipOrder> orderOptional = vipOrderRepository.findByOrderNo(orderNo);
+        if (orderOptional.isEmpty()) {
+            return Result.error("\u8ba2\u5355\u4e0d\u5b58\u5728");
+        }
+
+        VipOrder order = orderOptional.get();
+        if (order.getPaymentStatus() != null && order.getPaymentStatus() == 1) {
+            return Result.success("\u652f\u4ed8\u5df2\u5904\u7406");
+        }
+
+        order.setPaymentStatus(1);
+        if (!StringUtils.hasText(order.getSourceType())) {
+            order.setSourceType(SOURCE_ONLINE_PURCHASE);
+        }
+        vipOrderRepository.save(order);
+
+        Optional<SysAccount> accountOptional = sysAccountRepository.findById(order.getUserUid());
+        if (accountOptional.isPresent()) {
+            SysAccount account = accountOptional.get();
+            int months = resolveMonths(order.getPeriod());
+            boolean grantSvip = containsIgnoreCase(order.getPackageType(), "SVIP");
+            boolean shouldGrantVip = containsIgnoreCase(order.getPackageType(), "VIP");
+
+            if (shouldGrantVip || grantSvip) {
+                grantVip(account, months, grantSvip);
+                sysAccountRepository.save(account);
+            }
+        }
+
+        return Result.success("\u652f\u4ed8\u5904\u7406\u6210\u529f");
+    }
+
+    @Override
+    public Result<Map<String, Object>> getVipOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus) {
         Pageable pageable = PageRequest.of(current - 1, size, Sort.by("createTime").descending());
-        
-        // 简单实现过滤逻辑，实际可以根据 JPA Specification 做更复杂的动态查询
+
         Page<VipOrder> page;
         if (paymentStatus != null) {
             page = vipOrderRepository.findByPaymentStatus(paymentStatus, pageable);
         } else if ((orderNo != null && !orderNo.isEmpty()) || (userName != null && !userName.isEmpty())) {
-            page = vipOrderRepository.findByOrderNoContainingOrUserNameContaining(orderNo != null ? orderNo : "", userName != null ? userName : "", pageable);
+            page = vipOrderRepository.findByOrderNoContainingOrUserNameContaining(
+                    orderNo != null ? orderNo : "",
+                    userName != null ? userName : "",
+                    pageable
+            );
         } else {
             page = vipOrderRepository.findAll(pageable);
         }
-        
-        java.util.Map<String, Object> resultData = new java.util.HashMap<>();
+
+        page.getContent().forEach(order -> {
+            if (!StringUtils.hasText(order.getSourceType())) {
+                order.setSourceType(SOURCE_ONLINE_PURCHASE);
+            }
+        });
+
+        Map<String, Object> resultData = new HashMap<>();
         resultData.put("records", page.getContent());
         resultData.put("total", page.getTotalElements());
         resultData.put("current", current);
         resultData.put("size", size);
-        
+
         return Result.success(resultData);
+    }
+
+    private void grantVip(SysAccount account, int months, boolean grantSvip) {
+        account.setIsVip(1);
+        if (grantSvip) {
+            account.setIsSvip(1);
+        }
+
+        if (months <= 0) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime currentExpire = account.getVipExpireTime();
+        if (currentExpire == null || currentExpire.isBefore(now)) {
+            account.setVipExpireTime(now.plusMonths(months));
+        } else {
+            account.setVipExpireTime(currentExpire.plusMonths(months));
+        }
+    }
+
+    private int resolveMonths(String period) {
+        if (!StringUtils.hasText(period)) {
+            return 0;
+        }
+        if ("\u6708\u5305".equals(period)) {
+            return 1;
+        }
+        if ("\u5b63\u5305".equals(period)) {
+            return 4;
+        }
+        if ("\u5e74\u5305".equals(period)) {
+            return 12;
+        }
+
+        String normalized = period.replace("\u4e2a\u6708", "").replace("\u6708", "").trim();
+        try {
+            return Integer.parseInt(normalized);
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
+    }
+
+    private String formatMonthPeriod(int months) {
+        return months + "\u4e2a\u6708";
+    }
+
+    private String buildOrderNo() {
+        return "VOD" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+                + ThreadLocalRandom.current().nextInt(100, 1000);
+    }
+
+    private String resolveUserName(SysAccount account) {
+        if (StringUtils.hasText(account.getNickname())) {
+            return account.getNickname();
+        }
+        if (StringUtils.hasText(account.getUsername())) {
+            return account.getUsername();
+        }
+        return "\u7528\u6237" + account.getUid();
+    }
+
+    private String resolveUserPhone(SysAccount account) {
+        return StringUtils.hasText(account.getPhone()) ? account.getPhone() : "";
+    }
+
+    private BigDecimal parsePrice(Object rawPrice) {
+        if (rawPrice == null) {
+            return null;
+        }
+        try {
+            return new BigDecimal(rawPrice.toString());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private String asString(Object value) {
+        return value == null ? "" : value.toString();
+    }
+
+    private boolean containsIgnoreCase(String source, String keyword) {
+        return StringUtils.hasText(source) && source.toUpperCase().contains(keyword.toUpperCase());
     }
 }

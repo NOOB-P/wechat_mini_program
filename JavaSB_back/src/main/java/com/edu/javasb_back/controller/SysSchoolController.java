@@ -40,8 +40,6 @@ public class SysSchoolController {
             return Result.error("导入失败: " + e.getMessage());
         }
     }
-
-    @PreAuthorize("hasAuthority('system:school:import')")
     @GetMapping("/download-template")
     public ResponseEntity<Resource> downloadTemplate() {
         return TemplateDownloadUtils.buildDownloadResponse(
@@ -116,14 +114,12 @@ public class SysSchoolController {
         int successCount = 0;
         int failCount = 0;
         java.util.List<String> failedNames = new java.util.ArrayList<>();
-
         for (Long id : ids) {
             java.util.Optional<SysSchool> schoolOpt = sysSchoolService.getSchoolById(id);
             String schoolName = "未知学校";
             if (schoolOpt.isPresent()) {
                 schoolName = schoolOpt.get().getName();
             }
-
             Result<Void> result = sysSchoolService.deleteSchool(id);
             if (result.getCode() == 200) {
                 successCount++;

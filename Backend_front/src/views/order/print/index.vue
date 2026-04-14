@@ -84,7 +84,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
 
   const loading = ref(false)
-  const orderList = ref([])
+  const orderList = ref<any[]>([])
   const total = ref(0)
 
   const queryParams = reactive({
@@ -144,14 +144,14 @@
     }).catch(() => {})
   }
 
-  const getStatusTag = (status: number) => {
+  const getStatusTag = (status: number): 'primary' | 'success' | 'warning' | 'info' | 'danger' => {
     switch (status) {
       case 1: return 'info'      // 待支付
       case 2: return 'warning'   // 待打印
       case 3: return 'primary'   // 待配送
       case 4: return 'success'   // 已完成
       case 0: return 'danger'    // 已取消
-      default: return ''
+      default: return 'info'
     }
   }
 

@@ -14,7 +14,6 @@ export const getClassOptions = (schoolId: string) => {
     params: { schoolId }
   })
 }
-
 export const addClass = (data: any) => {
   return api.post<any>({
     url: '/api/system/class/add',

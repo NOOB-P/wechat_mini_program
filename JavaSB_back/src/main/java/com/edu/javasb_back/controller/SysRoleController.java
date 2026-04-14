@@ -59,12 +59,10 @@ public class SysRoleController {
         return Result.success("获取成功", resultData);
     }
 
-    /**
-     * 获取启用状态的角色列表 (排除学生角色)
-     */
+    @LogOperation("获取角色选项")
+    @PreAuthorize("hasAuthority('system:role:list')")
     @GetMapping("/options")
     public Result<List<Map<String, Object>>> getRoleOptions() {
-        // 排除学生角色，避免硬编码 ID，使用 roleCode 判断
         List<SysRole> roles = sysRoleRepository.findAll().stream()
                 .filter(role -> role.getStatus() != null && role.getStatus() == 1)
                 .filter(role -> !"student".equalsIgnoreCase(role.getRoleCode()))

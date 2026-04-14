@@ -518,13 +518,16 @@ const handleBatchAddSubmit = async () => {
   await batchAddFormRef.value.validate(async (valid) => {
     if (valid) {
       if (!batchAddForm.schoolId) {
-        return ElMessage.error('缺失关联学校ID，请从学校管理进入当前页面')
+        ElMessage.error('缺失关联学校ID，请从学校管理进入当前页面')
+        return
       }
       if (batchAddForm.classEnd < batchAddForm.classStart) {
-        return ElMessage.error('班级范围无效')
+        ElMessage.error('班级范围无效')
+        return
       }
       if (!batchAddForm.format.includes('$')) {
-        return ElMessage.error('班级格式必须包含 $ 符号')
+        ElMessage.error('班级格式必须包含 $ 符号')
+        return
       }
       
       submitLoading.value = true

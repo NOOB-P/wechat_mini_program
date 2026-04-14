@@ -14,7 +14,6 @@ export function fetchGetRoleOptions() {
     url: '/api/system/role/options'
   })
 }
-
 /** 新增角色 */
 export function fetchAddRole(params: any) {
   return Promise.resolve({

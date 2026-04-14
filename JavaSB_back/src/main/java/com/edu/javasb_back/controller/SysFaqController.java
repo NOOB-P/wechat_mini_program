@@ -2,15 +2,18 @@ package com.edu.javasb_back.controller;
 
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.SysFaq;
 import com.edu.javasb_back.repository.FaqCategoryRepository;
+import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysFaqRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -27,6 +30,28 @@ public class SysFaqController {
     @Autowired
     private FaqCategoryRepository faqCategoryRepository;
 
+    @Autowired
+    private SysAccountRepository sysAccountRepository;
+
+    // 辅助方法：检查当前用户是否为管理员
+    private boolean isAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return false;
+        }
+        String uidStr = authentication.getName();
+        try {
+            Optional<SysAccount> currentUserOpt = sysAccountRepository.findById(Long.parseLong(uidStr));
+            return currentUserOpt.isPresent() && currentUserOpt.get().getRoleId() != null &&
+                   (currentUserOpt.get().getRoleId() == 1 || currentUserOpt.get().getRoleId() == 2);
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    /**
+     * 分页查询FAQ列表
+     */
     @LogOperation("查询FAQ列表")
     @GetMapping("/list")
     public Result<Map<String, Object>> getFaqList(
@@ -53,30 +78,40 @@ public class SysFaqController {
         return Result.success("获取成功", faqCategoryRepository.findAllActiveNames());
     }
 
+    /**
+     * 添加FAQ
+     */
     @LogOperation("添加FAQ")
-    @PreAuthorize("hasAuthority('support:faq:add')")
     @PostMapping("/add")
     public Result<Void> addFaq(@RequestBody SysFaq faq) {
+        if (!isAdmin()) return Result.error(403, "无权限执行此操作");
         if (faq.getQuestion() == null || faq.getQuestion().isEmpty()) {
             return Result.error("问题不能为空");
         }
         if (faq.getAnswer() == null || faq.getAnswer().isEmpty()) {
-            return Result.error("答案不能为空");
+            return Result.error("解答不能为空");
         }
+        
+        // 生成自定义ID
         if (faq.getId() == null || faq.getId().isEmpty()) {
             faq.setId("FAQ" + System.currentTimeMillis());
         }
+
         if (faq.getStatus() == null) {
-            faq.setStatus(1);
+            faq.setStatus(1); // 默认启用
         }
         sysFaqRepository.save(faq);
         return Result.success("添加成功", null);
     }
 
+    /**
+     * 编辑FAQ
+     */
     @LogOperation("编辑FAQ")
-    @PreAuthorize("hasAuthority('support:faq:edit')")
     @PutMapping("/edit/{id}")
     public Result<Void> editFaq(@PathVariable String id, @RequestBody SysFaq updateData) {
+        if (!isAdmin()) return Result.error(403, "无权限执行此操作");
+
         Optional<SysFaq> faqOpt = sysFaqRepository.findById(id);
         if (faqOpt.isEmpty()) {
             return Result.error("FAQ不存在");
@@ -100,13 +135,18 @@ public class SysFaqController {
         return Result.success("编辑成功", null);
     }
 
+    /**
+     * 删除FAQ
+     */
     @LogOperation("删除FAQ")
-    @PreAuthorize("hasAuthority('support:faq:delete')")
     @DeleteMapping("/delete/{id}")
     public Result<Void> deleteFaq(@PathVariable String id) {
+        if (!isAdmin()) return Result.error(403, "无权限执行此操作");
+
         if (!sysFaqRepository.existsById(id)) {
             return Result.error("FAQ不存在");
         }
+
         sysFaqRepository.deleteById(id);
         return Result.success("删除成功", null);
     }

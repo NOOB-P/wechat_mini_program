@@ -1,9 +1,6 @@
-//111已在router中将其注释，此部分代码保留，需要组件才可以直接读取<!-- 工作台页面 -->
-
-
-<!-- <template>
+<template>
   <div>
-    <CardList></CardList>
+    <CardList />
 
     <ElRow :gutter="20">
       <ElCol :sm="24" :md="12" :lg="10">
@@ -40,4 +37,4 @@
   import AboutProject from './modules/about-project.vue'
 
   defineOptions({ name: 'Console' })
-</script> -->
+</script>

@@ -10,7 +10,7 @@
         <el-input v-model="localBenefits[index]" placeholder="请输入权益描述" class="flex-1" />
         <el-button
           type="danger"
-          icon="Delete"
+          :icon="Delete"
           circle
           link
           class="ml-2 flex-shrink-0"
@@ -18,7 +18,7 @@
         />
       </div>
       <div class="flex items-center mt-2">
-        <el-button type="primary" icon="Plus" plain class="flex-1" @click="addBenefit">
+        <el-button type="primary" :icon="Plus" plain class="flex-1" @click="addBenefit">
           添加权益项
         </el-button>
         <div class="ml-2 w-[32px] flex-shrink-0"></div>
@@ -35,6 +35,7 @@
 </template>
 
 <script setup lang="ts">
+  import { computed, ref, watch } from 'vue'
   import { updateVipPackage } from '@/api/payment/vip'
   import { ElMessage } from 'element-plus'
   import { Plus, Delete } from '@element-plus/icons-vue'

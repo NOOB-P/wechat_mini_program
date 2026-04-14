@@ -36,7 +36,6 @@ public class SysClassController {
             @RequestParam(required = false) String classid,
             @RequestParam(required = false) String grade,
             @RequestParam(required = false) String schoolId) {
-
         Page<SysClass> pageResult = sysClassService.getClasses(page, size, classid, grade, schoolId);
         Map<String, Object> data = new HashMap<>();
         data.put("records", pageResult.getContent());
@@ -96,8 +95,6 @@ public class SysClassController {
             return Result.error("导入失败: " + e.getMessage());
         }
     }
-
-    @PreAuthorize("hasAuthority('system:class:import')")
     @GetMapping("/download-template")
     public ResponseEntity<Resource> downloadTemplate() {
         return TemplateDownloadUtils.buildDownloadResponse(

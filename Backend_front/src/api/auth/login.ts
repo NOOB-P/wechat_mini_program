@@ -45,8 +45,7 @@ export async function fetchGetUserInfo() {
   })
 
   if (userInfo) {
-    const permissions = userInfo.permissions || []
-    const roles = mapRoleCodeToFrontendRoles(userInfo.roleCode)
+    const permissions = Array.isArray(userInfo.permissions) ? userInfo.permissions : []
 
     return {
       ...mockLoginData.admin.userInfo,
@@ -57,14 +56,20 @@ export async function fetchGetUserInfo() {
       userPhone: userInfo.phone,
       email: userInfo.email,
       avatar: userInfo.avatar,
-      buttons: permissions,
+      roleCode: userInfo.roleCode,
       permissions,
-      roles
+      buttons: permissions,
+      roles: mapRoleCodeToFrontendRoles(userInfo.roleCode)
     }
   }
 
   return {
     ...mockLoginData.admin.userInfo,
-    permissions: mockLoginData.admin.userInfo.buttons
+    permissions: Array.isArray((mockLoginData.admin.userInfo as any)?.permissions)
+      ? (mockLoginData.admin.userInfo as any).permissions
+      : [],
+    buttons: Array.isArray((mockLoginData.admin.userInfo as any)?.buttons)
+      ? (mockLoginData.admin.userInfo as any).buttons
+      : []
   }
 }

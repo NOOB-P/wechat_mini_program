@@ -107,7 +107,7 @@
   import { onMounted, reactive, ref } from 'vue'
 
   const loading = ref(false)
-  const orderList = ref([])
+  const orderList = ref<any[]>([])
   const total = ref(0)
   
   // 详情弹窗相关
@@ -155,11 +155,11 @@
     detailVisible.value = true
   }
 
-  const getStatusTag = (status: number) => {
+  const getStatusTag = (status: number): 'success' | 'info' => {
     switch (status) {
       case 1: return 'success'
       case 0: return 'info'
-      default: return ''
+      default: return 'info'
     }
   }
 
