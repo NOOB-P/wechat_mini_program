@@ -9,6 +9,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Configuration
@@ -17,6 +18,14 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring()
+            .requestMatchers("/static/**")
+            .requestMatchers("/uploads/**")
+            .requestMatchers("/favicon.ico");
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -42,8 +51,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/app/course/**").permitAll() // 放行小程序课程相关接口
                 .requestMatchers("/api/app/mine/info").permitAll()
                 .requestMatchers("/api/app/order/print/**").permitAll() // 放行小程序打印订单接口
-                .requestMatchers("/uploads/**").permitAll() // 放行上传的动态图片
-                .requestMatchers("/static/**").permitAll() // 放行固定静态资源
                 
 
                 .anyRequest().authenticated() // 其他所有请求都需要携带有效 Token

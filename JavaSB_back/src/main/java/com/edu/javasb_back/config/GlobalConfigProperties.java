@@ -47,7 +47,23 @@ public class GlobalConfigProperties {
      */
     private String paperDir = "src/main/resources/uploads/papers/";
 
+    /**
+     * 课程封面存储目录
+     */
+    private String courseCoverDir = "src/main/resources/uploads/course/cover/";
+
+    /**
+     * 课程视频存储目录
+     */
+    private String courseVideoDir = "src/main/resources/uploads/course/video/";
+
     // 手动添加 Getter 和 Setter 方法，以防 Lombok 失效
+    public String getCourseCoverDir() { return courseCoverDir; }
+    public void setCourseCoverDir(String courseCoverDir) { this.courseCoverDir = courseCoverDir; }
+
+    public String getCourseVideoDir() { return courseVideoDir; }
+    public void setCourseVideoDir(String courseVideoDir) { this.courseVideoDir = courseVideoDir; }
+
     public String getPaperDir() { return paperDir; }
     public void setPaperDir(String paperDir) { this.paperDir = paperDir; }
 

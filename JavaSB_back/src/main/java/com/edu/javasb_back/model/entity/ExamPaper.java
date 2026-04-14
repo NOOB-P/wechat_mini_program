@@ -42,6 +42,9 @@ public class ExamPaper {
     @Column(name = "is_recommend")
     private Boolean isRecommend = false;
 
+    @Column(name = "sort_order")
+    private Integer sortOrder = 1;
+
     @Column(name = "create_time", updatable = false)
     private LocalDateTime createTime;
 
@@ -80,4 +83,7 @@ public class ExamPaper {
     public void setFilePath(String filePath) { this.filePath = filePath; }
     public Boolean getIsRecommend() { return isRecommend; }
     public void setIsRecommend(Boolean isRecommend) { this.isRecommend = isRecommend; }
+    public Integer getSortOrder() { return sortOrder; }
+    public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
+
 }

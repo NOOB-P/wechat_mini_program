@@ -44,7 +44,8 @@ const fastEnterConfig: FastEnterConfig = {
       iconColor: '#ff2d55',
       enabled: true,
       order: 4,
-      routeName: 'ExamDataHub'
+      routeName: 'ExamHub'
+
     },
     {
       name: '会员套餐',

@@ -248,6 +248,8 @@ declare namespace Api {
       userEmail: string
       userRoles: string[]
       status: string
+      roleId: number | string
+
       isVip?: number
       isSvip?: number
       /** 用户类型: 1-管理员, 2-学校, 3-家长, 4-学生 */
@@ -270,7 +272,7 @@ declare namespace Api {
 
     /** 用户搜索参数 */
     type UserSearchParams = Partial<
-      Pick<UserListItem, 'id' | 'userName' | 'userGender' | 'userPhone' | 'userEmail' | 'status'> &
+      Pick<UserListItem, 'id' | 'userName' | 'userGender' | 'userPhone' | 'userEmail' | 'status' | 'roleId' | 'schoolName' | 'className'> &
         Api.Common.CommonSearchParams
     >
 

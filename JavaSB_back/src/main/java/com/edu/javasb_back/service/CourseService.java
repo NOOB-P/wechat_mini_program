@@ -29,4 +29,16 @@ public interface CourseService {
     Result<Void> updateCourse(Course course);
     Result<Void> deleteCourse(String id);
     Result<Void> changeStatus(String id, Integer status);
+    
+    // 课程集数/章节管理
+    Result<List<com.edu.javasb_back.model.entity.CourseEpisode>> getCourseEpisodes(String courseId);
+    Result<Void> addEpisode(com.edu.javasb_back.model.entity.CourseEpisode episode);
+    Result<Void> updateEpisode(com.edu.javasb_back.model.entity.CourseEpisode episode);
+    Result<Void> deleteEpisode(String id);
+
+    // 章节下的视频管理
+    Result<List<com.edu.javasb_back.model.entity.CourseVideo>> getEpisodeVideos(String episodeId);
+    Result<Void> addVideo(com.edu.javasb_back.model.entity.CourseVideo video);
+    Result<Void> updateVideo(com.edu.javasb_back.model.entity.CourseVideo video);
+    Result<Void> deleteVideo(String id);
 }

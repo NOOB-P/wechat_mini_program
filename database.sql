@@ -293,6 +293,31 @@ CREATE TABLE `courses` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='课程与学习资源表';
 
+-- 7.0 课程章节表
+DROP TABLE IF EXISTS `course_episodes`;
+CREATE TABLE `course_episodes` (
+    `id` VARCHAR(50) PRIMARY KEY COMMENT '章节ID',
+    `course_id` VARCHAR(50) NOT NULL COMMENT '所属课程ID',
+    `title` VARCHAR(200) NOT NULL COMMENT '章节标题',
+    `sort_order` INT DEFAULT 0 COMMENT '排序',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    CONSTRAINT `fk_episode_course` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='课程章节明细表';
+
+-- 7.0.1 章节视频表 (支持一个章节多个视频)
+DROP TABLE IF EXISTS `course_videos`;
+CREATE TABLE `course_videos` (
+    `id` VARCHAR(50) PRIMARY KEY COMMENT '视频ID',
+    `episode_id` VARCHAR(50) NOT NULL COMMENT '所属章节ID',
+    `title` VARCHAR(200) NOT NULL COMMENT '视频名称',
+    `video_url` VARCHAR(500) COMMENT '视频文件路径',
+    `sort_order` INT DEFAULT 0 COMMENT '排序',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    CONSTRAINT `fk_video_episode` FOREIGN KEY (`episode_id`) REFERENCES `course_episodes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='课程视频资源表';
+
 -- 7.1 用户与课程交互表 (我的课程/最近查看)
 DROP TABLE IF EXISTS `user_courses`;
 CREATE TABLE `user_courses` (
@@ -671,6 +696,7 @@ CREATE TABLE IF NOT EXISTS `exam_papers` (
     `download_count` INT DEFAULT 0,
     `file_path` VARCHAR(500),
     `is_recommend` BIT(1) DEFAULT b'0',
+    `sort_order` INT DEFAULT 1,
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -701,10 +727,16 @@ CREATE TABLE IF NOT EXISTS `course_orders` (
     INDEX `idx_user_course` (`user_uid`, `course_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 16. 初始化课程数据 (仅保留结构，不使用外部链接)
+INSERT IGNORE INTO `courses` (`id`, `title`, `type`, `status`, `is_recommend`, `price`) VALUES
+('CRS001', '初中数学基础巩固', 'general', 1, 1, 0.00),
+('CRS002', '中考物理冲刺班', 'general', 1, 1, 99.00),
+('CRS003', '小学英语启蒙课', 'general', 1, 0, 0.00);
+
 -- 14. 初始化试卷数据
-INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `tags`, `download_count`, `is_recommend`, `file_path`) VALUES
-('2023年杭州二中高三仿真模拟卷 (一)', '数学', '高三', '2023', 'FAMOUS', '名校,重点,综合,PDF', 1250, 1, '/uploads/papers/demo.pdf'),
-('2024年北京人大附中初三二模真题', '语文', '初三', '2024', 'FAMOUS', '真题,必刷,全科,解析', 3400, 0, '/uploads/papers/demo.pdf'),
-('上海中学2023-2024学年高一期末考试卷', '数学', '高一', '2024', 'FAMOUS', '名校,期末,数学,精品', 890, 1, '/uploads/papers/demo.pdf'),
-('2023年西安西工大附中初一入学摸底测试', '语文', '初一', '2023', 'FAMOUS', '摸底,语文,PDF版', 2100, 0, '/uploads/papers/demo.pdf'),
-('2024年成都七中高二联考物理压轴卷', '物理', '高二', '2024', 'JOINT', '联考,名校,物理,解析', 1560, 1, '/uploads/papers/demo.pdf');
+INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `tags`, `download_count`, `is_recommend`, `file_path`, `sort_order`) VALUES
+('2023年杭州二中高三仿真模拟卷 (一)', '数学', '高三', '2023', 'FAMOUS', '名校,重点,综合,PDF', 1250, 1, '/uploads/papers/demo.pdf', 1),
+('2024年北京人大附中初三二模真题', '语文', '初三', '2024', 'FAMOUS', '真题,必刷,全科,解析', 3400, 0, '/uploads/papers/demo.pdf', 1),
+('上海中学2023-2024学年高一期末考试卷', '数学', '高一', '2024', 'FAMOUS', '名校,期末,数学,精品', 890, 1, '/uploads/papers/demo.pdf', 1),
+('2023年西安西工大附中初一入学摸底测试', '语文', '初一', '2023', 'FAMOUS', '摸底,语文,PDF版', 2100, 0, '/uploads/papers/demo.pdf', 1),
+('2024年成都七中高二联考物理压轴卷', '物理', '高二', '2024', 'JOINT', '联考,名校,物理,解析', 1560, 1, '/uploads/papers/demo.pdf', 1);

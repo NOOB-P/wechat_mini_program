@@ -154,6 +154,12 @@ public class SysSchoolServiceImpl implements SysSchoolService {
     }
 
     @Override
+    public Result<List<SysSchool>> getAllSchools() {
+        return Result.success("获取成功", sysSchoolRepository.findAll(Sort.by(Sort.Direction.ASC, "name")));
+    }
+
+    @Override
+
     public Result<Map<String, Object>> getSchoolList(int page, int size, String keyword, String province, String city, String name) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createTime"));
 
