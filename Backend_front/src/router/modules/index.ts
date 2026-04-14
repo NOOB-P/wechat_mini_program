@@ -1,3 +1,4 @@
+import { AppRouteRecord } from '@/types/router'
 import { dashboardRoutes } from './dashboard'
 import { coreBusinessRoutes } from './core-business'
 import { examRoutes } from './exam'

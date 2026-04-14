@@ -8,13 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
-/**
- * 后台管理试卷接口
- */
 @RestController
 @RequestMapping("/api/admin/resource/paper")
 public class AdminPaperController {
@@ -22,10 +18,9 @@ public class AdminPaperController {
     @Autowired
     private PaperService paperService;
 
-    // --- 试卷管理 ---
-
+    @PreAuthorize("hasAuthority('paper:manage:list')")
     @GetMapping("/list")
-    public Result getPaperList(
+    public Result<?> getPaperList(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String subject,
             @RequestParam(required = false) String grade,
@@ -41,31 +36,34 @@ public class AdminPaperController {
         return Result.success(page);
     }
 
+    @PreAuthorize("hasAuthority('paper:manage:save')")
     @PostMapping("/save")
-    public Result savePaper(@RequestBody ExamPaper paper) {
+    public Result<?> savePaper(@RequestBody ExamPaper paper) {
         return Result.success(paperService.savePaper(paper));
     }
 
+    @PreAuthorize("hasAuthority('paper:manage:delete')")
     @DeleteMapping("/delete/{id}")
-    public Result deletePaper(@PathVariable Long id) {
+    public Result<?> deletePaper(@PathVariable Long id) {
         paperService.deletePaper(id);
         return Result.success("删除成功");
     }
 
-    // --- 科目管理 ---
-
+    @PreAuthorize("hasAuthority('paper:subject:list')")
     @GetMapping("/subjects")
-    public Result getSubjects() {
+    public Result<?> getSubjects() {
         return Result.success(paperService.getAllSubjects());
     }
 
+    @PreAuthorize("hasAuthority('paper:subject:save')")
     @PostMapping("/subject/save")
-    public Result saveSubject(@RequestBody PaperSubject subject) {
+    public Result<?> saveSubject(@RequestBody PaperSubject subject) {
         return Result.success(paperService.saveSubject(subject));
     }
 
+    @PreAuthorize("hasAuthority('paper:subject:delete')")
     @DeleteMapping("/subject/delete/{id}")
-    public Result deleteSubject(@PathVariable Long id) {
+    public Result<?> deleteSubject(@PathVariable Long id) {
         paperService.deleteSubject(id);
         return Result.success("删除成功");
     }

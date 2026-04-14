@@ -8,7 +8,7 @@ export const orderRoutes: AppRouteRecord = {
   meta: {
     title: '订单管理',
     icon: 'ri:file-list-3-line',
-    sort: 2 // 与核心业务同级，可以根据需要调整顺序
+    sort: 2
   },
   children: [
     {
@@ -17,7 +17,8 @@ export const orderRoutes: AppRouteRecord = {
       component: '/order/vip',
       meta: {
         title: 'VIP 订单管理',
-        keepAlive: true
+        keepAlive: true,
+        authMark: 'order:vip:list'
       }
     },
     {
@@ -26,7 +27,8 @@ export const orderRoutes: AppRouteRecord = {
       component: '/order/course',
       meta: {
         title: '课程订单管理',
-        keepAlive: true
+        keepAlive: true,
+        authMark: 'order:course:list'
       }
     },
     {
@@ -35,7 +37,8 @@ export const orderRoutes: AppRouteRecord = {
       component: '/order/print',
       meta: {
         title: '打印订单管理',
-        keepAlive: true
+        keepAlive: true,
+        authMark: 'order:print:list'
       }
     }
   ]

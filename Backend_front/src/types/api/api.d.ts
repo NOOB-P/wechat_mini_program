@@ -81,40 +81,41 @@ declare namespace Api {
     /** 用户信息 */
     interface UserInfo {
       buttons: string[]
+      permissions: string[]
       roles: string[]
       userId: number
       userName: string
       nickName?: string
+      phone?: string
       userPhone?: string
       schoolName?: string
       email: string
       avatar?: string
-      allowedModules?: string[]
+      roleCode?: string
     }
   }
 
   /** 内容管理相关类型 */
   namespace ContentManage {
-    /** 模块项 */
-    interface ModuleItem {
+    interface PermissionOption {
+      menuPermission: string
       title: string
-      path: string
+      routePath: string
       icon?: string
+      permissionCodes: string[]
     }
 
-    /** 用户模块权限 */
-    interface UserModulePermission {
-      uid: number
-      userName: string
-      nickName: string
-      userRoles: string[]
-      allowedModules: string[]
+    interface RolePermissionItem {
+      id: number
+      roleName: string
+      roleCode: string
+      description?: string
+      status: number
+      permissionCodes: string[]
     }
 
-    /** 权限搜索参数 */
     interface PermissionSearchParams extends Api.Common.CommonSearchParams {
-      userName?: string
-      nickName?: string
+      roleName?: string
     }
   }
 
@@ -134,6 +135,33 @@ declare namespace Api {
       isVip?: number
       isSvip?: number
     }
+
+    type UserSearchParams = Partial<
+      Pick<UserListItem, 'id' | 'userName' | 'userGender' | 'status'> &
+        Api.Common.CommonSearchParams & {
+          userPhone?: string
+          userEmail?: string
+        }
+    >
+
+    type RoleList = Api.Common.PaginatedResponse<RoleListItem>
+
+    interface RoleListItem {
+      roleId: number
+      roleName: string
+      roleCode: string
+      description: string
+      enabled: boolean
+      createTime: string
+    }
+
+    type RoleSearchParams = Partial<
+      Pick<RoleListItem, 'roleId' | 'roleName' | 'roleCode' | 'description' | 'enabled'> &
+        Api.Common.CommonSearchParams & {
+          startTime: string | null
+          endTime: string | null
+        }
+    >
   }
 
   /** 核心业务 - 学校架构 */
@@ -299,27 +327,25 @@ declare namespace Api {
 
   /** 内容管理 - 模块权限分配 */
   namespace ContentManage {
-    /** 用户模块权限项 */
-    interface UserModulePermission {
+    interface RolePermissionItem {
       id: number
-      userName: string
-      nickName: string
-      userRoles: string[]
-      /** 允许访问的模块路径列表，例如 ['/dashboard', '/payment'] */
-      allowedModules: string[]
+      roleName: string
+      roleCode: string
+      description?: string
+      status: number
+      permissionCodes: string[]
     }
 
-    /** 可配置的模块项 */
-    interface ModuleItem {
+    interface PermissionOption {
+      menuPermission: string
       title: string
-      path: string
+      routePath: string
       icon?: string
+      permissionCodes: string[]
     }
 
-    /** 搜索参数 */
     interface PermissionSearchParams extends Api.Common.CommonSearchParams {
-      userName?: string
-      nickName?: string
+      roleName?: string
     }
   }
 }

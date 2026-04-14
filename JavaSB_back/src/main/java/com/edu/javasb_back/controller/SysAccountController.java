@@ -12,6 +12,7 @@ import com.edu.javasb_back.model.entity.SysStudent;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
+import com.edu.javasb_back.service.RolePermissionService;
 import com.edu.javasb_back.service.SysAccountService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -61,6 +63,9 @@ public class SysAccountController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private RolePermissionService rolePermissionService;
+
     private static final int PARENT_ROLE_ID = 3;
 
     // 辅助方法：获取当前用户的实体
@@ -77,51 +82,45 @@ public class SysAccountController {
         }
     }
 
-    // 辅助方法：检查当前用户是否为管理员
-    private boolean isAdmin(SysAccount currentUser) {
-        return currentUser != null && currentUser.getRoleId() != null &&
-               (currentUser.getRoleId() == 1 || currentUser.getRoleId() == 2);
-    }
-
     // 辅助方法：检查权限控制 (低权限不能操作高权限，同级可操作)
-    // 角色等级：1(超级管理员) > 2(后台管理) > 3(家长)/4(学生)
     private boolean canManageRole(SysAccount currentUser, Integer targetRoleId) {
-        if (currentUser == null || currentUser.getRoleId() == null || targetRoleId == null) {
+        if (currentUser == null) {
             return false;
         }
-        // 超级管理员(1) 可以操作所有人
-        if (currentUser.getRoleId() == 1) return true;
-        // 后台管理(2) 不能操作超级管理员(1)，但可以操作同级(2)或更低级(3,4)
-        if (currentUser.getRoleId() == 2) {
-            return targetRoleId >= 2;
-        }
-        return false;
+        return rolePermissionService.canManageRole(currentUser.getRoleId(), targetRoleId);
     }
 
-    /**
-     * 分页查询账户列表 (仅管理员 roleId=1或2 可用)
-     */
     @LogOperation("查询账户列表")
+    @PreAuthorize("hasAuthority('system:user:list')")
     @GetMapping("/list")
     public Result<Map<String, Object>> getAccountList(
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String userName, // 适配前端字段名
             @RequestParam(required = false) String userPhone,
-            @RequestParam(required = false) Integer roleId) {
+            @RequestParam(required = false) Integer roleId,
+            @RequestParam(required = false) String schoolId,
+            @RequestParam(required = false) String classId) {
 
         SysAccount currentUser = getCurrentUser();
         if (currentUser == null) {
             return Result.error(401, "未登录");
         }
         
-        if (!isAdmin(currentUser)) {
-            return Result.error(403, "无权限执行此操作，仅管理员可用");
-        }
+        // if (!isAdmin(currentUser)) {
+        //     return Result.error(403, "无权限执行此操作，仅管理员可用");
+        // }
 
-        // 查询
-        Pageable pageable = PageRequest.of(current - 1, size, Sort.by(Sort.Direction.DESC, "createTime"));
-        Page<SysAccount> pageData = sysAccountRepository.findAccounts(userName, userPhone, roleId, pageable);
+        // 处理空字符串，将其转为 null，避免 SQL 匹配失败
+        String finalUserName = (userName != null && !userName.trim().isEmpty()) ? userName : null;
+        String finalUserPhone = (userPhone != null && !userPhone.trim().isEmpty()) ? userPhone : null;
+        String finalSchoolId = (schoolId != null && !schoolId.trim().isEmpty()) ? schoolId : null;
+        String finalClassId = (classId != null && !classId.trim().isEmpty()) ? classId : null;
+
+        // 查询 (使用 findAccountsAdvanced 支持学校、班级过滤)
+        Pageable pageable = PageRequest.of(current - 1, size, Sort.by(Sort.Direction.DESC, "create_time"));
+        Page<SysAccount> pageData = sysAccountRepository.findAccountsAdvanced(
+                finalUserName, finalUserPhone, roleId, finalSchoolId, finalClassId, pageable);
         
         // 映射为前端期望的字段名
         List<Map<String, Object>> records = pageData.getContent().stream()
@@ -173,10 +172,9 @@ public class SysAccountController {
 
         Map<String, Object> resultData = new HashMap<>();
         resultData.put("records", records);
-        // 注意：这里的 total 仍然是数据库层面的 total，如果为了严谨过滤后的分页应该在 SQL 层面处理
-        // 为了快速修复权限控制，我们在内存中过滤，total 可能略有偏差，但在后台用户基数不大时影响有限。
-        // 如果要完全准确，需要在 findAccounts 的 SQL 里加上 role_id >= :currentUserRoleId 的限制。
-        resultData.put("total", records.size()); 
+        // 使用数据库返回的总数，虽然内存过滤可能导致总数略有偏差（仅在跨权限查看时），
+        // 但对于分页显示来说，使用 getTotalElements() 是必须的，否则无法正常翻页。
+        resultData.put("total", pageData.getTotalElements()); 
         resultData.put("current", current);
         resultData.put("size", size);
 
@@ -187,10 +185,10 @@ public class SysAccountController {
      * 添加账户
      */
     @LogOperation("添加账户")
+    @PreAuthorize("hasAuthority('system:user:add')")
     @PostMapping("/add")
     public Result<Void> addAccount(@RequestBody SysAccount account) {
         SysAccount currentUser = getCurrentUser();
-        if (!isAdmin(currentUser)) return Result.error(403, "无权限执行此操作，仅管理员可用");
 
         if (account.getRoleId() == null) {
             account.setRoleId(3); // 默认家长
@@ -235,10 +233,10 @@ public class SysAccountController {
      * 批量导入家长用户
      */
     @LogOperation("批量导入家长用户")
+    @PreAuthorize("hasAuthority('system:user:import')")
     @PostMapping("/import-parents")
     public Result<Void> importParents(@RequestParam("file") MultipartFile file) {
         SysAccount currentUser = getCurrentUser();
-        if (!isAdmin(currentUser)) return Result.error(403, "无权限执行此操作，仅管理员可用");
         if (file == null || file.isEmpty()) {
             return Result.error("文件内容为空");
         }
@@ -343,13 +341,10 @@ public class SysAccountController {
      * 下载家长导入模板
      */
     @LogOperation("下载家长导入模板")
+    @PreAuthorize("hasAuthority('system:user:template')")
     @GetMapping("/download-parent-template")
     public ResponseEntity<Resource> downloadParentTemplate() {
         SysAccount currentUser = getCurrentUser();
-        if (!isAdmin(currentUser)) {
-            return ResponseEntity.status(403).build();
-        }
-
         try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("家长导入模板");
             String[] headers = {"用户名", "昵称", "手机号", "密码", "VIP", "SVIP", "学生学号"};
@@ -388,10 +383,10 @@ public class SysAccountController {
      * 编辑账户
      */
     @LogOperation("编辑账户")
+    @PreAuthorize("hasAuthority('system:user:edit')")
     @PutMapping("/edit/{uid}")
     public Result<Void> editAccount(@PathVariable Long uid, @RequestBody SysAccount updateData) {
         SysAccount currentUser = getCurrentUser();
-        if (!isAdmin(currentUser)) return Result.error(403, "无权限执行此操作，仅管理员可用");
 
         Optional<SysAccount> accountOpt = sysAccountRepository.findById(uid);
         if (accountOpt.isEmpty()) {
@@ -453,10 +448,10 @@ public class SysAccountController {
      * 删除账户
      */
     @LogOperation("删除账户")
+    @PreAuthorize("hasAuthority('system:user:delete')")
     @DeleteMapping("/delete/{uid}")
     public Result<Void> deleteAccount(@PathVariable Long uid) {
         SysAccount currentUser = getCurrentUser();
-        if (!isAdmin(currentUser)) return Result.error(403, "无权限执行此操作，仅管理员可用");
 
         Optional<SysAccount> targetOpt = sysAccountRepository.findById(uid);
         if (targetOpt.isEmpty()) {

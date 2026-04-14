@@ -14,28 +14,20 @@ import lombok.Data;
 
 @Data
 @Entity
-@Table(name = "sys_user_modules")
-public class SysUserModule {
+@Table(name = "sys_role_menu")
+public class SysRoleMenu {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long uid;
+    @Column(name = "role_id", nullable = false)
+    private Integer roleId;
 
-    @Column(name = "module_path", nullable = false, length = 255)
-    private String modulePath;
+    @Column(name = "permission_code", nullable = false, length = 100)
+    private String permissionCode;
 
     @CreationTimestamp
     @Column(name = "create_time", updatable = false)
     private LocalDateTime createTime;
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public Long getUid() { return uid; }
-    public void setUid(Long uid) { this.uid = uid; }
-
-    public String getModulePath() { return modulePath; }
-    public void setModulePath(String modulePath) { this.modulePath = modulePath; }
 }

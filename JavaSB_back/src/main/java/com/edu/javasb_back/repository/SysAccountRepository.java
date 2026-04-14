@@ -85,4 +85,35 @@ public interface SysAccountRepository extends JpaRepository<SysAccount, Long> {
                                   @Param("phone") String phone, 
                                   @Param("roleId") Integer roleId, 
                                   Pageable pageable);
+
+    /**
+     * 高级搜索：支持学校、班级联动过滤 (主要针对家长角色)
+     */
+    @Query(value = "SELECT DISTINCT a.* FROM sys_accounts a " +
+                   "LEFT JOIN sys_roles r ON a.role_id = r.id " +
+                   "LEFT JOIN student_parent_bindings b ON a.uid = b.parent_uid " +
+                   "LEFT JOIN students s ON b.student_id = s.id " +
+                   "WHERE (:username IS NULL OR a.username LIKE CONCAT('%', :username, '%')) " +
+                   "AND (:phone IS NULL OR a.phone LIKE CONCAT('%', :phone, '%')) " +
+                   "AND (:roleId IS NULL OR a.role_id = :roleId) " +
+                   "AND (:schoolId IS NULL OR s.school_id = :schoolId) " +
+                   "AND (:classId IS NULL OR s.class_id = :classId) " +
+                   "AND (r.role_code IS NULL OR r.role_code != 'student')", 
+           countQuery = "SELECT COUNT(DISTINCT a.uid) FROM sys_accounts a " +
+                        "LEFT JOIN sys_roles r ON a.role_id = r.id " +
+                        "LEFT JOIN student_parent_bindings b ON a.uid = b.parent_uid " +
+                        "LEFT JOIN students s ON b.student_id = s.id " +
+                        "WHERE (:username IS NULL OR a.username LIKE CONCAT('%', :username, '%')) " +
+                        "AND (:phone IS NULL OR a.phone LIKE CONCAT('%', :phone, '%')) " +
+                        "AND (:roleId IS NULL OR a.role_id = :roleId) " +
+                        "AND (:schoolId IS NULL OR s.school_id = :schoolId) " +
+                        "AND (:classId IS NULL OR s.class_id = :classId) " +
+                        "AND (r.role_code IS NULL OR r.role_code != 'student')",
+           nativeQuery = true)
+    Page<SysAccount> findAccountsAdvanced(@Param("username") String username, 
+                                           @Param("phone") String phone, 
+                                           @Param("roleId") Integer roleId, 
+                                           @Param("schoolId") String schoolId, 
+                                           @Param("classId") String classId, 
+                                           Pageable pageable);
 }

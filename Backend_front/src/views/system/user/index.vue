@@ -197,11 +197,11 @@
 
   // 搜索表单
   const searchForm = ref({
-    userName: undefined,
-    userGender: undefined,
-    userPhone: undefined,
-    userEmail: undefined,
-    status: '1'
+    userName: '',
+    userPhone: '',
+    roleId: null as number | null,
+    schoolId: '',
+    classId: ''
   })
 
   // 用户状态配置

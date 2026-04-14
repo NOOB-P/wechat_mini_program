@@ -1,23 +1,23 @@
 <template>
   <div class="vip-package-container p-5">
-    <div class="page-header mb-5 flex justify-between items-center bg-white p-5 rounded-lg shadow-sm">
-      <div class="left">
+    <div class="page-header mb-5 flex items-center justify-between rounded-lg bg-white p-5 shadow-sm">
+      <div>
         <h2 class="text-xl font-bold text-gray-800">会员套餐设置</h2>
-        <p class="text-sm text-gray-500 mt-1">配置 VIP 与 SVIP 的功能权限、展示信息及多周期价格体系</p>
+        <p class="mt-1 text-sm text-gray-500">配置 VIP 和 SVIP 的权益、价格以及适用学校范围。</p>
       </div>
-      <el-button type="primary" icon="Plus" disabled>新增套餐</el-button>
+      <el-button type="primary" :icon="Plus" disabled>新增套餐</el-button>
     </div>
 
-    <div v-loading="loading" class="package-list grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div v-loading="loading" class="package-list grid grid-cols-1 gap-6 md:grid-cols-2">
       <div
         v-for="pkg in packages"
         :key="pkg.id"
-        class="package-card bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 transition-all hover:shadow-lg"
+        class="package-card overflow-hidden rounded-xl border border-gray-100 bg-white shadow-md transition-all hover:shadow-lg"
       >
         <div :class="['card-header p-6', pkg.tierCode === 'SVIP' ? 'bg-indigo-600' : 'bg-blue-500']">
-          <div class="flex justify-between items-start">
-            <div class="title-info">
-              <span class="type-tag bg-white/20 text-white text-xs px-2 py-0.5 rounded-full mb-2 inline-block">
+          <div class="flex items-start justify-between">
+            <div>
+              <span class="mb-2 inline-block rounded-full bg-white/20 px-2 py-0.5 text-xs text-white">
                 {{ pkg.tierCode }}
               </span>
               <h3 class="text-2xl font-bold text-white">{{ pkg.title }}</h3>
@@ -31,17 +31,18 @@
               @change="handleStatusChange(pkg)"
             />
           </div>
-          <p class="text-white/80 mt-2 text-sm">{{ pkg.subTitle }}</p>
+          <p class="mt-2 text-sm text-white/80">{{ pkg.subTitle }}</p>
         </div>
 
-        <div class="card-content p-6">
-          <div class="features-section mb-6">
-            <h4 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
-              <el-icon class="mr-2 text-blue-500"><CircleCheck /></el-icon> 功能权益
+        <div class="p-6">
+          <div class="mb-6">
+            <h4 class="mb-3 flex items-center text-sm font-bold text-gray-700">
+              <el-icon class="mr-2 text-blue-500"><CircleCheck /></el-icon>
+              功能权益
             </h4>
-            <div class="feature-tags flex wrap gap-2">
+            <div class="flex flex-wrap gap-2">
               <el-tag
-                v-for="feature in (typeof pkg.benefits === 'string' ? JSON.parse(pkg.benefits) : pkg.benefits)"
+                v-for="feature in parseBenefits(pkg.benefits)"
                 :key="feature"
                 size="small"
                 effect="plain"
@@ -52,73 +53,117 @@
             </div>
           </div>
 
-          <div class="price-section bg-gray-50 rounded-lg p-4 mb-6">
-            <h4 class="text-sm font-bold text-gray-700 mb-4 flex items-center justify-between">
+          <div class="mb-6 rounded-lg bg-gray-50 p-4">
+            <h4 class="mb-4 flex items-center justify-between text-sm font-bold text-gray-700">
               <span class="flex items-center">
-                <el-icon class="mr-2 text-orange-500"><Money /></el-icon> 价格体系
+                <el-icon class="mr-2 text-orange-500"><Money /></el-icon>
+                价格体系
               </span>
-              <el-button link type="primary" icon="Edit" @click="handleEditPrice(pkg)">修改价格</el-button>
+              <el-button link type="primary" :icon="Edit" @click="handleEditPrice(pkg)">修改价格</el-button>
             </h4>
-            <div class="price-grid grid grid-cols-3 gap-4">
-              <div v-for="price in pkg.pricings" :key="price.id" class="price-item text-center border-r last:border-r-0 border-gray-200">
-                <div class="period text-xs text-gray-500 mb-1">{{ price.pkgName }}</div>
-                <div class="current-price text-lg font-bold text-red-500">¥{{ price.currentPrice }}</div>
-                <div class="old-price text-xs text-gray-400 line-through">¥{{ price.originalPrice }}</div>
+            <div class="grid grid-cols-3 gap-4">
+              <div
+                v-for="price in pkg.pricings"
+                :key="price.id"
+                class="border-r border-gray-200 text-center last:border-r-0"
+              >
+                <div class="mb-1 text-xs text-gray-500">{{ price.pkgName }}</div>
+                <div class="text-lg font-bold text-red-500">￥{{ price.currentPrice }}</div>
+                <div class="text-xs text-gray-400 line-through">￥{{ price.originalPrice }}</div>
               </div>
             </div>
           </div>
 
-          <div class="card-footer p-6 border-t border-gray-100 flex justify-between bg-gray-50/50">
+          <div class="mb-6">
+            <h4 class="mb-3 flex items-center justify-between text-sm font-bold text-gray-700">
+              <span class="flex items-center">
+                <el-icon class="mr-2 text-emerald-500"><School /></el-icon>
+                开通学校
+              </span>
+              <span class="text-xs text-gray-400">已选 {{ getSchoolIds(pkg).length }} 所</span>
+            </h4>
+            <div v-if="getSchoolIds(pkg).length" class="flex flex-wrap gap-2">
+              <el-tag
+                v-for="schoolId in getSchoolIds(pkg).slice(0, 4)"
+                :key="schoolId"
+                size="small"
+                effect="plain"
+                type="success"
+              >
+                {{ getSchoolName(schoolId) }}
+              </el-tag>
+              <span v-if="getSchoolIds(pkg).length > 4" class="text-xs leading-6 text-gray-400">
+                +{{ getSchoolIds(pkg).length - 4 }}
+              </span>
+            </div>
+            <div v-else class="text-sm text-gray-400">未配置开通学校，小程序将展示校讯通引导页。</div>
+          </div>
+
+          <div class="flex justify-between border-t border-gray-100 bg-gray-50/50 p-6">
             <el-button @click="handleEditBenefits(pkg)">编辑权益</el-button>
-            <el-button disabled type="primary" plain>营销配置</el-button>
+            <el-button type="primary" plain @click="handleEditSchools(pkg)">选择开通学校</el-button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 弹窗组件 -->
-    <PriceDialog
-      v-model="priceVisible"
+    <PriceDialog v-model="priceVisible" :package-data="currentPackage" @success="getList" />
+    <BenefitsDialog v-model="benefitsVisible" :package-data="currentPackage" @success="getList" />
+    <PackageDialog v-model="packageVisible" :package-data="currentPackage" @success="getList" />
+    <SchoolDialog
+      v-model="schoolVisible"
       :package-data="currentPackage"
-      @success="getList"
-    />
-
-    <BenefitsDialog
-      v-model="benefitsVisible"
-      :package-data="currentPackage"
-      @success="getList"
-    />
-
-    <PackageDialog
-      v-model="packageVisible"
-      :package-data="currentPackage"
+      :school-options="schoolOptions"
       @success="getList"
     />
   </div>
 </template>
 
 <script setup lang="ts">
+  import { ElMessage } from 'element-plus'
+  import { CircleCheck, Edit, Money, Plus, School } from '@element-plus/icons-vue'
+  import { fetchGetSchoolOptions } from '@/api/core-business/school'
   import { fetchVipPackages, toggleVipStatus } from '@/api/payment/vip'
-  import PriceDialog from './modules/price-dialog.vue'
   import BenefitsDialog from './modules/benefits-dialog.vue'
   import PackageDialog from './modules/package-dialog.vue'
-  import { ElMessage } from 'element-plus'
-  import { CircleCheck, Money, Setting, Plus, Share } from '@element-plus/icons-vue'
+  import PriceDialog from './modules/price-dialog.vue'
+  import SchoolDialog from './modules/school-dialog.vue'
 
   const loading = ref(false)
   const packages = ref<any[]>([])
+  const schoolOptions = ref<any[]>([])
   const priceVisible = ref(false)
   const benefitsVisible = ref(false)
   const packageVisible = ref(false)
+  const schoolVisible = ref(false)
   const currentPackage = ref<any>(null)
+
+  const parseBenefits = (benefits: string | string[]) => {
+    if (Array.isArray(benefits)) return benefits
+    try {
+      const parsed = JSON.parse(benefits || '[]')
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+
+  const getSchoolIds = (pkg: any) => {
+    if (!Array.isArray(pkg?.schools)) return []
+    return pkg.schools.map((item: any) => item?.schoolId).filter(Boolean)
+  }
+
+  const getSchoolName = (schoolId: string) => {
+    const school = schoolOptions.value.find(item => item.id === schoolId)
+    return school?.name || schoolId
+  }
 
   const getList = async () => {
     loading.value = true
     try {
-      const res = await fetchVipPackages()
-      if (res) {
-        packages.value = res
-      }
+      const [packageRes, schoolRes] = await Promise.all([fetchVipPackages(), fetchGetSchoolOptions()])
+      packages.value = Array.isArray(packageRes) ? packageRes : []
+      schoolOptions.value = Array.isArray(schoolRes) ? schoolRes : []
     } finally {
       loading.value = false
     }
@@ -133,11 +178,6 @@
     }
   }
 
-  const handleAdd = () => {
-    currentPackage.value = null
-    packageVisible.value = true
-  }
-
   const handleEditPrice = (pkg: any) => {
     currentPackage.value = pkg
     priceVisible.value = true
@@ -146,6 +186,11 @@
   const handleEditBenefits = (pkg: any) => {
     currentPackage.value = pkg
     benefitsVisible.value = true
+  }
+
+  const handleEditSchools = (pkg: any) => {
+    currentPackage.value = pkg
+    schoolVisible.value = true
   }
 
   onMounted(() => {
@@ -158,12 +203,13 @@
     .package-card {
       .card-header {
         position: relative;
+
         &::after {
           content: '';
           position: absolute;
+          right: 0;
           bottom: -1px;
           left: 0;
-          right: 0;
           height: 20px;
           background: linear-gradient(to bottom right, transparent 50%, #ffffff 50%);
         }

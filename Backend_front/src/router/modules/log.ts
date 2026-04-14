@@ -18,7 +18,8 @@ export const logRoutes: AppRouteRecord = {
       meta: {
         title: '日志管理',
         keepAlive: true,
-        roles: ['R_SUPER', 'R_ADMIN']
+        roles: ['R_SUPER', 'R_ADMIN'],
+        authMark: 'system:log:list'
       }
     }
   ]

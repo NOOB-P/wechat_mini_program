@@ -2,17 +2,14 @@ package com.edu.javasb_back.controller;
 
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.model.entity.VipOrder;
 import com.edu.javasb_back.service.VipOrderService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
-
-/**
- * 后台管理端VIP订单管理
- */
 @RestController
 @RequestMapping("/api/admin/order/vip")
 public class AdminVipOrderController {
@@ -20,10 +17,8 @@ public class AdminVipOrderController {
     @Autowired
     private VipOrderService vipOrderService;
 
-    /**
-     * 分页查询VIP订单
-     */
     @LogOperation("后台查询VIP订单列表")
+    @PreAuthorize("hasAuthority('order:vip:list')")
     @GetMapping("/list")
     public Result<java.util.Map<String, Object>> getVipOrderList(
             @RequestParam(defaultValue = "1") int current,

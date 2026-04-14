@@ -214,7 +214,7 @@
                 <wd-icon name="lock-on" size="48px" color="#f6d365" />
               </view>
               <view class="lock-text">此专区为 SVIP 专属功能</view>
-              <wd-button custom-class="upgrade-btn" @click="goToRecharge">立即升级 SVIP</wd-button>
+              <wd-button custom-class="upgrade-btn" @click="goToRecharge('SVIP')">立即升级 SVIP</wd-button>
             </view>
             
             <view v-else>

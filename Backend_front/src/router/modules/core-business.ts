@@ -18,7 +18,8 @@ export const coreBusinessRoutes: AppRouteRecord = {
       component: '/core-business/school',
       meta: {
         title: '学校数据',
-        isHide: true
+        isHide: true,
+        authMark: 'system:school:list'
       }
     },
     {
@@ -27,7 +28,8 @@ export const coreBusinessRoutes: AppRouteRecord = {
       component: '/core-business/sys-class',
       meta: {
         title: '班级数据',
-        isHide: true
+        isHide: true,
+        authMark: 'system:class:list'
       }
     },
     {
@@ -36,7 +38,8 @@ export const coreBusinessRoutes: AppRouteRecord = {
       component: '/core-business/student',
       meta: {
         title: '学生数据',
-        isHide: true
+        isHide: true,
+        authMark: 'system:student:list'
       }
     }
   ]

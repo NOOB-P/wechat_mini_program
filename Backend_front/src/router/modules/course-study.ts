@@ -16,7 +16,8 @@ export const courseStudyRoutes: AppRouteRecord = {
       name: 'CourseManage',
       component: '/course-study/course',
       meta: {
-        title: '公益课程管理'
+        title: '公益课程管理',
+        authMark: 'course:manage:list'
       }
     },
     {
@@ -24,7 +25,8 @@ export const courseStudyRoutes: AppRouteRecord = {
       name: 'SvipCourseManage',
       component: '/course-study/svip-course',
       meta: {
-        title: 'SVIP 课程管理'
+        title: 'SVIP 课程管理',
+        authMark: 'course:manage:list'
       }
     },
     {
@@ -32,7 +34,8 @@ export const courseStudyRoutes: AppRouteRecord = {
       name: 'StudyRoomManage',
       component: '/course-study/study-room',
       meta: {
-        title: 'AI 自习室报名'
+        title: 'AI 自习室报名',
+        authMark: 'course:manage:list'
       }
     }
   ]

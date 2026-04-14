@@ -13,13 +13,16 @@
           icon="Delete"
           circle
           link
-          class="ml-2"
+          class="ml-2 flex-shrink-0"
           @click="removeBenefit(index)"
         />
       </div>
-      <el-button type="primary" icon="Plus" plain class="w-full mt-2" @click="addBenefit">
-        添加权益项
-      </el-button>
+      <div class="flex items-center mt-2">
+        <el-button type="primary" icon="Plus" plain class="flex-1" @click="addBenefit">
+          添加权益项
+        </el-button>
+        <div class="ml-2 w-[32px] flex-shrink-0"></div>
+      </div>
     </div>
 
     <template #footer>

@@ -10,16 +10,6 @@ export const dashboardRoutes: AppRouteRecord = {
     roles: ['R_SUPER', 'R_ADMIN']
   },
   children: [
-    // {
-    //   path: 'console',
-    //   name: 'Console',
-    //   component: '/dashboard/console',
-    //   meta: {
-    //     title: 'menus.dashboard.console',
-    //     keepAlive: false,
-    //     fixedTab: false
-    //   }
-    // },
     {
       path: 'analysis',
       name: 'Analysis',
@@ -27,7 +17,8 @@ export const dashboardRoutes: AppRouteRecord = {
       meta: {
         title: '数据统计',
         keepAlive: true,
-        fixedTab: true
+        fixedTab: true,
+        authMark: 'dashboard:analysis:view'
       }
     }
   ]
