@@ -108,7 +108,7 @@
 <script setup lang="ts">
   import { ref, onMounted } from 'vue'
   import { useRouter } from 'vue-router'
-  import { mockAnalysisData } from '@/mock/dashboard/analysis'
+  import { fetchGetDashboardAnalysis } from '@/api/dashboard/analysis'
   import AnalysisStats from './modules/AnalysisStats.vue'
   import SystemMonitor from './modules/SystemMonitor.vue'
   import GrowthChart from './modules/GrowthChart.vue'
@@ -127,8 +127,14 @@
   })
 
   const loadData = async () => {
-    // 暂时使用 Mock 数据
-    analysisData.value = mockAnalysisData
+    try {
+      const res = await fetchGetDashboardAnalysis()
+      if (res) {
+        analysisData.value = res
+      }
+    } catch (error) {
+      console.error('加载仪表盘数据失败:', error)
+    }
   }
 
   const goPage = (name: string) => {

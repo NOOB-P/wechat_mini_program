@@ -490,23 +490,41 @@
 
     parentImportLoading.value = true
     try {
-      const formData = new FormData()
-      readyFiles.forEach((file) => {
-        formData.append('files', file.raw)
-      })
-
-      const res = await fetchImportParentUsers(formData)
-      if (res && res.code === 200) {
-        ElMessage.success('导入任务已提交')
-        // 处理每个文件的状态（简化逻辑）
-        parentFileList.value.forEach((f) => {
-          if (f.status === 'ready') f.status = 'success'
+      // 逐个文件并行导入
+      const results = await Promise.allSettled(
+        readyFiles.map(async (file) => {
+          file.status = 'uploading'
+          try {
+            const formData = new FormData()
+            formData.append('file', file.raw)
+            // fetchImportParentUsers 内部使用 request，非 200 会抛出异常进入 catch
+            const res = await fetchImportParentUsers(formData)
+            
+            file.status = 'success'
+            file.errorMsg = ''
+            return { name: file.name, success: true, message: res?.message || '导入成功' }
+          } catch (error: any) {
+            file.status = 'fail'
+            file.errorMsg = error.message || '网络错误'
+            return { name: file.name, success: false, message: error.message }
+          }
         })
+      )
+
+      // 统计结果并给出提示
+      const successItems = results.filter((r: any) => r.value?.success)
+      if (successItems.length > 0) {
+        ElMessage.success(`成功导入 ${successItems.length} 个文件`)
         refreshData()
+      }
+      
+      const failItems = results.filter((r: any) => !r.value?.success)
+      if (failItems.length > 0) {
+        ElMessage.error(`${failItems.length} 个文件导入失败，请查看明细`)
       }
     } catch (error: any) {
       console.error(error)
-      ElMessage.error(error.message || '导入失败')
+      ElMessage.error('导入任务处理异常')
     } finally {
       parentImportLoading.value = false
     }

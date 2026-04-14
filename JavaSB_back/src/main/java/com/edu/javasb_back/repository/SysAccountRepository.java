@@ -84,7 +84,8 @@ public interface SysAccountRepository extends JpaRepository<SysAccount, Long> {
            "(:phone IS NULL OR a.phone LIKE CONCAT('%', :phone, '%')) AND " +
            "(:roleId IS NULL OR a.role_id = :roleId) AND " +
            "(:schoolName IS NULL OR s.school LIKE CONCAT('%', :schoolName, '%')) AND " +
-           "(:className IS NULL OR s.class_name LIKE CONCAT('%', :className, '%'))",
+           "(:className IS NULL OR s.class_name LIKE CONCAT('%', :className, '%')) " +
+           "ORDER BY a.role_id ASC, a.create_time DESC",
            countQuery = "SELECT COUNT(DISTINCT a.uid) FROM sys_accounts a " +
            "LEFT JOIN student_parent_bindings b ON a.uid = b.parent_uid " +
            "LEFT JOIN students s ON b.student_id = s.id " +
