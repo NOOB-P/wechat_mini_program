@@ -8,7 +8,7 @@
         <el-input v-model="formModel.userPhone" placeholder="请输入手机号" clearable @keyup.enter="handleSearch" />
       </el-form-item>
       <el-form-item label="用户类型">
-        <el-select v-model="formModel.userType" placeholder="请选择类型" clearable style="width: 150px">
+        <el-select v-model="formModel.roleId" placeholder="请选择类型" clearable style="width: 150px">
           <el-option label="管理员" value="1" />
           <el-option label="学校" value="2" />
           <el-option label="家长" value="3" />
@@ -17,21 +17,25 @@
       </el-form-item>
 
       <!-- 联动显示学校和班级筛选 -->
-      <template v-if="formModel.userType === '3' || formModel.userType === '4'">
+      <template v-if="formModel.roleId === '3' || formModel.roleId === '4'">
         <el-form-item label="学校">
           <el-select v-model="formModel.schoolName" placeholder="请选择学校" clearable style="width: 180px">
-            <el-option label="第一中学" value="第一中学" />
-            <el-option label="第二中学" value="第二中学" />
-            <el-option label="第三实验学校" value="第三实验学校" />
+            <el-option
+              v-for="school in schoolOptions"
+              :key="school.id"
+              :label="school.name"
+              :value="school.name"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="班级">
           <el-select v-model="formModel.className" placeholder="请选择班级" clearable style="width: 150px">
-            <el-option label="1班" value="1班" />
-            <el-option label="2班" value="2班" />
-            <el-option label="3班" value="3班" />
-            <el-option label="4班" value="4班" />
-            <el-option label="实验1班" value="实验1班" />
+            <el-option
+              v-for="item in classOptions"
+              :key="item.id"
+              :label="`${item.grade} / ${item.alias}`"
+              :value="item.alias"
+            />
           </el-select>
         </el-form-item>
       </template>
@@ -45,7 +49,9 @@
 </template>
 
 <script setup lang="ts">
-  import { reactive, watch } from 'vue'
+  import { watch, onMounted, ref } from 'vue'
+  import { fetchGetAllSchools } from '@/api/core-business/school'
+  import { getClassList } from '@/api/core-business/sys-class'
 
   interface Emits {
     (e: 'search', params: any): void
@@ -54,32 +60,79 @@
 
   const emit = defineEmits<Emits>()
 
-  const formModel = reactive({
-    userName: '',
-    userPhone: '',
-    userType: '',
-    schoolName: '',
-    className: ''
+  const formModel = defineModel<any>({
+    default: () => ({
+      userName: '',
+      userPhone: '',
+      roleId: '',
+      schoolName: '',
+      className: ''
+    })
   })
+
+  // 学校选项
+  const schoolOptions = ref<any[]>([])
+  // 班级选项
+  const classOptions = ref<any[]>([])
+
+  const getSchools = async () => {
+    try {
+      const res = await fetchGetAllSchools()
+      // res 已经是后端 Result.data.data 的内容（即学校数组）
+      schoolOptions.value = res || []
+    } catch (error) {
+      console.error('获取学校列表失败:', error)
+    }
+  }
+
+  const getClasses = async (schoolName: string) => {
+    if (!schoolName) {
+      classOptions.value = []
+      return
+    }
+    const school = schoolOptions.value.find((s) => s.name === schoolName)
+    if (!school) return
+
+    try {
+      const res = await getClassList({ schoolId: school.schoolId, size: 1000 })
+      // res 已经是后端 Result.data.data 的内容（即包含 records 的分页对象）
+      classOptions.value = res?.records || []
+    } catch (error) {
+      console.error('获取班级列表失败:', error)
+    }
+  }
+
+  onMounted(() => {
+    getSchools()
+  })
+
+  // 当选择学校变化时，获取班级列表
+  watch(
+    () => formModel.value.schoolName,
+    (val) => {
+      formModel.value.className = ''
+      getClasses(val)
+    }
+  )
 
   // 当切换用户类型时，如果不是家长或学生，清空学校和班级筛选
   watch(
-    () => formModel.userType,
+    () => formModel.value.roleId,
     (val) => {
       if (val !== '3' && val !== '4') {
-        formModel.schoolName = ''
-        formModel.className = ''
+        formModel.value.schoolName = ''
+        formModel.value.className = ''
       }
     }
   )
 
   const handleSearch = () => {
-    emit('search', { ...formModel })
+    emit('search', { ...formModel.value })
   }
 
   const handleReset = () => {
-    Object.keys(formModel).forEach((key) => {
-      ;(formModel as any)[key] = ''
+    Object.keys(formModel.value).forEach((key) => {
+      ;(formModel.value as any)[key] = ''
     })
     emit('reset')
   }

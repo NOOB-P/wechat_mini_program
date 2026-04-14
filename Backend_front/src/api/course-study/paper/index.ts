@@ -20,6 +20,27 @@ export const deletePaperApi = (id: number) => {
   })
 }
 
+// 统计相关
+export const getTypeStatsApi = () => {
+  return api.get<any[]>({
+    url: '/api/admin/resource/paper/type/stats'
+  })
+}
+
+export const getGradeStatsApi = (type: string) => {
+  return api.get<any[]>({
+    url: '/api/admin/resource/paper/grade/stats',
+    params: { type }
+  })
+}
+
+export const getSubjectStatsApi = (type: string, grade: string) => {
+  return api.get<any[]>({
+    url: '/api/admin/resource/paper/subject/stats',
+    params: { type, grade }
+  })
+}
+
 export const getSubjectsApi = () => {
   return api.get<any>({
     url: '/api/admin/resource/paper/subjects'

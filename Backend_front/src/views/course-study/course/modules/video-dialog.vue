@@ -73,7 +73,7 @@ const form = ref({
   episodeId: '',
   title: '',
   videoUrl: '',
-  sortOrder: 0
+  sortOrder: 1
 })
 
 const rules = {
@@ -103,7 +103,7 @@ const resetForm = () => {
     episodeId: props.episodeId || '',
     title: '',
     videoUrl: '',
-    sortOrder: 0
+    sortOrder: 1
   }
   if (formRef.value) {
     formRef.value.resetFields()

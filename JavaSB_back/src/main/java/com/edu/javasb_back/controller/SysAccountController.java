@@ -108,7 +108,10 @@ public class SysAccountController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String userName, // 适配前端字段名
             @RequestParam(required = false) String userPhone,
-            @RequestParam(required = false) Integer roleId) {
+            @RequestParam(required = false) String roleId, // 改为 String 接收，防止前端传 "" 导致报错
+            @RequestParam(required = false) String schoolName,
+            @RequestParam(required = false) String className) {
+
 
         SysAccount currentUser = getCurrentUser();
         if (currentUser == null) {
@@ -119,9 +122,25 @@ public class SysAccountController {
             return Result.error(403, "无权限执行此操作，仅管理员可用");
         }
 
-        // 查询
-        Pageable pageable = PageRequest.of(current - 1, size, Sort.by(Sort.Direction.DESC, "createTime"));
-        Page<SysAccount> pageData = sysAccountRepository.findAccounts(userName, userPhone, roleId, pageable);
+        // 处理参数：空字符串转 null，防止 native query 匹配错误
+        String name = org.springframework.util.StringUtils.hasText(userName) ? userName : null;
+        String phone = org.springframework.util.StringUtils.hasText(userPhone) ? userPhone : null;
+        String school = org.springframework.util.StringUtils.hasText(schoolName) ? schoolName : null;
+        String clazz = org.springframework.util.StringUtils.hasText(className) ? className : null;
+        
+        Integer roleIdInt = null;
+        if (org.springframework.util.StringUtils.hasText(roleId)) {
+            try {
+                roleIdInt = Integer.parseInt(roleId);
+            } catch (NumberFormatException e) {
+                // ignore
+            }
+        }
+
+        // 查询：Native Query 排序必须使用数据库列名 create_time
+        Pageable pageable = PageRequest.of(current - 1, size, Sort.by(Sort.Direction.DESC, "create_time"));
+        Page<SysAccount> pageData = sysAccountRepository.findAccounts(name, phone, roleIdInt, school, clazz, pageable);
+
         
         // 映射为前端期望的字段名
         List<Map<String, Object>> records = pageData.getContent().stream()
@@ -173,10 +192,9 @@ public class SysAccountController {
 
         Map<String, Object> resultData = new HashMap<>();
         resultData.put("records", records);
-        // 注意：这里的 total 仍然是数据库层面的 total，如果为了严谨过滤后的分页应该在 SQL 层面处理
-        // 为了快速修复权限控制，我们在内存中过滤，total 可能略有偏差，但在后台用户基数不大时影响有限。
-        // 如果要完全准确，需要在 findAccounts 的 SQL 里加上 role_id >= :currentUserRoleId 的限制。
-        resultData.put("total", records.size()); 
+        // 使用数据库返回的真实总数
+        resultData.put("total", pageData.getTotalElements()); 
+
         resultData.put("current", current);
         resultData.put("size", size);
 

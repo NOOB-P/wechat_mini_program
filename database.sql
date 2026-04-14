@@ -696,6 +696,7 @@ CREATE TABLE IF NOT EXISTS `exam_papers` (
     `download_count` INT DEFAULT 0,
     `file_path` VARCHAR(500),
     `is_recommend` BIT(1) DEFAULT b'0',
+    `sort_order` INT DEFAULT 1,
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -733,9 +734,9 @@ INSERT IGNORE INTO `courses` (`id`, `title`, `type`, `status`, `is_recommend`, `
 ('CRS003', '小学英语启蒙课', 'general', 1, 0, 0.00);
 
 -- 14. 初始化试卷数据
-INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `tags`, `download_count`, `is_recommend`, `file_path`) VALUES
-('2023年杭州二中高三仿真模拟卷 (一)', '数学', '高三', '2023', 'FAMOUS', '名校,重点,综合,PDF', 1250, 1, '/uploads/papers/demo.pdf'),
-('2024年北京人大附中初三二模真题', '语文', '初三', '2024', 'FAMOUS', '真题,必刷,全科,解析', 3400, 0, '/uploads/papers/demo.pdf'),
-('上海中学2023-2024学年高一期末考试卷', '数学', '高一', '2024', 'FAMOUS', '名校,期末,数学,精品', 890, 1, '/uploads/papers/demo.pdf'),
-('2023年西安西工大附中初一入学摸底测试', '语文', '初一', '2023', 'FAMOUS', '摸底,语文,PDF版', 2100, 0, '/uploads/papers/demo.pdf'),
-('2024年成都七中高二联考物理压轴卷', '物理', '高二', '2024', 'JOINT', '联考,名校,物理,解析', 1560, 1, '/uploads/papers/demo.pdf');
+INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `tags`, `download_count`, `is_recommend`, `file_path`, `sort_order`) VALUES
+('2023年杭州二中高三仿真模拟卷 (一)', '数学', '高三', '2023', 'FAMOUS', '名校,重点,综合,PDF', 1250, 1, '/uploads/papers/demo.pdf', 1),
+('2024年北京人大附中初三二模真题', '语文', '初三', '2024', 'FAMOUS', '真题,必刷,全科,解析', 3400, 0, '/uploads/papers/demo.pdf', 1),
+('上海中学2023-2024学年高一期末考试卷', '数学', '高一', '2024', 'FAMOUS', '名校,期末,数学,精品', 890, 1, '/uploads/papers/demo.pdf', 1),
+('2023年西安西工大附中初一入学摸底测试', '语文', '初一', '2023', 'FAMOUS', '摸底,语文,PDF版', 2100, 0, '/uploads/papers/demo.pdf', 1),
+('2024年成都七中高二联考物理压轴卷', '物理', '高二', '2024', 'JOINT', '联考,名校,物理,解析', 1560, 1, '/uploads/papers/demo.pdf', 1);

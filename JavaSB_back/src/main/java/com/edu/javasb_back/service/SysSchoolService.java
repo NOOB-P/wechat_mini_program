@@ -14,4 +14,6 @@ public interface SysSchoolService {
     Result<Void> deleteSchool(Long id);
     Result<Void> importSchools(List<SchoolImportDTO> list);
     java.util.Optional<SysSchool> getSchoolById(Long id);
+    Result<List<SysSchool>> getAllSchools();
+
 }

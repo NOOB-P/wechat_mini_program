@@ -7,6 +7,13 @@ export function fetchGetSchoolTree() {
   })
 }
 
+/** 获取所有学校（不分页） */
+export function fetchGetAllSchools() {
+  return api.get<any>({
+    url: '/api/system/school/all'
+  })
+}
+
 /** 获取学校平铺列表 */
 export function fetchGetSchoolList(params?: { current?: number, size?: number, keyword?: string, province?: string, city?: string, name?: string }) {
   return api.get<any>({

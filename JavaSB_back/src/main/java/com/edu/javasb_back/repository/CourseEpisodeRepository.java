@@ -9,7 +9,8 @@ import com.edu.javasb_back.model.entity.CourseEpisode;
 
 @Repository
 public interface CourseEpisodeRepository extends JpaRepository<CourseEpisode, String> {
-    List<CourseEpisode> findByCourseIdOrderBySortOrderAsc(String courseId);
+    List<CourseEpisode> findByCourseIdOrderBySortOrderAscCreateTimeAsc(String courseId);
+
     
     @Modifying
     @Query(value = "DELETE FROM course_episodes WHERE course_id = :courseId", nativeQuery = true)

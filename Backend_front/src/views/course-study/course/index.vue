@@ -127,9 +127,10 @@
             </template>
           </el-table-column>
           <el-table-column prop="sortOrder" label="排序" width="80" />
-          <el-table-column label="操作" width="180" fixed="right">
+          <el-table-column label="操作" width="220" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="enterEpisodeVideoManagement(row)">进入管理</el-button>
+              <el-button link type="primary" @click="handleEditEpisode(row)">编辑</el-button>
               <el-button link type="danger" @click="handleDeleteEpisode(row)">删除</el-button>
             </template>
           </el-table-column>
@@ -151,20 +152,6 @@
             <el-button type="primary" @click="handleAddVideo">新增视频/集数</el-button>
           </div>
         </template>
-
-        <div class="mb-6 bg-gray-50 p-4 rounded border">
-          <el-form :model="currentEpisode" inline>
-            <el-form-item label="章节名称">
-              <el-input v-model="currentEpisode.title" />
-            </el-form-item>
-            <el-form-item label="章节排序">
-              <el-input-number v-model="currentEpisode.sortOrder" :min="0" />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="handleEpisodeVideoSuccess">保存章节信息</el-button>
-            </el-form-item>
-          </el-form>
-        </div>
 
         <el-table :data="videoData" border v-loading="videoLoading">
           <el-table-column type="index" label="序号" width="60" />
@@ -346,16 +333,6 @@ const handleDeleteVideo = (row: any) => {
   })
 }
 
-const handleEpisodeVideoSuccess = async () => {
-  try {
-    await updateEpisode(currentEpisode.value)
-    ElMessage.success('章节信息保存成功')
-    loadEpisodes()
-  } catch (error) {
-    // 拦截器处理
-  }
-}
-
 // --- 章节管理逻辑 ---
 const loadEpisodes = async () => {
   episodeLoading.value = true
@@ -490,12 +467,12 @@ const handleDelete = (row: any) => {
   })
 }
 
-const handleStatus = (row: any) => {
-  const status = row.status === 1 ? 0 : 1
-  changeCourseStatus(row.id, status).then(() => {
-    ElMessage.success(status === 1 ? '上架成功' : '下架成功')
+const handleStatus = async (row: any) => {
+  try {
+    await changeCourseStatus(row.id, row.status === 1 ? 0 : 1)
+    ElMessage.success('状态更新成功')
     loadData()
-  })
+  } catch (error) {}
 }
 
 onMounted(() => {
@@ -503,54 +480,8 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .page-container {
-  padding: 0;
-}
-
-.video-uploader-large {
-  border: 1px dashed #d9d9d9;
-  border-radius: 8px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  max-width: 400px;
-  background-color: #fafafa;
-  transition: border-color 0.3s;
-}
-
-.video-uploader-large:hover {
-  border-color: #409eff;
-}
-
-.video-info-box,
-.upload-placeholder {
-  height: 200px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-}
-
-.upload-placeholder {
-  color: #8c939d;
-}
-
-.video-info-box {
-  background-color: #f0f9eb;
-}
-
-.ml-4 {
-  margin-left: 1rem;
-}
-
-.w-20 {
-  width: 5rem;
-}
-
-.h-12 {
-  height: 3rem;
+  padding: 20px;
 }
 </style>

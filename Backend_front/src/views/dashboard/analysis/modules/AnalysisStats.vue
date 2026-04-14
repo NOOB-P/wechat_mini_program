@@ -39,9 +39,11 @@
       User: 'ri:user-line',
       House: 'ri:home-3-line',
       Star: 'ri:star-line',
-      Link: 'ri:links-line'
+      Link: 'ri:links-line',
+      School: 'ri:building-line',
+      Course: 'ri:book-line',
+      Paper: 'ri:file-list-line'
     }
-    return iconMap[icon] || 'ri:pie-chart-line'
+    return iconMap[icon] || icon || 'ri:pie-chart-line'
   }
 </script>
-
