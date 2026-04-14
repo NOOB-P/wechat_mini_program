@@ -178,3 +178,69 @@
 | current | number | 当前页 |
 | size | number | 每页条数 |
 | pages | number | 总页数 |
+
+## 10. 获取分析项目列表
+
+- 方法：`GET`
+- 地址：`/api/system/exam-analysis/projects`
+- 请求参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| name | string | 否 | 项目名称模糊搜索 |
+
+## 11. 获取项目分析大屏
+
+- 方法：`GET`
+- 地址：`/api/system/exam-analysis/project-dashboard`
+- 请求参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| projectId | string | 是 | 项目ID |
+
+## 12. 获取班级分析选择数据
+
+- 方法：`GET`
+- 地址：`/api/system/exam-analysis/class-select`
+- 请求参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| projectId | string | 是 | 项目ID |
+
+## 13. 获取班级分析大屏
+
+- 方法：`GET`
+- 地址：`/api/system/exam-analysis/class-dashboard`
+- 请求参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| projectId | string | 是 | 项目ID |
+| classId | string | 是 | 考试班级ID |
+
+## 14. 获取学生分析报告
+
+- 方法：`GET`
+- 地址：`/api/system/exam-analysis/student-report`
+- 请求参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| projectId | string | 是 | 项目ID |
+| classId | string | 是 | 考试班级ID |
+| studentNo | string | 是 | 学号 |
+
+## 15. 获取学生单科分析报告
+
+- 方法：`GET`
+- 地址：`/api/system/exam-analysis/student-subject-report`
+- 请求参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| projectId | string | 是 | 项目ID |
+| classId | string | 是 | 考试班级ID |
+| studentNo | string | 是 | 学号 |
+| subjectName | string | 是 | 科目名称 |

@@ -20,7 +20,10 @@
           <div class="metric-value" :style="{ color: getGradeColor(subjectDetail.grade) }">
             {{ subjectDetail.score }} <small>/ {{ subjectDetail.grade }}级</small>
           </div>
-          <div class="metric-footer">满分: {{ subjectDetail.fullScore }} | 及格分: {{ subjectDetail.passScore }}</div>
+          <div class="metric-footer">
+            满分: {{ subjectDetail.fullScore }} | 及格分: {{ subjectDetail.passScore }} | 优秀分:
+            {{ subjectDetail.excellentScore }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
@@ -38,7 +41,10 @@
           <div class="metric-value text-success">
             {{ subjectDetail.classAvg }} <small>平均</small>
           </div>
-          <div class="metric-footer">班及格率: {{ subjectDetail.classPassRate }}% | 优秀率: {{ subjectDetail.classExcellentRate }}%</div>
+          <div class="metric-footer"
+            >班及格率: {{ subjectDetail.classPassRate }}% | 优秀率:
+            {{ subjectDetail.classExcellentRate }}%</div
+          >
         </el-card>
       </el-col>
       <el-col :span="6">
@@ -47,7 +53,10 @@
           <div class="metric-value text-warning">
             {{ subjectDetail.schoolAvg }} <small>平均</small>
           </div>
-          <div class="metric-footer">校及格率: {{ subjectDetail.schoolPassRate }}% | 优秀率: {{ subjectDetail.schoolExcellentRate }}%</div>
+          <div class="metric-footer"
+            >校及格率: {{ subjectDetail.schoolPassRate }}% | 优秀率:
+            {{ subjectDetail.schoolExcellentRate }}%</div
+          >
         </el-card>
       </el-col>
     </el-row>
@@ -84,7 +93,8 @@
             </template>
           </el-table-column>
           <el-table-column prop="fullScore" label="满分" width="80" align="center" />
-          <el-table-column prop="avgScore" label="全校平均" width="80" align="center" />
+          <el-table-column prop="avgScore" label="班级平均" width="80" align="center" />
+          <el-table-column prop="schoolAvg" label="全校平均" width="80" align="center" />
         </el-table-column>
         <el-table-column prop="knowledgePoint" label="考察知识点" min-width="150" align="left" />
         <el-table-column prop="difficulty" label="难度" width="100" align="center">
@@ -104,174 +114,205 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import * as echarts from 'echarts'
+  import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+  import { useRoute, useRouter } from 'vue-router'
+  import * as echarts from 'echarts'
+  import { ElMessage } from 'element-plus'
+  import { fetchAnalysisStudentSubjectReport } from '@/api/core-business/exam/analysis/student-subject-report'
 
-const route = useRoute()
-const router = useRouter()
+  const route = useRoute()
+  const router = useRouter()
 
-const projectId = route.query.projectId as string
-const projectName = route.query.projectName as string
-const schoolId = route.query.schoolId as string
-const schoolName = route.query.schoolName as string
-const classId = route.query.classId as string
-const className = route.query.className as string
-const studentId = route.query.studentId as string
-const studentName = route.query.studentName as string
-const subjectName = route.query.subjectName as string
+  const projectId = route.query.projectId as string
+  const projectName = route.query.projectName as string
+  const schoolId = route.query.schoolId as string
+  const schoolName = route.query.schoolName as string
+  const classId = route.query.classId as string
+  const className = route.query.className as string
+  const studentNo = String(route.query.studentNo || route.query.studentId || '')
+  const studentName = route.query.studentName as string
+  const subjectName = route.query.subjectName as string
 
-const distChart = ref<HTMLElement>()
-const knowledgeChart = ref<HTMLElement>()
-let chartInstances: echarts.ECharts[] = []
+  const distChart = ref<HTMLElement>()
+  const knowledgeChart = ref<HTMLElement>()
+  let chartInstances: echarts.ECharts[] = []
 
-const subjectDetail = ref({
-  score: 142,
-  grade: 'A',
-  fullScore: 150,
-  passScore: 90,
-  classRank: 1,
-  schoolRank: 12,
-  classAvg: 105.5,
-  classPassRate: 92.5,
-  classExcellentRate: 35.2,
-  schoolAvg: 98.4,
-  schoolPassRate: 88.6,
-  schoolExcellentRate: 28.5
-})
-
-const wrongQuestions = ref([
-  { questionNo: '12', type: '选择题', score: 0, fullScore: 5, avgScore: 3.2, knowledgePoint: '导数单调性与极值', difficulty: 3 },
-  { questionNo: '16', type: '填空题', score: 4, fullScore: 12, avgScore: 7.8, knowledgePoint: '圆锥曲线离心率', difficulty: 3 },
-  { questionNo: '21', type: '解答题', score: 8, fullScore: 12, avgScore: 6.5, knowledgePoint: '立体几何体积计算', difficulty: 2 }
-])
-
-const getGradeColor = (grade: string) => {
-  const colors: Record<string, string> = {
-    'A': '#67C23A',
-    'B': '#409EFF',
-    'C': '#E6A23C',
-    'D': '#F56C6C'
-  }
-  return colors[grade] || '#333'
-}
-
-const goBack = () => {
-  router.push({
-    name: 'ExamAnalysisStudentReport',
-    query: { projectId, projectName, schoolId, schoolName, classId, className, studentId, studentName }
+  const subjectDetail = ref<any>({
+    score: 0,
+    grade: 'C',
+    fullScore: 100,
+    passScore: 60,
+    classRank: 0,
+    schoolRank: 0,
+    classAvg: 0,
+    classPassRate: 0,
+    classExcellentRate: 0,
+    schoolAvg: 0,
+    schoolPassRate: 0,
+    schoolExcellentRate: 0,
+    excellentScore: 80
   })
-}
+  const scoreDistribution = ref<any[]>([])
+  const knowledgeRates = ref<any[]>([])
+  const wrongQuestions = ref<any[]>([])
 
-const handlePrint = () => {
-  window.print()
-}
+  const getGradeColor = (grade: string) => {
+    const colors: Record<string, string> = {
+      A: '#67C23A',
+      B: '#409EFF',
+      C: '#E6A23C',
+      D: '#F56C6C'
+    }
+    return colors[grade] || '#333'
+  }
 
-const initDistChart = () => {
-  if (!distChart.value) return
-  const chart = echarts.init(distChart.value)
-  const option = {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    legend: { bottom: 0 },
-    grid: { left: '3%', right: '4%', bottom: '10%', containLabel: true },
-    xAxis: { type: 'category', data: ['0-30', '30-60', '60-90', '90-120', '120-150'] },
-    yAxis: { type: 'value', name: '人数' },
-    series: [
-      {
-        name: '班级人数分布',
-        type: 'bar',
-        data: [2, 5, 12, 25, 6],
-        itemStyle: { color: '#409eff' },
-        markPoint: {
-          data: [{ name: '个人得分位置', coord: [4, 6], value: '我', itemStyle: { color: '#f56c6c' } }]
+  const goBack = () => {
+    router.push({
+      name: 'ExamAnalysisStudentReport',
+      query: {
+        projectId,
+        projectName,
+        schoolId,
+        schoolName,
+        classId,
+        className,
+        studentNo,
+        studentName
+      }
+    })
+  }
+
+  const handlePrint = () => {
+    window.print()
+  }
+
+  const initDistChart = () => {
+    if (!distChart.value) return
+    const chart = echarts.init(distChart.value)
+    const option = {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: { bottom: 0 },
+      grid: { left: '3%', right: '4%', bottom: '10%', containLabel: true },
+      xAxis: { type: 'category', data: scoreDistribution.value.map((item) => item.label) },
+      yAxis: { type: 'value', name: '人数' },
+      series: [
+        {
+          name: '班级人数分布',
+          type: 'bar',
+          data: scoreDistribution.value.map((item) => item.count),
+          itemStyle: { color: '#409eff' },
+          markPoint: { data: [] }
         }
-      }
-    ]
+      ]
+    }
+    chart.setOption(option)
+    chartInstances.push(chart)
   }
-  chart.setOption(option)
-  chartInstances.push(chart)
-}
 
-const initKnowledgeChart = () => {
-  if (!knowledgeChart.value) return
-  const chart = echarts.init(knowledgeChart.value)
-  const option = {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
-    yAxis: { type: 'category', data: ['导数', '圆锥曲线', '立体几何', '三角函数', '集合与函数'] },
-    series: [
-      {
-        name: '个人得分率',
-        type: 'bar',
-        data: [65, 72, 85, 95, 100],
-        itemStyle: {
-          color: function(params: any) {
-            return params.value < 60 ? '#f56c6c' : params.value < 85 ? '#e6a23c' : '#67c23a'
-          }
-        },
-        label: { show: true, position: 'right', formatter: '{c}%' }
-      }
-    ]
+  const initKnowledgeChart = () => {
+    if (!knowledgeChart.value) return
+    const chart = echarts.init(knowledgeChart.value)
+    const option = {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
+      yAxis: { type: 'category', data: knowledgeRates.value.map((item) => item.name) },
+      series: [
+        {
+          name: '个人得分率',
+          type: 'bar',
+          data: knowledgeRates.value.map((item) => item.rate),
+          itemStyle: {
+            color: function (params: any) {
+              return params.value < 60 ? '#f56c6c' : params.value < 85 ? '#e6a23c' : '#67c23a'
+            }
+          },
+          label: { show: true, position: 'right', formatter: '{c}%' }
+        }
+      ]
+    }
+    chart.setOption(option)
+    chartInstances.push(chart)
   }
-  chart.setOption(option)
-  chartInstances.push(chart)
-}
 
-const handleResize = () => {
-  chartInstances.forEach(instance => instance.resize())
-}
+  const handleResize = () => {
+    chartInstances.forEach((instance) => instance.resize())
+  }
 
-onMounted(() => {
-  initDistChart()
-  initKnowledgeChart()
-  window.addEventListener('resize', handleResize)
-})
+  onMounted(() => {
+    fetchAnalysisStudentSubjectReport({ projectId, classId, studentNo, subjectName })
+      .then(async (res) => {
+        subjectDetail.value = res.subjectDetail || subjectDetail.value
+        scoreDistribution.value = res.scoreDistribution || []
+        knowledgeRates.value = res.knowledgeRates || []
+        wrongQuestions.value = res.wrongQuestions || []
+        await nextTick()
+        initDistChart()
+        initKnowledgeChart()
+      })
+      .catch((error: any) => {
+        ElMessage.error(error.message || '加载学生单科分析失败')
+      })
+    window.addEventListener('resize', handleResize)
+  })
 
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
-  chartInstances.forEach(instance => instance.dispose())
-})
+  onUnmounted(() => {
+    window.removeEventListener('resize', handleResize)
+    chartInstances.forEach((instance) => instance.dispose())
+  })
 </script>
 
 <style scoped>
-.page-container {
-  padding: 20px;
-  background-color: #f5f7fa;
-  min-height: 100vh;
-}
-.metric-card {
-  text-align: center;
-}
-.metric-title {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  margin-bottom: 12px;
-}
-.metric-value {
-  font-size: 32px;
-  font-weight: bold;
-  margin-bottom: 8px;
-}
-.metric-value small {
-  font-size: 16px;
-  font-weight: normal;
-}
-.metric-footer {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-.text-success { color: #67C23A; }
-.text-warning { color: #E6A23C; }
-.text-primary { color: #409EFF; }
-.text-danger { color: #F56C6C; }
-.chart-box {
-  height: 400px;
-  width: 100%;
-}
+  .page-container {
+    padding: 20px;
+    background-color: #f5f7fa;
+    min-height: 100vh;
+  }
+  .metric-card {
+    text-align: center;
+  }
+  .metric-title {
+    font-size: 14px;
+    color: var(--el-text-color-secondary);
+    margin-bottom: 12px;
+  }
+  .metric-value {
+    font-size: 32px;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+  .metric-value small {
+    font-size: 16px;
+    font-weight: normal;
+  }
+  .metric-footer {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+  .text-success {
+    color: #67c23a;
+  }
+  .text-warning {
+    color: #e6a23c;
+  }
+  .text-primary {
+    color: #409eff;
+  }
+  .text-danger {
+    color: #f56c6c;
+  }
+  .chart-box {
+    height: 400px;
+    width: 100%;
+  }
 
-@media print {
-  .page-container { background-color: #fff !important; padding: 0 !important; }
-  .el-page-header { display: none; }
-}
+  @media print {
+    .page-container {
+      background-color: #fff !important;
+      padding: 0 !important;
+    }
+    .el-page-header {
+      display: none;
+    }
+  }
 </style>

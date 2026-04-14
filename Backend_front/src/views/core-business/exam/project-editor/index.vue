@@ -1,6 +1,6 @@
 <template>
-  <div v-loading="loading" class="editor-page">
-    <div v-if="detail" class="editor-top">
+  <div v-loading="loading" class="editor-page" :class="{ 'is-editing': isEditingPaper }">
+    <div v-if="detail && !isEditingPaper" class="editor-top">
       <div class="editor-back" @click="goBack">
         <el-icon class="editor-back__icon"><Back /></el-icon>
         <span>返回项目列表</span>
@@ -42,9 +42,9 @@
     </div>
 
     <template v-if="detail">
-      <OverviewPanel v-show="activeTab === 'overview'" :detail="detail" />
+      <OverviewPanel v-show="activeTab === 'overview' && !isEditingPaper" :detail="detail" />
       <StudentPanel
-        v-show="activeTab === 'students'"
+        v-show="activeTab === 'students' && !isEditingPaper"
         ref="studentPanelRef"
         :project-id="projectId"
         :schools="detail.schools"
@@ -56,6 +56,7 @@
         :project-id="projectId"
         :schools="detail.schools"
         :classes="detail.classes"
+        @update:is-editing-paper="(val) => (isEditingPaper = val)"
       />
     </template>
 
@@ -89,8 +90,9 @@
   const route = useRoute()
   const router = useRouter()
   const loading = ref(false)
-  const activeTab = ref('overview')
+  const activeTab = ref(String(route.query.tab || 'overview'))
   const detail = ref<ExamProjectDetailData | null>(null)
+  const isEditingPaper = ref(false)
   const dialogVisible = ref(false)
   const dialogProject = ref<Partial<ExamProjectForm> | null>(null)
   const projectOptions = ref<{
@@ -166,6 +168,13 @@
     padding: 20px;
     background-color: #f5f7fa;
     min-height: 100vh;
+    transition: all 0.3s;
+
+    &.is-editing {
+      padding: 0;
+      gap: 0;
+      background-color: #fff;
+    }
   }
 
   .editor-top {

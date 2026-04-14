@@ -425,7 +425,10 @@
   function goBack() {
     router.push({
       name: 'ExamProjectEditor',
-      query: { projectId: projectId.value }
+      query: { 
+        projectId: projectId.value,
+        tab: 'scores'
+      }
     })
   }
 

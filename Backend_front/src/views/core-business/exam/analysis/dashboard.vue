@@ -20,9 +20,12 @@
         <el-card shadow="never" class="metric-card">
           <div class="metric-content">
             <div class="metric-label">{{ item.label }}</div>
-            <div class="metric-value" :style="{ color: item.color }">{{ item.value }}</div>
+            <div class="metric-value" :style="{ color: item.color }"
+              >{{ item.value }}{{ item.unit || '' }}</div
+            >
             <div class="metric-footer">
-              较上次 <span :class="item.trend >= 0 ? 'text-success' : 'text-danger'">
+              较上次
+              <span :class="item.trend >= 0 ? 'text-success' : 'text-danger'">
                 {{ item.trend >= 0 ? '↑' : '↓' }} {{ Math.abs(item.trend) }}%
               </span>
             </div>
@@ -55,12 +58,24 @@
               <el-button link type="primary">查看全部</el-button>
             </div>
           </template>
-          <el-table :data="schoolRanking" size="small" border>
+          <el-table :data="schoolRanking" size="small" border style="width: 100%">
             <el-table-column type="index" label="排名" width="60" align="center" />
-            <el-table-column prop="name" label="学校名称" />
-            <el-table-column prop="avgScore" label="平均分" width="100" align="center" sortable />
-            <el-table-column prop="excellentRate" label="优秀率" width="100" align="center" sortable>
+            <el-table-column prop="name" label="学校名称" min-width="150" />
+            <el-table-column prop="avgScore" label="平均分" min-width="90" align="center" sortable />
+            <el-table-column prop="passRate" label="及格率" min-width="90" align="center" sortable>
+              <template #default="{ row }">{{ row.passRate }}%</template>
+            </el-table-column>
+            <el-table-column
+              prop="excellentRate"
+              label="优秀率"
+              min-width="90"
+              align="center"
+              sortable
+            >
               <template #default="{ row }">{{ row.excellentRate }}%</template>
+            </el-table-column>
+            <el-table-column prop="lowRate" label="低分率" min-width="90" align="center" sortable>
+              <template #default="{ row }">{{ row.lowRate }}%</template>
             </el-table-column>
           </el-table>
         </el-card>
@@ -73,13 +88,25 @@
               <el-button link type="primary">查看全部</el-button>
             </div>
           </template>
-          <el-table :data="classRanking" size="small" border>
+          <el-table :data="classRanking" size="small" border style="width: 100%">
             <el-table-column type="index" label="排名" width="60" align="center" />
             <el-table-column prop="className" label="学校/班级" min-width="150" />
-            <el-table-column prop="passRate" label="及格率" width="100" align="center" sortable>
+            <el-table-column prop="avgScore" label="平均分" min-width="90" align="center" sortable />
+            <el-table-column prop="passRate" label="及格率" min-width="90" align="center" sortable>
               <template #default="{ row }">{{ row.passRate }}%</template>
             </el-table-column>
-            <el-table-column prop="avgScore" label="平均分" width="100" align="center" sortable />
+            <el-table-column
+              prop="excellentRate"
+              label="优秀率"
+              min-width="90"
+              align="center"
+              sortable
+            >
+              <template #default="{ row }">{{ row.excellentRate }}%</template>
+            </el-table-column>
+            <el-table-column prop="lowRate" label="低分率" min-width="90" align="center" sortable>
+              <template #default="{ row }">{{ row.lowRate }}%</template>
+            </el-table-column>
           </el-table>
         </el-card>
       </el-col>
@@ -88,135 +115,147 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import * as echarts from 'echarts'
+  import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+  import { useRouter, useRoute } from 'vue-router'
+  import * as echarts from 'echarts'
+  import { ElMessage } from 'element-plus'
+  import { fetchAnalysisProjectDashboard } from '@/api/core-business/exam/analysis/dashboard'
 
-const router = useRouter()
-const route = useRoute()
-const projectName = ref(route.query.projectName || '未知考试项目')
+  const router = useRouter()
+  const route = useRoute()
+  const projectId = ref(String(route.query.projectId || ''))
+  const projectName = ref(route.query.projectName || '未知考试项目')
 
-const coreMetrics = [
-  { label: '平均分', value: '85.4', trend: 2.5, color: '#409EFF' },
-  { label: '优秀率', value: '32.1%', trend: 1.2, color: '#67C23A' },
-  { label: '及格率', value: '94.5%', trend: -0.5, color: '#E6A23C' },
-  { label: '低分率', value: '1.2%', trend: -0.8, color: '#F56C6C' }
-]
+  const coreMetrics = ref<any[]>([])
+  const schoolRanking = ref<any[]>([])
+  const classRanking = ref<any[]>([])
+  const scoreDistribution = ref<any[]>([])
+  const subjectPassRates = ref<any[]>([])
 
-const schoolRanking = [
-  { name: '第一实验中学', avgScore: 92.5, excellentRate: 45.2 },
-  { name: '第二高级中学', avgScore: 88.4, excellentRate: 38.5 },
-  { name: '晨曦双语学校', avgScore: 86.2, excellentRate: 32.1 },
-  { name: '滨海三中', avgScore: 84.5, excellentRate: 28.4 },
-  { name: '阳光初级中学', avgScore: 82.1, excellentRate: 25.6 }
-]
+  const scoreDistChart = ref<HTMLElement>()
+  const subjectPassChart = ref<HTMLElement>()
+  let chartInstances: echarts.ECharts[] = []
 
-const classRanking = [
-  { className: '实验中学 高一(3)班', passRate: 100, avgScore: 95.2 },
-  { className: '实验中学 高一(1)班', passRate: 98.5, avgScore: 93.1 },
-  { className: '滨海三中 初三(2)班', passRate: 96.2, avgScore: 89.4 },
-  { className: '晨曦双语 六年级(1)班', passRate: 95.4, avgScore: 88.2 },
-  { className: '阳光中学 初二(5)班', passRate: 94.1, avgScore: 86.5 }
-]
-
-const scoreDistChart = ref<HTMLElement>()
-const subjectPassChart = ref<HTMLElement>()
-let chartInstances: echarts.ECharts[] = []
-
-const initCharts = () => {
-  if (scoreDistChart.value) {
-    const chart = echarts.init(scoreDistChart.value)
-    chart.setOption({
-      tooltip: { trigger: 'axis' },
-      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-      xAxis: { type: 'category', data: ['0-20', '20-40', '40-60', '60-80', '80-100', '100-120', '120-150'] },
-      yAxis: { type: 'value', name: '人数' },
-      series: [{
-        data: [12, 45, 120, 450, 890, 620, 210],
-        type: 'line',
-        smooth: true,
-        areaStyle: { opacity: 0.3 },
-        color: '#409EFF'
-      }]
-    })
-    chartInstances.push(chart)
-  }
-
-  if (subjectPassChart.value) {
-    const chart = echarts.init(subjectPassChart.value)
-    chart.setOption({
-      radar: {
-        indicator: [
-          { name: '语文', max: 100 },
-          { name: '数学', max: 100 },
-          { name: '英语', max: 100 },
-          { name: '物理', max: 100 },
-          { name: '化学', max: 100 }
+  const initCharts = () => {
+    if (scoreDistChart.value) {
+      const chart = echarts.init(scoreDistChart.value)
+      chart.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: scoreDistribution.value.map((item) => item.label) },
+        yAxis: { type: 'value', name: '人数' },
+        series: [
+          {
+            data: scoreDistribution.value.map((item) => item.count),
+            type: 'line',
+            smooth: true,
+            areaStyle: { opacity: 0.3 },
+            color: '#409EFF'
+          }
         ]
-      },
-      series: [{
-        type: 'radar',
-        data: [{
-          value: [92, 85, 95, 78, 82],
-          name: '及格率',
-          areaStyle: { color: 'rgba(103, 194, 58, 0.5)' },
-          lineStyle: { color: '#67C23A' }
-        }]
-      }]
-    })
-    chartInstances.push(chart)
+      })
+      chartInstances.push(chart)
+    }
+
+    if (subjectPassChart.value) {
+      const chart = echarts.init(subjectPassChart.value)
+      chart.setOption({
+        radar: {
+          indicator: subjectPassRates.value.map((item) => ({ name: item.subjectName, max: 100 }))
+        },
+        series: [
+          {
+            type: 'radar',
+            data: [
+              {
+                value: subjectPassRates.value.map((item) => item.passRate),
+                name: '及格率',
+                areaStyle: { color: 'rgba(103, 194, 58, 0.5)' },
+                lineStyle: { color: '#67C23A' }
+              }
+            ]
+          }
+        ]
+      })
+      chartInstances.push(chart)
+    }
   }
-}
 
-const handleResize = () => {
-  chartInstances.forEach(instance => instance.resize())
-}
+  const handleResize = () => {
+    chartInstances.forEach((instance) => instance.resize())
+  }
 
-const goBack = () => {
-  router.push({ name: 'ExamAnalysisList' })
-}
+  const goBack = () => {
+    router.push({ name: 'ExamAnalysisList' })
+  }
 
-onMounted(() => {
-  initCharts()
-  window.addEventListener('resize', handleResize)
-})
+  const loadData = async () => {
+    if (!projectId.value) {
+      ElMessage.error('缺少项目ID')
+      return
+    }
+    try {
+      const res = await fetchAnalysisProjectDashboard(projectId.value)
+      projectName.value = res.project?.name || projectName.value
+      coreMetrics.value = res.coreMetrics || []
+      schoolRanking.value = res.schoolRanking || []
+      classRanking.value = res.classRanking || []
+      scoreDistribution.value = res.scoreDistribution || []
+      subjectPassRates.value = res.subjectPassRates || []
+      await nextTick()
+      chartInstances.forEach((instance) => instance.dispose())
+      chartInstances = []
+      initCharts()
+    } catch (error: any) {
+      ElMessage.error(error.message || '加载分析大屏失败')
+    }
+  }
 
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
-  chartInstances.forEach(instance => instance.dispose())
-})
+  onMounted(() => {
+    loadData()
+    window.addEventListener('resize', handleResize)
+  })
+
+  onUnmounted(() => {
+    window.removeEventListener('resize', handleResize)
+    chartInstances.forEach((instance) => instance.dispose())
+  })
 </script>
 
 <style scoped>
-.page-container {
-  padding: 20px;
-  background-color: #f5f7fa;
-  min-height: 100vh;
-}
-.metric-card {
-  text-align: center;
-}
-.metric-label {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  margin-bottom: 8px;
-}
-.metric-value {
-  font-size: 28px;
-  font-weight: bold;
-  margin-bottom: 8px;
-}
-.metric-footer {
-  font-size: 12px;
-}
-.text-success { color: #67C23A; }
-.text-danger { color: #F56C6C; }
-.chart-box {
-  height: 350px;
-  width: 100%;
-}
-.dashboard-container :deep(.el-card__header) {
-  padding: 12px 20px;
-  border-bottom: 1px solid #ebeef5;
-}
+  .page-container {
+    padding: 20px;
+    background-color: #f5f7fa;
+    min-height: 100vh;
+  }
+  .metric-card {
+    text-align: center;
+  }
+  .metric-label {
+    font-size: 14px;
+    color: var(--el-text-color-secondary);
+    margin-bottom: 8px;
+  }
+  .metric-value {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+  .metric-footer {
+    font-size: 12px;
+  }
+  .text-success {
+    color: #67c23a;
+  }
+  .text-danger {
+    color: #f56c6c;
+  }
+  .chart-box {
+    height: 350px;
+    width: 100%;
+  }
+  .dashboard-container :deep(.el-card__header) {
+    padding: 12px 20px;
+    border-bottom: 1px solid #ebeef5;
+  }
 </style>

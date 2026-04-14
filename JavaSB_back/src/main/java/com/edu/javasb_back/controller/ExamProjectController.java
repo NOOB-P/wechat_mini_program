@@ -130,6 +130,24 @@ public class ExamProjectController {
         return examProjectService.uploadAnswerSheet(projectId, subjectName, studentNo, file);
     }
 
+    @LogOperation("上传公共试卷(样板/原卷)")
+    @PostMapping("/papers/upload-public")
+    public Result<String> uploadPublicPaper(
+            @RequestParam String projectId,
+            @RequestParam String subjectName,
+            @RequestParam String type,
+            @RequestParam MultipartFile file) {
+        return examProjectService.uploadPublicPaper(projectId, subjectName, type, file);
+    }
+
+    @LogOperation("获取试卷配置")
+    @GetMapping("/papers/config")
+    public Result<Map<String, String>> getPaperConfig(
+            @RequestParam String projectId,
+            @RequestParam String subjectName) {
+        return examProjectService.getPaperConfig(projectId, subjectName);
+    }
+
     @LogOperation("保存单个学生成绩")
     @PostMapping("/scores/save")
     public Result<Void> saveStudentScore(

@@ -35,6 +35,16 @@ public interface ExamProjectService {
     Result<String> uploadAnswerSheet(String projectId, String subjectName, String studentNo, org.springframework.web.multipart.MultipartFile file);
     
     /**
+     * 上传公共试卷(样板/原卷)
+     */
+    Result<String> uploadPublicPaper(String projectId, String subjectName, String type, org.springframework.web.multipart.MultipartFile file);
+
+    /**
+     * 获取试卷配置
+     */
+    Result<java.util.Map<String, String>> getPaperConfig(String projectId, String subjectName);
+
+    /**
      * 保存单个学生成绩
      */
     Result<Void> saveStudentScore(String projectId, String subjectName, String studentNo, java.util.List<Double> questionScores);

@@ -187,3 +187,43 @@ export function fetchUploadStudentAnswerSheet(params: {
     }
   })
 }
+
+/**
+ * 上传公共试卷(样板/原卷)
+ */
+export function fetchUploadPublicPaper(params: {
+  projectId: string
+  subjectName: string
+  type: 'template' | 'original'
+  file: File
+}) {
+  const formData = new FormData()
+  formData.append('projectId', params.projectId)
+  formData.append('subjectName', params.subjectName)
+  formData.append('type', params.type)
+  formData.append('file', params.file)
+  return api.post<string>({
+    url: '/api/system/exam-project/papers/upload-public',
+    data: formData,
+    showSuccessMessage: true,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 获取试卷配置
+ */
+export function fetchPaperConfig(params: {
+  projectId: string
+  subjectName: string
+}) {
+  return api.get<{
+    templateUrl: string | null
+    originalUrl: string | null
+  }>({
+    url: '/api/system/exam-project/papers/config',
+    params
+  })
+}

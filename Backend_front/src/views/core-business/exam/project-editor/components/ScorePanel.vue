@@ -1,6 +1,6 @@
 <template>
   <div class="score-panel">
-    <div class="summary-row">
+    <div class="summary-row" v-if="!isEditingPaper">
       <div class="summary-pill">
         <span>项目科目</span>
         <strong>{{ summaryStats.subjectCount ?? 0 }}</strong>
@@ -19,56 +19,68 @@
       </div>
     </div>
 
-    <el-card shadow="never" class="panel-card">
-      <template #header>
-        <div class="section-header">
-          <div>
-            <div class="section-title">考试科目管理</div>
-            <div class="section-desc">点击学科进入对应成绩管理页，按学科逐步维护成绩数据。</div>
+    <template v-if="!isEditingPaper">
+      <el-card shadow="never" class="panel-card">
+        <template #header>
+          <div class="section-header">
+            <div>
+              <div class="section-title">考试科目管理</div>
+              <div class="section-desc">点击学科进入对应成绩管理页，按学科逐步维护成绩数据。</div>
+            </div>
           </div>
-        </div>
-      </template>
+        </template>
 
-      <el-table
-        v-loading="summaryLoading"
-        :data="summaryData"
-        stripe
-        row-class-name="subject-row"
-        @row-click="handleEnterSubject"
-      >
-        <el-table-column prop="subjectName" label="科目" min-width="120" />
-        <el-table-column prop="classCount" label="班级数" width="90" align="center" />
-        <el-table-column prop="studentCount" label="学生数" width="100" align="center" />
-        <el-table-column prop="scoreCount" label="成绩条数" width="100" align="center" />
-        <el-table-column label="试卷包" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.paperUploaded ? 'success' : 'info'">{{
-              row.paperUploaded ? '录入' : '未录入'
-            }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="成绩单" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.scoreUploaded ? 'success' : 'info'">{{
-              row.scoreUploaded ? '录入' : '未录入'
-            }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="110" align="center" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link @click.stop="handleEnterSubject(row)"
-              >进入管理</el-button
-            >
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+        <el-table
+          v-loading="summaryLoading"
+          :data="summaryData"
+          stripe
+          row-class-name="subject-row"
+          @row-click="handleEnterSubject"
+        >
+          <el-table-column prop="subjectName" label="科目" min-width="120" />
+          <el-table-column prop="classCount" label="班级数" width="90" align="center" />
+          <el-table-column prop="studentCount" label="学生数" width="100" align="center" />
+          <el-table-column prop="scoreCount" label="成绩条数" width="100" align="center" />
+          <el-table-column label="试卷包" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.paperUploaded ? 'success' : 'info'">{{
+                row.paperUploaded ? '录入' : '未录入'
+              }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="成绩单" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.scoreUploaded ? 'success' : 'info'">{{
+                row.scoreUploaded ? '录入' : '未录入'
+              }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="180" align="center" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link @click.stop="handleEnterSubject(row)"
+                >进入管理</el-button
+              >
+              <el-button type="primary" link @click.stop="handleEditPaper(row)">试卷分析</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
+    </template>
+
+    <PaperEditView
+      v-else
+      :project-id="projectId"
+      :subject-name="currentSubject"
+      @back="isEditingPaper = false"
+      @saved="reload"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
   import { onMounted, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
+  import PaperEditView from './PaperEditView.vue'
   import {
     fetchProjectScoreSummary,
     type ProjectScoreSummaryItem
@@ -92,10 +104,21 @@
     classes: ClassRow[]
   }>()
 
+  const emit = defineEmits<{
+    (e: 'update:isEditingPaper', val: boolean): void
+  }>()
+
   const router = useRouter()
   const summaryLoading = ref(false)
   const summaryData = ref<ProjectScoreSummaryItem[]>([])
   const summaryStats = ref<Record<string, number>>({})
+
+  const isEditingPaper = ref(false)
+  const currentSubject = ref('')
+
+  watch(isEditingPaper, (val) => {
+    emit('update:isEditingPaper', val)
+  })
 
   async function loadSummary() {
     if (!props.projectId) return
@@ -117,6 +140,11 @@
         subjectName: row.subjectName
       }
     })
+  }
+
+  function handleEditPaper(row: ProjectScoreSummaryItem) {
+    currentSubject.value = row.subjectName
+    isEditingPaper.value = true
   }
 
   async function reload() {

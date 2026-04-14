@@ -190,12 +190,14 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         data.put("classes", ctx.examClasses().stream().map(this::classItem).toList());
         data.put("subjects", scoreSummaryRows(ctx));
         data.put("schools", ctx.examClasses().stream().collect(Collectors.groupingBy(ExamClass::getSchoolId, LinkedHashMap::new, Collectors.toList()))
-                .values().stream().map(items -> Map.of(
-                        "schoolId", items.get(0).getSchoolId(),
-                        "schoolName", items.get(0).getSchool(),
-                        "classCount", items.size(),
-                        "studentCount", items.stream().mapToInt(it -> num(it.getStudentCount())).sum()
-                )).toList());
+                .values().stream().map(items -> {
+                    Map<String, Object> school = new LinkedHashMap<>();
+                    school.put("schoolId", items.get(0).getSchoolId());
+                    school.put("schoolName", items.get(0).getSchool());
+                    school.put("classCount", items.size());
+                    school.put("studentCount", items.stream().mapToInt(it -> num(it.getStudentCount())).sum());
+                    return school;
+                }).toList());
         return Result.success("获取成功", data);
     }
 
@@ -1137,6 +1139,89 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         examSubjectRepository.saveAndFlush(subject);
 
         return Result.success("成绩保存成功", null);
+    }
+
+    @Override
+    @Transactional
+    public Result<String> uploadPublicPaper(String projectId, String subjectName, String type, MultipartFile file) {
+        if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
+        if (!StringUtils.hasText(subjectName)) return Result.error("学科名称不能为空");
+        if (!"template".equals(type) && !"original".equals(type)) {
+            return Result.error("试卷类型错误，仅支持 template 或 original");
+        }
+        if (file == null || file.isEmpty()) return Result.error("请上传文件");
+
+        String originalFilename = file.getOriginalFilename();
+        if (!isAllowedPaperFile(originalFilename)) {
+            return Result.error("仅支持 .pdf, .png, .jpg, .jpeg 格式");
+        }
+
+        try {
+            // Store file
+            String storedUrl = storePublicPaperFile(file.getInputStream(), projectId, subjectName, type, originalFilename);
+
+            // Update all subjects in this project with this name
+            List<ExamClass> examClasses = examClassRepository.findByProjectIdOrderBySchoolAscGradeAscClassNameAsc(projectId);
+            if (examClasses.isEmpty()) return Result.error("项目中无班级数据");
+            
+            List<String> examClassIds = examClasses.stream().map(ExamClass::getId).toList();
+            List<ExamSubject> subjects = examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(examClassIds).stream()
+                    .filter(s -> subjectName.equals(s.getSubjectName()))
+                    .toList();
+
+            if (subjects.isEmpty()) return Result.error("项目中无学科数据: " + subjectName);
+
+            for (ExamSubject subject : subjects) {
+                if ("template".equals(type)) {
+                    subject.setAnswerUrl(storedUrl);
+                } else if ("original".equals(type)) {
+                    subject.setPaperUrl(storedUrl);
+                }
+            }
+            examSubjectRepository.saveAllAndFlush(subjects);
+
+            return Result.success("上传成功", storedUrl);
+        } catch (Exception e) {
+            return Result.error("上传失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<Map<String, String>> getPaperConfig(String projectId, String subjectName) {
+        List<ExamClass> examClasses = examClassRepository.findByProjectIdOrderBySchoolAscGradeAscClassNameAsc(projectId);
+        if (examClasses.isEmpty()) return Result.success(new HashMap<>());
+        
+        List<String> examClassIds = examClasses.stream().map(ExamClass::getId).toList();
+        Optional<ExamSubject> subjectOpt = examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(examClassIds).stream()
+                .filter(s -> subjectName.equals(s.getSubjectName()))
+                .findFirst();
+
+        Map<String, String> config = new HashMap<>();
+        if (subjectOpt.isPresent()) {
+            config.put("templateUrl", subjectOpt.get().getAnswerUrl());
+            config.put("originalUrl", subjectOpt.get().getPaperUrl());
+        } else {
+            config.put("templateUrl", null);
+            config.put("originalUrl", null);
+        }
+        return Result.success(config);
+    }
+
+    private String storePublicPaperFile(InputStream inputStream, String projectId, String subjectName, String type, String originalFilename) throws Exception {
+        String extension = getFileExtension(originalFilename);
+        Path baseDir = Paths.get(globalConfigProperties.getPaperDir())
+                .resolve("exam-projects")
+                .resolve(safePathSegment(projectId))
+                .resolve(safePathSegment(subjectName))
+                .resolve("public");
+        Files.createDirectories(baseDir);
+
+        String storedName = type + "_" + System.currentTimeMillis() + extension;
+        Path target = baseDir.resolve(storedName);
+        Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
+
+        return "/uploads/papers/exam-projects/" + safePathSegment(projectId) + "/" +
+                safePathSegment(subjectName) + "/public/" + storedName;
     }
 
     private String json(List<String> values) {
