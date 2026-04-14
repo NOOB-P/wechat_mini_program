@@ -116,7 +116,7 @@
   )
 
   const handleSearch = () => {
-    emit('search', { ...formModel })
+    emit('search', { ...formModel.value })
   }
 
   const handleReset = () => {

@@ -392,7 +392,11 @@
    * 搜索
    */
   const handleSearch = (params: any) => {
-    Object.assign(searchParams, params)
+    // 过滤掉空字符串，避免发送无效参数
+    const filteredParams = Object.fromEntries(
+      Object.entries(params).filter(([_, v]) => v !== '')
+    )
+    replaceSearchParams(filteredParams)
     refreshData()
   }
 
@@ -400,12 +404,7 @@
    * 重置
    */
   const handleReset = () => {
-    Object.keys(searchParams).forEach((key) => {
-      if (key !== 'current' && key !== 'size') {
-        ;(searchParams as any)[key] = undefined
-      }
-    })
-    refreshData()
+    resetSearchParams()
   }
 
   /**
@@ -490,88 +489,89 @@
     }
 
     parentImportLoading.value = true
-    let successCount = 0
-    let failCount = 0
+    try {
+      // 逐个文件并行导入
+      const results = await Promise.allSettled(
+        readyFiles.map(async (file) => {
+          file.status = 'uploading'
+          try {
+            const formData = new FormData()
+            formData.append('file', file.raw)
+            // fetchImportParentUsers 内部使用 request，非 200 会抛出异常进入 catch
+            const res = await fetchImportParentUsers(formData)
+            
+            file.status = 'success'
+            file.errorMsg = ''
+            return { name: file.name, success: true, message: res?.message || '导入成功' }
+          } catch (error: any) {
+            file.status = 'fail'
+            file.errorMsg = error.message || '网络错误'
+            return { name: file.name, success: false, message: error.message }
+          }
+        })
+      )
 
-    for (const fileItem of readyFiles) {
-      fileItem.status = 'uploading'
-      fileItem.errorMsg = ''
-
-      try {
-        await fetchImportParentUsers(fileItem.raw)
-        fileItem.status = 'success'
-        successCount++
-      } catch (error: any) {
-        fileItem.status = 'fail'
-        fileItem.errorMsg = error.message || '导入失败'
-        failCount++
-      }
-    }
-
-    if (failCount === 0) {
-      ElMessage.success(`成功导入 ${successCount} 个文件`)
-      setTimeout(() => {
-        parentImportVisible.value = false
-        parentFileList.value = []
+      // 统计结果并给出提示
+      const successItems = results.filter((r: any) => r.value?.success)
+      if (successItems.length > 0) {
+        ElMessage.success(`成功导入 ${successItems.length} 个文件`)
         refreshData()
-      }, 1200)
-    } else {
-      ElMessage.warning(`导入完成：${successCount} 个成功，${failCount} 个失败`)
-      refreshData()
+      }
+      
+      const failItems = results.filter((r: any) => !r.value?.success)
+      if (failItems.length > 0) {
+        ElMessage.error(`${failItems.length} 个文件导入失败，请查看明细`)
+      }
+    } catch (error: any) {
+      console.error(error)
+      ElMessage.error('导入任务处理异常')
+    } finally {
+      parentImportLoading.value = false
     }
-
-    parentImportLoading.value = false
   }
 
-  const downloadParentTemplate = () => {
-    fetchDownloadParentTemplate()
+  const downloadParentTemplate = async () => {
+    try {
+      await fetchDownloadParentTemplate()
+    } catch (error) {
+      console.error(error)
+    }
   }
 </script>
 
 <style scoped>
-  .import-container {
-    padding: 0 10px;
-  }
-
-  .upload-demo {
-    width: 100%;
-  }
-
-  :deep(.el-upload-dragger) {
-    width: 100%;
+  .user-page {
     padding: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-height: 180px;
+  }
+
+  .instructions-trigger {
+    display: inline-flex;
+    align-items: center;
+    color: var(--el-color-primary);
+    cursor: help;
+    font-size: 13px;
+    font-weight: 500;
   }
 
   .upload-empty-content {
-    padding: 30px 0;
+    padding: 20px 0;
   }
 
   .upload-list-content {
-    padding: 15px;
-    cursor: default;
+    padding: 10px;
+    text-align: left;
   }
 
   .import-table {
-    border-radius: 4px;
+    border-radius: 8px;
     overflow: hidden;
   }
 
-  .status-cell {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
   .status-tag-mini {
-    min-width: 60px;
-    height: 24px;
-    line-height: 22px;
-    padding: 0 8px;
-    border-radius: 12px;
+    padding: 0 4px;
+    height: 18px;
+    line-height: 16px;
+    font-size: 10px;
   }
 
   .tag-success-simple {
@@ -584,27 +584,20 @@
     height: 48px;
     font-size: 16px;
     font-weight: bold;
-    letter-spacing: 1px;
+    border-radius: 12px;
   }
 
   .download-link {
     font-size: 13px;
-    color: #409eff;
+    text-decoration: underline;
   }
 
-  .instructions-trigger {
-    display: flex;
-    align-items: center;
-    font-size: 13px;
-    color: #409eff;
-    cursor: help;
-    padding: 4px 8px;
-    background-color: #ecf5ff;
-    border-radius: 4px;
-    transition: all 0.3s;
+  .rotating {
+    animation: rotate 2s linear infinite;
   }
 
-  .instructions-trigger:hover {
-    background-color: #d9ecff;
+  @keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 </style>

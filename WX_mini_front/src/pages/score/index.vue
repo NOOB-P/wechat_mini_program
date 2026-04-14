@@ -96,12 +96,13 @@
         <!-- 成绩分析内容 (原 VIP 数据分析卡片) -->
         <view v-if="currentMainTab === 'analysis'">
           <view class="vip-analysis-section">
+            <!-- VIP 权限判断遮罩 -->
             <view class="vip-lock-mask" v-if="!isVIPUser">
               <view class="lock-icon-wrapper">
-                <wd-icon name="lock-on" size="48px" color="#f6d365" />
+                <image class="lock-img" src="/static/images/vip-lock.png" mode="aspectFit" />
               </view>
               <view class="lock-text">开通 VIP 解锁深度分析</view>
-              <wd-button custom-class="upgrade-btn" @click="goToRecharge">立即升级 VIP</wd-button>
+              <wd-button custom-class="upgrade-btn" @click="goToRecharge('VIP')">立即开通 VIP</wd-button>
             </view>
 
             <view class="vip-analysis-content" :class="{ 'blurred': !isVIPUser }">
@@ -148,10 +149,10 @@
             <!-- VIP 权限判断遮罩 -->
             <view class="vip-lock-mask" v-if="!isVIPUser">
               <view class="lock-icon-wrapper">
-                <wd-icon name="lock-on" size="48px" color="#f6d365" />
+                <image class="lock-img" src="/static/images/vip-lock.png" mode="aspectFit" />
               </view>
               <view class="lock-text">开通 VIP 解锁错题集及打印功能</view>
-              <wd-button custom-class="upgrade-btn" @click="goToRecharge('VIP')">立即升级 VIP</wd-button>
+              <wd-button custom-class="upgrade-btn" @click="goToRecharge('VIP')">立即开通 VIP</wd-button>
             </view>
             
             <scroll-view scroll-y class="wrong-list" style="height: 700rpx;" v-else>
@@ -211,7 +212,7 @@
             <!-- 权限判断遮罩 -->
             <view class="svip-lock" v-if="!isSVIPUser">
               <view class="lock-icon-wrapper">
-                <wd-icon name="lock-on" size="48px" color="#f6d365" />
+                <image class="lock-img" src="/static/images/svip-lock.png" mode="aspectFit" />
               </view>
               <view class="lock-text">此专区为 SVIP 专属功能</view>
               <wd-button custom-class="upgrade-btn" @click="goToRecharge('SVIP')">立即升级 SVIP</wd-button>
@@ -960,48 +961,66 @@ onShow(() => {
   vertical-align: super;
 }
 
-.vip-lock-mask {
+.vip-lock-mask, .svip-lock {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(4px);
   z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: 16rpx;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+  min-height: 450rpx;
   
   .lock-icon-wrapper {
-    width: 120rpx;
-    height: 120rpx;
-    background: rgba(246, 211, 101, 0.1);
+    width: 140rpx;
+    height: 140rpx;
+    background: #fffcf0;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 20rpx;
+    margin-bottom: 24rpx;
+    box-shadow: 0 4rpx 12rpx rgba(246, 211, 101, 0.2);
+
+    .lock-img {
+      width: 80rpx;
+      height: 80rpx;
+    }
   }
 
   .lock-text {
     font-size: 32rpx;
     color: #333;
-    font-weight: bold;
+    font-weight: 600;
     margin-bottom: 40rpx;
+    letter-spacing: 2rpx;
   }
 
   .upgrade-btn {
-    background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%) !important;
-    color: #f6d365 !important;
+    width: 320rpx !important;
+    height: 88rpx !important;
+    background: #4d80f0 !important;
+    color: #ffffff !important;
     border: none !important;
-    border-radius: 40rpx;
-    width: 320rpx;
-    height: 80rpx;
-    font-size: 30rpx;
-    box-shadow: 0 8rpx 16rpx rgba(0,0,0,0.2);
+    border-radius: 44rpx !important;
+    font-size: 30rpx !important;
+    font-weight: bold !important;
+    box-shadow: 0 8rpx 20rpx rgba(77, 128, 240, 0.3) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:active {
+      opacity: 0.8;
+      transform: scale(0.98);
+    }
   }
 }
 
@@ -1356,53 +1375,17 @@ onShow(() => {
 // 错题推送 (SVIP专区) 样式
 .svip-content {
   position: relative;
-  padding: 10rpx;
-  min-height: 400rpx;
+  min-height: 600rpx;
 }
 
-.svip-lock {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-radius: 16rpx;
-
-  .lock-icon-wrapper {
-    width: 120rpx;
-    height: 120rpx;
-    background: rgba(246, 211, 101, 0.1);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 20rpx;
-  }
-
-  .lock-text {
-    font-size: 32rpx;
-    color: #333;
-    font-weight: bold;
-    margin-bottom: 40rpx;
-  }
-
-  .upgrade-btn {
-    background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%) !important;
-    color: #f6d365 !important;
-    border: none !important;
-    border-radius: 40rpx;
-    width: 320rpx;
-    height: 80rpx;
-    font-size: 30rpx;
-    box-shadow: 0 8rpx 16rpx rgba(0,0,0,0.2);
-  }
+.vip-analysis-section {
+  position: relative;
+  overflow: hidden;
+  margin-top: 20rpx;
+  margin-bottom: 40rpx;
+  min-height: 400rpx;
+  background: #fff;
+  border-radius: 24rpx;
 }
 
 .svip-card {

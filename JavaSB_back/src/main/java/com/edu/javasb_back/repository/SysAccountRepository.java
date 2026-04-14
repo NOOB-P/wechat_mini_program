@@ -77,13 +77,29 @@ public interface SysAccountRepository extends JpaRepository<SysAccount, Long> {
                          @Param("phone") String phone, @Param("roleId") Integer roleId, @Param("isEnabled") Integer isEnabled, 
                          @Param("onlineStatus") String onlineStatus);
 
-    @Query("SELECT a FROM SysAccount a WHERE " +
-           "(:username IS NULL OR a.username LIKE %:username%) AND " +
-           "(:phone IS NULL OR a.phone LIKE %:phone%) AND " +
-           "(:roleId IS NULL OR a.roleId = :roleId)")
+    @Query(value = "SELECT DISTINCT a.* FROM sys_accounts a " +
+           "LEFT JOIN student_parent_bindings b ON a.uid = b.parent_uid " +
+           "LEFT JOIN students s ON b.student_id = s.id " +
+           "WHERE (:username IS NULL OR a.username LIKE CONCAT('%', :username, '%')) AND " +
+           "(:phone IS NULL OR a.phone LIKE CONCAT('%', :phone, '%')) AND " +
+           "(:roleId IS NULL OR a.role_id = :roleId) AND " +
+           "(:schoolName IS NULL OR s.school LIKE CONCAT('%', :schoolName, '%')) AND " +
+           "(:className IS NULL OR s.class_name LIKE CONCAT('%', :className, '%')) " +
+           "ORDER BY a.role_id ASC, a.create_time DESC",
+           countQuery = "SELECT COUNT(DISTINCT a.uid) FROM sys_accounts a " +
+           "LEFT JOIN student_parent_bindings b ON a.uid = b.parent_uid " +
+           "LEFT JOIN students s ON b.student_id = s.id " +
+           "WHERE (:username IS NULL OR a.username LIKE CONCAT('%', :username, '%')) AND " +
+           "(:phone IS NULL OR a.phone LIKE CONCAT('%', :phone, '%')) AND " +
+           "(:roleId IS NULL OR a.role_id = :roleId) AND " +
+           "(:schoolName IS NULL OR s.school LIKE CONCAT('%', :schoolName, '%')) AND " +
+           "(:className IS NULL OR s.class_name LIKE CONCAT('%', :className, '%'))",
+           nativeQuery = true)
     Page<SysAccount> findAccounts(@Param("username") String username, 
                                   @Param("phone") String phone, 
                                   @Param("roleId") Integer roleId, 
+                                  @Param("schoolName") String schoolName,
+                                  @Param("className") String className,
                                   Pageable pageable);
 
     /**

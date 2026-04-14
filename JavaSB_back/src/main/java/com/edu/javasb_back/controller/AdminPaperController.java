@@ -19,6 +19,23 @@ public class AdminPaperController {
     private PaperService paperService;
 
     @PreAuthorize("hasAuthority('paper:manage:list')")
+    @GetMapping("/type/stats")
+    public Result getTypeStats() {
+        return Result.success(paperService.getTypeStatistics());
+    }
+
+    @GetMapping("/grade/stats")
+    public Result getGradeStats(@RequestParam String type) {
+        return Result.success(paperService.getGradeStatistics(type));
+    }
+
+    @GetMapping("/subject/stats")
+    public Result getSubjectStats(@RequestParam String type, @RequestParam String grade) {
+        return Result.success(paperService.getSubjectStatistics(type, grade));
+    }
+
+    // --- 试卷管理 ---
+
     @GetMapping("/list")
     public Result<?> getPaperList(
             @RequestParam(required = false) String keyword,
@@ -31,7 +48,8 @@ public class AdminPaperController {
     ) {
         Page<ExamPaper> page = paperService.getPaperList(
                 keyword, subject, grade, type, isRecommend,
-                PageRequest.of(pageNum - 1, pageSize, Sort.by("id").descending())
+                PageRequest.of(pageNum - 1, pageSize, Sort.by("sortOrder").ascending().and(Sort.by("createTime").ascending()))
+
         );
         return Result.success(page);
     }

@@ -277,7 +277,7 @@ const playChapter = (index: number) => {
     return
   }
   currentChapter.value = index
-  currentVideoIndex.value = -1
+  currentVideoIndex.value = -1 // 标记为播放章节主视频
   const selectedChapter = chapters.value[index]
   if (selectedChapter.videoList && selectedChapter.videoList.length > 0) {
     playVideo(index, 0)

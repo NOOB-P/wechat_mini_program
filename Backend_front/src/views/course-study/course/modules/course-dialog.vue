@@ -1,6 +1,17 @@
 <template>
-  <el-dialog :title="isEdit ? '编辑课程' : '新增课程'" v-model="dialogVisible" width="750px" @closed="handleClosed">
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+  <el-dialog
+    :title="isEdit ? '编辑课程' : '新增课程'"
+    v-model="visible"
+    width="750px"
+    @closed="handleClosed"
+  >
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      label-width="100px"
+      class="course-form"
+    >
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="课程名称" prop="title">
@@ -171,6 +182,7 @@ const buildDefaultForm = () => ({
   isSvipOnly: false,
   author: '',
   buyers: 0,
+  studentCount: 0,
   episodes: 0,
   cover: '',
   videoUrl: '',

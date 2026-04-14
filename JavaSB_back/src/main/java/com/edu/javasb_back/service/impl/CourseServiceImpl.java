@@ -21,6 +21,8 @@ import com.edu.javasb_back.repository.CourseEpisodeRepository;
 import com.edu.javasb_back.repository.CourseVideoRepository;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+
 @Service
 public class CourseServiceImpl implements CourseService {
 
@@ -59,9 +61,9 @@ public class CourseServiceImpl implements CourseService {
                 course.setIsPurchased(orderService.isCoursePurchased(uid, courseId));
             }
             // 获取章节列表
-            List<CourseEpisode> episodes = episodeRepository.findByCourseIdOrderBySortOrderAsc(courseId);
+            List<CourseEpisode> episodes = episodeRepository.findByCourseIdOrderBySortOrderAscCreateTimeAsc(courseId);
             for (CourseEpisode episode : episodes) {
-                episode.setVideoList(videoRepository.findByEpisodeIdOrderBySortOrderAsc(episode.getId()));
+                episode.setVideoList(videoRepository.findByEpisodeIdOrderBySortOrderAscCreateTimeAsc(episode.getId()));
             }
             course.setEpisodeList(episodes);
             return Result.success(course);
@@ -166,7 +168,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Result<List<CourseEpisode>> getCourseEpisodes(String courseId) {
-        return Result.success(episodeRepository.findByCourseIdOrderBySortOrderAsc(courseId));
+        return Result.success(episodeRepository.findByCourseIdOrderBySortOrderAscCreateTimeAsc(courseId));
     }
 
     @Override
@@ -181,6 +183,9 @@ public class CourseServiceImpl implements CourseService {
         optimizeEpisodeSort(episode.getCourseId(), episode.getSortOrder(), null);
         
         episodeRepository.save(episode);
+        
+        // 归一化排序：确保序号连续
+        normalizeEpisodeSort(episode.getCourseId());
         
         // 更新课程总节数
         updateCourseEpisodeCount(episode.getCourseId());
@@ -202,6 +207,10 @@ public class CourseServiceImpl implements CourseService {
         }
         
         episodeRepository.save(episode);
+        
+        // 归一化排序：确保序号连续
+        normalizeEpisodeSort(episode.getCourseId());
+        
         return Result.success("更新成功", null);
     }
 
@@ -209,13 +218,28 @@ public class CourseServiceImpl implements CourseService {
      * 优化章节排序逻辑：如果出现相同排序，则该排序及之后的章节全部序号+1
      */
     private void optimizeEpisodeSort(String courseId, Integer targetSort, String excludeId) {
-        List<CourseEpisode> list = episodeRepository.findByCourseIdOrderBySortOrderAsc(courseId);
+        List<CourseEpisode> list = episodeRepository.findByCourseIdOrderBySortOrderAscCreateTimeAsc(courseId);
         int currentSort = targetSort;
         for (CourseEpisode ep : list) {
             if (excludeId != null && ep.getId().equals(excludeId)) continue;
             
             if (ep.getSortOrder() >= currentSort) {
                 ep.setSortOrder(ep.getSortOrder() + 1);
+                episodeRepository.save(ep);
+            }
+        }
+    }
+
+    /**
+     * 归一化章节排序逻辑：确保序号从1开始且连续
+     */
+    private void normalizeEpisodeSort(String courseId) {
+        List<CourseEpisode> list = episodeRepository.findByCourseIdOrderBySortOrderAscCreateTimeAsc(courseId);
+        for (int i = 0; i < list.size(); i++) {
+            CourseEpisode ep = list.get(i);
+            int newSort = i + 1;
+            if (ep.getSortOrder() != newSort) {
+                ep.setSortOrder(newSort);
                 episodeRepository.save(ep);
             }
         }
@@ -228,6 +252,10 @@ public class CourseServiceImpl implements CourseService {
         if (epOpt.isPresent()) {
             String courseId = epOpt.get().getCourseId();
             episodeRepository.deleteById(id);
+            
+            // 归一化排序：确保序号连续
+            normalizeEpisodeSort(courseId);
+            
             // 更新课程总节数
             updateCourseEpisodeCount(courseId);
             return Result.success("删除成功", null);
@@ -236,7 +264,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     private void updateCourseEpisodeCount(String courseId) {
-        List<CourseEpisode> episodes = episodeRepository.findByCourseIdOrderBySortOrderAsc(courseId);
+        List<CourseEpisode> episodes = episodeRepository.findByCourseIdOrderBySortOrderAscCreateTimeAsc(courseId);
         Optional<Course> courseOpt = courseRepository.findById(courseId);
         if (courseOpt.isPresent()) {
             Course course = courseOpt.get();
@@ -247,7 +275,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Result<List<CourseVideo>> getEpisodeVideos(String episodeId) {
-        return Result.success(videoRepository.findByEpisodeIdOrderBySortOrderAsc(episodeId));
+        return Result.success(videoRepository.findByEpisodeIdOrderBySortOrderAscCreateTimeAsc(episodeId));
     }
 
     @Override
@@ -263,6 +291,10 @@ public class CourseServiceImpl implements CourseService {
         optimizeVideoSort(video.getEpisodeId(), video.getSortOrder(), null);
         
         videoRepository.save(video);
+        
+        // 归一化排序：确保序号连续
+        normalizeVideoSort(video.getEpisodeId());
+        
         return Result.success("添加视频成功", null);
     }
 
@@ -280,6 +312,10 @@ public class CourseServiceImpl implements CourseService {
         
         video.setUpdateTime(LocalDateTime.now());
         videoRepository.save(video);
+        
+        // 归一化排序：确保序号连续
+        normalizeVideoSort(video.getEpisodeId());
+        
         return Result.success("更新视频成功", null);
     }
 
@@ -287,7 +323,7 @@ public class CourseServiceImpl implements CourseService {
      * 优化视频排序逻辑
      */
     private void optimizeVideoSort(String episodeId, Integer targetSort, String excludeId) {
-        List<CourseVideo> list = videoRepository.findByEpisodeIdOrderBySortOrderAsc(episodeId);
+        List<CourseVideo> list = videoRepository.findByEpisodeIdOrderBySortOrderAscCreateTimeAsc(episodeId);
         int currentSort = targetSort;
         for (CourseVideo v : list) {
             if (excludeId != null && v.getId().equals(excludeId)) continue;
@@ -299,11 +335,32 @@ public class CourseServiceImpl implements CourseService {
         }
     }
 
+    /**
+     * 归一化视频排序逻辑
+     */
+    private void normalizeVideoSort(String episodeId) {
+        List<CourseVideo> list = videoRepository.findByEpisodeIdOrderBySortOrderAscCreateTimeAsc(episodeId);
+        for (int i = 0; i < list.size(); i++) {
+            CourseVideo v = list.get(i);
+            int newSort = i + 1;
+            if (v.getSortOrder() != newSort) {
+                v.setSortOrder(newSort);
+                videoRepository.save(v);
+            }
+        }
+    }
+
     @Override
     @Transactional
     public Result<Void> deleteVideo(String id) {
-        if (videoRepository.existsById(id)) {
+        Optional<CourseVideo> videoOpt = videoRepository.findById(id);
+        if (videoOpt.isPresent()) {
+            String episodeId = videoOpt.get().getEpisodeId();
             videoRepository.deleteById(id);
+            
+            // 归一化排序：确保序号连续
+            normalizeVideoSort(episodeId);
+            
             return Result.success("删除视频成功", null);
         }
         return Result.error("视频不存在");

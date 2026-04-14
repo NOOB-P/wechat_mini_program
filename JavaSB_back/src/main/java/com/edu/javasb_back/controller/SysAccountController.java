@@ -239,7 +239,7 @@ public class SysAccountController {
     @LogOperation("批量导入家长用户")
     @PreAuthorize("hasAuthority('system:user:import')")
     @PostMapping("/import-parents")
-    public Result<Void> importParents(@RequestParam("file") MultipartFile file) {
+    public Result<Map<String, Object>> importParents(@RequestParam("file") MultipartFile file) {
         SysAccount currentUser = getCurrentUser();
         if (currentUser == null) {
             return Result.error(401, "未登录");
@@ -304,7 +304,17 @@ public class SysAccountController {
                 if (account.getIsSvip() == 1) {
                     account.setIsVip(1);
                 }
-                account.setPassword(passwordEncoder.encode(password != null ? password : "123456"));
+
+                // 密码处理：如果为空，则使用手机号后6位
+                String rawPassword = password;
+                if (rawPassword == null || rawPassword.isEmpty()) {
+                    if (phone != null && phone.length() >= 6) {
+                        rawPassword = phone.substring(phone.length() - 6);
+                    } else {
+                        rawPassword = "123456"; // 兜底
+                    }
+                }
+                account.setPassword(passwordEncoder.encode(rawPassword));
                 sysAccountRepository.save(account);
                 successCount++;
 
@@ -338,7 +348,13 @@ public class SysAccountController {
                 message.append("；绑定明细：").append(bindFailedDetails);
             }
 
-            return Result.success(message.toString(), null);
+            Map<String, Object> data = new HashMap<>();
+            data.put("successCount", successCount);
+            data.put("skippedCount", skippedCount);
+            data.put("bindFailedCount", bindFailedCount);
+            data.put("message", message.toString());
+
+            return Result.success(message.toString(), data);
         } catch (ExcelAnalysisException e) {
             return Result.error(e.getMessage());
         } catch (Exception e) {
@@ -377,7 +393,7 @@ public class SysAccountController {
             sampleRow.createCell(6).setCellValue("STU2026001");
 
             Row tipsRow = sheet.createRow(2);
-            tipsRow.createCell(0).setCellValue("说明：密码留空默认 123456；VIP/SVIP 填 是/否；学生学号可选");
+            tipsRow.createCell(0).setCellValue("说明：密码留空默认设为手机号后六位；VIP/SVIP 填 是/否；学生学号可选");
 
             workbook.write(outputStream);
             String filename = URLEncoder.encode("家长导入模板.xlsx", StandardCharsets.UTF_8.toString());

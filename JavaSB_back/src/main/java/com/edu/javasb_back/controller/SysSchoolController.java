@@ -75,6 +75,11 @@ public class SysSchoolController {
     }
 
     @PreAuthorize("hasAuthority('system:school:list')")
+    @GetMapping("/all")
+    public Result<List<SysSchool>> getAllSchools() {
+        return sysSchoolService.getAllSchools();
+    }
+
     @GetMapping("/list")
     public Result<Map<String, Object>> getSchoolList(
             @RequestParam(defaultValue = "1") int current,

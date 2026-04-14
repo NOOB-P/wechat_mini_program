@@ -35,6 +35,7 @@ public class WebConfig implements WebMvcConfigurer {
         registerResourceHandler(registry, "/uploads/**", uploadRootDir, uploadDir, paperDir, coverDir, videoDir);
         registerResourceHandler(registry, "/static/uploads/**", uploadRootDir, uploadDir, paperDir, coverDir, videoDir);
 
+        // 将 /static/** 映射到 classpath 下的 static 目录
         registry.addResourceHandler("/static/**")
                 .addResourceLocations("classpath:/static/");
     }

@@ -207,7 +207,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { 
   fetchGetSvipCourseList, 
   fetchDeleteSvipCourse, 
@@ -505,6 +505,46 @@ onMounted(() => {
 
 <style scoped>
 .page-container {
-  padding: 20px;
+  padding: 0;
+}
+
+.video-uploader-large {
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 400px;
+  background-color: #fafafa;
+  transition: border-color 0.3s;
+}
+
+.video-uploader-large:hover {
+  border-color: #409eff;
+}
+
+.video-info-box, .upload-placeholder {
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.upload-placeholder {
+  color: #8c939d;
+}
+
+.video-info-box {
+  background-color: #f0f9eb;
+}
+
+.w-20 {
+  width: 5rem;
+}
+.h-12 {
+  height: 3rem;
 }
 </style>

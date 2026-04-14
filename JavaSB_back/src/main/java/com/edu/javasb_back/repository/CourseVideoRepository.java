@@ -8,6 +8,7 @@ import java.util.List;
 
 @Repository
 public interface CourseVideoRepository extends JpaRepository<CourseVideo, String> {
-    List<CourseVideo> findByEpisodeIdOrderBySortOrderAsc(String episodeId);
+    List<CourseVideo> findByEpisodeIdOrderBySortOrderAscCreateTimeAsc(String episodeId);
+
     void deleteByEpisodeId(String episodeId);
 }

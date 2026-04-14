@@ -35,5 +35,18 @@ export const mockAnalysisData = {
     { value: 4500, name: 'VIP用户' },
     { value: 1200, name: 'SVIP用户' },
     { value: 6880, name: '普通用户' }
+  ],
+  // 今日动态
+  todayActivities: [
+    { title: '新增试卷解析', content: '《2024届高考模拟试卷(一)》已完成自动解析', time: '10:24', color: 'blue' },
+    { title: '课程内容更新', content: '《数学提分秘籍》新增了3个视频章节', time: '09:15', color: 'green' },
+    { title: '系统维护通知', content: '计划于本周五凌晨 02:00 进行数据库优化升级', time: '08:00', color: 'orange' }
+  ],
+  // 系统公告
+  notices: [
+    '平台新上线“学霸说”板块，欢迎各位家长查阅',
+    '关于近期部分地区网络波动影响访问的说明',
+    '寒假特惠活动倒计时3天，抓紧时间续费VIP',
+    '系统已全面支持2024最新教材版本内容同步'
   ]
 };
