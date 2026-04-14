@@ -99,63 +99,11 @@
         </el-card>
       </el-col>
     </el-row>
-
-    <!-- 错题分析 -->
-    <el-card shadow="never" class="mb-6">
-      <template #header>
-        <div class="flex justify-between items-center">
-          <span class="font-bold">小题错题及知识点分析</span>
-          <el-select v-model="selectedSubject" size="small" style="width: 120px">
-            <el-option label="全部科目" value="all" />
-            <el-option
-              v-for="item in [...new Set(wrongQuestions.map((row: any) => row.subject))]"
-              :key="item"
-              :label="item"
-              :value="item"
-            />
-          </el-select>
-        </div>
-      </template>
-      <el-table :data="filteredWrongQuestions" border style="width: 100%" size="small">
-        <el-table-column prop="subject" label="科目" width="80" align="center" />
-        <el-table-column prop="questionNo" label="题号" width="60" align="center" />
-        <el-table-column label="得分对比" align="center">
-          <el-table-column prop="score" label="个人得分" width="80" align="center">
-            <template #default="{ row }">
-              <span :class="row.score === 0 ? 'text-danger' : ''">{{ row.score }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="fullScore" label="满分" width="60" align="center" />
-          <el-table-column prop="avgScore" label="班级平均" width="80" align="center" />
-        </el-table-column>
-        <el-table-column label="得分率对比" align="center">
-          <el-table-column prop="classRate" label="班级得分率" width="100" align="center">
-            <template #default="{ row }">{{ row.classRate }}%</template>
-          </el-table-column>
-          <el-table-column prop="schoolRate" label="全校得分率" width="100" align="center">
-            <template #default="{ row }">{{ row.schoolRate }}%</template>
-          </el-table-column>
-        </el-table-column>
-        <el-table-column prop="knowledgePoint" label="考察知识点" min-width="150" align="left" />
-        <el-table-column prop="difficulty" label="难度" width="100" align="center">
-          <template #default="{ row }">
-            <el-rate v-model="row.difficulty" disabled :max="3" />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="100" align="center">
-          <template #default="{ row }">
-            <el-button type="primary" link @click="handleSubjectDetail(row.subject)"
-              >查看详情</el-button
-            >
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
+  import { ref, onMounted, onUnmounted, nextTick } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import * as echarts from 'echarts'
   import { ElMessage } from 'element-plus'
@@ -175,7 +123,6 @@
 
   const radarChart = ref<HTMLElement>()
   const compareBarChart = ref<HTMLElement>()
-  const selectedSubject = ref('all')
 
   let chartInstances: echarts.ECharts[] = []
 
@@ -192,13 +139,6 @@
     }
     return classes[status] || ''
   }
-
-  const wrongQuestions = ref<any[]>([])
-  const filteredWrongQuestions = computed(() => {
-    if (selectedSubject.value === 'all') return wrongQuestions.value
-    return wrongQuestions.value.filter((item) => item.subject === selectedSubject.value)
-  })
-
   const goBack = () => {
     router.push({
       name: 'ExamAnalysisClassDashboard',
@@ -315,7 +255,6 @@
         overview.value = res.overview || overview.value
         personalRates.value = res.statusCards || []
         subjectStats.value = res.subjectStats || []
-        wrongQuestions.value = res.wrongQuestions || []
         await nextTick()
         initRadarChart()
         initBarChart()

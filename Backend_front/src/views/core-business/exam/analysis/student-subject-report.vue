@@ -37,26 +37,26 @@
       </el-col>
       <el-col :span="6">
         <el-card shadow="never" class="metric-card">
-          <div class="metric-title">班级对比</div>
+          <div class="metric-title">班级均分</div>
           <div class="metric-value text-success">
-            {{ subjectDetail.classAvg }} <small>平均</small>
+            {{ subjectDetail.classAvg }} <small>分</small>
           </div>
-          <div class="metric-footer"
-            >班及格率: {{ subjectDetail.classPassRate }}% | 优秀率:
-            {{ subjectDetail.classExcellentRate }}%</div
-          >
+          <div class="metric-footer">
+            {{ compareLabel(subjectDetail.score, subjectDetail.classAvg, '班均') }} | 班及格率:
+            {{ subjectDetail.classPassRate }}% | 优秀率: {{ subjectDetail.classExcellentRate }}%
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="never" class="metric-card">
-          <div class="metric-title">全校对比</div>
+          <div class="metric-title">校级均分</div>
           <div class="metric-value text-warning">
-            {{ subjectDetail.schoolAvg }} <small>平均</small>
+            {{ subjectDetail.schoolAvg }} <small>分</small>
           </div>
-          <div class="metric-footer"
-            >校及格率: {{ subjectDetail.schoolPassRate }}% | 优秀率:
-            {{ subjectDetail.schoolExcellentRate }}%</div
-          >
+          <div class="metric-footer">
+            {{ compareLabel(subjectDetail.score, subjectDetail.schoolAvg, '校均') }} | 校及格率:
+            {{ subjectDetail.schoolPassRate }}% | 优秀率: {{ subjectDetail.schoolExcellentRate }}%
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -70,7 +70,7 @@
       </el-col>
       <!-- 知识点得分率 -->
       <el-col :span="12">
-        <el-card shadow="never" header="知识点掌握情况 (得分率)">
+        <el-card shadow="never" header="小题掌握情况 (得分率)">
           <div ref="knowledgeChart" class="chart-box"></div>
         </el-card>
       </el-col>
@@ -83,7 +83,13 @@
           <span class="font-bold">{{ subjectName }} 错题明细及解析</span>
         </div>
       </template>
-      <el-table :data="wrongQuestions" border style="width: 100%" size="small">
+      <el-table
+        :data="wrongQuestions"
+        border
+        style="width: 100%"
+        size="small"
+        empty-text="当前学科暂无错题"
+      >
         <el-table-column prop="questionNo" label="题号" width="80" align="center" />
         <el-table-column prop="type" label="题型" width="100" align="center" />
         <el-table-column label="得分情况" align="center">
@@ -96,18 +102,18 @@
           <el-table-column prop="avgScore" label="班级平均" width="80" align="center" />
           <el-table-column prop="schoolAvg" label="全校平均" width="80" align="center" />
         </el-table-column>
-        <el-table-column prop="knowledgePoint" label="考察知识点" min-width="150" align="left" />
+        <el-table-column prop="lostScore" label="失分" width="80" align="center" />
         <el-table-column prop="difficulty" label="难度" width="100" align="center">
           <template #default="{ row }">
             <el-rate v-model="row.difficulty" disabled :max="3" />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" align="center">
-          <template #default>
-            <el-button type="primary" link>查看解析</el-button>
-            <el-button type="success" link>加入错题本</el-button>
-          </template>
-        </el-table-column>
+        <el-table-column
+          prop="explanation"
+          label="失分分析及建议"
+          min-width="340"
+          show-overflow-tooltip
+        />
       </el-table>
     </el-card>
   </div>
@@ -153,7 +159,7 @@
     excellentScore: 80
   })
   const scoreDistribution = ref<any[]>([])
-  const knowledgeRates = ref<any[]>([])
+  const questionRates = ref<any[]>([])
   const wrongQuestions = ref<any[]>([])
 
   const getGradeColor = (grade: string) => {
@@ -186,6 +192,12 @@
     window.print()
   }
 
+  const compareLabel = (score: number, average: number, target: string) => {
+    const diff = Number((Number(score || 0) - Number(average || 0)).toFixed(1))
+    if (diff === 0) return `与${target}持平`
+    return diff > 0 ? `高于${target} ${diff} 分` : `低于${target} ${Math.abs(diff)} 分`
+  }
+
   const initDistChart = () => {
     if (!distChart.value) return
     const chart = echarts.init(distChart.value)
@@ -214,20 +226,33 @@
     const chart = echarts.init(knowledgeChart.value)
     const option = {
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      legend: { bottom: 0 },
+      grid: { left: '3%', right: '4%', bottom: '10%', containLabel: true },
       xAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
-      yAxis: { type: 'category', data: knowledgeRates.value.map((item) => item.name) },
+      yAxis: { type: 'category', data: questionRates.value.map((item) => item.name) },
       series: [
         {
           name: '个人得分率',
           type: 'bar',
-          data: knowledgeRates.value.map((item) => item.rate),
+          data: questionRates.value.map((item) => item.rate),
           itemStyle: {
             color: function (params: any) {
               return params.value < 60 ? '#f56c6c' : params.value < 85 ? '#e6a23c' : '#67c23a'
             }
           },
           label: { show: true, position: 'right', formatter: '{c}%' }
+        },
+        {
+          name: '班级得分率',
+          type: 'bar',
+          data: questionRates.value.map((item) => item.classRate),
+          itemStyle: { color: '#409eff' }
+        },
+        {
+          name: '全校得分率',
+          type: 'bar',
+          data: questionRates.value.map((item) => item.schoolRate),
+          itemStyle: { color: '#909399' }
         }
       ]
     }
@@ -244,7 +269,7 @@
       .then(async (res) => {
         subjectDetail.value = res.subjectDetail || subjectDetail.value
         scoreDistribution.value = res.scoreDistribution || []
-        knowledgeRates.value = res.knowledgeRates || []
+        questionRates.value = res.knowledgeRates || []
         wrongQuestions.value = res.wrongQuestions || []
         await nextTick()
         initDistChart()

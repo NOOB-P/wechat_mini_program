@@ -374,15 +374,37 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
         ExamStudentScore score = ctx.scoreBySubjectAndStudent(subject.getId(), student.studentNo());
         if (score == null) return Collections.emptyList();
         List<Double> questionScores = parseQuestionScores(score.getQuestionScores());
-        List<Double> fullScores = resolveQuestionFullScores(ctx.scoresBySubjectId().getOrDefault(subject.getId(), Collections.emptyList()), ctx.benchmarks().get(subjectName));
+        List<ExamStudentScore> classScores = ctx.scoresBySubjectId().getOrDefault(subject.getId(), Collections.emptyList());
+        List<ExamStudentScore> schoolScores = ctx.subjectsBySchoolAndName(examClass.getSchoolId(), subjectName);
+        List<Double> fullScores = resolveQuestionFullScores(classScores, ctx.benchmarks().get(subjectName));
 
         List<Map<String, Object>> rows = new ArrayList<>();
         for (int i = 0; i < Math.min(questionScores.size(), fullScores.size()); i++) {
+            final int index = i;
             double full = fullScores.get(i);
             if (full <= 0) continue;
+            List<Double> classQuestionScores = classScores.stream()
+                    .map(item -> parseQuestionScores(item.getQuestionScores()))
+                    .filter(list -> list.size() > index)
+                    .map(list -> list.get(index))
+                    .toList();
+            List<Double> schoolQuestionScores = schoolScores.stream()
+                    .map(item -> parseQuestionScores(item.getQuestionScores()))
+                    .filter(list -> list.size() > index)
+                    .map(list -> list.get(index))
+                    .toList();
+            double personal = questionScores.get(i);
+            double classAvg = average(classQuestionScores);
+            double schoolAvg = average(schoolQuestionScores);
             Map<String, Object> row = new LinkedHashMap<>();
-            row.put("name", "第" + (i + 1) + "题");
-            row.put("rate", round(questionScores.get(i) / full * 100D));
+            row.put("name", questionLabel(i));
+            row.put("rate", round(personal / full * 100D));
+            row.put("classRate", round(classAvg / full * 100D));
+            row.put("schoolRate", round(schoolAvg / full * 100D));
+            row.put("score", round(personal));
+            row.put("fullScore", round(full));
+            row.put("classAvgScore", round(classAvg));
+            row.put("schoolAvgScore", round(schoolAvg));
             rows.add(row);
         }
         return rows;
@@ -429,8 +451,10 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
                 row.put("schoolAvg", round(schoolAvg));
                 row.put("classRate", classRate);
                 row.put("schoolRate", schoolRate);
-                row.put("knowledgePoint", "第" + (index + 1) + "题对应知识点");
+                row.put("knowledgePoint", questionLabel(index));
                 row.put("difficulty", (int) difficultyRate(classRate));
+                row.put("lostScore", round(full - personal));
+                row.put("explanation", buildQuestionExplanation(subjectName, index, personal, full, classAvg, schoolAvg, classRate, schoolRate));
                 rows.add(row);
             }
         }
@@ -616,6 +640,28 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
         if (index < 10) return "选择题";
         if (index < 15) return "填空题";
         return "解答题";
+    }
+
+    private String questionLabel(int index) {
+        return "第" + (index + 1) + "题";
+    }
+
+    private String buildQuestionExplanation(String subjectName, int index, double personal, double full, double classAvg, double schoolAvg, double classRate, double schoolRate) {
+        double lostScore = Math.max(0D, full - personal);
+        double classGap = round(personal - classAvg);
+        double schoolGap = round(personal - schoolAvg);
+        String classCompare = classGap >= 0
+                ? "高于班均" + round(classGap) + "分"
+                : "低于班均" + round(Math.abs(classGap)) + "分";
+        String schoolCompare = schoolGap >= 0
+                ? "高于校均" + round(schoolGap) + "分"
+                : "低于校均" + round(Math.abs(schoolGap)) + "分";
+        String difficultyDesc = classRate < 60
+                ? "班级整体失分较多，属于当前试卷的高难度题。"
+                : schoolRate < 75
+                ? "校级平均得分率不高，建议重点复盘该题型。"
+                : "这道题更偏向细节失分，建议核对步骤与计算过程。";
+        return subjectName + questionLabel(index) + "失分" + round(lostScore) + "分，" + classCompare + "，" + schoolCompare + "。" + difficultyDesc;
     }
 
     private double difficultyRate(double scoreRate) {
