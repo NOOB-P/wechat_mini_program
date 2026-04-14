@@ -722,34 +722,85 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         project.setSubjectCount(prepared.subjects().size());
         examProjectRepository.save(project);
 
-        examClassRepository.deleteByProjectId(project.getId());
+        syncProjectClassesAndSubjects(project.getId(), prepared);
+    }
+
+    private void syncProjectClassesAndSubjects(String projectId, Prepared prepared) {
+        List<ExamClass> existingClasses = examClassRepository.findByProjectId(projectId);
+        Map<String, ExamClass> existingClassMap = existingClasses.stream()
+                .filter(item -> StringUtils.hasText(item.getSourceClassId()))
+                .collect(Collectors.toMap(ExamClass::getSourceClassId, Function.identity(), (a, b) -> a, LinkedHashMap::new));
+        Set<String> targetClassIds = prepared.classes().stream().map(SysClass::getClassid).collect(Collectors.toCollection(LinkedHashSet::new));
+
         Map<String, String> schoolNameMap = sysSchoolRepository.findBySchoolIdIn(prepared.coveredSchoolIds()).stream()
                 .collect(Collectors.toMap(SysSchool::getSchoolId, SysSchool::getName, (a, b) -> a));
-        List<ExamClass> examClasses = prepared.classes().stream().map(sysClass -> {
-            ExamClass item = new ExamClass();
-            item.setId(id("EC"));
-            item.setProjectId(project.getId());
+
+        List<ExamClass> classesToSave = prepared.classes().stream().map(sysClass -> {
+            ExamClass item = existingClassMap.get(sysClass.getClassid());
+            if (item == null) {
+                item = new ExamClass();
+                item.setId(id("EC"));
+                item.setProjectId(projectId);
+                item.setSourceClassId(sysClass.getClassid());
+            }
             item.setSchoolId(sysClass.getSchoolId());
             item.setSchool(schoolNameMap.getOrDefault(sysClass.getSchoolId(), ""));
             item.setGrade(sysClass.getGrade());
             item.setClassName(sysClass.getAlias());
-            item.setSourceClassId(sysClass.getClassid());
             item.setStudentCount(prepared.studentCountMap().getOrDefault(sysClass.getClassid(), 0));
             return item;
         }).toList();
-        List<ExamClass> savedClasses = examClassRepository.saveAll(examClasses);
-        List<ExamSubject> subjects = new ArrayList<>();
-        for (ExamClass examClass : savedClasses) {
-            for (String subjectName : prepared.subjects()) {
-                ExamSubject subject = new ExamSubject();
-                subject.setId(id("ES"));
-                subject.setClassId(examClass.getId());
-                subject.setSubjectName(subjectName);
-                subject.setScoreUploaded(Boolean.FALSE);
-                subjects.add(subject);
+        List<ExamClass> savedClasses = examClassRepository.saveAll(classesToSave);
+
+        List<ExamClass> classesToDelete = existingClasses.stream()
+                .filter(item -> !targetClassIds.contains(item.getSourceClassId()))
+                .toList();
+        if (!classesToDelete.isEmpty()) {
+            examClassRepository.deleteAll(classesToDelete);
+        }
+
+        syncProjectSubjects(savedClasses, prepared.subjects());
+    }
+
+    private void syncProjectSubjects(List<ExamClass> examClasses, List<String> subjects) {
+        if (examClasses.isEmpty()) return;
+
+        List<String> classIds = examClasses.stream().map(ExamClass::getId).toList();
+        List<ExamSubject> existingSubjects = examSubjectRepository.findByClassIdIn(classIds);
+        Map<String, ExamSubject> existingSubjectMap = existingSubjects.stream()
+                .collect(Collectors.toMap(item -> item.getClassId() + "#" + item.getSubjectName(), Function.identity(), (a, b) -> a, LinkedHashMap::new));
+
+        List<ExamSubject> subjectsToSave = new ArrayList<>();
+        Set<String> targetSubjectKeys = new LinkedHashSet<>();
+        for (ExamClass examClass : examClasses) {
+            for (String subjectName : subjects) {
+                String key = examClass.getId() + "#" + subjectName;
+                targetSubjectKeys.add(key);
+                ExamSubject subject = existingSubjectMap.get(key);
+                if (subject == null) {
+                    subject = new ExamSubject();
+                    subject.setId(id("ES"));
+                    subject.setClassId(examClass.getId());
+                    subject.setSubjectName(subjectName);
+                    subject.setScoreUploaded(Boolean.FALSE);
+                } else {
+                    subject.setClassId(examClass.getId());
+                    subject.setSubjectName(subjectName);
+                }
+                subjectsToSave.add(subject);
             }
         }
-        examSubjectRepository.saveAll(subjects);
+
+        List<ExamSubject> subjectsToDelete = existingSubjects.stream()
+                .filter(item -> !targetSubjectKeys.contains(item.getClassId() + "#" + item.getSubjectName()))
+                .toList();
+
+        if (!subjectsToDelete.isEmpty()) {
+            examSubjectRepository.deleteAll(subjectsToDelete);
+        }
+        if (!subjectsToSave.isEmpty()) {
+            examSubjectRepository.saveAll(subjectsToSave);
+        }
     }
 
     private Prepared prepare(ExamProjectSaveDTO dto) {
