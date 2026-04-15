@@ -21,8 +21,8 @@
           </el-select>
         </el-form-item>
         <el-form-item label="班级">
-          <el-select v-model="formModel.classId" placeholder="请选择班级" clearable style="width: 150px" :disabled="!formModel.schoolId">
-            <el-option v-for="cls in classes" :key="cls.id" :label="cls.name" :value="cls.id" />
+          <el-select v-model="formModel.classId" placeholder="请选择班级" clearable style="width: 180px" :disabled="!formModel.schoolId">
+            <el-option v-for="cls in classes" :key="cls.id" :label="`${cls.grade} ${cls.name}`" :value="cls.id" />
           </el-select>
         </el-form-item>
       </template>
@@ -81,14 +81,20 @@
   const isParent = computed(() => {
     if (!formModel.roleId) return false
     const role = roles.value.find((r) => r.id === formModel.roleId)
-    return role?.roleCode === 'parent'
+    if (!role) return false
+    const code = String(role.roleCode || '').toLowerCase()
+    return code === 'parent' || code === 'r_parent' || role.roleName === '家长'
   })
 
   // 加载角色和学校选项
   onMounted(async () => {
-    const [roleRes, schoolRes] = await Promise.all([fetchGetRoleOptions(), fetchGetSchoolOptions()])
-    if (roleRes.code === 200) roles.value = roleRes.data
-    if (schoolRes.code === 200) schools.value = schoolRes.data
+    try {
+      const [roleRes, schoolRes] = await Promise.all([fetchGetRoleOptions(), fetchGetSchoolOptions()])
+      roles.value = roleRes || []
+      schools.value = schoolRes || []
+    } catch (error) {
+      console.error('加载选项失败', error)
+    }
   })
 
   // 学校切换时加载班级
@@ -96,9 +102,11 @@
     formModel.classId = ''
     classes.value = []
     if (schoolId) {
-      const res = await getClassOptions(schoolId)
-      if (res.code === 200) {
-        classes.value = res.data
+      try {
+        const res = await getClassOptions(schoolId)
+        classes.value = res || []
+      } catch (error) {
+        console.error('加载班级失败', error)
       }
     }
   }
@@ -116,7 +124,7 @@
   )
 
   const handleSearch = () => {
-    emit('search', { ...formModel.value })
+    emit('search', { ...formModel })
   }
 
   const handleReset = () => {

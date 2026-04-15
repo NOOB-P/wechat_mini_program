@@ -8,10 +8,14 @@ import com.edu.javasb_back.listener.ParentImportListener;
 import com.edu.javasb_back.model.dto.ParentImportDTO;
 import com.edu.javasb_back.model.entity.StudentParentBinding;
 import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.model.entity.SysSchool;
+import com.edu.javasb_back.model.entity.SysClass;
 import com.edu.javasb_back.model.entity.SysStudent;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
+import com.edu.javasb_back.repository.SysSchoolRepository;
+import com.edu.javasb_back.repository.SysClassRepository;
 import com.edu.javasb_back.service.RolePermissionService;
 import com.edu.javasb_back.service.SysAccountService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,6 +63,12 @@ public class SysAccountController {
 
     @Autowired
     private SysAccountService sysAccountService;
+
+    @Autowired
+    private SysSchoolRepository sysSchoolRepository;
+
+    @Autowired
+    private SysClassRepository sysClassRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -124,7 +134,8 @@ public class SysAccountController {
         String finalSchoolId = (schoolId != null && !schoolId.trim().isEmpty()) ? schoolId : null;
         String finalClassId = (classId != null && !classId.trim().isEmpty()) ? classId : null;
 
-        Pageable pageable = PageRequest.of(current - 1, size, Sort.by(Sort.Direction.DESC, "create_time"));
+        Pageable pageable = PageRequest.of(current - 1, size, 
+                Sort.by(Sort.Order.asc("role_id"), Sort.Order.desc("create_time")));
         Page<SysAccount> pageData = sysAccountRepository.findAccountsAdvanced(
                 finalUserName, finalUserPhone, roleId, finalSchoolId, finalClassId, pageable);
 
@@ -147,23 +158,41 @@ public class SysAccountController {
                     if (account.getRoleId() != null && account.getRoleId() == 3) {
                         List<StudentParentBinding> bindings = bindingRepository.findByParentUid(account.getUid());
                         if (!bindings.isEmpty()) {
-                            Optional<SysStudent> studentOpt = sysStudentRepository.findById(bindings.get(0).getStudentId());
-                            if (studentOpt.isPresent()) {
-                                SysStudent student = studentOpt.get();
-                                map.put("schoolName", student.getSchool());
-                                map.put("className", student.getClassName());
-                                map.put("studentName", student.getName());
-                                map.put("boundStudents", bindings.stream().map(b -> {
-                                    Optional<SysStudent> sOpt = sysStudentRepository.findById(b.getStudentId());
-                                    return sOpt.map(s -> {
-                                        Map<String, Object> sMap = new HashMap<>();
-                                        sMap.put("id", s.getId());
-                                        sMap.put("name", s.getName());
-                                        sMap.put("school", s.getSchool());
-                                        sMap.put("className", s.getClassName());
-                                        return sMap;
-                                    }).orElse(null);
-                                }).filter(java.util.Objects::nonNull).collect(Collectors.toList()));
+                            // 加载绑定的所有学生及其最新的学校班级信息 (从档案表中获取)
+                            List<Map<String, Object>> boundStudents = bindings.stream().map(b -> {
+                                Optional<SysStudent> sOpt = sysStudentRepository.findById(b.getStudentId());
+                                return sOpt.map(s -> {
+                                    Map<String, Object> sMap = new HashMap<>();
+                                    sMap.put("id", s.getId());
+                                    sMap.put("name", s.getName());
+                                    
+                                    // 核心修改：不再只取冗余字段，而是根据 ID 从学校/班级档案表取最新名称
+                                    String schoolName = s.getSchool();
+                                    if (s.getSchoolId() != null) {
+                                        schoolName = sysSchoolRepository.findBySchoolId(s.getSchoolId())
+                                                .map(SysSchool::getName)
+                                                .orElse(s.getSchool());
+                                    }
+                                    
+                                    String className = s.getClassName();
+                                    if (s.getClassId() != null) {
+                                        className = sysClassRepository.findByClassid(s.getClassId())
+                                                .map(c -> (c.getGrade() != null ? c.getGrade() + " " : "") + c.getAlias())
+                                                .orElse(s.getClassName());
+                                    }
+
+                                    sMap.put("school", schoolName);
+                                    sMap.put("className", className);
+                                    return sMap;
+                                }).orElse(null);
+                            }).filter(java.util.Objects::nonNull).collect(Collectors.toList());
+
+                            if (!boundStudents.isEmpty()) {
+                                Map<String, Object> firstStudent = boundStudents.get(0);
+                                map.put("schoolName", firstStudent.get("school"));
+                                map.put("className", firstStudent.get("className"));
+                                map.put("studentName", firstStudent.get("name"));
+                                map.put("boundStudents", boundStudents);
                             }
                         }
                     }

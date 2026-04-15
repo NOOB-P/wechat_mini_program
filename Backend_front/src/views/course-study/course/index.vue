@@ -466,14 +466,6 @@ const handleDelete = (row: any) => {
   })
 }
 
-const handleStatus = async (row: any) => {
-  try {
-    await changeCourseStatus(row.id, row.status === 1 ? 0 : 1)
-    ElMessage.success('状态更新成功')
-    loadData()
-  } catch (error) {}
-}
-
 onMounted(() => {
   loadCategories()
 })

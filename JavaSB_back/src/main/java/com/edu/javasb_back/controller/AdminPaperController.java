@@ -49,9 +49,15 @@ public class AdminPaperController {
         Page<ExamPaper> page = paperService.getPaperList(
                 keyword, subject, grade, type, isRecommend,
                 PageRequest.of(pageNum - 1, pageSize, Sort.by("sortOrder").ascending().and(Sort.by("createTime").ascending()))
-
         );
-        return Result.success(page);
+        
+        java.util.Map<String, Object> resultData = new java.util.HashMap<>();
+        resultData.put("records", page.getContent());
+        resultData.put("total", page.getTotalElements());
+        resultData.put("current", pageNum);
+        resultData.put("size", pageSize);
+        
+        return Result.success(resultData);
     }
 
     @PreAuthorize("hasAuthority('paper:manage:save')")
