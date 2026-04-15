@@ -26,7 +26,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import type { FormInstance } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { VideoPlay } from '@element-plus/icons-vue'
+import { useUserStore } from '@/store/modules/user'
 
 const props = defineProps({
   visible: Boolean,
@@ -38,9 +42,18 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'success'])
 
 const visible = ref(false)
-const formRef = ref(null)
+const formRef = ref<FormInstance>()
+const uploading = ref(false)
 
-const form = ref({
+interface EpisodeForm {
+  id: string
+  courseId: string
+  title: string
+  videoUrl: string
+  sortOrder: number
+}
+
+const form = ref<EpisodeForm>({
   id: '',
   courseId: '',
   title: '',
@@ -55,7 +68,7 @@ watch(() => props.visible, (val) => {
   visible.value = val
   if (val) {
     if (props.isEdit && props.data) {
-      form.value = { ...props.data }
+      form.value = { ...form.value, ...(props.data as any) }
     } else {
       resetForm()
       form.value.courseId = props.courseId || ''
@@ -74,9 +87,7 @@ const resetForm = () => {
     title: '',
     sortOrder: 1
   }
-  if (formRef.value) {
-    formRef.value.resetFields()
-  }
+  formRef.value?.resetFields()
 }
 
 const handleClosed = () => {

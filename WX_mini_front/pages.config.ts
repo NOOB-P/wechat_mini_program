@@ -149,6 +149,12 @@ export default defineUniPages({
       },
     },
     {
+      path: 'pages/vip/school-status',
+      style: {
+        navigationBarTitleText: '校讯通状态',
+      },
+    },
+    {
       path: 'pages/mine/settings/index',
       style: {
         navigationBarTitleText: '个人设置',

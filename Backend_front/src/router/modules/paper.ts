@@ -16,7 +16,8 @@ export const paperRoutes: AppRouteRecord = {
       name: 'PaperManage',
       component: '/course-study/paper',
       meta: {
-        title: '试卷列表'
+        title: '试卷列表',
+        authMark: 'paper:manage:list'
       }
     }
   ]

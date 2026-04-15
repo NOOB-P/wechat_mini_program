@@ -1,36 +1,38 @@
-import { pages, subPackages, tabBar } from '@/pages.json'
-import type {
-    PageMetaDatum,
-    SubPageMetaDatum
-} from "@uni-helper/vite-plugin-uni-pages";
+import { pages, subPackages } from '@/pages.json'
+
+type PageRoute = {
+  path: string
+  needLogin?: boolean
+  [key: string]: any
+}
+
+type SubPackageRoute = {
+  root: string
+  pages: PageRoute[]
+}
 
 /**
  * @Description: 获取所有页面
  */
-export const getAllPages = ():PageMetaDatum[] => {
-    // 获取主包所有页面
-    const main = pages.map((p:PageMetaDatum) => ({
-        ...p,
-        path: `/${p.path}`
+export const getAllPages = (): PageRoute[] => {
+  const main = (pages as PageRoute[]).map((page) => ({
+    ...page,
+    path: `/${page.path}`
+  }))
+
+  const sub = ((subPackages ?? []) as SubPackageRoute[]).flatMap((subPackage) =>
+    subPackage.pages.map((page) => ({
+      ...page,
+      path: `/${subPackage.root}/${page.path}`
     }))
-    let sub:PageMetaDatum[] = []
-    if(subPackages.length > 0) {
-        subPackages.forEach((subPage: SubPageMetaDatum) => {
-            sub = [
-                ...sub,
-                ...subPage.pages.map((p:PageMetaDatum) => ({
-                    ...p,
-                    path: `/${subPage.root}/${p.path}`
-                }))
-            ]
-        })
-    }
-    return [...main,...sub]
+  )
+
+  return [...main, ...sub]
 }
 
 /**
- * @Description: 获取所有需要登陆才可以访问的页面
+ * @Description: 获取所有需要登录才能访问的页面
  */
-export const getNeedLoginPages = ():PageMetaDatum[] => {
-    return getAllPages().filter(p => p && p.needLogin === true)
+export const getNeedLoginPages = (): PageRoute[] => {
+  return getAllPages().filter((page) => page.needLogin === true)
 }

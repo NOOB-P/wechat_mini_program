@@ -70,7 +70,7 @@ export default ({ command, mode }) => {
       },
     },
     server: {
-      host: '0.0.0.0',
+      host: '127.0.0.1',
       port: Number.parseInt(VITE_APP_PORT, 10), // 服务端口
     }
 	});

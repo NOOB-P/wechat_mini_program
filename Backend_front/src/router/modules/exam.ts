@@ -17,7 +17,8 @@ export const examRoutes: AppRouteRecord = {
       name: 'ExamProject',
       component: '/core-business/exam/project',
       meta: {
-        title: '考试项目管理'
+        title: '考试项目管理',
+        authMark: 'exam:project:list'
       }
     },
     {
@@ -34,7 +35,8 @@ export const examRoutes: AppRouteRecord = {
       name: 'ExamAnalysisList',
       component: '/core-business/exam/analysis/list',
       meta: {
-        title: '考试数据分析'
+        title: '考试数据分析',
+        authMark: 'exam:project:list'
       }
     },
     {

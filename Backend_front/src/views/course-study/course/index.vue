@@ -221,11 +221,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import CourseDialog from './modules/course-dialog.vue'
 import EpisodeDialog from './modules/episode-dialog.vue'
 import VideoDialog from './modules/video-dialog.vue'
-import { ArrowLeft, VideoPlay, Plus } from '@element-plus/icons-vue'
+import { ArrowLeft, VideoPlay } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/modules/user'
 
 const loading = ref(false)
-const tableData = ref([])
+const tableData = ref<any[]>([])
 const total = ref(0)
 const queryParams = ref({
   current: 1,
@@ -235,11 +235,11 @@ const queryParams = ref({
 })
 const dialogVisible = ref(false)
 const isEdit = ref(false)
-const editData = ref(null)
+const editData = ref<Record<string, any>>({})
 
 // 分类管理
 const showDetail = ref(false)
-const currentCategory = ref(null)
+const currentCategory = ref<{ id: string; name: string; count: number }>({ id: '', name: '', count: 0 })
 const categoryData = ref([
   { id: 'general', name: '常规课程', count: 0 },
   { id: 'talk', name: '学霸说', count: 0 },
@@ -251,19 +251,19 @@ const categoryData = ref([
 const showEpisodeManagement = ref(false)
 const showEpisodeVideoManagement = ref(false)
 const episodeLoading = ref(false)
-const currentCourse = ref(null)
-const currentEpisode = ref(null)
-const episodeData = ref([])
+const currentCourse = ref<Record<string, any>>({ id: '', title: '' })
+const currentEpisode = ref<Record<string, any>>({ id: '', title: '', sortOrder: 0 })
+const episodeData = ref<any[]>([])
 const episodeDialogVisible = ref(false)
 const isEpisodeEdit = ref(false)
-const episodeEditData = ref(null)
+const episodeEditData = ref<Record<string, any> | undefined>(undefined)
 
 // 视频管理
 const videoLoading = ref(false)
-const videoData = ref([])
+const videoData = ref<any[]>([])
 const videoDialogVisible = ref(false)
 const isVideoEdit = ref(false)
-const videoEditData = ref(null)
+const videoEditData = ref<Record<string, any> | undefined>(undefined)
 
 const userStore = useUserStore()
 const uploadHeaders = computed(() => ({
@@ -414,7 +414,6 @@ const enterCategory = (row: any) => {
   showDetail.value = true
   loadData()
 }
-
 const loadData = async () => {
   loading.value = true
   try {
@@ -446,7 +445,7 @@ const handleSuccess = async (formData: any) => {
 
 const handleAdd = () => {
   isEdit.value = false
-  editData.value = { type: currentCategory.value.id, price: 0, isSvipOnly: false, status: 1 }
+  editData.value = { type: currentCategory.value?.id || 'general', price: 0, isSvipOnly: false, status: 1 }
   dialogVisible.value = true
 }
 
@@ -478,6 +477,16 @@ const handleStatus = async (row: any) => {
 onMounted(() => {
   loadCategories()
 })
+
+const handleStatus = async (row: any) => {
+  const status = row.status === 1 ? 0 : 1
+  try {
+    await changeCourseStatus(row.id, status)
+    ElMessage.success(status === 1 ? '上架成功' : '下架成功')
+    loadData()
+    loadCategories()
+  } catch (error) {}
+}
 </script>
 
 <style scoped lang="scss">

@@ -48,13 +48,19 @@ export function fetchDeleteUser(id: number) {
 }
 
 /** 批量导入家长 */
-export function fetchImportParentUsers(file: File) {
-  const formData = new FormData()
-  formData.append('file', file)
+export function fetchImportParentUsers(data: File | FormData) {
+  let finalData: FormData
+  
+  if (data instanceof FormData) {
+    finalData = data
+  } else {
+    finalData = new FormData()
+    finalData.append('file', data)
+  }
 
   return api.post<any>({
     url: '/api/system/user/import-parents',
-    data: formData,
+    data: finalData,
     headers: {
       'Content-Type': 'multipart/form-data'
     }

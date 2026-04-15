@@ -260,7 +260,7 @@ import {
   InfoFilled,
   Plus
 } from '@element-plus/icons-vue'
-import BindingStatus from './components/binding-status.vue'
+import BindingStatus from './components/BindingStatus.vue'
 
 const route = useRoute()
 

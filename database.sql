@@ -1,4 +1,4 @@
-DROP DATABASE IF EXISTS edu_data;
+﻿DROP DATABASE IF EXISTS edu_data;
 CREATE DATABASE edu_data CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE edu_data;
 
@@ -45,16 +45,17 @@ CREATE TABLE `sys_accounts` (
     CONSTRAINT `fk_account_role` FOREIGN KEY (`role_id`) REFERENCES `sys_roles` (`id`)
 ) ENGINE=InnoDB COMMENT='系统统一账号表';
 
--- 2.1 用户管理模块分配表
-DROP TABLE IF EXISTS `sys_user_modules`;
-CREATE TABLE `sys_user_modules` (
+-- 2.1 角色权限关联表
+DROP TABLE IF EXISTS `sys_role_menu`;
+CREATE TABLE `sys_role_menu` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-    `uid` BIGINT NOT NULL COMMENT '关联 sys_accounts.uid',
-    `module_path` VARCHAR(255) NOT NULL COMMENT '模块路由路径 (例如: /order)',
+    `role_id` INT NOT NULL COMMENT '关联 sys_roles.id',
+    `permission_code` VARCHAR(100) NOT NULL COMMENT '权限标识，例如 system:user:list',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX `idx_uid` (`uid`),
-    CONSTRAINT `fk_user_module_uid` FOREIGN KEY (`uid`) REFERENCES `sys_accounts` (`uid`) ON DELETE CASCADE
-) ENGINE=InnoDB COMMENT='用户管理模块分配表';
+    UNIQUE KEY `uk_role_permission` (`role_id`, `permission_code`),
+    INDEX `idx_role_id` (`role_id`),
+    CONSTRAINT `fk_role_menu_role_id` FOREIGN KEY (`role_id`) REFERENCES `sys_roles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='角色与权限关联表';
 
 -- 3. 会员等级配置表
 DROP TABLE IF EXISTS `sys_vip_config`;
@@ -119,6 +120,17 @@ CREATE TABLE `schools` (
 ) ENGINE=InnoDB COMMENT='学校基础信息表';
 
 -- 3.1 全局班级表
+DROP TABLE IF EXISTS `sys_vip_config_schools`;
+CREATE TABLE `sys_vip_config_schools` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    `vip_id` INT NOT NULL COMMENT '关联 sys_vip_config.id',
+    `school_id` VARCHAR(50) NOT NULL COMMENT '关联 schools.school_id',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    UNIQUE KEY `uk_vip_school` (`vip_id`, `school_id`),
+    CONSTRAINT `fk_vip_config_school_vip` FOREIGN KEY (`vip_id`) REFERENCES `sys_vip_config` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_vip_config_school_school` FOREIGN KEY (`school_id`) REFERENCES `schools` (`school_id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='VIP配置适用学校关联表';
+
 DROP TABLE IF EXISTS `sys_classes`;
 CREATE TABLE `sys_classes` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '内部记录ID',
@@ -469,6 +481,7 @@ CREATE TABLE `vip_orders` (
     `price` DECIMAL(10,2) NOT NULL COMMENT '支付金额',
     `payment_status` TINYINT DEFAULT 0 COMMENT '支付状态: 0-待支付, 1-已支付, 2-已退款',
     `payment_method` VARCHAR(50) COMMENT '支付方式(微信/支付宝)',
+    `source_type` VARCHAR(50) NOT NULL DEFAULT 'ONLINE_PURCHASE' COMMENT '订单来源: ONLINE_PURCHASE-在线购买, SCHOOL_GIFT-校讯通赠送',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='VIP/SVIP购买订单表';
@@ -527,6 +540,175 @@ INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `avatar`, `password`,
 (9, 'parent06', '周八爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000008', 'parent06@example.com', 3, 0, 0, 'offline', 1, 1),
 (10, 'parent07', '吴九妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000009', 'parent07@example.com', 3, 1, 1, 'offline', 1, 1);
 
+-- 2.1 角色权限初始化数据
+INSERT INTO `sys_role_menu` (`role_id`, `permission_code`) VALUES
+(1, 'dashboard:analysis:view'),
+(1, 'system:school:list'),
+(1, 'system:school:add'),
+(1, 'system:school:edit'),
+(1, 'system:school:delete'),
+(1, 'system:school:import'),
+(1, 'system:class:list'),
+(1, 'system:class:add'),
+(1, 'system:class:batch-add'),
+(1, 'system:class:edit'),
+(1, 'system:class:delete'),
+(1, 'system:class:import'),
+(1, 'system:class:detail'),
+(1, 'system:student:list'),
+(1, 'system:student:add'),
+(1, 'system:student:edit'),
+(1, 'system:student:delete'),
+(1, 'system:student:import'),
+(1, 'system:student:bound-parents'),
+(1, 'exam:project:list'),
+(1, 'exam:project:options'),
+(1, 'exam:project:add'),
+(1, 'exam:project:edit'),
+(1, 'exam:project:delete'),
+(1, 'exam:project:detail'),
+(1, 'exam:project:students'),
+(1, 'exam:project:score-summary'),
+(1, 'exam:project:score-list'),
+(1, 'exam:project:score-template'),
+(1, 'exam:project:score-import'),
+(1, 'exam:project:score-save'),
+(1, 'exam:project:paper-import'),
+(1, 'exam:project:paper-upload'),
+(1, 'exam:class:list'),
+(1, 'exam:class:add'),
+(1, 'exam:class:edit'),
+(1, 'exam:class:delete'),
+(1, 'order:vip:list'),
+(1, 'order:course:list'),
+(1, 'order:print:list'),
+(1, 'order:print:detail'),
+(1, 'order:print:status'),
+(1, 'course:manage:list'),
+(1, 'course:manage:add'),
+(1, 'course:manage:edit'),
+(1, 'course:manage:delete'),
+(1, 'course:manage:status'),
+(1, 'paper:manage:list'),
+(1, 'paper:manage:save'),
+(1, 'paper:manage:delete'),
+(1, 'paper:manage:upload'),
+(1, 'paper:subject:list'),
+(1, 'paper:subject:save'),
+(1, 'paper:subject:delete'),
+(1, 'payment:vip:list'),
+(1, 'payment:vip:edit'),
+(1, 'payment:print:list'),
+(1, 'payment:print:edit'),
+(1, 'support:faq:list'),
+(1, 'support:faq:add'),
+(1, 'support:faq:edit'),
+(1, 'support:faq:delete'),
+(1, 'support:faq-category:list'),
+(1, 'support:faq-category:add'),
+(1, 'support:faq-category:edit'),
+(1, 'support:faq-category:delete'),
+(1, 'support:wechat:list'),
+(1, 'support:wechat:upload'),
+(1, 'support:wechat:add'),
+(1, 'support:wechat:edit'),
+(1, 'support:wechat:delete'),
+(1, 'system:user:list'),
+(1, 'system:user:add'),
+(1, 'system:user:edit'),
+(1, 'system:user:delete'),
+(1, 'system:user:import'),
+(1, 'system:user:template'),
+(1, 'system:role:list'),
+(1, 'system:permission:list'),
+(1, 'system:permission:edit'),
+(1, 'system:permission:options'),
+(1, 'system:log:list'),
+(1, 'system:log:delete'),
+(2, 'dashboard:analysis:view'),
+(2, 'system:school:list'),
+(2, 'system:school:add'),
+(2, 'system:school:edit'),
+(2, 'system:school:delete'),
+(2, 'system:school:import'),
+(2, 'system:class:list'),
+(2, 'system:class:add'),
+(2, 'system:class:batch-add'),
+(2, 'system:class:edit'),
+(2, 'system:class:delete'),
+(2, 'system:class:import'),
+(2, 'system:class:detail'),
+(2, 'system:student:list'),
+(2, 'system:student:add'),
+(2, 'system:student:edit'),
+(2, 'system:student:delete'),
+(2, 'system:student:import'),
+(2, 'system:student:bound-parents'),
+(2, 'exam:project:list'),
+(2, 'exam:project:options'),
+(2, 'exam:project:add'),
+(2, 'exam:project:edit'),
+(2, 'exam:project:delete'),
+(2, 'exam:project:detail'),
+(2, 'exam:project:students'),
+(2, 'exam:project:score-summary'),
+(2, 'exam:project:score-list'),
+(2, 'exam:project:score-template'),
+(2, 'exam:project:score-import'),
+(2, 'exam:project:score-save'),
+(2, 'exam:project:paper-import'),
+(2, 'exam:project:paper-upload'),
+(2, 'exam:class:list'),
+(2, 'exam:class:add'),
+(2, 'exam:class:edit'),
+(2, 'exam:class:delete'),
+(2, 'order:vip:list'),
+(2, 'order:course:list'),
+(2, 'order:print:list'),
+(2, 'order:print:detail'),
+(2, 'order:print:status'),
+(2, 'course:manage:list'),
+(2, 'course:manage:add'),
+(2, 'course:manage:edit'),
+(2, 'course:manage:delete'),
+(2, 'course:manage:status'),
+(2, 'paper:manage:list'),
+(2, 'paper:manage:save'),
+(2, 'paper:manage:delete'),
+(2, 'paper:manage:upload'),
+(2, 'paper:subject:list'),
+(2, 'paper:subject:save'),
+(2, 'paper:subject:delete'),
+(2, 'payment:vip:list'),
+(2, 'payment:vip:edit'),
+(2, 'payment:print:list'),
+(2, 'payment:print:edit'),
+(2, 'support:faq:list'),
+(2, 'support:faq:add'),
+(2, 'support:faq:edit'),
+(2, 'support:faq:delete'),
+(2, 'support:faq-category:list'),
+(2, 'support:faq-category:add'),
+(2, 'support:faq-category:edit'),
+(2, 'support:faq-category:delete'),
+(2, 'support:wechat:list'),
+(2, 'support:wechat:upload'),
+(2, 'support:wechat:add'),
+(2, 'support:wechat:edit'),
+(2, 'support:wechat:delete'),
+(2, 'system:user:list'),
+(2, 'system:user:add'),
+(2, 'system:user:edit'),
+(2, 'system:user:delete'),
+(2, 'system:user:import'),
+(2, 'system:user:template'),
+(2, 'system:role:list'),
+(2, 'system:permission:list'),
+(2, 'system:permission:edit'),
+(2, 'system:permission:options'),
+(2, 'system:log:list'),
+(2, 'system:log:delete');
+
 -- 3. 学校结构表数据
 INSERT INTO `schools` (`school_id`, `province`, `city`, `name`, `type`, `status`) VALUES
 ('SCH001', '广东省', '广州市', '第一中学', 'school', 1),
@@ -539,6 +721,13 @@ INSERT INTO `schools` (`school_id`, `province`, `city`, `name`, `type`, `status`
 ('SCH008', '湖北省', '武汉市', '武汉外国语学校', 'school', 1),
 ('SCH009', '四川省', '成都市', '成都七中', 'school', 1),
 ('SCH010', '广东省', '广州市', '执信中学', 'school', 1);
+
+INSERT INTO `sys_vip_config_schools` (`vip_id`, `school_id`) VALUES
+(1, 'SCH001'),
+(1, 'SCH002'),
+(1, 'SCH004'),
+(2, 'SCH001'),
+(2, 'SCH006');
 
 -- 3.1 全局班级表数据
 INSERT INTO `sys_classes` (`classid`, `school_id`, `grade`, `alias`) VALUES

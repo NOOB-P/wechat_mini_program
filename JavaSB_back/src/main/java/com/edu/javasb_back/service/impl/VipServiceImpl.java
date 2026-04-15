@@ -17,15 +17,22 @@ import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.DeliveryConfig;
 import com.edu.javasb_back.model.entity.PaperPrice;
 import com.edu.javasb_back.model.entity.PrintOrder;
+import com.edu.javasb_back.model.entity.StudentParentBinding;
 import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.model.entity.SysStudent;
+import com.edu.javasb_back.model.entity.VipConfig;
 import com.edu.javasb_back.repository.DeliveryConfigRepository;
 import com.edu.javasb_back.repository.PaperPriceRepository;
 import com.edu.javasb_back.repository.PrintOrderRepository;
+import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
+import com.edu.javasb_back.repository.SysStudentRepository;
+import com.edu.javasb_back.repository.VipConfigRepository;
 import com.edu.javasb_back.service.VipService;
-
+import java.time.LocalDateTime;
 @Service
 public class VipServiceImpl implements VipService {
+
 
     @Autowired
     private PaperPriceRepository paperPriceRepository;
@@ -39,7 +46,14 @@ public class VipServiceImpl implements VipService {
     @Autowired
     private PrintOrderRepository printOrderRepository;
 
+    @Autowired
+    private StudentParentBindingRepository studentParentBindingRepository;
 
+    @Autowired
+    private SysStudentRepository sysStudentRepository;
+
+    @Autowired
+    private VipConfigRepository vipConfigRepository;
 
     /**
      * 内部校验 VIP 状态逻辑
@@ -71,15 +85,53 @@ public class VipServiceImpl implements VipService {
     }
 
     @Override
-    public Result<Map<String, Object>> getVipAnalysis(Long uid) {
-        // 先进行鉴权和过期判断
-        Result<SysAccount> authResult = validateVipStatus(uid);
-        if (authResult.getCode() != 200) return Result.error(authResult.getCode(), authResult.getMsg());
-
-        // 模拟数据分析数据，实际应从业务表统计
+    public Result<Map<String, Object>> getRechargeDisplayConfig(Long uid) {
         Map<String, Object> data = new HashMap<>();
-        
-        // 成绩构成
+        List<VipConfig> enabledConfigs = vipConfigRepository.findByIsEnabledOrderBySortOrderAsc(1);
+
+        String schoolId = null;
+        String schoolName = null;
+        List<StudentParentBinding> bindings = studentParentBindingRepository.findByParentUid(uid);
+        if (!bindings.isEmpty()) {
+            Optional<SysStudent> studentOpt = sysStudentRepository.findById(bindings.get(0).getStudentId());
+            if (studentOpt.isPresent()) {
+                SysStudent student = studentOpt.get();
+                schoolId = student.getSchoolId();
+                schoolName = student.getSchool();
+            }
+        }
+
+        final String currentSchoolId = schoolId;
+        List<VipConfig> matchedConfigs = enabledConfigs.stream()
+                .filter(config -> isSchoolEnabled(config, currentSchoolId))
+                .collect(Collectors.toList());
+
+        data.put("userSchoolId", schoolId);
+        data.put("userSchoolName", schoolName);
+        data.put("hasBoundStudent", schoolId != null && !schoolId.isBlank());
+        data.put("showRechargePage", !matchedConfigs.isEmpty());
+        data.put("pageMode", matchedConfigs.isEmpty() ? "school-message" : "recharge");
+        data.put("vipConfigs", matchedConfigs);
+        return Result.success("获取成功", data);
+    }
+
+    private boolean isSchoolEnabled(VipConfig config, String schoolId) {
+        if (schoolId == null || schoolId.isBlank() || config.getSchools() == null || config.getSchools().isEmpty()) {
+            return false;
+        }
+        return config.getSchools().stream()
+                .anyMatch(item -> schoolId.equals(item.getSchoolId()));
+    }
+
+    @Override
+    public Result<Map<String, Object>> getVipAnalysis(Long uid) {
+        Result<SysAccount> authResult = validateVipStatus(uid);
+        if (authResult.getCode() != 200) {
+            return Result.error(authResult.getCode(), authResult.getMsg());
+        }
+
+        Map<String, Object> data = new HashMap<>();
+
         List<Map<String, Object>> composition = new ArrayList<>();
         Map<String, Object> comp1 = new HashMap<>();
         comp1.put("name", "基础题");
@@ -100,11 +152,9 @@ public class VipServiceImpl implements VipService {
         composition.add(comp3);
         data.put("composition", composition);
 
-        // 分数分布
         Map<String, Object> distribution = new HashMap<>();
-        distribution.put("rankInfo", "年级前25%");
+        distribution.put("rankInfo", "年级前5%");
         distribution.put("overallLevel", "A");
-        
         List<Map<String, Object>> levels = new ArrayList<>();
         Map<String, Object> l1 = new HashMap<>();
         l1.put("level", "A");
@@ -130,7 +180,6 @@ public class VipServiceImpl implements VipService {
         l5.put("level", "E");
         l5.put("count", 2);
         levels.add(l5);
-        
         distribution.put("levels", levels);
         data.put("distribution", distribution);
 
@@ -167,11 +216,10 @@ public class VipServiceImpl implements VipService {
 
     @Override
     public Result<List<Map<String, Object>>> getWrongBookList(Long uid, Map<String, Object> params) {
-        // 先进行鉴权和过期判断
         Result<SysAccount> authResult = validateVipStatus(uid);
-        if (authResult.getCode() != 200) return Result.error(authResult.getCode(), authResult.getMsg());
-
-        // 模拟错题本列表
+        if (authResult.getCode() != 200) {
+            return Result.error(authResult.getCode(), authResult.getMsg());
+        }
         List<Map<String, Object>> list = new ArrayList<>();
         Map<String, Object> w1 = new HashMap<>();
         w1.put("id", 1);
@@ -180,7 +228,7 @@ public class VipServiceImpl implements VipService {
         w1.put("question", "已知函数 f(x) = x^2 - 4x + 3，求函数在 [0, 3] 上的最值。");
         w1.put("studentAnswer", "最小值为-1，最大值为3");
         w1.put("correctAnswer", "最小值为-1，最大值为3");
-        w1.put("explanation", "函数对称轴为x=2，在区间内。f(2)=-1为极小值也是最小值。端点f(0)=3, f(3)=0，故最大值为3。");
+        w1.put("explanation", "函数对称轴为 x=2，在区间内 f(2)=-1 为最小值；端点 f(0)=3, f(3)=0，因此最大值为 3。");
         w1.put("tags", Arrays.asList("二次函数", "最值问题"));
         list.add(w1);
 
@@ -200,7 +248,6 @@ public class VipServiceImpl implements VipService {
     @Override
     public Result<Map<String, Object>> getPrintConfig() {
         Map<String, Object> config = new HashMap<>();
-        
         List<PaperPrice> prices = paperPriceRepository.findAll();
         List<Map<String, Object>> paperConfigs = prices.stream().map(p -> {
             Map<String, Object> m = new HashMap<>();
@@ -229,7 +276,7 @@ public class VipServiceImpl implements VipService {
         globalParams.put("bindingFee", 2.00);
         config.put("globalParams", globalParams);
 
-        return Result.success(config);
+        return Result.success("获取成功", config);
     }
 
     @Override

@@ -1,5 +1,9 @@
 package com.edu.javasb_back.config;
 
+import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.repository.SysAccountRepository;
+import com.edu.javasb_back.repository.SysRoleRepository;
+import com.edu.javasb_back.service.RolePermissionService;
 import com.edu.javasb_back.utils.JwtUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -7,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -15,6 +20,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -25,6 +31,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
+    @Autowired
+    private SysAccountRepository sysAccountRepository;
+
+    @Autowired
+    private SysRoleRepository sysRoleRepository;
+
+    @Autowired
+    private RolePermissionService rolePermissionService;
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -79,8 +93,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (jwtUtils.validateToken(jwt)) {
                 // 如果有效，构建一个 UsernamePasswordAuthenticationToken
                 // 这里的 principal 存入 uid 的字符串形式
+                List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+                sysAccountRepository.findById(uid).ifPresent(account -> {
+                    rolePermissionService.getPermissionCodesByRoleId(account.getRoleId()).stream()
+                            .map(SimpleGrantedAuthority::new)
+                            .forEach(authorities::add);
+                    sysRoleRepository.findById(account.getRoleId())
+                            .map(role -> "ROLE_" + role.getRoleCode().toUpperCase())
+                            .map(SimpleGrantedAuthority::new)
+                            .ifPresent(authorities::add);
+                });
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        uid.toString(), null, new ArrayList<>()
+                        uid.toString(), null, authorities
                 );
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 

@@ -106,8 +106,11 @@
             </el-upload>
             <div class="text-xs text-gray-400 mt-1">文件大小建议不超过 500MB</div>
           </el-form-item>
-          <el-form-item label="已学人数">
-            <el-input-number v-model="form.studentCount" :min="0" />
+          <el-form-item label="已学人数" prop="buyers">
+            <el-input-number v-model="form.buyers" :min="0" />
+          </el-form-item>
+          <el-form-item label="总节数" prop="episodes">
+            <el-input-number v-model="form.episodes" :min="0" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -132,14 +135,14 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
+      <el-button @click="dialogVisible = false">取消</el-button>
       <el-button type="primary" @click="handleSubmit">确定</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, shallowRef, onBeforeUnmount, computed } from 'vue'
+import { ref, watch, shallowRef, onBeforeUnmount, computed, nextTick } from 'vue'
 import { Plus, VideoPlay } from '@element-plus/icons-vue'
 import '@wangeditor/editor/dist/css/style.css'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
@@ -154,17 +157,22 @@ const props = defineProps({
 
 const emit = defineEmits(['update:visible', 'success'])
 
+const dialogVisible = computed({
+  get: () => props.visible,
+  set: (val) => emit('update:visible', val)
+})
+
 const userStore = useUserStore()
 const uploadHeaders = computed(() => ({
   Authorization: `Bearer ${userStore.accessToken}`
 }))
 
-const visible = ref(false)
-const formRef = ref(null)
+const formRef = ref()
 const editorRef = shallowRef()
 const videoUploading = ref(false)
 
-const form = ref({
+const buildDefaultForm = () => ({
+  id: '',
   title: '',
   type: 'general',
   isRecommend: 0,
@@ -173,11 +181,15 @@ const form = ref({
   price: 0,
   isSvipOnly: false,
   author: '',
+  buyers: 0,
   studentCount: 0,
   episodes: 0,
   cover: '',
+  videoUrl: '',
   content: ''
 })
+
+const form = ref(buildDefaultForm())
 
 const rules = {
   title: [{ required: true, message: '请输入课程名称', trigger: 'blur' }],
@@ -185,50 +197,36 @@ const rules = {
   content: [{ required: true, message: '请输入课程内容', trigger: 'blur' }]
 }
 
-// 富文本配置
 const toolbarConfig = {}
 const editorConfig = { placeholder: '请输入课程详情内容...' }
 
 const handleCreated = (editor: any) => {
   editorRef.value = editor
 }
-
 onBeforeUnmount(() => {
   const editor = editorRef.value
   if (editor == null) return
   editor.destroy()
 })
 
-watch(() => props.visible, (val) => {
-  visible.value = val
-  if (val && props.data) {
-    form.value = { ...props.data }
-  } else if (val) {
-    resetForm()
-  }
-})
+const syncFromProps = async () => {
+  if (!props.visible) return
+  const merged = props.data ? { ...buildDefaultForm(), ...props.data } : buildDefaultForm()
+  form.value = merged
 
-watch(visible, (val) => {
-  emit('update:visible', val)
-})
-
-const resetForm = () => {
-  form.value = {
-    title: '',
-    type: 'general',
-    isRecommend: 0,
-    subject: '',
-    grade: '',
-    price: 0,
-    isSvipOnly: false,
-    author: '',
-    studentCount: 0,
-    episodes: 0,
-    cover: '',
-    videoUrl: '',
-    content: ''
+  await nextTick()
+  if (editorRef.value) {
+    editorRef.value.setHtml(form.value.content || '')
   }
 }
+
+watch(() => props.visible, () => {
+  syncFromProps()
+})
+
+watch(() => props.data, () => {
+  syncFromProps()
+})
 
 const handleUploadSuccess = (res: any) => {
   if (res.code === 200) {
@@ -288,13 +286,17 @@ const handleSubmit = async () => {
   await formRef.value.validate((valid: boolean) => {
     if (valid) {
       emit('success', form.value)
-      visible.value = false
+      dialogVisible.value = false
     }
   })
 }
 
 const handleClosed = () => {
-  resetForm()
+  form.value = buildDefaultForm()
+  if (editorRef.value) {
+    editorRef.value.setHtml('')
+  }
+  videoUploading.value = false
 }
 </script>
 

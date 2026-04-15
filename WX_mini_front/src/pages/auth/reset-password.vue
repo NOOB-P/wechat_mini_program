@@ -3,7 +3,7 @@
     <view class="form-container">
       <view class="input-group">
         <view class="code-wrapper">
-          <wd-input v-model="form.code" placeholder="请输入验证码" type="number" maxlength="6" use-suffix-slot no-border>
+          <wd-input v-model="form.code" placeholder="请输入验证码" type="number" :maxlength="6" use-suffix-slot no-border>
             <template #suffix>
               <view class="code-btn-text" :class="{ disabled: countdown > 0 }" @click="countdown === 0 && sendCode()">
                 {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
@@ -37,8 +37,10 @@ const form = reactive({
 
 onMounted(() => {
   const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1]
-  form.phone = currentPage.options.phone || ''
+  const currentPage = pages[pages.length - 1] as
+    | { options?: Record<string, string | undefined> }
+    | undefined
+  form.phone = currentPage?.options?.phone ?? ''
   if (form.phone) {
     sendCode() // 页面加载时自动发送一次验证码
   }

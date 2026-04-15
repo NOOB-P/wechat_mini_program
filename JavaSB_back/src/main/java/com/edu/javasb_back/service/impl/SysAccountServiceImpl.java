@@ -8,13 +8,12 @@ import com.edu.javasb_back.model.entity.StudentParentBinding;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.SysRole;
 import com.edu.javasb_back.model.entity.SysStudent;
-import com.edu.javasb_back.model.entity.SysUserModule;
 import com.edu.javasb_back.model.vo.LoginVO;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysRoleRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
-import com.edu.javasb_back.repository.SysUserModuleRepository;
+import com.edu.javasb_back.service.RolePermissionService;
 import com.edu.javasb_back.service.SysAccountService;
 import com.edu.javasb_back.utils.JwtUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +24,6 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -52,10 +50,10 @@ public class SysAccountServiceImpl implements SysAccountService {
     private StudentParentBindingRepository bindingRepository;
 
     @Autowired
-    private SysUserModuleRepository sysUserModuleRepository;
+    private SysRoleRepository sysRoleRepository;
 
     @Autowired
-    private SysRoleRepository sysRoleRepository;
+    private RolePermissionService rolePermissionService;
 
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
@@ -112,7 +110,7 @@ public class SysAccountServiceImpl implements SysAccountService {
         if (!loginDTO.getRoleId().equals(account.getRoleId())) {
             return Result.error("所选角色与账号不匹配");
         }
-        if (account.getRoleId() == null || (account.getRoleId() != 1 && account.getRoleId() != 2)) {
+        if (!rolePermissionService.isBackofficeRole(account.getRoleId())) {
             return Result.error("该账号没有后台登录权限");
         }
 
@@ -344,13 +342,7 @@ public class SysAccountServiceImpl implements SysAccountService {
             }
         }
 
-        if (account.getRoleId() != null && account.getRoleId() == 2) {
-            List<String> allowedModules = sysUserModuleRepository.findByUid(account.getUid())
-                    .stream()
-                    .map(SysUserModule::getModulePath)
-                    .collect(Collectors.toList());
-            account.setAllowedModules(allowedModules);
-        }
+        enrichAccountSecurityInfo(account);
 
         return Result.success("获取成功", account);
     }
@@ -364,13 +356,7 @@ public class SysAccountServiceImpl implements SysAccountService {
 
         SysAccount account = accountOpt.get();
         checkVipExpiration(account);
-        if (account.getRoleId() != null && account.getRoleId() == 2) {
-            List<String> allowedModules = sysUserModuleRepository.findByUid(account.getUid())
-                    .stream()
-                    .map(SysUserModule::getModulePath)
-                    .collect(Collectors.toList());
-            account.setAllowedModules(allowedModules);
-        }
+        enrichAccountSecurityInfo(account);
         return Result.success("获取成功", account);
     }
 
@@ -873,13 +859,7 @@ public class SysAccountServiceImpl implements SysAccountService {
         checkVipExpiration(account);
         accountRepository.updateLoginStatusSql(account.getUid(), "online");
 
-        if (account.getRoleId() != null && account.getRoleId() == 2) {
-            List<String> allowedModules = sysUserModuleRepository.findByUid(account.getUid())
-                    .stream()
-                    .map(SysUserModule::getModulePath)
-                    .collect(Collectors.toList());
-            account.setAllowedModules(allowedModules);
-        }
+        enrichAccountSecurityInfo(account);
 
         String username = StringUtils.hasText(account.getUsername()) ? account.getUsername() : "uid_" + account.getUid();
         String token = jwtUtils.generateToken(account.getUid(), username, account.getRoleId());
@@ -887,6 +867,19 @@ public class SysAccountServiceImpl implements SysAccountService {
         boolean isBoundStudent = account.getIsBoundStudent() != null && account.getIsBoundStudent() == 1;
 
         LoginVO loginVO = new LoginVO(token, refreshToken, account, isBoundStudent);
+        loginVO.setPermissions(account.getPermissions());
         return Result.success("登录成功", loginVO);
+    }
+
+    private void enrichAccountSecurityInfo(SysAccount account) {
+        if (account == null || account.getRoleId() == null) {
+            return;
+        }
+
+        sysRoleRepository.findById(account.getRoleId()).ifPresent(role -> {
+            account.setRoleCode(role.getRoleCode());
+            account.setRoleName(role.getRoleName());
+        });
+        account.setPermissions(rolePermissionService.getPermissionCodesByRoleId(account.getRoleId()));
     }
 }

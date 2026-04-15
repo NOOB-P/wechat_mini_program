@@ -3,12 +3,12 @@
     <el-card shadow="never">
       <template #header>
         <div class="flex justify-between items-center">
-          <span class="font-bold">内容管理 - 权限分配</span>
+          <span class="font-bold">角色权限管理</span>
           <div class="flex gap-4">
-            <el-input 
-              v-model="searchForm.userName" 
-              placeholder="请输入用户名" 
-              style="width: 200px"
+            <el-input
+              v-model="searchForm.roleName"
+              placeholder="请输入角色名称"
+              style="width: 220px"
               clearable
               @keyup.enter="handleSearch"
             />
@@ -18,30 +18,21 @@
       </template>
 
       <el-table :data="tableData" border v-loading="loading" style="width: 100%">
-        <el-table-column prop="userName" label="用户名" width="120" />
-        <el-table-column prop="nickName" label="昵称" width="120" />
-        <el-table-column label="所属角色" width="150">
-          <template #default="{ row }">
-            <el-tag v-for="role in row.userRoles" :key="role" class="mr-1">{{ role }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="已分配模块" min-width="300">
+        <el-table-column prop="roleName" label="角色名称" width="180" />
+        <el-table-column prop="roleCode" label="角色编码" width="180" />
+        <el-table-column prop="description" label="描述" min-width="220" />
+        <el-table-column label="已分配权限" min-width="360">
           <template #default="{ row }">
             <div class="flex flex-wrap gap-2">
-              <el-tag 
-                v-for="path in row.allowedModules" 
-                :key="path" 
-                type="success" 
-                effect="plain"
-              >
-                {{ getModuleTitle(path) }}
+              <el-tag v-for="code in row.permissionCodes" :key="code" type="success" effect="plain">
+                {{ getPermissionTitle(code) }}
               </el-tag>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link @click="handleEdit(row)">设置管理模块</el-button>
+            <el-button type="primary" link @click="handleEdit(row)">设置权限</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -59,25 +50,24 @@
       </div>
     </el-card>
 
-    <!-- 设置权限弹窗 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="`设置管理内容 - ${currentUser?.nickName || ''}`"
-      width="600px"
+      :title="`设置角色权限 - ${currentRole?.roleName || ''}`"
+      width="680px"
     >
       <el-form label-position="top">
-        <el-form-item label="允许访问的模块">
-          <el-checkbox-group v-model="selectedModules">
-            <el-checkbox 
-              v-for="module in allModules" 
-              :key="module.path" 
-              :label="module.path"
+        <el-form-item label="允许访问的页面">
+          <el-checkbox-group v-model="selectedPermissions">
+            <el-checkbox
+              v-for="permission in permissionOptions"
+              :key="permission.menuPermission"
+              :label="permission.menuPermission"
               class="mb-2"
-              style="width: 120px"
+              style="width: 180px"
             >
               <div class="flex items-center">
-                <ArtSvgIcon :icon="module.icon" class="mr-1" v-if="module.icon" />
-                <span>{{ module.title }}</span>
+                <ArtSvgIcon :icon="permission.icon" class="mr-1" v-if="permission.icon" />
+                <span>{{ permission.title }}</span>
               </div>
             </el-checkbox>
           </el-checkbox-group>
@@ -94,19 +84,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { 
-  fetchGetAllModules, 
-  fetchGetUserPermissions, 
-  fetchUpdateUserPermissions 
+import {
+  fetchGetPermissionOptions,
+  fetchGetRolePermissions,
+  fetchUpdateRolePermissions
 } from '@/api/system/content-management'
 
 defineOptions({ name: 'ContentManagement' })
 
 const loading = ref(false)
-const tableData = ref<Api.ContentManage.UserModulePermission[]>([])
-const allModules = ref<Api.ContentManage.ModuleItem[]>([])
+const tableData = ref<Api.ContentManage.RolePermissionItem[]>([])
+const permissionOptions = ref<Api.ContentManage.PermissionOption[]>([])
 const pagination = reactive({
   current: 1,
   size: 10,
@@ -114,41 +104,32 @@ const pagination = reactive({
 })
 
 const searchForm = reactive({
-  userName: ''
+  roleName: ''
 })
 
 const dialogVisible = ref(false)
 const saveLoading = ref(false)
-const currentUser = ref<Api.ContentManage.UserModulePermission | null>(null)
-const selectedModules = ref<string[]>([])
+const currentRole = ref<Api.ContentManage.RolePermissionItem | null>(null)
+const selectedPermissions = ref<string[]>([])
 
-/**
- * 获取模块名称
- */
-const getModuleTitle = (path: string) => {
-  return allModules.value.find(m => m.path === path)?.title || path
+const getPermissionTitle = (code: string) => {
+  return permissionOptions.value.find(item => item.menuPermission === code)?.title || code
 }
 
-/**
- * 获取模块列表
- */
-const getAllModules = async () => {
-  const res = await fetchGetAllModules()
+const loadPermissionOptions = async () => {
+  const res = await fetchGetPermissionOptions()
   if (res) {
-    allModules.value = res
+    permissionOptions.value = res
   }
 }
 
-/**
- * 加载列表数据
- */
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await fetchGetUserPermissions({
+    const res = await fetchGetRolePermissions({
       current: pagination.current,
       size: pagination.size,
-      userName: searchForm.userName
+      roleName: searchForm.roleName
     })
     if (res) {
       tableData.value = res.records
@@ -161,48 +142,33 @@ const loadData = async () => {
   }
 }
 
-/**
- * 搜索
- */
 const handleSearch = () => {
   pagination.current = 1
   loadData()
 }
 
-/**
- * 修改页码
- */
 const handleCurrentChange = (val: number) => {
   pagination.current = val
   loadData()
 }
 
-/**
- * 修改每页条数
- */
 const handleSizeChange = (val: number) => {
   pagination.size = val
   loadData()
 }
 
-/**
- * 编辑
- */
-const handleEdit = (row: Api.ContentManage.UserModulePermission) => {
-  currentUser.value = row
-  selectedModules.value = [...row.allowedModules]
+const handleEdit = (row: Api.ContentManage.RolePermissionItem) => {
+  currentRole.value = row
+  selectedPermissions.value = [...(row.permissionCodes || [])]
   dialogVisible.value = true
 }
 
-/**
- * 保存
- */
 const handleSave = async () => {
-  if (!currentUser.value) return
-  
+  if (!currentRole.value) return
+
   saveLoading.value = true
   try {
-    await fetchUpdateUserPermissions(currentUser.value.uid, selectedModules.value)
+    await fetchUpdateRolePermissions(currentRole.value.id, selectedPermissions.value)
     ElMessage.success('保存成功')
     dialogVisible.value = false
     loadData()
@@ -214,8 +180,8 @@ const handleSave = async () => {
   }
 }
 
-onMounted(() => {
-  getAllModules()
+onMounted(async () => {
+  await loadPermissionOptions()
   loadData()
 })
 </script>
@@ -224,6 +190,7 @@ onMounted(() => {
 .page-container {
   padding: 20px;
 }
+
 .dialog-footer {
   padding-top: 20px;
 }

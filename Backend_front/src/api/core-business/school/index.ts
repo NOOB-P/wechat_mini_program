@@ -22,6 +22,12 @@ export function fetchGetSchoolList(params?: { current?: number, size?: number, k
   })
 }
 
+/** 获取学校选项列表 */
+export function fetchGetSchoolOptions() {
+  return api.get<any>({
+    url: '/api/system/school/options'
+  })
+}
 /** 新增学校 */
 export function fetchAddSchool(params: { province: string, city: string, name: string }) {
   return api.post<any>({

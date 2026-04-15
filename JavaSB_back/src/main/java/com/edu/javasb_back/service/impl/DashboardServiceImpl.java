@@ -54,20 +54,10 @@ public class DashboardServiceImpl implements DashboardService {
         log.info("Dashboard stats source: user={}, school={}, course={}, paper={}", 
                 userCount, schoolCount, courseCount, paperCount);
 
-        // 修复 Issue1: 只要有任意真实数据，就完全使用真实值，否则使用 Mock
-        boolean useMock = (userCount == 0 && schoolCount == 0 && courseCount == 0 && paperCount == 0);
-        
-        if (useMock) {
-            stats.add(createStatItem("平台总注册用户 (Mock)", 12580, "12%", "up", "User", "blue"));
-            stats.add(createStatItem("总入驻学校 (Mock)", 2456, "8%", "up", "School", "cyan"));
-            stats.add(createStatItem("平台总课程数 (Mock)", 35, "2%", "down", "Course", "indigo"));
-            stats.add(createStatItem("试卷库总量 (Mock)", 88, "5%", "up", "Paper", "blue"));
-        } else {
-            stats.add(createStatItem("平台总注册用户", userCount, "0%", "up", "User", "blue"));
-            stats.add(createStatItem("总入驻学校", schoolCount, "0%", "up", "School", "cyan"));
-            stats.add(createStatItem("平台总课程数", courseCount, "0%", "up", "Course", "indigo"));
-            stats.add(createStatItem("试卷库总量", paperCount, "0%", "up", "Paper", "blue"));
-        }
+        stats.add(createStatItem("平台总注册用户", userCount, "0%", "up", "User", "blue"));
+        stats.add(createStatItem("总入驻学校", schoolCount, "0%", "up", "School", "cyan"));
+        stats.add(createStatItem("平台总课程数", courseCount, "0%", "up", "Course", "indigo"));
+        stats.add(createStatItem("试卷库总量", paperCount, "0%", "up", "Paper", "blue"));
 
         data.put("stats", stats);
 
@@ -95,18 +85,12 @@ public class DashboardServiceImpl implements DashboardService {
         List<Integer> values = new ArrayList<>();
         
         long studentCount = studentRepository.count();
-        if (studentCount > 10) {
-            // 如果有一定量真实学生数据，模拟增长曲线（以真实数据为基准）
-            for (int i = 1; i <= 30; i++) {
-                dates.add("4/" + i);
-                values.add((int) (studentCount / 30 * i + Math.random() * 10));
-            }
-        } else {
-            // 纯 Mock
-            for (int i = 1; i <= 30; i++) {
-                dates.add("4/" + i);
-                values.add((int) (Math.random() * 100 + 150));
-            }
+        // 模拟增长曲线（以真实数据为基准分布在30天内）
+        for (int i = 1; i <= 30; i++) {
+            dates.add("4/" + i);
+            // 简单线性分布 + 随机抖动
+            int baseValue = (int) (studentCount * i / 30);
+            values.add(baseValue + (int) (Math.random() * 5));
         }
         userGrowthTrend.put("dates", dates);
         userGrowthTrend.put("values", values);
@@ -115,19 +99,15 @@ public class DashboardServiceImpl implements DashboardService {
         // 4. 用户分布 (结合会员订单数据)
         List<Map<String, Object>> userDistribution = new ArrayList<>();
         long vipCount = vipOrderRepository.count();
+        long totalUsers = accountRepository.count();
         
-        if (vipCount > 0) {
-            long total = accountRepository.count();
-            // 修复 Issue2: 显式处理 total 为 0 的除零风险，并使用浮点数计算百分比以提高精度
-            int vipPercent = (total == 0) ? 0 : (int) Math.round((double) vipCount * 100 / total);
-            userDistribution.add(createDistItem("VIP/SVIP用户", vipPercent, "#5D87FF"));
-            userDistribution.add(createDistItem("普通用户", Math.max(0, 100 - vipPercent), "#A8AAAD"));
-        } else {
-            // Mock 分布
-            userDistribution.add(createDistItem("VIP用户", 35, "#5D87FF"));
-            userDistribution.add(createDistItem("SVIP用户", 25, "#00CFE8"));
-            userDistribution.add(createDistItem("普通用户", 40, "#A8AAAD"));
-        }
+        // 计算百分比
+        int vipPercent = (totalUsers == 0) ? 0 : (int) Math.round((double) vipCount * 100 / totalUsers);
+        int commonPercent = Math.max(0, 100 - vipPercent);
+
+        userDistribution.add(createDistItem("VIP/SVIP用户", vipPercent, "#5D87FF"));
+        userDistribution.add(createDistItem("普通用户", commonPercent, "#A8AAAD"));
+        
         data.put("userDistribution", userDistribution);
 
         // 5. 今日动态 (Today's Activities)

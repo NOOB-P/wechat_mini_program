@@ -1,9 +1,10 @@
 {
   "extends": "@vue/tsconfig/tsconfig.json",
   "compilerOptions": {
-    "verbatimModuleSyntax": true,
     "sourceMap": true,
+    "strict": false,
     "noImplicitThis": true,
+    "importsNotUsedAsValues": "remove",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
@@ -12,11 +13,12 @@
     "lib": ["esnext", "dom"],
     "types": [
       "@dcloudio/types",
-      "wot-design-uni/global"
+      "node"
     ]
   },
   "exclude": ["node_modules"],
   "include": [
+    "components.d.ts",
     "src/**/*.ts",
     "src/**/*.js",
     "src/**/*.d.ts",

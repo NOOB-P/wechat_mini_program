@@ -17,7 +17,8 @@ export const paymentRoutes: AppRouteRecord = {
       component: '/payment/vip',
       meta: {
         title: '会员套餐设置',
-        keepAlive: true
+        keepAlive: true,
+        authMark: 'payment:vip:list'
       }
     },
     {
@@ -26,7 +27,8 @@ export const paymentRoutes: AppRouteRecord = {
       component: '/payment/print',
       meta: {
         title: '打印价格设置',
-        keepAlive: true
+        keepAlive: true,
+        authMark: 'payment:print:list'
       }
     }
   ]

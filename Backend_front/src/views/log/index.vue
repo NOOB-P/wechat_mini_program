@@ -127,9 +127,9 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
 
   const loading = ref(false)
-  const logList = ref([])
+  const logList = ref<any[]>([])
   const total = ref(0)
-  const selectedIds = ref([])
+  const selectedIds = ref<number[]>([])
   const open = ref(false)
   const form = ref<any>({})
 

@@ -10,6 +10,7 @@ import { systemRoutes } from './system'
 import { logRoutes } from './log'
 import { resultRoutes } from './result'
 import { exceptionRoutes } from './exception'
+import type { AppRouteRecord } from '@/types/router'
 
 /**
  * 导出所有模块化路由

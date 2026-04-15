@@ -8,6 +8,12 @@ export const getClassList = (params?: any) => {
   })
 }
 
+export const getClassOptions = (schoolId: string) => {
+  return api.get<any>({
+    url: '/api/system/class/options',
+    params: { schoolId }
+  })
+}
 export const addClass = (data: any) => {
   return api.post<any>({
     url: '/api/system/class/add',

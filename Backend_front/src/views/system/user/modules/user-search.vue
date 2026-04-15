@@ -9,33 +9,20 @@
       </el-form-item>
       <el-form-item label="用户类型">
         <el-select v-model="formModel.roleId" placeholder="请选择类型" clearable style="width: 150px">
-          <el-option label="管理员" value="1" />
-          <el-option label="学校" value="2" />
-          <el-option label="家长" value="3" />
-          <el-option label="学生" value="4" />
+          <el-option v-for="role in roles" :key="role.id" :label="role.roleName" :value="role.id" />
         </el-select>
       </el-form-item>
 
-      <!-- 联动显示学校和班级筛选 -->
-      <template v-if="formModel.roleId === '3' || formModel.roleId === '4'">
+      <!-- 联动显示学校和班级筛选 (仅针对家长角色) -->
+      <template v-if="isParent">
         <el-form-item label="学校">
-          <el-select v-model="formModel.schoolName" placeholder="请选择学校" clearable style="width: 180px">
-            <el-option
-              v-for="school in schoolOptions"
-              :key="school.id"
-              :label="school.name"
-              :value="school.name"
-            />
+          <el-select v-model="formModel.schoolId" placeholder="请选择学校" clearable style="width: 180px" @change="handleSchoolChange">
+            <el-option v-for="school in schools" :key="school.id" :label="school.name" :value="school.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="班级">
-          <el-select v-model="formModel.className" placeholder="请选择班级" clearable style="width: 150px">
-            <el-option
-              v-for="item in classOptions"
-              :key="item.id"
-              :label="`${item.grade} / ${item.alias}`"
-              :value="item.alias"
-            />
+          <el-select v-model="formModel.classId" placeholder="请选择班级" clearable style="width: 150px" :disabled="!formModel.schoolId">
+            <el-option v-for="cls in classes" :key="cls.id" :label="cls.name" :value="cls.id" />
           </el-select>
         </el-form-item>
       </template>
@@ -49,79 +36,81 @@
 </template>
 
 <script setup lang="ts">
-  import { watch, onMounted, ref } from 'vue'
-  import { fetchGetAllSchools } from '@/api/core-business/school'
-  import { getClassList } from '@/api/core-business/sys-class'
+  import { reactive, watch, ref, onMounted, computed } from 'vue'
+  import { fetchGetRoleOptions } from '@/api/system/role'
+  import { fetchGetSchoolOptions } from '@/api/core-business/school'
+  import { getClassOptions } from '@/api/core-business/sys-class'
+
+  const props = defineProps<{
+    modelValue: any
+  }>()
 
   interface Emits {
+    (e: 'update:modelValue', value: any): void
     (e: 'search', params: any): void
     (e: 'reset'): void
   }
 
   const emit = defineEmits<Emits>()
 
-  const formModel = defineModel<any>({
-    default: () => ({
-      userName: '',
-      userPhone: '',
-      roleId: '',
-      schoolName: '',
-      className: ''
-    })
-  })
+  const formModel = reactive({ ...props.modelValue })
 
-  // 学校选项
-  const schoolOptions = ref<any[]>([])
-  // 班级选项
-  const classOptions = ref<any[]>([])
-
-  const getSchools = async () => {
-    try {
-      const res = await fetchGetAllSchools()
-      // res 已经是后端 Result.data.data 的内容（即学校数组）
-      schoolOptions.value = res || []
-    } catch (error) {
-      console.error('获取学校列表失败:', error)
-    }
-  }
-
-  const getClasses = async (schoolName: string) => {
-    if (!schoolName) {
-      classOptions.value = []
-      return
-    }
-    const school = schoolOptions.value.find((s) => s.name === schoolName)
-    if (!school) return
-
-    try {
-      const res = await getClassList({ schoolId: school.schoolId, size: 1000 })
-      // res 已经是后端 Result.data.data 的内容（即包含 records 的分页对象）
-      classOptions.value = res?.records || []
-    } catch (error) {
-      console.error('获取班级列表失败:', error)
-    }
-  }
-
-  onMounted(() => {
-    getSchools()
-  })
-
-  // 当选择学校变化时，获取班级列表
+  // 监听外部 modelValue 的变化
   watch(
-    () => formModel.value.schoolName,
+    () => props.modelValue,
     (val) => {
-      formModel.value.className = ''
-      getClasses(val)
-    }
+      Object.assign(formModel, val)
+    },
+    { deep: true }
   )
 
-  // 当切换用户类型时，如果不是家长或学生，清空学校和班级筛选
+  // 监听内部 formModel 的变化并更新外部
   watch(
-    () => formModel.value.roleId,
+    formModel,
     (val) => {
-      if (val !== '3' && val !== '4') {
-        formModel.value.schoolName = ''
-        formModel.value.className = ''
+      emit('update:modelValue', val)
+    },
+    { deep: true }
+  )
+
+  const roles = ref<any[]>([])
+  const schools = ref<any[]>([])
+  const classes = ref<any[]>([])
+
+  // 计算当前选中的角色是否是家长
+  const isParent = computed(() => {
+    if (!formModel.roleId) return false
+    const role = roles.value.find((r) => r.id === formModel.roleId)
+    return role?.roleCode === 'parent'
+  })
+
+  // 加载角色和学校选项
+  onMounted(async () => {
+    const [roleRes, schoolRes] = await Promise.all([fetchGetRoleOptions(), fetchGetSchoolOptions()])
+    if (roleRes.code === 200) roles.value = roleRes.data
+    if (schoolRes.code === 200) schools.value = schoolRes.data
+  })
+
+  // 学校切换时加载班级
+  const handleSchoolChange = async (schoolId: string) => {
+    formModel.classId = ''
+    classes.value = []
+    if (schoolId) {
+      const res = await getClassOptions(schoolId)
+      if (res.code === 200) {
+        classes.value = res.data
+      }
+    }
+  }
+
+  // 当切换用户类型时，如果不是家长，清空学校和班级筛选
+  watch(
+    () => isParent.value,
+    (val) => {
+      if (!val) {
+        formModel.schoolId = ''
+        formModel.classId = ''
+        classes.value = []
       }
     }
   )
@@ -131,9 +120,12 @@
   }
 
   const handleReset = () => {
-    Object.keys(formModel.value).forEach((key) => {
-      ;(formModel.value as any)[key] = ''
-    })
+    formModel.userName = ''
+    formModel.userPhone = ''
+    formModel.roleId = null
+    formModel.schoolId = ''
+    formModel.classId = ''
+    classes.value = []
     emit('reset')
   }
 </script>

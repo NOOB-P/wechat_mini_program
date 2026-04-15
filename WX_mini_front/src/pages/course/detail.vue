@@ -58,17 +58,15 @@
         <wd-tab title="课程大纲" name="outline">
           <view class="outline-content">
             <view class="chapter-container" v-for="(chapter, cIndex) in chapters" :key="cIndex">
-              <!-- 章节标题 -->
               <view class="chapter-header">
                 <text class="chapter-index">第 {{ cIndex + 1 }} 讲</text>
                 <text class="chapter-name">{{ chapter.title }}</text>
               </view>
               
-              <!-- 章节下的视频列表 -->
               <view class="video-list">
-                <view 
-                  class="video-item" 
-                  v-for="(video, vIndex) in chapter.videoList" 
+                <view
+                  class="video-item"
+                  v-for="(video, vIndex) in chapter.videoList"
                   :key="vIndex"
                   :class="{ 'is-playing': currentChapter === cIndex && currentVideoIndex === vIndex }"
                   @click="playVideo(cIndex, vIndex)"
@@ -82,11 +80,10 @@
                   </view>
                 </view>
                 
-                <!-- 兼容旧数据或单视频章节 -->
-                <view 
+                <view
                   v-if="(!chapter.videoList || chapter.videoList.length === 0) && chapter.videoUrl"
                   class="video-item"
-                  :class="{ 'is-playing': currentChapter === cIndex }"
+                  :class="{ 'is-playing': currentChapter === cIndex && currentVideoIndex === -1 }"
                   @click="playChapter(cIndex)"
                 >
                   <view class="video-info">
@@ -94,7 +91,7 @@
                     <text class="v-title">完整视频</text>
                   </view>
                   <view class="v-status">
-                    <text>{{ currentChapter === cIndex ? '播放中' : '去学习' }}</text>
+                    <text>{{ (currentChapter === cIndex && currentVideoIndex === -1) ? '播放中' : '去学习' }}</text>
                   </view>
                 </view>
               </view>
@@ -136,8 +133,8 @@ const currentTab = ref('intro')
 const isCollected = ref(false)
 const isPurchased = ref(false)
 const currentChapter = ref(0)
-const currentVideoIndex = ref(0)
 const chapters = ref<any[]>([])
+const currentVideoIndex = ref(-1)
 
 const loadCourseDetail = async (id: string) => {
   try {
@@ -170,6 +167,9 @@ const loadCourseDetail = async (id: string) => {
       // 处理主封面
       if (data.cover && !data.cover.startsWith('http')) {
         data.cover = __VITE_SERVER_BASEURL__ + data.cover
+      }
+      if (data.videoUrl && !data.videoUrl.startsWith('http')) {
+        data.videoUrl = __VITE_SERVER_BASEURL__ + data.videoUrl
       }
       
       courseInfo.value = data
@@ -279,6 +279,10 @@ const playChapter = (index: number) => {
   currentChapter.value = index
   currentVideoIndex.value = -1 // 标记为播放章节主视频
   const selectedChapter = chapters.value[index]
+  if (selectedChapter.videoList && selectedChapter.videoList.length > 0) {
+    playVideo(index, 0)
+    return
+  }
   if (selectedChapter.videoUrl) {
     courseInfo.value.videoUrl = selectedChapter.videoUrl
     toast.show(`正在播放：${selectedChapter.title}`)

@@ -16,7 +16,8 @@ export const supportInteractionRoutes: AppRouteRecord = {
       name: 'FaqManage',
       component: '/support-interaction/faq',
       meta: {
-        title: 'FAQ 管理'
+        title: 'FAQ 管理',
+        authMark: 'support:faq:list'
       }
     },
     {
@@ -24,7 +25,8 @@ export const supportInteractionRoutes: AppRouteRecord = {
       name: 'WechatConfig',
       component: '/support-interaction/wechat',
       meta: {
-        title: '微信群二维码'
+        title: '微信群二维码',
+        authMark: 'support:wechat:list'
       }
     }
   ]

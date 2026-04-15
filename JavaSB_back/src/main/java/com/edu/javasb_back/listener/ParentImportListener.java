@@ -28,9 +28,12 @@ public class ParentImportListener extends AnalysisEventListener<ParentImportDTO>
 
     @Override
     public void invoke(ParentImportDTO data, AnalysisContext context) {
-        if (isEmpty(data.getUsername()) || isEmpty(data.getNickname()) || isEmpty(data.getPhone())) {
-            throw new ExcelAnalysisException("含有空数据：用户名、昵称、手机号为必填项");
+        // 如果是说明行，跳过
+        if (data.getUsername() != null && data.getUsername().contains("说明：")) {
+            return;
         }
+        
+        // 不再直接抛出异常，让 Controller 处理空数据并记录到跳过明细中
         list.add(data);
     }
 

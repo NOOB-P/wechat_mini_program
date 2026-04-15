@@ -7,6 +7,7 @@ import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import com.edu.javasb_back.service.ExamProjectService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,6 +21,7 @@ public class ExamProjectController {
     private ExamProjectService examProjectService;
 
     @LogOperation("获取考试项目列表")
+    @PreAuthorize("hasAuthority('exam:project:list')")
     @GetMapping("/list")
     public Result<Map<String, Object>> getProjectList(
             @RequestParam(defaultValue = "1") int current,
@@ -29,36 +31,42 @@ public class ExamProjectController {
     }
 
     @LogOperation("获取考试项目创建配置")
+    @PreAuthorize("hasAuthority('exam:project:options')")
     @GetMapping("/options")
     public Result<Map<String, Object>> getProjectOptions() {
         return examProjectService.getProjectOptions();
     }
 
     @LogOperation("新增考试项目")
+    @PreAuthorize("hasAuthority('exam:project:add')")
     @PostMapping("/add")
     public Result<Void> addProject(@RequestBody ExamProjectSaveDTO project) {
         return examProjectService.addProject(project);
     }
 
     @LogOperation("更新考试项目")
+    @PreAuthorize("hasAuthority('exam:project:edit')")
     @PutMapping("/edit")
     public Result<Void> updateProject(@RequestBody ExamProjectSaveDTO project) {
         return examProjectService.updateProject(project);
     }
 
     @LogOperation("删除考试项目")
+    @PreAuthorize("hasAuthority('exam:project:delete')")
     @DeleteMapping("/delete/{id}")
     public Result<Void> deleteProject(@PathVariable String id) {
         return examProjectService.deleteProject(id);
     }
 
     @LogOperation("获取考试项目详情")
+    @PreAuthorize("hasAuthority('exam:project:detail')")
     @GetMapping("/detail/{id}")
     public Result<Map<String, Object>> getProjectDetail(@PathVariable String id) {
         return examProjectService.getProjectDetail(id);
     }
 
     @LogOperation("获取考试项目考生列表")
+    @PreAuthorize("hasAuthority('exam:project:students')")
     @GetMapping("/students")
     public Result<Map<String, Object>> getProjectStudents(
             @RequestParam String projectId,
@@ -71,12 +79,14 @@ public class ExamProjectController {
     }
 
     @LogOperation("获取考试项目成绩概览")
+    @PreAuthorize("hasAuthority('exam:project:score-summary')")
     @GetMapping("/scores/summary")
     public Result<Map<String, Object>> getProjectScoreSummary(@RequestParam String projectId) {
         return examProjectService.getProjectScoreSummary(projectId);
     }
 
     @LogOperation("获取考试项目成绩列表")
+    @PreAuthorize("hasAuthority('exam:project:score-list')")
     @GetMapping("/scores/list")
     public Result<Map<String, Object>> getProjectScoreList(
             @RequestParam String projectId,
@@ -98,12 +108,14 @@ public class ExamProjectController {
     }
 
     @LogOperation("下载成绩导入模板")
+    @PreAuthorize("hasAuthority('exam:project:score-template')")
     @GetMapping("/scores/template")
     public void downloadScoreTemplate(HttpServletResponse response) {
         examProjectService.downloadScoreTemplate(response);
     }
 
     @LogOperation("导入成绩")
+    @PreAuthorize("hasAuthority('exam:project:score-import')")
     @PostMapping("/scores/import")
     public Result<Void> importScores(
             @RequestParam String projectId,
@@ -113,6 +125,7 @@ public class ExamProjectController {
     }
 
     @LogOperation("批量导入试卷")
+    @PreAuthorize("hasAuthority('exam:project:paper-import')")
     @PostMapping("/papers/import")
     public Result<Void> importAnswerSheets(
             @RequestParam String projectId,
@@ -122,6 +135,7 @@ public class ExamProjectController {
     }
 
     @LogOperation("上传单个试卷")
+    @PreAuthorize("hasAuthority('exam:project:paper-upload')")
     @PostMapping("/papers/upload")
     public Result<String> uploadAnswerSheet(
             @RequestParam String projectId,
@@ -156,6 +170,7 @@ public class ExamProjectController {
     }
 
     @LogOperation("保存单个学生成绩")
+    @PreAuthorize("hasAuthority('exam:project:score-save')")
     @PostMapping("/scores/save")
     public Result<Void> saveStudentScore(
             @RequestParam String projectId,

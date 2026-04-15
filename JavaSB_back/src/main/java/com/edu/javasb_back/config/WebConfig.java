@@ -20,21 +20,20 @@ public class WebConfig implements WebMvcConfigurer {
         // 将 /uploads/** 映射到本地磁盘路径
         String uploadDir = globalConfigProperties.getUploadDir();
         String paperDir = globalConfigProperties.getPaperDir();
+        String uploadRootDir = resolveUploadRootDir(uploadDir);
         String coverDir = globalConfigProperties.getCourseCoverDir();
         String videoDir = globalConfigProperties.getCourseVideoDir();
-        
-        // 确保所有上传目录都已映射
+
+        registerResourceHandler(registry, "/uploads/code/**", uploadDir);
         registerResourceHandler(registry, "/uploads/papers/**", paperDir);
         registerResourceHandler(registry, "/uploads/course/cover/**", coverDir);
         registerResourceHandler(registry, "/uploads/course/video/**", videoDir);
-        
-        // 兼容 /static/uploads/** 这种老路径映射
+
         registerResourceHandler(registry, "/static/uploads/course/cover/**", coverDir);
         registerResourceHandler(registry, "/static/uploads/course/video/**", videoDir);
-        
-        // 通用映射
-        registerResourceHandler(registry, "/uploads/**", resolveUploadRootDir(uploadDir), paperDir, coverDir, videoDir);
-        registerResourceHandler(registry, "/static/uploads/**", resolveUploadRootDir(uploadDir), paperDir, coverDir, videoDir);
+
+        registerResourceHandler(registry, "/uploads/**", uploadRootDir, uploadDir, paperDir, coverDir, videoDir);
+        registerResourceHandler(registry, "/static/uploads/**", uploadRootDir, uploadDir, paperDir, coverDir, videoDir);
 
         // 将 /static/** 映射到 classpath 下的 static 目录
         registry.addResourceHandler("/static/**")

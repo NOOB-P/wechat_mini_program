@@ -1,6 +1,11 @@
 package com.edu.javasb_back.model.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -9,7 +14,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * VIP/SVIP购买订单表
+ * VIP/SVIP 订单表
  */
 @Data
 @Entity
@@ -32,19 +37,22 @@ public class VipOrder {
     private String userPhone;
 
     @Column(name = "package_type", nullable = false, length = 50)
-    private String packageType; // VIP基础版/SVIP专业版
+    private String packageType;
 
     @Column(nullable = false, length = 50)
-    private String period; // 月包/季包/年包
+    private String period;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
     @Column(name = "payment_status")
-    private Integer paymentStatus = 0; // 0-待支付, 1-已支付, 2-已退款
+    private Integer paymentStatus = 0;
 
     @Column(name = "payment_method", length = 50)
-    private String paymentMethod; // 微信/支付宝
+    private String paymentMethod;
+
+    @Column(name = "source_type", nullable = false, length = 50)
+    private String sourceType = "ONLINE_PURCHASE";
 
     @CreationTimestamp
     @Column(name = "create_time", updatable = false)
@@ -54,25 +62,107 @@ public class VipOrder {
     @Column(name = "update_time")
     private LocalDateTime updateTime;
 
-    // 手动添加 Getter/Setter 解决部分环境 Lombok 未生效问题
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getOrderNo() { return orderNo; }
-    public void setOrderNo(String orderNo) { this.orderNo = orderNo; }
-    public Long getUserUid() { return userUid; }
-    public void setUserUid(Long userUid) { this.userUid = userUid; }
-    public String getUserName() { return userName; }
-    public void setUserName(String userName) { this.userName = userName; }
-    public String getUserPhone() { return userPhone; }
-    public void setUserPhone(String userPhone) { this.userPhone = userPhone; }
-    public String getPackageType() { return packageType; }
-    public void setPackageType(String packageType) { this.packageType = packageType; }
-    public String getPeriod() { return period; }
-    public void setPeriod(String period) { this.period = period; }
-    public BigDecimal getPrice() { return price; }
-    public void setPrice(BigDecimal price) { this.price = price; }
-    public Integer getPaymentStatus() { return paymentStatus; }
-    public void setPaymentStatus(Integer paymentStatus) { this.paymentStatus = paymentStatus; }
-    public String getPaymentMethod() { return paymentMethod; }
-    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getOrderNo() {
+        return orderNo;
+    }
+
+    public void setOrderNo(String orderNo) {
+        this.orderNo = orderNo;
+    }
+
+    public Long getUserUid() {
+        return userUid;
+    }
+
+    public void setUserUid(Long userUid) {
+        this.userUid = userUid;
+    }
+
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
+
+    public String getUserPhone() {
+        return userPhone;
+    }
+
+    public void setUserPhone(String userPhone) {
+        this.userPhone = userPhone;
+    }
+
+    public String getPackageType() {
+        return packageType;
+    }
+
+    public void setPackageType(String packageType) {
+        this.packageType = packageType;
+    }
+
+    public String getPeriod() {
+        return period;
+    }
+
+    public void setPeriod(String period) {
+        this.period = period;
+    }
+
+    public BigDecimal getPrice() {
+        return price;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.price = price;
+    }
+
+    public Integer getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(Integer paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(String sourceType) {
+        this.sourceType = sourceType;
+    }
+
+    public LocalDateTime getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(LocalDateTime createTime) {
+        this.createTime = createTime;
+    }
+
+    public LocalDateTime getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(LocalDateTime updateTime) {
+        this.updateTime = updateTime;
+    }
 }

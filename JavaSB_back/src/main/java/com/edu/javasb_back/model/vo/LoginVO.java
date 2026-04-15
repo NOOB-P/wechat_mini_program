@@ -11,6 +11,7 @@ public class LoginVO {
     private Boolean isBoundStudent;
     private Boolean needBind;
     private String openid;
+    private java.util.List<String> permissions;
 
     public LoginVO() {}
 
@@ -73,5 +74,13 @@ public class LoginVO {
 
     public void setOpenid(String openid) {
         this.openid = openid;
+    }
+
+    public java.util.List<String> getPermissions() {
+        return permissions;
+    }
+
+    public void setPermissions(java.util.List<String> permissions) {
+        this.permissions = permissions;
     }
 }

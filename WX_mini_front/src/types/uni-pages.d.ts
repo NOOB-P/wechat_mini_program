@@ -31,6 +31,7 @@ interface NavigateToOptions {
        "/pages/service/index" |
        "/pages/vip/index" |
        "/pages/vip/recharge" |
+       "/pages/vip/school-status" |
        "/pages/mine/settings/index";
 }
 interface RedirectToOptions extends NavigateToOptions {}

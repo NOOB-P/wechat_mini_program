@@ -8,6 +8,12 @@ export function fetchGetRoleList(params: Api.SystemManage.RoleSearchParams) {
   })
 }
 
+/** 获取角色选项列表 (排除学生) */
+export function fetchGetRoleOptions() {
+  return api.get<any>({
+    url: '/api/system/role/options'
+  })
+}
 /** 新增角色 */
 export function fetchAddRole(params: any) {
   return Promise.resolve({

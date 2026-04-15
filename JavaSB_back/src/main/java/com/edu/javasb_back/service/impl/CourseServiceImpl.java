@@ -19,7 +19,6 @@ import com.edu.javasb_back.model.entity.CourseEpisode;
 import com.edu.javasb_back.model.entity.CourseVideo;
 import com.edu.javasb_back.repository.CourseEpisodeRepository;
 import com.edu.javasb_back.repository.CourseVideoRepository;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;

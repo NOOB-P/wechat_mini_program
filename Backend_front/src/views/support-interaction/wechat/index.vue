@@ -126,7 +126,7 @@ const saving = ref(false)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
-const configList = ref([])
+const configList = ref<any[]>([])
 
 const form = ref({
   id: undefined,

@@ -63,7 +63,6 @@ public class GlobalConfigProperties {
 
     public String getCourseVideoDir() { return courseVideoDir; }
     public void setCourseVideoDir(String courseVideoDir) { this.courseVideoDir = courseVideoDir; }
-
     public String getPaperDir() { return paperDir; }
     public void setPaperDir(String paperDir) { this.paperDir = paperDir; }
 

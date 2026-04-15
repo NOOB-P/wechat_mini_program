@@ -24,4 +24,6 @@ public interface VipService {
      * 提交打印订单
      */
     Result<Void> submitPrintOrder(Long uid, Map<String, Object> orderData);
+
+    Result<Map<String, Object>> getRechargeDisplayConfig(Long uid);
 }

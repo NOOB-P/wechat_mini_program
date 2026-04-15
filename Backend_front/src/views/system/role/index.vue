@@ -25,7 +25,7 @@
       <!-- 表格 -->
       <ArtTable
         :loading="loading"
-        :data="data"
+        :data="data as any"
         :columns="columns"
         :pagination="pagination"
         @pagination:size-change="handleSizeChange"
@@ -131,7 +131,7 @@
           prop: 'status',
           label: '角色状态',
           width: 100,
-          formatter: (row) => {
+          formatter: (row: any) => {
             const statusConfig = row.status === 1
               ? { type: 'success', text: '启用' }
               : { type: 'warning', text: '禁用' }
@@ -153,7 +153,7 @@
           label: '操作',
           width: 80,
           fixed: 'right',
-          formatter: (row) =>
+          formatter: (row: any) =>
             h('div', [
               h(ArtButtonMore, {
                 list: [
@@ -174,7 +174,7 @@
                     color: '#f56c6c'
                   }
                 ],
-                onClick: (item: ButtonMoreItem) => buttonMoreClick(item, row)
+                onClick: (item: ButtonMoreItem) => buttonMoreClick(item, row as any)
               })
             ])
         }

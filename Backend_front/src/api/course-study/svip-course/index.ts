@@ -34,10 +34,16 @@ export function fetchChangeSvipCourseStatus(id: string, status: number) {
  */
 export function fetchSaveSvipCourse(data: any) {
   const isEdit = !!data.id
-  return request({
-    url: isEdit ? '/api/system/course/update' : '/api/system/course/add',
-    method: isEdit ? 'PUT' : 'POST',
-    data: { ...data, isSvipOnly: true }
+  const payload = { ...data, isSvipOnly: true }
+  if (isEdit) {
+    return request.put({
+      url: '/api/system/course/update',
+      data: payload
+    })
+  }
+  return request.post({
+    url: '/api/system/course/add',
+    data: payload
   })
 }
 

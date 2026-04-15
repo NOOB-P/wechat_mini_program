@@ -46,6 +46,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import type { FormInstance } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { VideoPlay } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/modules/user'
@@ -65,10 +66,18 @@ const uploadHeaders = computed(() => ({
 }))
 
 const visible = ref(false)
-const formRef = ref(null)
+const formRef = ref<FormInstance>()
 const uploading = ref(false)
 
-const form = ref({
+interface VideoForm {
+  id: string
+  episodeId: string
+  title: string
+  videoUrl: string
+  sortOrder: number
+}
+
+const form = ref<VideoForm>({
   id: '',
   episodeId: '',
   title: '',
@@ -85,7 +94,7 @@ watch(() => props.visible, (val) => {
   visible.value = val
   if (val) {
     if (props.isEdit && props.data) {
-      form.value = { ...props.data }
+      form.value = { ...form.value, ...(props.data as any) }
     } else {
       resetForm()
       form.value.episodeId = props.episodeId || ''
@@ -105,9 +114,7 @@ const resetForm = () => {
     videoUrl: '',
     sortOrder: 1
   }
-  if (formRef.value) {
-    formRef.value.resetFields()
-  }
+  formRef.value?.resetFields()
 }
 
 const handleClosed = () => {

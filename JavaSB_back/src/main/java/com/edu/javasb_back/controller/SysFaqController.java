@@ -69,7 +69,6 @@ public class SysFaqController {
         resultData.put("total", pageData.getTotalElements());
         resultData.put("current", current);
         resultData.put("size", size);
-
         return Result.success("获取成功", resultData);
     }
 

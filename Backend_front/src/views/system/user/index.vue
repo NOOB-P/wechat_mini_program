@@ -22,7 +22,7 @@
       <!-- 表格 -->
       <ArtTable
         :loading="loading"
-        :data="data"
+        :data="data as any"
         :columns="columns"
         :pagination="pagination"
         @selection-change="handleSelectionChange"
@@ -199,9 +199,9 @@
   const searchForm = ref({
     userName: '',
     userPhone: '',
-    roleId: '',
-    schoolName: '',
-    className: ''
+    roleId: null as number | null,
+    schoolId: '',
+    classId: ''
   })
 
   // 用户状态配置
@@ -258,7 +258,7 @@
           prop: 'userInfo',
           label: '用户信息',
           width: 200,
-          formatter: (row) => {
+          formatter: (row: any) => {
             const avatar = row.avatar || defaultAvatar
             return h('div', { class: 'user flex-c' }, [
               h(ElImage, {
@@ -278,7 +278,7 @@
           prop: 'userType',
           label: '角色类型',
           width: 100,
-          formatter: (row) => {
+          formatter: (row: any) => {
             // 根据接口返回的角色字典进行映射
             const roleName = roleMap.value[row.userType] || '未知角色'
             // 根据角色类型简单分配颜色（这里依然按 ID 粗略分配）
@@ -295,7 +295,7 @@
           label: 'VIP',
           width: 80,
           align: 'center',
-          formatter: (row) => {
+          formatter: (row: any) => {
             return h(
               ElTag,
               { type: row.isVip === 1 ? 'success' : 'info', effect: row.isVip === 1 ? 'dark' : 'plain' },
@@ -308,7 +308,7 @@
           label: 'SVIP',
           width: 80,
           align: 'center',
-          formatter: (row) => {
+          formatter: (row: any) => {
             return h(
               ElTag,
               { type: row.isSvip === 1 ? 'warning' : 'info', effect: row.isSvip === 1 ? 'dark' : 'plain' },
@@ -320,7 +320,7 @@
           prop: 'bindingInfo',
           label: '绑定详情',
           minWidth: 250,
-          formatter: (row) => {
+          formatter: (row: any) => {
             const info = []
             if (row.userType === '1' || row.userType === '2') {
               // 管理员和后台管理不需要绑定
@@ -356,7 +356,7 @@
           prop: 'status',
           label: '状态',
           width: 80,
-          formatter: (row) => {
+          formatter: (row: any) => {
             const statusConfig = getUserStatusConfig(row.status)
             return h(ElTag, { type: statusConfig.type }, () => statusConfig.text)
           }
@@ -372,15 +372,15 @@
           label: '操作',
           width: 120,
           fixed: 'right', // 固定列
-          formatter: (row) =>
+          formatter: (row: any) =>
             h('div', [
               h(ArtButtonTable, {
                 type: 'edit',
-                onClick: () => showDialog('edit', row)
+                onClick: () => showDialog('edit', row as any)
               }),
               h(ArtButtonTable, {
                 type: 'delete',
-                onClick: () => deleteUser(row)
+                onClick: () => deleteUser(row as any)
               })
             ])
         }
@@ -490,23 +490,41 @@
 
     parentImportLoading.value = true
     try {
-      const formData = new FormData()
-      readyFiles.forEach((file) => {
-        formData.append('files', file.raw)
-      })
-
-      const res = await fetchImportParentUsers(formData)
-      if (res && res.code === 200) {
-        ElMessage.success('导入任务已提交')
-        // 处理每个文件的状态（简化逻辑）
-        parentFileList.value.forEach((f) => {
-          if (f.status === 'ready') f.status = 'success'
+      // 逐个文件并行导入
+      const results = await Promise.allSettled(
+        readyFiles.map(async (file) => {
+          file.status = 'uploading'
+          try {
+            const formData = new FormData()
+            formData.append('file', file.raw)
+            // fetchImportParentUsers 内部使用 request，非 200 会抛出异常进入 catch
+            const res = await fetchImportParentUsers(formData)
+            
+            file.status = 'success'
+            file.errorMsg = ''
+            return { name: file.name, success: true, message: res?.message || '导入成功' }
+          } catch (error: any) {
+            file.status = 'fail'
+            file.errorMsg = error.message || '网络错误'
+            return { name: file.name, success: false, message: error.message }
+          }
         })
+      )
+
+      // 统计结果并给出提示
+      const successItems = results.filter((r: any) => r.value?.success)
+      if (successItems.length > 0) {
+        ElMessage.success(`成功导入 ${successItems.length} 个文件`)
         refreshData()
+      }
+      
+      const failItems = results.filter((r: any) => !r.value?.success)
+      if (failItems.length > 0) {
+        ElMessage.error(`${failItems.length} 个文件导入失败，请查看明细`)
       }
     } catch (error: any) {
       console.error(error)
-      ElMessage.error(error.message || '导入失败')
+      ElMessage.error('导入任务处理异常')
     } finally {
       parentImportLoading.value = false
     }

@@ -275,24 +275,10 @@ const loading = ref(false)
 const uploadLoading = ref(false)
 const submitLoading = ref(false)
 const total = ref(0)
-const paperList = ref([])
-const subjects = ref([])
+const paperList = ref<any[]>([])
+const subjects = ref<any[]>([])
 
-// 层次管理
-const currentLevel = ref(1)
-const typeData = ref([])
-const gradeData = ref([])
-const subjectData = ref([])
-
-const currentType = ref('')
-const currentTypeName = ref('')
-const currentGradeName = ref('')
-const currentSubjectName = ref('')
-
-// 用于存储用户手动新增的年级（持久化在当前会话）
-const manualGrades = reactive<Record<string, string[]>>({})
-
-const typeMap = {
+const typeMap: Record<string, string> = {
   FAMOUS: '名校试卷',
   MONTHLY: '月考试卷',
   JOINT: '联考试卷'

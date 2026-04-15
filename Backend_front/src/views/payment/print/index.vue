@@ -160,7 +160,7 @@
   import { Document, Van, Plus, Delete, InfoFilled, QuestionFilled } from '@element-plus/icons-vue'
 
   const loading = ref(false)
-  const config = reactive({
+  const config = reactive<{ paperPrices: any[]; deliveryConfigs: any[] }>({
     paperPrices: [],
     deliveryConfigs: []
   })
@@ -227,7 +227,8 @@
     try {
       // 简单校验
       if (config.deliveryConfigs.some(d => !d.name)) {
-        return ElMessage.warning('请输入配送方式名称')
+        ElMessage.warning('请输入配送方式名称')
+        return
       }
       
       loading.value = true

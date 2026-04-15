@@ -88,7 +88,13 @@ public class SysAccount {
     private String grade;
 
     @Transient
-    private java.util.List<String> allowedModules;
+    private String roleCode;
+
+    @Transient
+    private String roleName;
+
+    @Transient
+    private java.util.List<String> permissions;
 
     @Transient
     private Map<String, Object> boundStudentInfo;
@@ -112,8 +118,14 @@ public class SysAccount {
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
 
-    public java.util.List<String> getAllowedModules() { return allowedModules; }
-    public void setAllowedModules(java.util.List<String> allowedModules) { this.allowedModules = allowedModules; }
+    public String getRoleCode() { return roleCode; }
+    public void setRoleCode(String roleCode) { this.roleCode = roleCode; }
+
+    public String getRoleName() { return roleName; }
+    public void setRoleName(String roleName) { this.roleName = roleName; }
+
+    public java.util.List<String> getPermissions() { return permissions; }
+    public void setPermissions(java.util.List<String> permissions) { this.permissions = permissions; }
 
     public String getGrade() { return grade; }
     public void setGrade(String grade) { this.grade = grade; }

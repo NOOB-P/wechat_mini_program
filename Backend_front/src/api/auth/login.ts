@@ -1,22 +1,13 @@
 import api from '@/utils/http'
 import { mockLoginData } from '@/mock/auth/login'
 
-/**
- * 获取登录可选角色列表
- */
 export async function fetchGetRoles() {
   return api.get<any>({
     url: '/api/admin/auth/roles'
   })
 }
 
-/**
- * 登录接口
- * @param params 登录参数
- * @returns 登录响应
- */
 export async function fetchLogin(params: Api.Auth.LoginParams) {
-  // 连接真实后端
   return api.post<any>({
     url: '/api/admin/auth/login',
     data: {
@@ -27,9 +18,6 @@ export async function fetchLogin(params: Api.Auth.LoginParams) {
   })
 }
 
-/**
- * 更新当前用户基本信息
- */
 export async function fetchUpdateBasicInfo(uid: number, data: { nickname: string; phone: string; email: string }) {
   return api.put<any>({
     url: `/api/auth/userInfo/${uid}`,
@@ -37,9 +25,6 @@ export async function fetchUpdateBasicInfo(uid: number, data: { nickname: string
   })
 }
 
-/**
- * 修改密码
- */
 export async function fetchUpdatePassword(data: { oldPassword: string; newPassword: string }) {
   return api.put<any>({
     url: '/api/auth/password',
@@ -47,19 +32,22 @@ export async function fetchUpdatePassword(data: { oldPassword: string; newPasswo
   })
 }
 
+const mapRoleCodeToFrontendRoles = (roleCode?: string) => {
+  if (roleCode === 'super_admin') return ['R_SUPER']
+  if (roleCode === 'admin') return ['R_ADMIN']
+  if (roleCode === 'parent') return ['R_PARENT']
+  return ['R_USER']
+}
+
 export async function fetchGetUserInfo() {
-  // 从真实后端获取当前登录用户信息
-  // 拦截器返回的直接是 res.data.data 的值，所以不需要再判断 res.code
   const userInfo = await api.get<any>({
     url: '/api/auth/info'
   })
 
-  console.log('后端原始返回用户信息:', userInfo);
-  
   if (userInfo) {
-    // 为了兼容前端已有的 mock 数据结构，我们将获取到的信息与 mock 数据合并
-    // 主要是为了保留 mock 里的 roles, permissions, menus 等前端路由必须的数据
-    const mergedUserInfo = {
+    const permissions = Array.isArray(userInfo.permissions) ? userInfo.permissions : []
+
+    return {
       ...mockLoginData.admin.userInfo,
       userId: userInfo.uid,
       userName: userInfo.username,
@@ -67,11 +55,21 @@ export async function fetchGetUserInfo() {
       phone: userInfo.phone,
       userPhone: userInfo.phone,
       email: userInfo.email,
-      allowedModules: userInfo.allowedModules,
-      roles: userInfo.roleId === 1 ? ['R_SUPER'] : userInfo.roleId === 2 ? ['admin'] : ['R_USER']
+      avatar: userInfo.avatar,
+      roleCode: userInfo.roleCode,
+      permissions,
+      buttons: permissions,
+      roles: mapRoleCodeToFrontendRoles(userInfo.roleCode)
     }
-    return mergedUserInfo
   }
 
-  return mockLoginData.admin.userInfo
+  return {
+    ...mockLoginData.admin.userInfo,
+    permissions: Array.isArray((mockLoginData.admin.userInfo as any)?.permissions)
+      ? (mockLoginData.admin.userInfo as any).permissions
+      : [],
+    buttons: Array.isArray((mockLoginData.admin.userInfo as any)?.buttons)
+      ? (mockLoginData.admin.userInfo as any).buttons
+      : []
+  }
 }
