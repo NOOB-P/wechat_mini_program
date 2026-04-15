@@ -58,6 +58,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -72,6 +74,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             "语文", "数学", "英语", "物理", "化学", "生物", "政治", "历史", "地理",
             "信息技术", "体育", "科学", "通用技术", "音乐", "美术"
     );
+    private static final Pattern QUESTION_NUMBER_PATTERN = Pattern.compile("(\\d+)");
 
     @Autowired private ExamProjectRepository examProjectRepository;
     @Autowired private ExamClassRepository examClassRepository;
@@ -1339,7 +1342,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             Map<String, Object> row = new LinkedHashMap<>();
             String regionId = asString(mapValue.get("id"));
             row.put("id", StringUtils.hasText(regionId) ? regionId : id("PR"));
-            row.put("questionNo", str(asString(mapValue.get("questionNo"))));
+            row.put("questionNo", normalizeQuestionNo(asString(mapValue.get("questionNo")), index));
             row.put("questionType", str(asString(mapValue.get("questionType"))));
             row.put("knowledgePoint", str(asString(mapValue.get("knowledgePoint"))));
             row.put("score", nullableRounded(mapValue.get("score")));
@@ -1363,13 +1366,14 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         for (PaperLayoutSaveDTO.PaperRegionDTO item : regions) {
             if (item == null) continue;
             Map<String, Object> row = new LinkedHashMap<>();
+            int sortOrder = item.getSortOrder() == null ? index : item.getSortOrder();
             row.put("id", StringUtils.hasText(item.getId()) ? item.getId().trim() : id("PR"));
-            row.put("questionNo", str(item.getQuestionNo()).trim());
+            row.put("questionNo", normalizeQuestionNo(item.getQuestionNo(), sortOrder));
             row.put("questionType", str(item.getQuestionType()).trim());
             row.put("knowledgePoint", str(item.getKnowledgePoint()).trim());
             row.put("score", item.getScore() == null ? null : round(item.getScore()));
             row.put("remark", str(item.getRemark()).trim());
-            row.put("sortOrder", item.getSortOrder() == null ? index : item.getSortOrder());
+            row.put("sortOrder", sortOrder);
             row.put("x", clampRatio(item.getX()));
             row.put("y", clampRatio(item.getY()));
             row.put("width", clampRatio(item.getWidth()));
@@ -1404,6 +1408,80 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     private double round(double value) { return Math.round(value * 100D) / 100D; }
     private String str(String value) { return value == null ? "" : value; }
     private String asString(Object value) { return value == null ? "" : String.valueOf(value); }
+    private String normalizeQuestionNo(String value, int fallbackIndex) {
+        String raw = str(value).trim();
+        if (!StringUtils.hasText(raw)) {
+            return formatQuestionNo(null, fallbackIndex);
+        }
+
+        Matcher matcher = QUESTION_NUMBER_PATTERN.matcher(raw);
+        if (matcher.find()) {
+            return formatQuestionNo(parseIntSafe(matcher.group(1)), fallbackIndex);
+        }
+
+        Integer chineseNumber = parseChineseQuestionNumber(raw);
+        if (chineseNumber != null && chineseNumber > 0) {
+            return formatQuestionNo(chineseNumber, fallbackIndex);
+        }
+
+        String fallback = formatQuestionNo(null, fallbackIndex);
+        return StringUtils.hasText(fallback) ? fallback : raw;
+    }
+
+    private String formatQuestionNo(Integer number, int fallbackIndex) {
+        Integer target = number != null && number > 0 ? number : (fallbackIndex > 0 ? fallbackIndex : null);
+        return target == null ? "" : "第" + target + "题";
+    }
+
+    private Integer parseChineseQuestionNumber(String raw) {
+        String normalized = raw.replaceAll("[题号第\\s()（）【】\\[\\]、.．-]", "");
+        if (!StringUtils.hasText(normalized) || !normalized.matches("[零〇一二两三四五六七八九十百]+")) {
+            return null;
+        }
+
+        int result = 0;
+        int current = 0;
+        for (char ch : normalized.toCharArray()) {
+            if (ch == '百') {
+                result += (current == 0 ? 1 : current) * 100;
+                current = 0;
+                continue;
+            }
+            if (ch == '十') {
+                result += (current == 0 ? 1 : current) * 10;
+                current = 0;
+                continue;
+            }
+            Integer digit = chineseDigit(ch);
+            if (digit == null) {
+                return null;
+            }
+            current = digit;
+        }
+        int value = result + current;
+        return value > 0 ? value : null;
+    }
+
+    private Integer chineseDigit(char ch) {
+        return switch (ch) {
+            case '零', '〇' -> 0;
+            case '一' -> 1;
+            case '二', '两' -> 2;
+            case '三' -> 3;
+            case '四' -> 4;
+            case '五' -> 5;
+            case '六' -> 6;
+            case '七' -> 7;
+            case '八' -> 8;
+            case '九' -> 9;
+            default -> null;
+        };
+    }
+
+    private Integer parseIntSafe(String value) {
+        try { return Integer.parseInt(value); }
+        catch (Exception ignored) { return null; }
+    }
     private Double nullableRounded(Object value) {
         if (value == null || !StringUtils.hasText(String.valueOf(value))) return null;
         try { return round(Double.parseDouble(String.valueOf(value))); }

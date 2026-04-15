@@ -1,4 +1,5 @@
 import api from '@/utils/http'
+import { normalizeQuestionNo } from '@/utils/exam-utils'
 
 export interface ProjectStudentItem {
   id: string
@@ -56,6 +57,30 @@ export interface PaperRegionItem {
   y: number
   width: number
   height: number
+}
+
+export function normalizePaperRegion(
+  region: Partial<PaperRegionItem> | undefined,
+  index: number
+): PaperRegionItem {
+  const sortOrder = Number(region?.sortOrder ?? index + 1) || index + 1
+  return {
+    id: String(region?.id || ''),
+    questionNo: normalizeQuestionNo(region?.questionNo, sortOrder),
+    questionType: String(region?.questionType || '').trim(),
+    knowledgePoint: String(region?.knowledgePoint || '').trim(),
+    score: region?.score ?? null,
+    remark: String(region?.remark || '').trim(),
+    sortOrder,
+    x: Number(region?.x ?? 0),
+    y: Number(region?.y ?? 0),
+    width: Number(region?.width ?? 0),
+    height: Number(region?.height ?? 0)
+  }
+}
+
+export function normalizePaperRegions(regions?: Partial<PaperRegionItem>[] | null) {
+  return (regions || []).map((region, index) => normalizePaperRegion(region, index))
 }
 
 export function fetchProjectStudents(params: {
@@ -226,15 +251,21 @@ export function fetchUploadPublicPaper(params: {
  * 获取试卷配置
  */
 export function fetchPaperConfig(params: { projectId: string; subjectName: string }) {
-  return api.get<{
-    templateUrl: string | null
-    originalUrl: string | null
-    templateRegions: PaperRegionItem[]
-    originalRegions: PaperRegionItem[]
-  }>({
-    url: '/api/system/exam-project/papers/config',
-    params
-  })
+  return api
+    .get<{
+      templateUrl: string | null
+      originalUrl: string | null
+      templateRegions: PaperRegionItem[]
+      originalRegions: PaperRegionItem[]
+    }>({
+      url: '/api/system/exam-project/papers/config',
+      params
+    })
+    .then((res) => ({
+      ...res,
+      templateRegions: normalizePaperRegions(res.templateRegions),
+      originalRegions: normalizePaperRegions(res.originalRegions)
+    }))
 }
 
 export function fetchSavePaperLayout(params: {
@@ -245,6 +276,9 @@ export function fetchSavePaperLayout(params: {
 }) {
   return api.post<void>({
     url: '/api/system/exam-project/papers/layout/save',
-    data: params
+    data: {
+      ...params,
+      regions: normalizePaperRegions(params.regions)
+    }
   })
 }

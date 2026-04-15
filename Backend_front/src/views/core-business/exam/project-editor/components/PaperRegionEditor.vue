@@ -1,54 +1,89 @@
 <template>
-  <div class="paper-region-editor" :class="{ readonly }">
-    <div v-if="!readonly" class="editor-toolbar">
-      <div class="tool-group">
-        <el-button
-          size="small"
-          :type="tool === 'draw' ? 'primary' : 'default'"
-          @click="tool = 'draw'"
-        >
-          框选框
-        </el-button>
-        <el-button
-          size="small"
-          :type="tool === 'pan' ? 'primary' : 'default'"
-          @click="tool = 'pan'"
-        >
-          移动画布
-        </el-button>
-        <el-button
-          size="small"
-          :type="tool === 'select' ? 'primary' : 'default'"
-          @click="tool = 'select'"
-        >
-          选择题目
-        </el-button>
+  <div class="paper-region-editor" :class="{ readonly, 'no-toolbar': hideToolbar }">
+    <div v-if="!hideToolbar" class="editor-toolbar">
+      <div class="toolbar-left">
+        <el-tooltip :content="currentHintText" placement="bottom-start">
+          <button type="button" class="hint-pill">
+            <el-icon><InfoFilled /></el-icon>
+            <span>提示</span>
+          </button>
+        </el-tooltip>
+
+        <el-dropdown trigger="hover" placement="bottom-start" @command="handleToolboxCommand">
+          <el-tooltip content="将鼠标放上来，会弹出工具箱" placement="bottom">
+            <el-button size="small" class="toolbox-trigger">
+              <el-icon><Tools /></el-icon>
+              工具箱
+              <el-icon class="toolbox-arrow"><ArrowDown /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <template #dropdown>
+            <el-dropdown-menu class="toolbox-menu">
+              <el-dropdown-item command="addRegion" :disabled="readonly">
+                添加框选框
+              </el-dropdown-item>
+              <el-dropdown-item command="modifyRegion" :disabled="readonly">
+                修改框选框
+              </el-dropdown-item>
+              <el-dropdown-item command="drawMode" :disabled="readonly">框选框</el-dropdown-item>
+              <el-dropdown-item command="adjustMode" :disabled="readonly"
+                >调整框选</el-dropdown-item
+              >
+              <el-dropdown-item command="panMode">移动画布</el-dropdown-item>
+              <el-dropdown-item command="selectMode">选择题目</el-dropdown-item>
+              <el-dropdown-item command="editRegion" :disabled="!selectedRegion || readonly">
+                题目属性
+              </el-dropdown-item>
+              <el-dropdown-item command="deleteRegion" :disabled="!selectedRegion || readonly">
+                删除框选
+              </el-dropdown-item>
+              <el-dropdown-item divided command="zoomIn">放大试卷</el-dropdown-item>
+              <el-dropdown-item command="zoomOut">缩小试卷</el-dropdown-item>
+              <el-dropdown-item command="fitView">铺满视图</el-dropdown-item>
+              <el-dropdown-item command="resetView">恢复原始比例</el-dropdown-item>
+              <el-dropdown-item divided command="moveUp">向上平移</el-dropdown-item>
+              <el-dropdown-item command="moveDown">向下平移</el-dropdown-item>
+              <el-dropdown-item command="moveLeft">向左平移</el-dropdown-item>
+              <el-dropdown-item command="moveRight">向右平移</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+
+        <div class="current-tool-pill">{{ currentToolText }}</div>
+        <div class="scale-indicator">{{ scaleText }}</div>
       </div>
-      <div class="tool-actions">
-        <el-button size="small" :disabled="!selectedRegion" @click="openSelectedRegionDialog">
-          题目属性
-        </el-button>
-        <el-button size="small" :disabled="!selectedRegion" @click="deleteSelectedRegion">
-          删除框选
-        </el-button>
-        <el-button size="small" type="primary" @click="emit('save', cloneRegions(localRegions))">
-          保存坐标
-        </el-button>
+
+      <div class="toolbar-right">
+        <slot name="toolbar-extra" />
+
+        <el-tooltip v-if="showSaveAction" content="保存当前框选坐标和题目属性" placement="bottom">
+          <el-button size="small" type="primary" @click="emit('save', cloneRegions(localRegions))">
+            保存
+          </el-button>
+        </el-tooltip>
+
+        <span v-if="subjectName" class="subject-badge">{{ subjectName }}</span>
       </div>
     </div>
 
-    <div v-else class="readonly-toolbar">当前为只读预览，展示样板答题卡的框选结果</div>
-
     <div
-      ref="scrollRef"
-      class="canvas-scroll"
+      ref="viewportRef"
+      class="canvas-viewport"
       :class="[`tool-${tool}`, { readonly }]"
       @mousedown="handleStageMouseDown"
+      @wheel.prevent="handleWheelZoom"
     >
-      <div ref="stageRef" class="image-stage">
-        <img :src="imageUrl" alt="试卷标注图" class="paper-image" draggable="false" />
+      <div ref="stageRef" class="image-stage" :class="{ ready: imageLoaded }" :style="stageStyle">
+        <img
+          ref="imageRef"
+          :src="imageUrl"
+          alt="试卷标注图"
+          class="paper-image"
+          draggable="false"
+          @load="handleImageLoad"
+        />
 
-        <div class="overlay-layer">
+        <div v-if="imageLoaded" class="overlay-layer">
           <button
             v-for="region in localRegions"
             :key="region.id"
@@ -57,13 +92,23 @@
             :class="{
               selected: selectedRegionId === region.id,
               readonly,
-              incomplete: !region.questionNo
+              incomplete: !region.questionNo,
+              editable: !readonly && tool === 'adjust'
             }"
             :style="regionStyle(region)"
             @mousedown.stop="handleRegionMouseDown(region, $event)"
             @click.stop="handleRegionClick(region)"
           >
             <span class="region-label">{{ regionLabel(region) }}</span>
+            <template v-if="selectedRegionId === region.id && !readonly && tool === 'adjust'">
+              <span
+                v-for="direction in resizeDirections"
+                :key="direction"
+                class="resize-handle"
+                :class="`is-${direction}`"
+                @mousedown.stop.prevent="handleResizeHandleMouseDown(region, direction, $event)"
+              ></span>
+            </template>
           </button>
 
           <div v-if="draftRegion" class="region-box draft" :style="regionStyle(draftRegion)">
@@ -71,13 +116,8 @@
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="editor-tip">
-      <span v-if="readonly">考生原卷会复用样板答题卡的框选坐标，只能查看不能编辑。</span>
-      <span v-else-if="tool === 'draw'">拖拽创建题目框选，创建后会自动弹出题目属性设置。</span>
-      <span v-else-if="tool === 'pan'">按住鼠标拖动画布，便于查看大图不同区域。</span>
-      <span v-else>点击已有框选可编辑属性，拖动框选可微调位置。</span>
+      <div v-if="!imageLoaded" class="canvas-placeholder"> 正在加载试卷，请稍候... </div>
     </div>
 
     <el-dialog
@@ -137,20 +177,50 @@
 
 <script setup lang="ts">
   import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+  import { ArrowDown, InfoFilled, Tools } from '@element-plus/icons-vue'
+  import { ElMessage } from 'element-plus'
+  import { normalizeQuestionNo } from '@/utils/exam-utils'
   import type { PaperRegionItem } from '@/api/core-business/exam/project-editor'
 
-  type RegionTool = 'draw' | 'pan' | 'select'
-  type InteractionMode = 'draw' | 'pan' | 'move' | null
+  type RegionTool = 'draw' | 'adjust' | 'pan' | 'select'
+  type InteractionMode = 'draw' | 'pan' | 'move' | 'resize' | null
+  type ResizeDirection = 'nw' | 'ne' | 'sw' | 'se'
+  type ToolboxCommand =
+    | 'addRegion'
+    | 'modifyRegion'
+    | 'drawMode'
+    | 'adjustMode'
+    | 'panMode'
+    | 'selectMode'
+    | 'editRegion'
+    | 'deleteRegion'
+    | 'zoomIn'
+    | 'zoomOut'
+    | 'fitView'
+    | 'resetView'
+    | 'moveUp'
+    | 'moveDown'
+    | 'moveLeft'
+    | 'moveRight'
+
+  const MIN_REGION_SIZE = 0.01
+  const resizeDirections: ResizeDirection[] = ['nw', 'ne', 'sw', 'se']
 
   const props = withDefaults(
     defineProps<{
       imageUrl: string
       regions?: PaperRegionItem[]
       readonly?: boolean
+      subjectName?: string
+      showSave?: boolean
+      hideToolbar?: boolean
     }>(),
     {
       regions: () => [],
-      readonly: false
+      readonly: false,
+      subjectName: '',
+      showSave: true,
+      hideToolbar: false
     }
   )
 
@@ -159,9 +229,11 @@
     save: [value: PaperRegionItem[]]
   }>()
 
-  const scrollRef = ref<HTMLElement>()
+  const viewportRef = ref<HTMLElement>()
   const stageRef = ref<HTMLElement>()
+  const imageRef = ref<HTMLImageElement>()
   const tool = ref<RegionTool>(props.readonly ? 'select' : 'draw')
+  const imageLoaded = ref(false)
   const localRegions = ref<PaperRegionItem[]>([])
   const draftRegion = ref<PaperRegionItem | null>(null)
   const selectedRegionId = ref('')
@@ -183,15 +255,73 @@
     startY: 0,
     startClientX: 0,
     startClientY: 0,
+    startOffsetX: 0,
+    startOffsetY: 0,
     moved: false,
-    scrollLeft: 0,
-    scrollTop: 0,
-    regionId: ''
+    regionId: '',
+    resizeDirection: '' as ResizeDirection | '',
+    startRegion: {
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0
+    }
+  })
+
+  const view = reactive({
+    scale: 1,
+    minScale: 0.2,
+    maxScale: 4,
+    offsetX: 0,
+    offsetY: 0,
+    imageWidth: 0,
+    imageHeight: 0,
+    hasManualViewport: false
   })
 
   const selectedRegion = computed(
     () => localRegions.value.find((item) => item.id === selectedRegionId.value) || null
   )
+
+  const showSaveAction = computed(() => !props.readonly && props.showSave)
+  const scaleText = computed(() => `${Math.round(view.scale * 100)}%`)
+  const currentToolText = computed(() => {
+    if (tool.value === 'draw') return '当前工具: 框选框'
+    if (tool.value === 'adjust') return '当前工具: 调整框选'
+    if (tool.value === 'pan') return '当前工具: 移动画布'
+    return '当前工具: 选择题目'
+  })
+  const currentHintText = computed(() => {
+    if (props.readonly) {
+      return '当前为只读预览，可切换移动或选择模式查看框选结果，也可在工具箱里放大、缩小和平移试卷。'
+    }
+    if (tool.value === 'draw') {
+      return '按住鼠标拖拽即可创建框选区域，松开后会自动弹出题目属性设置。'
+    }
+    if (tool.value === 'adjust') {
+      return '选中框选后可直接拖动位置，拖拽四角圆点即可调整大小。'
+    }
+    if (tool.value === 'pan') {
+      return '按住鼠标即可拖动画布，也支持鼠标滚轮缩放，方便查看试卷细节。'
+    }
+    return '点击已有框选可编辑题目属性，也可以先选中再通过工具箱删除。'
+  })
+
+  const stageStyle = computed(() => ({
+    width: view.imageWidth ? `${view.imageWidth}px` : 'auto',
+    transform: `translate(${view.offsetX}px, ${view.offsetY}px) scale(${view.scale})`,
+    transformOrigin: 'top left'
+  }))
+
+  defineExpose({
+    tool,
+    scale: computed(() => view.scale),
+    handleToolboxCommand,
+    save: () => emit('save', cloneRegions(localRegions.value)),
+    selectedRegion,
+    currentHintText,
+    currentToolText
+  })
 
   watch(
     () => props.regions,
@@ -207,27 +337,43 @@
   watch(
     () => props.readonly,
     (readonly) => {
-      if (readonly) {
+      if (readonly && (tool.value === 'draw' || tool.value === 'adjust')) {
         tool.value = 'select'
       }
     },
     { immediate: true }
   )
 
+  watch(
+    () => props.imageUrl,
+    () => {
+      imageLoaded.value = false
+      view.imageWidth = 0
+      view.imageHeight = 0
+      view.scale = 1
+      view.offsetX = 0
+      view.offsetY = 0
+      view.hasManualViewport = false
+      draftRegion.value = null
+    }
+  )
+
   onMounted(() => {
     window.addEventListener('mousemove', handleWindowMouseMove)
     window.addEventListener('mouseup', handleWindowMouseUp)
+    window.addEventListener('resize', handleWindowResize)
   })
 
   onUnmounted(() => {
     window.removeEventListener('mousemove', handleWindowMouseMove)
     window.removeEventListener('mouseup', handleWindowMouseUp)
+    window.removeEventListener('resize', handleWindowResize)
   })
 
   function cloneRegions(regions: PaperRegionItem[]) {
     return (regions || []).map((item, index) => ({
       id: item.id || createRegionId(),
-      questionNo: item.questionNo || '',
+      questionNo: normalizeQuestionNo(item.questionNo, item.sortOrder ?? index + 1),
       questionType: item.questionType || '',
       knowledgePoint: item.knowledgePoint || '',
       score: item.score ?? null,
@@ -268,6 +414,17 @@
     return region.knowledgePoint ? `${prefix} | ${region.knowledgePoint}` : prefix
   }
 
+  function nextQuestionIndex() {
+    const values = localRegions.value
+      .map((item, index) => {
+        const normalized = normalizeQuestionNo(item.questionNo, item.sortOrder ?? index + 1)
+        const matched = normalized.match(/\d+/)
+        return matched ? Number(matched[0]) : 0
+      })
+      .filter((value) => value > 0)
+    return (values.length ? Math.max(...values) : 0) + 1
+  }
+
   function getRelativePoint(event: MouseEvent) {
     const rect = stageRef.value?.getBoundingClientRect()
     if (!rect || rect.width <= 0 || rect.height <= 0) return null
@@ -276,22 +433,255 @@
     return { x, y }
   }
 
+  function handleImageLoad() {
+    const img = imageRef.value
+    if (!img) return
+    view.imageWidth = img.naturalWidth || img.width
+    view.imageHeight = img.naturalHeight || img.height
+    imageLoaded.value = true
+    nextTick(() => fitView(false))
+  }
+
+  function handleWindowResize() {
+    if (!imageLoaded.value) return
+    if (view.hasManualViewport) {
+      normalizeOffsets()
+      return
+    }
+    fitView(false)
+  }
+
+  function fitView(markManual = true) {
+    if (!viewportRef.value || !view.imageWidth || !view.imageHeight) return
+
+    const viewportWidth = viewportRef.value.clientWidth
+    const viewportHeight = viewportRef.value.clientHeight
+    if (!viewportWidth || !viewportHeight) return
+
+    const padding = 56
+    const usableWidth = Math.max(viewportWidth - padding * 2, 240)
+    const usableHeight = Math.max(viewportHeight - padding * 2, 240)
+    const fitScale = Math.min(usableWidth / view.imageWidth, usableHeight / view.imageHeight)
+    const nextScale = clampScale(fitScale)
+
+    view.scale = nextScale
+    updateScaleBounds()
+    centerView()
+    view.hasManualViewport = markManual
+  }
+
+  function resetView() {
+    if (!viewportRef.value || !view.imageWidth || !view.imageHeight) return
+    view.scale = clampScale(1)
+    updateScaleBounds()
+    centerView()
+    view.hasManualViewport = true
+  }
+
+  function centerView() {
+    if (!viewportRef.value) return
+    const viewportWidth = viewportRef.value.clientWidth
+    const viewportHeight = viewportRef.value.clientHeight
+    const scaledWidth = view.imageWidth * view.scale
+    const scaledHeight = view.imageHeight * view.scale
+    view.offsetX = (viewportWidth - scaledWidth) / 2
+    view.offsetY = (viewportHeight - scaledHeight) / 2
+    normalizeOffsets()
+  }
+
+  function updateScaleBounds() {
+    const fitScale =
+      viewportRef.value && view.imageWidth && view.imageHeight
+        ? Math.min(
+            Math.max((viewportRef.value.clientWidth - 112) / view.imageWidth, 0.2),
+            Math.max((viewportRef.value.clientHeight - 112) / view.imageHeight, 0.2)
+          )
+        : 0.2
+    view.minScale = Math.max(0.15, Math.min(fitScale * 0.45, 1))
+    view.maxScale = Math.max(3.5, fitScale * 3.2)
+  }
+
+  function clampScale(value: number) {
+    updateScaleBounds()
+    return Math.min(view.maxScale, Math.max(view.minScale, Number(value.toFixed(3))))
+  }
+
+  function setScale(nextScale: number, anchor?: { x: number; y: number }) {
+    if (!viewportRef.value || !view.imageWidth || !view.imageHeight) return
+    const clampedScale = clampScale(nextScale)
+    const viewportRect = viewportRef.value.getBoundingClientRect()
+    const point = anchor || {
+      x: viewportRect.width / 2,
+      y: viewportRect.height / 2
+    }
+
+    const contentX = (point.x - view.offsetX) / view.scale
+    const contentY = (point.y - view.offsetY) / view.scale
+
+    view.scale = clampedScale
+    view.offsetX = point.x - contentX * view.scale
+    view.offsetY = point.y - contentY * view.scale
+    view.hasManualViewport = true
+    normalizeOffsets()
+  }
+
+  function normalizeOffsets() {
+    if (!viewportRef.value || !view.imageWidth || !view.imageHeight) return
+    const viewportWidth = viewportRef.value.clientWidth
+    const viewportHeight = viewportRef.value.clientHeight
+    const scaledWidth = view.imageWidth * view.scale
+    const scaledHeight = view.imageHeight * view.scale
+    const padding = 72
+
+    if (scaledWidth <= viewportWidth - padding * 2) {
+      view.offsetX = (viewportWidth - scaledWidth) / 2
+    } else {
+      const minX = viewportWidth - scaledWidth - padding
+      const maxX = padding
+      view.offsetX = Math.min(maxX, Math.max(minX, view.offsetX))
+    }
+
+    if (scaledHeight <= viewportHeight - padding * 2) {
+      view.offsetY = (viewportHeight - scaledHeight) / 2
+    } else {
+      const minY = viewportHeight - scaledHeight - padding
+      const maxY = padding
+      view.offsetY = Math.min(maxY, Math.max(minY, view.offsetY))
+    }
+  }
+
+  function nudgeViewport(dx: number, dy: number) {
+    view.offsetX += dx
+    view.offsetY += dy
+    view.hasManualViewport = true
+    normalizeOffsets()
+  }
+
+  function handleWheelZoom(event: WheelEvent) {
+    if (!imageLoaded.value || !viewportRef.value) return
+    const rect = viewportRef.value.getBoundingClientRect()
+    const anchor = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    }
+    const factor = event.deltaY < 0 ? 1.12 : 0.9
+    setScale(view.scale * factor, anchor)
+  }
+
+  function handleToolboxCommand(command: ToolboxCommand) {
+    if (command === 'addRegion' || command === 'drawMode') {
+      if (props.readonly) return
+      tool.value = 'draw'
+      return
+    }
+
+    if (command === 'adjustMode') {
+      if (props.readonly) return
+      tool.value = 'adjust'
+      return
+    }
+
+    if (command === 'panMode') {
+      tool.value = 'pan'
+      return
+    }
+
+    if (command === 'selectMode') {
+      tool.value = 'select'
+      return
+    }
+
+    if (command === 'modifyRegion') {
+      if (props.readonly) return
+      tool.value = 'adjust'
+      if (selectedRegion.value) {
+        return
+      } else {
+        ElMessage.info('请先点击一个已有框选框，再进行调整')
+      }
+      return
+    }
+
+    if (command === 'editRegion') {
+      if (!selectedRegion.value || props.readonly) {
+        ElMessage.warning('请先选择一个框选区域')
+        return
+      }
+      openSelectedRegionDialog()
+      return
+    }
+
+    if (command === 'deleteRegion') {
+      if (!selectedRegion.value || props.readonly) {
+        ElMessage.warning('请先选择一个框选区域')
+        return
+      }
+      deleteSelectedRegion()
+      return
+    }
+
+    if (command === 'zoomIn') {
+      setScale(view.scale * 1.12)
+      return
+    }
+
+    if (command === 'zoomOut') {
+      setScale(view.scale * 0.9)
+      return
+    }
+
+    if (command === 'fitView') {
+      fitView(true)
+      return
+    }
+
+    if (command === 'resetView') {
+      resetView()
+      return
+    }
+
+    if (command === 'moveUp') {
+      nudgeViewport(0, -60)
+      return
+    }
+
+    if (command === 'moveDown') {
+      nudgeViewport(0, 60)
+      return
+    }
+
+    if (command === 'moveLeft') {
+      nudgeViewport(-60, 0)
+      return
+    }
+
+    if (command === 'moveRight') {
+      nudgeViewport(60, 0)
+    }
+  }
+
   function handleStageMouseDown(event: MouseEvent) {
-    if (props.readonly || !stageRef.value) return
+    if (!imageLoaded.value || !viewportRef.value) return
 
     if (tool.value === 'pan') {
       interaction.mode = 'pan'
       interaction.startClientX = event.clientX
       interaction.startClientY = event.clientY
-      interaction.scrollLeft = scrollRef.value?.scrollLeft || 0
-      interaction.scrollTop = scrollRef.value?.scrollTop || 0
+      interaction.startOffsetX = view.offsetX
+      interaction.startOffsetY = view.offsetY
       interaction.moved = false
       event.preventDefault()
       return
     }
 
-    if (tool.value !== 'draw') return
+    if (props.readonly || tool.value !== 'draw') return
     if ((event.target as HTMLElement).closest('.region-box')) return
+    if (
+      stageRef.value &&
+      !(event.target instanceof Node && stageRef.value.contains(event.target))
+    ) {
+      return
+    }
 
     const point = getRelativePoint(event)
     if (!point) return
@@ -318,7 +708,7 @@
 
   function handleRegionMouseDown(region: PaperRegionItem, event: MouseEvent) {
     selectedRegionId.value = region.id
-    if (props.readonly || tool.value !== 'select') return
+    if (props.readonly || tool.value !== 'adjust') return
 
     const point = getRelativePoint(event)
     if (!point) return
@@ -330,7 +720,39 @@
     interaction.startClientX = event.clientX
     interaction.startClientY = event.clientY
     interaction.moved = false
+    interaction.startRegion = {
+      x: region.x,
+      y: region.y,
+      width: region.width,
+      height: region.height
+    }
     event.preventDefault()
+  }
+
+  function handleResizeHandleMouseDown(
+    region: PaperRegionItem,
+    direction: ResizeDirection,
+    event: MouseEvent
+  ) {
+    if (props.readonly || tool.value !== 'adjust') return
+    const point = getRelativePoint(event)
+    if (!point) return
+
+    selectedRegionId.value = region.id
+    interaction.mode = 'resize'
+    interaction.regionId = region.id
+    interaction.resizeDirection = direction
+    interaction.startX = point.x
+    interaction.startY = point.y
+    interaction.startClientX = event.clientX
+    interaction.startClientY = event.clientY
+    interaction.moved = false
+    interaction.startRegion = {
+      x: region.x,
+      y: region.y,
+      width: region.width,
+      height: region.height
+    }
   }
 
   function handleRegionClick(region: PaperRegionItem) {
@@ -348,12 +770,10 @@
 
     if (interaction.mode === 'pan') {
       interaction.moved = true
-      if (scrollRef.value) {
-        scrollRef.value.scrollLeft =
-          interaction.scrollLeft - (event.clientX - interaction.startClientX)
-        scrollRef.value.scrollTop =
-          interaction.scrollTop - (event.clientY - interaction.startClientY)
-      }
+      view.offsetX = interaction.startOffsetX + (event.clientX - interaction.startClientX)
+      view.offsetY = interaction.startOffsetY + (event.clientY - interaction.startClientY)
+      view.hasManualViewport = true
+      normalizeOffsets()
       return
     }
 
@@ -398,6 +818,20 @@
       interaction.startX = point.x
       interaction.startY = point.y
       emitRegions()
+      return
+    }
+
+    if (interaction.mode === 'resize' && interaction.regionId && interaction.resizeDirection) {
+      const target = localRegions.value.find((item) => item.id === interaction.regionId)
+      if (!target) return
+      if (
+        Math.abs(event.clientX - interaction.startClientX) > 2 ||
+        Math.abs(event.clientY - interaction.startClientY) > 2
+      ) {
+        interaction.moved = true
+      }
+      applyResize(target, point)
+      emitRegions()
     }
   }
 
@@ -407,10 +841,11 @@
     if (interaction.mode === 'draw' && draftRegion.value) {
       const { width, height } = draftRegion.value
       if (width >= 0.01 && height >= 0.01) {
+        const sortOrder = localRegions.value.length + 1
         const region: PaperRegionItem = {
           ...draftRegion.value,
-          questionNo: `第${localRegions.value.length + 1}题`,
-          sortOrder: localRegions.value.length + 1
+          questionNo: normalizeQuestionNo('', nextQuestionIndex()),
+          sortOrder
         }
         localRegions.value = [...localRegions.value, region]
         selectedRegionId.value = region.id
@@ -424,9 +859,14 @@
       suppressClickRegionId.value = interaction.regionId
     }
 
+    if (interaction.mode === 'resize' && interaction.moved) {
+      suppressClickRegionId.value = interaction.regionId
+    }
+
     interaction.mode = null
     interaction.regionId = ''
     interaction.moved = false
+    interaction.resizeDirection = ''
   }
 
   function openRegionDialog(region: PaperRegionItem) {
@@ -451,7 +891,7 @@
       regionDialogVisible.value = false
       return
     }
-    target.questionNo = regionForm.questionNo.trim()
+    target.questionNo = normalizeQuestionNo(regionForm.questionNo.trim(), target.sortOrder)
     target.questionType = regionForm.questionType.trim()
     target.knowledgePoint = regionForm.knowledgePoint.trim()
     target.score = regionForm.score ?? null
@@ -468,6 +908,66 @@
     selectedRegionId.value = localRegions.value[0]?.id || ''
     emitRegions()
   }
+
+  function applyResize(target: PaperRegionItem, point: { x: number; y: number }) {
+    const dx = point.x - interaction.startX
+    const dy = point.y - interaction.startY
+    const source = interaction.startRegion
+
+    let nextX = source.x
+    let nextY = source.y
+    let nextWidth = source.width
+    let nextHeight = source.height
+
+    if (interaction.resizeDirection.includes('w')) {
+      nextX = source.x + dx
+      nextWidth = source.width - dx
+    }
+    if (interaction.resizeDirection.includes('e')) {
+      nextWidth = source.width + dx
+    }
+    if (interaction.resizeDirection.includes('n')) {
+      nextY = source.y + dy
+      nextHeight = source.height - dy
+    }
+    if (interaction.resizeDirection.includes('s')) {
+      nextHeight = source.height + dy
+    }
+
+    if (nextWidth < MIN_REGION_SIZE) {
+      if (interaction.resizeDirection.includes('w')) {
+        nextX = source.x + source.width - MIN_REGION_SIZE
+      }
+      nextWidth = MIN_REGION_SIZE
+    }
+
+    if (nextHeight < MIN_REGION_SIZE) {
+      if (interaction.resizeDirection.includes('n')) {
+        nextY = source.y + source.height - MIN_REGION_SIZE
+      }
+      nextHeight = MIN_REGION_SIZE
+    }
+
+    if (nextX < 0) {
+      nextWidth += nextX
+      nextX = 0
+    }
+    if (nextY < 0) {
+      nextHeight += nextY
+      nextY = 0
+    }
+    if (nextX + nextWidth > 1) {
+      nextWidth = 1 - nextX
+    }
+    if (nextY + nextHeight > 1) {
+      nextHeight = 1 - nextY
+    }
+
+    target.x = clampUnit(nextX)
+    target.y = clampUnit(nextY)
+    target.width = clampUnit(Math.max(nextWidth, MIN_REGION_SIZE))
+    target.height = clampUnit(Math.max(nextHeight, MIN_REGION_SIZE))
+  }
 </script>
 
 <style scoped lang="scss">
@@ -475,74 +975,148 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    width: 100%;
     height: 100%;
     min-height: 0;
+    padding: 16px;
+    background: linear-gradient(180deg, #f8fbff 0%, #f2f6fb 100%);
+
+    &.no-toolbar {
+      padding: 0;
+      gap: 0;
+      background: #f5f7fa;
+    }
   }
 
-  .editor-toolbar,
-  .readonly-toolbar {
+  .editor-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 16px;
     padding: 12px 16px;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    background: #fff;
-  }
-
-  .readonly-toolbar {
-    justify-content: flex-start;
-    color: #64748b;
-    font-size: 13px;
-  }
-
-  .tool-group,
-  .tool-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    border: 1px solid #dbe7f5;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
     flex-wrap: wrap;
   }
 
-  .canvas-scroll {
+  .toolbar-left,
+  .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .hint-pill {
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid #dbe7f5;
+    background: #f8fbff;
+    color: #3b82f6;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: help;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .toolbox-trigger {
+    :deep(.el-icon) {
+      margin-right: 6px;
+    }
+  }
+
+  .toolbox-arrow {
+    margin-left: 6px;
+    margin-right: 0;
+  }
+
+  .scale-indicator {
+    min-width: 62px;
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .current-tool-pill {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: #f8fafc;
+    border: 1px solid #dbe7f5;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .subject-badge {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 10px;
+    background: rgba(59, 130, 246, 0.12);
+    color: #2563eb;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .canvas-viewport {
+    position: relative;
     flex: 1;
     min-height: 0;
-    overflow: auto;
-    padding: 20px;
-    border-radius: 16px;
-    background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
-    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    border-radius: 20px;
+    border: 1px solid #d8e3f0;
+    background:
+      radial-gradient(circle at top, rgba(59, 130, 246, 0.08), transparent 28%),
+      linear-gradient(180deg, #f8fafc 0%, #edf3f8 100%);
     cursor: crosshair;
 
     &.tool-pan {
       cursor: grab;
     }
 
-    &.tool-select {
-      cursor: default;
-    }
-
+    &.tool-select,
     &.readonly {
       cursor: default;
     }
   }
 
   .image-stage {
-    position: relative;
-    width: fit-content;
-    max-width: 100%;
-    margin: 0 auto;
-    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
-    border-radius: 8px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-shadow: 0 24px 50px rgba(15, 23, 42, 0.18);
+    border-radius: 12px;
     overflow: hidden;
     background: #fff;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    &.ready {
+      opacity: 1;
+    }
   }
 
   .paper-image {
     display: block;
-    max-width: min(100%, 1100px);
-    width: auto;
+    width: 100%;
     height: auto;
     user-select: none;
     -webkit-user-drag: none;
@@ -557,7 +1131,7 @@
     position: absolute;
     border: 2px solid #2563eb;
     background: rgba(37, 99, 235, 0.14);
-    border-radius: 6px;
+    border-radius: 8px;
     display: flex;
     align-items: flex-start;
     justify-content: flex-start;
@@ -568,8 +1142,12 @@
 
     &.selected {
       border-color: #f97316;
-      background: rgba(249, 115, 22, 0.16);
-      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14);
+      background: rgba(249, 115, 22, 0.18);
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.18);
+    }
+
+    &.editable {
+      cursor: move;
     }
 
     &.draft {
@@ -596,15 +1174,54 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.82);
+    background: rgba(255, 255, 255, 0.86);
     padding: 2px 6px;
     border-radius: 999px;
   }
 
-  .editor-tip {
+  .resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: #f97316;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+
+    &.is-nw {
+      top: -7px;
+      left: -7px;
+      cursor: nwse-resize;
+    }
+
+    &.is-ne {
+      top: -7px;
+      right: -7px;
+      cursor: nesw-resize;
+    }
+
+    &.is-sw {
+      bottom: -7px;
+      left: -7px;
+      cursor: nesw-resize;
+    }
+
+    &.is-se {
+      right: -7px;
+      bottom: -7px;
+      cursor: nwse-resize;
+    }
+  }
+
+  .canvas-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: #64748b;
-    font-size: 13px;
-    padding: 0 4px;
+    font-size: 14px;
+    letter-spacing: 0.02em;
   }
 
   .region-form {
@@ -614,18 +1231,22 @@
   }
 
   @media (max-width: 960px) {
-    .editor-toolbar {
-      flex-direction: column;
-      align-items: stretch;
+    .paper-region-editor {
+      padding: 12px;
     }
 
-    .tool-group,
-    .tool-actions {
+    .editor-toolbar {
+      padding: 12px;
+      border-radius: 14px;
+    }
+
+    .toolbar-left,
+    .toolbar-right {
       width: 100%;
     }
 
-    .paper-image {
-      max-width: 100%;
+    .canvas-viewport {
+      border-radius: 16px;
     }
   }
 </style>

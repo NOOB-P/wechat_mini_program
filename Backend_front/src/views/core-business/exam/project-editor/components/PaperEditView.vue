@@ -28,37 +28,147 @@
           >
             考生原卷
           </div>
-          <div class="tab-item desc">{{ headerDescription }}</div>
+          <div class="tab-item desc">说明</div>
         </div>
       </div>
-      <div class="header-right">
-        <span class="subject-name">{{ subjectName }}</span>
-      </div>
+
+      <div class="header-right"></div>
     </div>
 
     <div class="view-body" v-loading="loading">
       <template v-if="activeTab === 'template' || activeTab === 'original'">
         <div v-if="hasFile(activeTab)" class="file-viewer">
-          <div class="viewer-actions">
-            <el-upload
-              action="#"
-              :auto-upload="false"
-              :show-file-list="false"
-              accept=".pdf,.png,.jpg,.jpeg"
-              :on-change="(file: any) => handleFileUpload(activeTab, file)"
-            >
-              <el-button type="primary" size="small">重新上传</el-button>
-            </el-upload>
+          <div class="workspace-toolbar">
+            <div class="workspace-toolbar__left">
+              <el-button-group>
+                <el-button
+                  size="small"
+                  :type="regionEditorRef?.tool === 'draw' ? 'primary' : 'default'"
+                  :disabled="!canUseEditor"
+                  @click="handleToolboxCommand('drawMode')"
+                >
+                  框选框
+                </el-button>
+                <el-button
+                  size="small"
+                  :type="regionEditorRef?.tool === 'adjust' ? 'primary' : 'default'"
+                  :disabled="!canUseEditor"
+                  @click="handleToolboxCommand('adjustMode')"
+                >
+                  调整框选
+                </el-button>
+                <el-button
+                  size="small"
+                  :type="regionEditorRef?.tool === 'pan' ? 'primary' : 'default'"
+                  :disabled="!canUseEditor"
+                  @click="handleToolboxCommand('panMode')"
+                >
+                  移动画布
+                </el-button>
+                <el-button
+                  size="small"
+                  :type="regionEditorRef?.tool === 'select' ? 'primary' : 'default'"
+                  :disabled="!canUseEditor"
+                  @click="handleToolboxCommand('selectMode')"
+                >
+                  选择题目
+                </el-button>
+              </el-button-group>
+
+              <div class="toolbar-divider"></div>
+
+              <el-tooltip
+                :content="regionEditorRef?.currentHintText || '请先上传图片格式试卷后开始编辑'"
+                placement="bottom"
+              >
+                <el-button size="small" class="tool-btn" :disabled="!canUseEditor">
+                  <el-icon><InfoFilled /></el-icon> 提示
+                </el-button>
+              </el-tooltip>
+
+              <el-dropdown trigger="hover" @command="handleToolboxCommand">
+                <el-button size="small" class="tool-btn" :disabled="!canUseEditor">
+                  <el-icon><Tools /></el-icon> 工具箱
+                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="drawMode">框选框</el-dropdown-item>
+                    <el-dropdown-item command="adjustMode">调整框选</el-dropdown-item>
+                    <el-dropdown-item command="panMode">移动画布</el-dropdown-item>
+                    <el-dropdown-item command="selectMode">选择题目</el-dropdown-item>
+                    <el-dropdown-item divided command="addRegion">添加框选框</el-dropdown-item>
+                    <el-dropdown-item command="modifyRegion">修改框选框</el-dropdown-item>
+                    <el-dropdown-item command="editRegion">题目属性</el-dropdown-item>
+                    <el-dropdown-item command="deleteRegion">删除框选</el-dropdown-item>
+                    <el-dropdown-item divided command="zoomIn">放大试卷</el-dropdown-item>
+                    <el-dropdown-item command="zoomOut">缩小试卷</el-dropdown-item>
+                    <el-dropdown-item command="fitView">铺满视图</el-dropdown-item>
+                    <el-dropdown-item command="resetView">恢复原始比例</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+
+              <div class="zoom-indicator" v-if="regionEditorRef?.scale">
+                {{ Math.round(regionEditorRef.scale * 100) }}%
+              </div>
+            </div>
+
+            <div class="workspace-toolbar__right">
+              <el-upload
+                action="#"
+                :auto-upload="false"
+                :show-file-list="false"
+                accept=".pdf,.png,.jpg,.jpeg"
+                :on-change="(file: any) => handleFileUpload(activeTab, file)"
+              >
+                <el-button size="small">重新上传</el-button>
+              </el-upload>
+
+              <el-button
+                size="small"
+                type="primary"
+                :disabled="!canUseEditor"
+                @click="handleSaveRegions"
+              >
+                保存
+              </el-button>
+
+              <span class="subject-name">{{ subjectName }}</span>
+            </div>
           </div>
+
           <div class="image-content">
             <PaperRegionEditor
               v-if="!isPdf(getFileUrl(activeTab))"
+              ref="regionEditorRef"
+              :key="`${activeTab}-${getFileUrl(activeTab)}`"
               :image-url="resolveFileUrl(getFileUrl(activeTab))"
               :regions="getRegions(activeTab)"
+              :subject-name="subjectName"
+              :hide-toolbar="true"
               @update:regions="(regions) => handleRegionsChange(activeTab, regions)"
               @save="(regions) => savePaperRegions(activeTab, regions)"
-            />
+            >
+            </PaperRegionEditor>
             <div v-else class="pdf-preview-wrapper">
+              <div class="preview-toolbar">
+                <div class="preview-toolbar-left">
+                  <span class="pdf-mode-tag">PDF 预览模式</span>
+                </div>
+                <div class="preview-toolbar-right">
+                  <el-upload
+                    action="#"
+                    :auto-upload="false"
+                    :show-file-list="false"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    :on-change="(file: any) => handleFileUpload(activeTab, file)"
+                  >
+                    <el-button size="small">重新上传</el-button>
+                  </el-upload>
+                  <span class="preview-subject">{{ subjectName }}</span>
+                </div>
+              </div>
               <div class="pdf-notice">
                 当前文件为 PDF，仅支持预览。若需手动框选切割，请上传 png/jpg/jpeg 图片格式。
               </div>
@@ -149,25 +259,48 @@
             >
           </div>
           <div v-if="selectedStudent.hasAnswerSheet" class="file-viewer">
-            <div class="viewer-actions">
-              <el-upload
-                action="#"
-                :auto-upload="false"
-                :show-file-list="false"
-                accept=".pdf,.png,.jpg,.jpeg"
-                :on-change="(file: any) => handleStudentUpload(file)"
-              >
-                <el-button type="primary" size="small">重新上传</el-button>
-              </el-upload>
-            </div>
             <div class="image-content">
               <PaperRegionEditor
                 v-if="!isPdf(selectedStudent.answerSheetUrl)"
+                :key="`${selectedStudent.studentNo}-${selectedStudent.answerSheetUrl}`"
                 :image-url="resolveFileUrl(selectedStudent.answerSheetUrl)"
                 :regions="paperConfig.templateRegions"
+                :subject-name="subjectName"
+                :show-save="false"
                 readonly
-              />
+              >
+                <template #toolbar-extra>
+                  <el-upload
+                    action="#"
+                    :auto-upload="false"
+                    :show-file-list="false"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    :on-change="(file: any) => handleStudentUpload(file)"
+                  >
+                    <el-tooltip content="重新上传当前考生原卷" placement="bottom">
+                      <el-button size="small">重新上传</el-button>
+                    </el-tooltip>
+                  </el-upload>
+                </template>
+              </PaperRegionEditor>
               <div v-else class="pdf-preview-wrapper">
+                <div class="preview-toolbar">
+                  <div class="preview-toolbar-left">
+                    <span class="pdf-mode-tag">PDF 预览模式</span>
+                  </div>
+                  <div class="preview-toolbar-right">
+                    <el-upload
+                      action="#"
+                      :auto-upload="false"
+                      :show-file-list="false"
+                      accept=".pdf,.png,.jpg,.jpeg"
+                      :on-change="(file: any) => handleStudentUpload(file)"
+                    >
+                      <el-button size="small">重新上传</el-button>
+                    </el-upload>
+                    <span class="preview-subject">{{ subjectName }}</span>
+                  </div>
+                </div>
                 <div class="pdf-notice">
                   当前文件为 PDF，仅支持预览。学生原卷会沿用样板答题卡的框选结果，但 PDF
                   暂不支持可视化叠加。
@@ -201,7 +334,15 @@
 
 <script setup lang="ts">
   import { computed, ref, onMounted, watch } from 'vue'
-  import { UploadFilled, Back, ArrowLeft, Search } from '@element-plus/icons-vue'
+  import {
+    UploadFilled,
+    Back,
+    ArrowLeft,
+    Search,
+    Tools,
+    ArrowDown,
+    InfoFilled
+  } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
   import PaperRegionEditor from './PaperRegionEditor.vue'
   import {
@@ -210,6 +351,7 @@
     fetchUploadStudentAnswerSheet,
     fetchPaperConfig,
     fetchUploadPublicPaper,
+    normalizePaperRegions,
     type PaperRegionItem
   } from '@/api/core-business/exam/project-editor'
 
@@ -227,6 +369,7 @@
   const studentList = ref<any[]>([])
   const selectedStudent = ref<any>(null)
   const loading = ref(false)
+  const regionEditorRef = ref<any>(null)
 
   // 搜索和分页
   const searchKeyword = ref('')
@@ -241,11 +384,19 @@
     originalRegions: [] as PaperRegionItem[]
   })
 
-  const headerDescription = computed(() => {
-    if (activeTab.value === 'template') return '框选样板答题卡并设置题目属性'
-    if (activeTab.value === 'original') return '框选原卷题目区域并保存坐标'
-    return '学生原卷复用样板答题卡坐标，只读展示'
-  })
+  const showIntegratedToolbar = computed(() => activeTab.value !== 'student')
+  const canUseEditor = computed(
+    () =>
+      showIntegratedToolbar.value && hasFile(activeTab.value) && !isPdf(getFileUrl(activeTab.value))
+  )
+
+  function handleToolboxCommand(command: string) {
+    regionEditorRef.value?.handleToolboxCommand(command)
+  }
+
+  function handleSaveRegions() {
+    regionEditorRef.value?.save()
+  }
 
   const studentSplitLabel = computed(() =>
     paperConfig.value.templateRegions.length > 0 ? '已切分' : '未切分'
@@ -280,8 +431,8 @@
       paperConfig.value = {
         templateUrl: res.templateUrl || null,
         originalUrl: res.originalUrl || null,
-        templateRegions: res.templateRegions || [],
-        originalRegions: res.originalRegions || []
+        templateRegions: normalizePaperRegions(res.templateRegions),
+        originalRegions: normalizePaperRegions(res.originalRegions)
       }
     } catch (e: any) {
       console.error(e)
@@ -345,10 +496,11 @@
   }
 
   function handleRegionsChange(tab: string, regions: PaperRegionItem[]) {
+    const normalizedRegions = normalizePaperRegions(regions)
     if (tab === 'template') {
-      paperConfig.value.templateRegions = regions
+      paperConfig.value.templateRegions = normalizedRegions
     } else if (tab === 'original') {
-      paperConfig.value.originalRegions = regions
+      paperConfig.value.originalRegions = normalizedRegions
     }
   }
 
@@ -425,11 +577,12 @@
   async function savePaperRegions(type: string, regions: PaperRegionItem[]) {
     loading.value = true
     try {
+      const normalizedRegions = normalizePaperRegions(regions)
       await fetchSavePaperLayout({
         projectId: props.projectId,
         subjectName: props.subjectName,
         type: type as 'template' | 'original',
-        regions
+        regions: normalizedRegions
       })
       ElMessage.success('框选坐标保存成功')
       await loadConfig()
@@ -490,10 +643,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 20px;
     padding: 0 20px;
     border-bottom: 1px solid #f0f0f0;
     background: #fff;
-    height: 64px;
+    min-height: 72px;
     flex-shrink: 0;
 
     .header-left {
@@ -547,9 +701,11 @@
     }
 
     &.desc {
-      margin-left: 20px;
+      margin-left: 12px;
       color: #909399;
       cursor: default;
+      border-bottom-color: transparent;
+
       &:hover {
         color: #909399;
       }
@@ -557,6 +713,7 @@
   }
 
   .subject-name {
+    flex-shrink: 0;
     font-size: 14px;
     color: #409eff;
     font-weight: 600;
@@ -565,46 +722,144 @@
     border-radius: 4px;
   }
 
+  .header-right {
+    flex: 1;
+    min-width: 0;
+  }
+
   .view-body {
     flex: 1;
     overflow: hidden;
-    padding: 0;
+    min-height: 0;
+    padding: 16px;
     background-color: #f5f7fa;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workspace-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 18px 22px;
+    background: #fff;
+    border: 1px solid #dbe7f5;
+    border-radius: 22px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+    flex-wrap: wrap;
+    flex-shrink: 0;
+
+    &__left,
+    &__right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: #ebeef5;
+      margin: 0 2px;
+    }
+
+    .tool-btn {
+      background: #fff;
+      border-color: #dcdfe6;
+      color: #606266;
+      &:hover {
+        border-color: #409eff;
+        color: #409eff;
+      }
+    }
+
+    .zoom-indicator {
+      font-size: 14px;
+      font-weight: 600;
+      color: #409eff;
+      min-width: 56px;
+      text-align: center;
+      background: #ecf5ff;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
   }
 
   .file-viewer {
+    flex: 1;
     height: 100%;
     display: flex;
     flex-direction: column;
-    padding: 24px;
-
-    .viewer-actions {
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 16px;
-    }
+    min-height: 0;
 
     .image-content {
       flex: 1;
+      width: 100%;
       overflow: hidden;
       border: 1px solid #e4e7ed;
-      border-radius: 8px;
+      border-radius: 16px;
       background: #fff;
       display: flex;
       justify-content: center;
       align-items: stretch;
-      padding: 20px;
-
-      img {
-        max-width: 100%;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-      }
+      min-height: 0;
+      padding: 0;
 
       .pdf-preview-wrapper {
+        flex: 1;
         width: 100%;
         display: flex;
         flex-direction: column;
         gap: 12px;
+        padding: 16px;
+        min-height: 0;
+      }
+
+      .preview-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 14px;
+        border: 1px solid #dbe7f5;
+        background: linear-gradient(180deg, #f8fbff 0%, #f2f6fb 100%);
+        flex-wrap: wrap;
+      }
+
+      .preview-toolbar-left,
+      .preview-toolbar-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .pdf-mode-tag {
+        display: inline-flex;
+        align-items: center;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .preview-subject {
+        display: inline-flex;
+        align-items: center;
+        height: 32px;
+        padding: 0 14px;
+        border-radius: 10px;
+        background: rgba(59, 130, 246, 0.12);
+        color: #2563eb;
+        font-size: 13px;
+        font-weight: 700;
       }
 
       .pdf-notice {
@@ -618,7 +873,8 @@
 
       .pdf-iframe {
         width: 100%;
-        height: 100%;
+        flex: 1;
+        min-height: 0;
         border: none;
       }
     }
@@ -651,6 +907,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    min-height: 0;
 
     .search-bar {
       margin-bottom: 16px;
@@ -675,14 +932,15 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    min-height: 0;
 
     .viewer-header {
-      padding: 16px 24px;
+      padding: 0 0 16px;
       border-bottom: 1px solid #f0f0f0;
       display: flex;
       align-items: center;
       gap: 24px;
-      background: #fff;
+      background: transparent;
 
       .current-student {
         font-size: 15px;
@@ -695,5 +953,23 @@
   .text-secondary {
     color: #909399;
     font-size: 13px;
+  }
+
+  @media (max-width: 1280px) {
+    .view-header {
+      align-items: flex-start;
+      padding: 16px 20px;
+    }
+  }
+
+  @media (max-width: 960px) {
+    .view-body {
+      padding: 12px;
+    }
+
+    .workspace-toolbar {
+      padding: 14px 16px;
+      border-radius: 18px;
+    }
   }
 </style>
