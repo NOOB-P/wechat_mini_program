@@ -142,14 +142,16 @@ onMounted(() => {
       </view>
       
       <!-- 悬浮搜索框 -->
-      <wd-search 
-        v-model="searchValue" 
-        placeholder="搜索您想了解的问题" 
-        hide-cancel 
-        @search="handleSearch" 
-        @clear="handleSearch" 
-        custom-style="margin-top: 28rpx; border-radius: 44rpx; bg-color=#fff;"
-      />
+      <view class="search-box-wrap">
+        <wd-search
+          v-model="searchValue"
+          placeholder="搜索您想了解的问题"
+          hide-cancel
+          @search="handleSearch"
+          @clear="handleSearch"
+          custom-style="background: transparent;"
+        />
+      </view>
     </view>
 
     <view class="content-body animate-fade-in">
@@ -306,6 +308,15 @@ onMounted(() => {
     font-size: 24rpx;
     color: #666;
   }
+}
+
+/* 悬浮搜索框 */
+.search-box-wrap {
+  margin-top: 28rpx;
+  background: #fff;
+  border-radius: 44rpx;
+  box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.06);
+  padding: 4rpx;
 }
 
 .content-body {
