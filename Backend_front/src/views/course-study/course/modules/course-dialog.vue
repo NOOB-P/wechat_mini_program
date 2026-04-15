@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     :title="isEdit ? '编辑课程' : '新增课程'"
-    v-model="visible"
+    v-model="dialogVisible"
     width="750px"
     @closed="handleClosed"
   >

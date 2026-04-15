@@ -274,9 +274,22 @@ import {
 const loading = ref(false)
 const uploadLoading = ref(false)
 const submitLoading = ref(false)
+const currentLevel = ref(1)
 const total = ref(0)
 const paperList = ref<any[]>([])
 const subjects = ref<any[]>([])
+const typeData = ref<any[]>([
+  { id: 'FAMOUS', name: '名校试卷', count: 0 },
+  { id: 'MONTHLY', name: '月考试卷', count: 0 },
+  { id: 'JOINT', name: '联考试卷', count: 0 }
+])
+const gradeData = ref<any[]>([])
+const subjectData = ref<any[]>([])
+const currentType = ref('')
+const currentTypeName = ref('')
+const currentGradeName = ref('')
+const currentSubjectName = ref('')
+const manualGrades = reactive<Record<string, string[]>>({})
 
 const typeMap: Record<string, string> = {
   FAMOUS: '名校试卷',

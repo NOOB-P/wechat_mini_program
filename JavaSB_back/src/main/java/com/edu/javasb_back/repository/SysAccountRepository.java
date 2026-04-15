@@ -114,7 +114,8 @@ public interface SysAccountRepository extends JpaRepository<SysAccount, Long> {
                    "AND (:roleId IS NULL OR a.role_id = :roleId) " +
                    "AND (:schoolId IS NULL OR s.school_id = :schoolId) " +
                    "AND (:classId IS NULL OR s.class_id = :classId) " +
-                   "AND (r.role_code IS NULL OR r.role_code != 'student')", 
+                   "AND (r.role_code IS NULL OR r.role_code != 'student') " +
+                   "ORDER BY a.role_id ASC, a.create_time DESC", 
            countQuery = "SELECT COUNT(DISTINCT a.uid) FROM sys_accounts a " +
                         "LEFT JOIN sys_roles r ON a.role_id = r.id " +
                         "LEFT JOIN student_parent_bindings b ON a.uid = b.parent_uid " +
