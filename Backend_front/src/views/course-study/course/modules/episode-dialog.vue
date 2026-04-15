@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     :title="isEdit ? '管理章节视频' : '新增章节'"
-    v-model="visible"
+    v-model="dialogVisible"
     width="500px"
     @closed="handleClosed"
   >
@@ -19,7 +19,7 @@
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
+      <el-button @click="dialogVisible = false">取消</el-button>
       <el-button type="primary" @click="handleSubmit">确定</el-button>
     </template>
   </el-dialog>
@@ -41,7 +41,11 @@ const props = defineProps({
 
 const emit = defineEmits(['update:visible', 'success'])
 
-const visible = ref(false)
+const dialogVisible = computed({
+  get: () => props.visible,
+  set: (val) => emit('update:visible', val)
+})
+
 const formRef = ref<FormInstance>()
 const uploading = ref(false)
 
@@ -65,7 +69,6 @@ const rules = {
 }
 
 watch(() => props.visible, (val) => {
-  visible.value = val
   if (val) {
     if (props.isEdit && props.data) {
       form.value = { ...form.value, ...(props.data as any) }
@@ -74,10 +77,6 @@ watch(() => props.visible, (val) => {
       form.value.courseId = props.courseId || ''
     }
   }
-})
-
-watch(visible, (val) => {
-  emit('update:visible', val)
 })
 
 const resetForm = () => {
@@ -99,7 +98,7 @@ const handleSubmit = async () => {
   await formRef.value.validate((valid: boolean) => {
     if (valid) {
       emit('success', { ...form.value })
-      visible.value = false
+      dialogVisible.value = false
     }
   })
 }

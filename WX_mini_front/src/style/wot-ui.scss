@@ -12,4 +12,18 @@ page {
   --wot-button-warning-bg-color: #f0883a;
   --wot-button-danger-bg-color: #fa4350;
   --wot-button-info-bg-color: #f0f0f0;
+
+  // wd-search：统一成单层单色搜索框，避免白灰双层叠加
+  --wot-search-padding: 0;
+  --wot-search-light-bg: transparent;
+  --wot-search-input-bg: transparent;
+}
+
+.wd-search {
+  background: transparent !important;
+}
+
+.wd-search__block,
+.wd-search__cover {
+  background: transparent !important;
 }

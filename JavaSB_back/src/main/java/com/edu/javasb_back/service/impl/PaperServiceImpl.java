@@ -112,13 +112,61 @@ public class PaperServiceImpl implements PaperService {
                 .setParameter("type", type)
                 .setParameter("grade", grade)
                 .getResultList();
+
+        // 默认科目补全逻辑
+        List<String> defaultSubjects;
+        boolean isPrimary = false;
+        if (grade != null) {
+            // 匹配小学年级：一年级~六年级，或者包含“小学”
+            if (grade.contains("一年级") || grade.contains("二年级") || grade.contains("三年级") ||
+                grade.contains("四年级") || grade.contains("五年级") || grade.contains("六年级") ||
+                grade.contains("小学")) {
+                // 排除七八九年级（中学）
+                if (!grade.contains("七年级") && !grade.contains("八年级") && !grade.contains("九年级")) {
+                    isPrimary = true;
+                }
+            }
+        }
+
+        if (isPrimary) {
+            defaultSubjects = List.of("语文", "数学", "英语");
+        } else {
+            // 初一到高三（含七八九年级）
+            defaultSubjects = List.of("语文", "数学", "英语", "物理", "化学", "生物", "历史", "政治", "地理");
+        }
+
         List<Map<String, Object>> stats = new ArrayList<>();
-        for (Object[] result : results) {
+        // 1. 先用默认科目初始化数量为 0
+        for (String subjectName : defaultSubjects) {
             Map<String, Object> map = new HashMap<>();
-            map.put("name", result[0]);
-            map.put("count", result[1]);
+            map.put("name", subjectName);
+            map.put("count", 0L);
             stats.add(map);
         }
+
+        // 2. 填充数据库查询到的真实数据
+        for (Object[] result : results) {
+            String subjectName = (String) result[0];
+            Long count = (Long) result[1];
+
+            boolean found = false;
+            for (Map<String, Object> map : stats) {
+                if (map.get("name").equals(subjectName)) {
+                    map.put("count", count);
+                    found = true;
+                    break;
+                }
+            }
+
+            // 如果查询到的科目不在默认列表中，也添加进去
+            if (!found) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("name", subjectName);
+                map.put("count", count);
+                stats.add(map);
+            }
+        }
+
         return stats;
     }
 
