@@ -1,6 +1,5 @@
 <template>
   <div class="paper-edit-view">
-    <!-- 顶部页签与操作栏 -->
     <div class="view-header">
       <div class="header-left">
         <el-button link @click="handleBack" class="back-btn">
@@ -29,7 +28,7 @@
           >
             考生原卷
           </div>
-          <div class="tab-item desc">说明</div>
+          <div class="tab-item desc">{{ headerDescription }}</div>
         </div>
       </div>
       <div class="header-right">
@@ -37,9 +36,7 @@
       </div>
     </div>
 
-    <!-- 内容区 -->
     <div class="view-body" v-loading="loading">
-      <!-- 样板答题卡/原卷展示 -->
       <template v-if="activeTab === 'template' || activeTab === 'original'">
         <div v-if="hasFile(activeTab)" class="file-viewer">
           <div class="viewer-actions">
@@ -54,12 +51,19 @@
             </el-upload>
           </div>
           <div class="image-content">
-            <img
+            <PaperRegionEditor
               v-if="!isPdf(getFileUrl(activeTab))"
-              :src="resolveFileUrl(getFileUrl(activeTab))"
-              alt="试卷内容"
+              :image-url="resolveFileUrl(getFileUrl(activeTab))"
+              :regions="getRegions(activeTab)"
+              @update:regions="(regions) => handleRegionsChange(activeTab, regions)"
+              @save="(regions) => savePaperRegions(activeTab, regions)"
             />
-            <iframe v-else :src="resolveFileUrl(getFileUrl(activeTab))" class="pdf-iframe"></iframe>
+            <div v-else class="pdf-preview-wrapper">
+              <div class="pdf-notice">
+                当前文件为 PDF，仅支持预览。若需手动框选切割，请上传 png/jpg/jpeg 图片格式。
+              </div>
+              <iframe :src="resolveFileUrl(getFileUrl(activeTab))" class="pdf-iframe"></iframe>
+            </div>
           </div>
         </div>
         <div v-else class="empty-upload">
@@ -80,7 +84,6 @@
         </div>
       </template>
 
-      <!-- 考生列表 -->
       <template v-else-if="activeTab === 'student'">
         <div v-if="!selectedStudent" class="student-list-view">
           <div class="search-bar">
@@ -114,7 +117,7 @@
             </el-table-column>
             <el-table-column label="切分" min-width="100" align="center">
               <template #default>
-                <span class="text-secondary">未切分</span>
+                <span class="text-secondary">{{ studentSplitLabel }}</span>
               </template>
             </el-table-column>
             <el-table-column label="操作" width="100" align="center" fixed="right">
@@ -136,7 +139,6 @@
           </div>
         </div>
 
-        <!-- 考生单人原卷展示 -->
         <div v-else class="student-paper-view">
           <div class="viewer-header">
             <el-button link @click="selectedStudent = null">
@@ -159,16 +161,22 @@
               </el-upload>
             </div>
             <div class="image-content">
-              <img
+              <PaperRegionEditor
                 v-if="!isPdf(selectedStudent.answerSheetUrl)"
-                :src="resolveFileUrl(selectedStudent.answerSheetUrl)"
-                alt="考生原卷"
+                :image-url="resolveFileUrl(selectedStudent.answerSheetUrl)"
+                :regions="paperConfig.templateRegions"
+                readonly
               />
-              <iframe
-                v-else
-                :src="resolveFileUrl(selectedStudent.answerSheetUrl)"
-                class="pdf-iframe"
-              ></iframe>
+              <div v-else class="pdf-preview-wrapper">
+                <div class="pdf-notice">
+                  当前文件为 PDF，仅支持预览。学生原卷会沿用样板答题卡的框选结果，但 PDF
+                  暂不支持可视化叠加。
+                </div>
+                <iframe
+                  :src="resolveFileUrl(selectedStudent.answerSheetUrl)"
+                  class="pdf-iframe"
+                ></iframe>
+              </div>
             </div>
           </div>
           <div v-else class="empty-upload">
@@ -192,14 +200,17 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted, watch } from 'vue'
+  import { computed, ref, onMounted, watch } from 'vue'
   import { UploadFilled, Back, ArrowLeft, Search } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
+  import PaperRegionEditor from './PaperRegionEditor.vue'
   import {
+    fetchSavePaperLayout,
     fetchProjectScoreList,
     fetchUploadStudentAnswerSheet,
     fetchPaperConfig,
-    fetchUploadPublicPaper
+    fetchUploadPublicPaper,
+    type PaperRegionItem
   } from '@/api/core-business/exam/project-editor'
 
   const props = defineProps<{
@@ -225,8 +236,20 @@
 
   const paperConfig = ref({
     templateUrl: null as string | null,
-    originalUrl: null as string | null
+    originalUrl: null as string | null,
+    templateRegions: [] as PaperRegionItem[],
+    originalRegions: [] as PaperRegionItem[]
   })
+
+  const headerDescription = computed(() => {
+    if (activeTab.value === 'template') return '框选样板答题卡并设置题目属性'
+    if (activeTab.value === 'original') return '框选原卷题目区域并保存坐标'
+    return '学生原卷复用样板答题卡坐标，只读展示'
+  })
+
+  const studentSplitLabel = computed(() =>
+    paperConfig.value.templateRegions.length > 0 ? '已切分' : '未切分'
+  )
 
   onMounted(() => {
     reloadCurrentView()
@@ -254,7 +277,12 @@
         projectId: props.projectId,
         subjectName: props.subjectName
       })
-      paperConfig.value = res
+      paperConfig.value = {
+        templateUrl: res.templateUrl || null,
+        originalUrl: res.originalUrl || null,
+        templateRegions: res.templateRegions || [],
+        originalRegions: res.originalRegions || []
+      }
     } catch (e: any) {
       console.error(e)
       ElMessage.error(e.message || '获取试卷配置失败')
@@ -308,6 +336,20 @@
     if (tab === 'template') return paperConfig.value.templateUrl || ''
     if (tab === 'original') return paperConfig.value.originalUrl || ''
     return ''
+  }
+
+  function getRegions(tab: string) {
+    return tab === 'template'
+      ? paperConfig.value.templateRegions
+      : paperConfig.value.originalRegions
+  }
+
+  function handleRegionsChange(tab: string, regions: PaperRegionItem[]) {
+    if (tab === 'template') {
+      paperConfig.value.templateRegions = regions
+    } else if (tab === 'original') {
+      paperConfig.value.originalRegions = regions
+    }
   }
 
   function isPdf(url: string) {
@@ -380,8 +422,28 @@
     }
   }
 
+  async function savePaperRegions(type: string, regions: PaperRegionItem[]) {
+    loading.value = true
+    try {
+      await fetchSavePaperLayout({
+        projectId: props.projectId,
+        subjectName: props.subjectName,
+        type: type as 'template' | 'original',
+        regions
+      })
+      ElMessage.success('框选坐标保存成功')
+      await loadConfig()
+      emit('saved')
+    } catch (e: any) {
+      console.error(e)
+      ElMessage.error(e.message || '保存框选坐标失败')
+    } finally {
+      loading.value = false
+    }
+  }
+
   function enterStudentPaper(student: any) {
-    selectedStudent.value = student
+    selectedStudent.value = { ...student }
   }
 
   async function handleStudentUpload(file: any) {
@@ -524,17 +586,34 @@
 
     .image-content {
       flex: 1;
-      overflow-y: auto;
+      overflow: hidden;
       border: 1px solid #e4e7ed;
       border-radius: 8px;
       background: #fff;
       display: flex;
       justify-content: center;
-      padding: 32px;
+      align-items: stretch;
+      padding: 20px;
 
       img {
         max-width: 100%;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      }
+
+      .pdf-preview-wrapper {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .pdf-notice {
+        padding: 12px 16px;
+        border-radius: 10px;
+        background: #fff7ed;
+        color: #9a3412;
+        font-size: 13px;
+        border: 1px solid #fed7aa;
       }
 
       .pdf-iframe {

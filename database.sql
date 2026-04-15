@@ -210,6 +210,7 @@ CREATE TABLE `exam_projects` (
     `selected_class_ids` TEXT COMMENT '普通考试选中的班级ID列表(JSON)',
     `subject_names` TEXT COMMENT '项目科目列表(JSON)',
     `subject_benchmarks` TEXT COMMENT '学科基准分数配置',
+    `paper_layouts` TEXT COMMENT '试卷框选布局配置(JSON)',
     `school_count` INT DEFAULT 0 COMMENT '覆盖学校数',
     `class_count` INT DEFAULT 0 COMMENT '覆盖班级数',
     `student_count` INT DEFAULT 0 COMMENT '覆盖学生数',

@@ -44,6 +44,20 @@ export interface ProjectScoreItem {
   updateTime?: string | number[] | null
 }
 
+export interface PaperRegionItem {
+  id: string
+  questionNo: string
+  questionType: string
+  knowledgePoint: string
+  score: number | null
+  remark: string
+  sortOrder: number
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export function fetchProjectStudents(params: {
   projectId: string
   current?: number
@@ -109,11 +123,7 @@ export function fetchDownloadScoreTemplate() {
 /**
  * 导入成绩
  */
-export function fetchImportScore(params: {
-  projectId: string
-  subjectName: string
-  file: File
-}) {
+export function fetchImportScore(params: { projectId: string; subjectName: string; file: File }) {
   const formData = new FormData()
   formData.append('projectId', params.projectId)
   formData.append('subjectName', params.subjectName)
@@ -215,15 +225,26 @@ export function fetchUploadPublicPaper(params: {
 /**
  * 获取试卷配置
  */
-export function fetchPaperConfig(params: {
-  projectId: string
-  subjectName: string
-}) {
+export function fetchPaperConfig(params: { projectId: string; subjectName: string }) {
   return api.get<{
     templateUrl: string | null
     originalUrl: string | null
+    templateRegions: PaperRegionItem[]
+    originalRegions: PaperRegionItem[]
   }>({
     url: '/api/system/exam-project/papers/config',
     params
+  })
+}
+
+export function fetchSavePaperLayout(params: {
+  projectId: string
+  subjectName: string
+  type: 'template' | 'original'
+  regions: PaperRegionItem[]
+}) {
+  return api.post<void>({
+    url: '/api/system/exam-project/papers/layout/save',
+    data: params
   })
 }

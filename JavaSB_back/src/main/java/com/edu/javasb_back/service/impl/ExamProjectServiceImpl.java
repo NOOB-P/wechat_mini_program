@@ -3,6 +3,7 @@ package com.edu.javasb_back.service.impl;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
+import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import com.edu.javasb_back.model.entity.ExamClass;
 import com.edu.javasb_back.model.entity.ExamProject;
 import com.edu.javasb_back.model.entity.ExamStudentScore;
@@ -1238,7 +1239,9 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     }
 
     @Override
-    public Result<Map<String, String>> getPaperConfig(String projectId, String subjectName) {
+    public Result<Map<String, Object>> getPaperConfig(String projectId, String subjectName) {
+        ExamProject project = examProjectRepository.findById(projectId).orElse(null);
+        if (project == null) return Result.error("项目不存在");
         List<ExamClass> examClasses = examClassRepository.findByProjectIdOrderBySchoolAscGradeAscClassNameAsc(projectId);
         if (examClasses.isEmpty()) return Result.success(new HashMap<>());
         
@@ -1247,7 +1250,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 .filter(s -> subjectName.equals(s.getSubjectName()))
                 .findFirst();
 
-        Map<String, String> config = new HashMap<>();
+        Map<String, Object> config = new HashMap<>();
         if (subjectOpt.isPresent()) {
             config.put("templateUrl", subjectOpt.get().getAnswerUrl());
             config.put("originalUrl", subjectOpt.get().getPaperUrl());
@@ -1255,7 +1258,31 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             config.put("templateUrl", null);
             config.put("originalUrl", null);
         }
+        Map<String, Object> paperLayouts = map(project.getPaperLayouts());
+        Map<String, Object> subjectLayout = nestedMap(paperLayouts.get(subjectName));
+        config.put("templateRegions", regionList(subjectLayout.get("template")));
+        config.put("originalRegions", regionList(subjectLayout.get("original")));
         return Result.success(config);
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> savePaperLayout(PaperLayoutSaveDTO dto) {
+        if (dto == null || !StringUtils.hasText(dto.getProjectId())) return Result.error("项目ID不能为空");
+        if (!StringUtils.hasText(dto.getSubjectName())) return Result.error("学科名称不能为空");
+        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType())) {
+            return Result.error("布局类型错误，仅支持 template 或 original");
+        }
+        ExamProject project = examProjectRepository.findById(dto.getProjectId()).orElse(null);
+        if (project == null) return Result.error("项目不存在");
+
+        Map<String, Object> paperLayouts = new LinkedHashMap<>(map(project.getPaperLayouts()));
+        Map<String, Object> subjectLayout = new LinkedHashMap<>(nestedMap(paperLayouts.get(dto.getSubjectName())));
+        subjectLayout.put(dto.getType(), normalizeRegionDtos(dto.getRegions()));
+        paperLayouts.put(dto.getSubjectName(), subjectLayout);
+        project.setPaperLayouts(jsonMap(paperLayouts));
+        examProjectRepository.saveAndFlush(project);
+        return Result.success("保存成功", null);
     }
 
     private String storePublicPaperFile(InputStream inputStream, String projectId, String subjectName, String type, String originalFilename) throws Exception {
@@ -1292,6 +1319,68 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         catch (Exception ignored) { return Collections.emptyMap(); }
     }
 
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> nestedMap(Object value) {
+        if (value instanceof Map<?, ?> mapValue) {
+            Map<String, Object> nested = new LinkedHashMap<>();
+            mapValue.forEach((key, val) -> nested.put(String.valueOf(key), val));
+            return nested;
+        }
+        return Collections.emptyMap();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> regionList(Object value) {
+        if (!(value instanceof Collection<?> collection)) return Collections.emptyList();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        int index = 1;
+        for (Object item : collection) {
+            if (!(item instanceof Map<?, ?> mapValue)) continue;
+            Map<String, Object> row = new LinkedHashMap<>();
+            String regionId = asString(mapValue.get("id"));
+            row.put("id", StringUtils.hasText(regionId) ? regionId : id("PR"));
+            row.put("questionNo", str(asString(mapValue.get("questionNo"))));
+            row.put("questionType", str(asString(mapValue.get("questionType"))));
+            row.put("knowledgePoint", str(asString(mapValue.get("knowledgePoint"))));
+            row.put("score", nullableRounded(mapValue.get("score")));
+            row.put("remark", str(asString(mapValue.get("remark"))));
+            row.put("sortOrder", mapValue.get("sortOrder") instanceof Number number ? number.intValue() : index);
+            row.put("x", clampRatio(mapValue.get("x")));
+            row.put("y", clampRatio(mapValue.get("y")));
+            row.put("width", clampRatio(mapValue.get("width")));
+            row.put("height", clampRatio(mapValue.get("height")));
+            rows.add(row);
+            index++;
+        }
+        rows.sort(Comparator.comparing(item -> item.get("sortOrder") instanceof Number number ? number.intValue() : Integer.MAX_VALUE));
+        return rows;
+    }
+
+    private List<Map<String, Object>> normalizeRegionDtos(List<PaperLayoutSaveDTO.PaperRegionDTO> regions) {
+        if (regions == null) return Collections.emptyList();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        int index = 1;
+        for (PaperLayoutSaveDTO.PaperRegionDTO item : regions) {
+            if (item == null) continue;
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", StringUtils.hasText(item.getId()) ? item.getId().trim() : id("PR"));
+            row.put("questionNo", str(item.getQuestionNo()).trim());
+            row.put("questionType", str(item.getQuestionType()).trim());
+            row.put("knowledgePoint", str(item.getKnowledgePoint()).trim());
+            row.put("score", item.getScore() == null ? null : round(item.getScore()));
+            row.put("remark", str(item.getRemark()).trim());
+            row.put("sortOrder", item.getSortOrder() == null ? index : item.getSortOrder());
+            row.put("x", clampRatio(item.getX()));
+            row.put("y", clampRatio(item.getY()));
+            row.put("width", clampRatio(item.getWidth()));
+            row.put("height", clampRatio(item.getHeight()));
+            rows.add(row);
+            index++;
+        }
+        rows.sort(Comparator.comparing(item -> item.get("sortOrder") instanceof Number number ? number.intValue() : Integer.MAX_VALUE));
+        return rows;
+    }
+
     private <T> List<T> page(List<T> rows, int current, int size) {
         int from = Math.max((current - 1) * size, 0);
         if (from >= rows.size()) return Collections.emptyList();
@@ -1314,6 +1403,23 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     private double dbl(Double value) { return value == null ? 0D : value; }
     private double round(double value) { return Math.round(value * 100D) / 100D; }
     private String str(String value) { return value == null ? "" : value; }
+    private String asString(Object value) { return value == null ? "" : String.valueOf(value); }
+    private Double nullableRounded(Object value) {
+        if (value == null || !StringUtils.hasText(String.valueOf(value))) return null;
+        try { return round(Double.parseDouble(String.valueOf(value))); }
+        catch (Exception ignored) { return null; }
+    }
+    private double clampRatio(Object value) {
+        double ratio = 0D;
+        if (value instanceof Number number) {
+            ratio = number.doubleValue();
+        } else if (value != null && StringUtils.hasText(String.valueOf(value))) {
+            try { ratio = Double.parseDouble(String.valueOf(value)); }
+            catch (Exception ignored) { ratio = 0D; }
+        }
+        ratio = Math.max(0D, Math.min(ratio, 1D));
+        return Math.round(ratio * 1000000D) / 1000000D;
+    }
 
     private String getCellValue(Cell cell) {
         if (cell == null) return "";

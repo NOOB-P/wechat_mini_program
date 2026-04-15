@@ -2,6 +2,7 @@ package com.edu.javasb_back.service;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
+import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import java.util.Map;
 
 public interface ExamProjectService {
@@ -42,7 +43,12 @@ public interface ExamProjectService {
     /**
      * 获取试卷配置
      */
-    Result<java.util.Map<String, String>> getPaperConfig(String projectId, String subjectName);
+    Result<java.util.Map<String, Object>> getPaperConfig(String projectId, String subjectName);
+
+    /**
+     * 保存试卷框选布局
+     */
+    Result<Void> savePaperLayout(PaperLayoutSaveDTO dto);
 
     /**
      * 保存单个学生成绩
