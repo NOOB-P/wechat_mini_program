@@ -214,6 +214,7 @@
       subjectName?: string
       showSave?: boolean
       hideToolbar?: boolean
+      initialTool?: RegionTool
     }>(),
     {
       regions: () => [],
@@ -232,7 +233,7 @@
   const viewportRef = ref<HTMLElement>()
   const stageRef = ref<HTMLElement>()
   const imageRef = ref<HTMLImageElement>()
-  const tool = ref<RegionTool>(props.readonly ? 'select' : 'draw')
+  const tool = ref<RegionTool>(resolveInitialTool(props.initialTool, props.readonly))
   const imageLoaded = ref(false)
   const localRegions = ref<PaperRegionItem[]>([])
   const draftRegion = ref<PaperRegionItem | null>(null)
@@ -338,7 +339,7 @@
     () => props.readonly,
     (readonly) => {
       if (readonly && (tool.value === 'draw' || tool.value === 'adjust')) {
-        tool.value = 'select'
+        tool.value = resolveInitialTool(props.initialTool, readonly)
       }
     },
     { immediate: true }
@@ -388,6 +389,16 @@
 
   function createRegionId() {
     return `region_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  }
+
+  function resolveInitialTool(initialTool?: RegionTool, readonly = false): RegionTool {
+    if (readonly) {
+      return initialTool === 'pan' ? 'pan' : 'select'
+    }
+    if (initialTool && ['draw', 'adjust', 'pan', 'select'].includes(initialTool)) {
+      return initialTool
+    }
+    return 'draw'
   }
 
   function clampUnit(value: number | null | undefined) {

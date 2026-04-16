@@ -61,6 +61,7 @@ const form = ref<EpisodeForm>({
   id: '',
   courseId: '',
   title: '',
+  videoUrl: '',
   sortOrder: 1
 })
 
@@ -84,6 +85,7 @@ const resetForm = () => {
     id: '',
     courseId: '',
     title: '',
+    videoUrl: '',
     sortOrder: 1
   }
   formRef.value?.resetFields()
