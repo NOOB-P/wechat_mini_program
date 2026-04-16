@@ -4,14 +4,14 @@
     <view class="header-bg"></view>
 
     <view class="sticky-header">
-      <view class="page-title">家庭教育</view>
-      <view class="page-desc">科学育儿，与孩子共同成长</view>
+      <view class="page-title">学霸经验分享</view>
+      <view class="page-desc">听学霸讲述高效学习的秘诀</view>
     </view>
 
     <scroll-view scroll-y class="list-scroll-view animate-fade-in">
       <view class="list-content" v-if="list.length > 0">
         <view 
-          class="edu-card" 
+          class="experience-card" 
           v-for="(item, index) in list" 
           :key="item.id" 
           @click="handleItemClick(item)"
@@ -23,15 +23,15 @@
               mode="aspectFill"
               class="cover-img" 
             />
-            <view class="type-tag">亲子</view>
+            <view class="type-tag">经验</view>
           </view>
           
           <view class="card-right">
             <view class="top-info">
               <text class="item-title-text">{{ item.title }}</text>
               <view class="author-row">
-                <wd-icon name="user" size="14px" color="#1a5f8e" />
-                <text class="author-name">{{ item.author || '教育专家' }}</text>
+                <wd-icon name="user" size="14px" color="#ff6b6b" />
+                <text class="author-name">{{ item.author || '资深学霸' }}</text>
               </view>
             </view>
             
@@ -53,7 +53,7 @@
 
       <view class="empty-state" v-else>
         <wd-img :width="120" :height="120" src="https://img.yzcdn.cn/vant/empty-image-default.png" />
-        <text class="empty-text">暂时还没有相关教育课程哦~</text>
+        <text class="empty-text">暂时还没有学霸分享哦~</text>
       </view>
     </scroll-view>
   </view>
@@ -62,13 +62,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getFamilyEduListApi } from '@/api/resource'
+import { getStudentTalkListApi } from '@/subpkg_resource/api/resource'
 
 const list = ref<any[]>([])
 
 const loadData = async () => {
   try {
-    const res = await getFamilyEduListApi()
+    const res = await getStudentTalkListApi()
     if (res.code === 200) {
       // 修正：处理图片路径
       const formattedList = res.data.map((item: any) => {
@@ -84,15 +84,15 @@ const loadData = async () => {
   }
 }
 
-const handleItemClick = (item: any) => {
+const goToDetail = (item: any) => {
   uni.navigateTo({
-    url: `/pages/course/detail?id=${item.id}`
+    url: `/subpkg_course/pages/course/detail?id=${item.id}`
   })
 }
 
 onLoad(() => {
   uni.setNavigationBarTitle({
-    title: '家庭教育'
+    title: '学霸说'
   })
 })
 
@@ -112,7 +112,7 @@ onMounted(() => loadData())
   left: 0;
   right: 0;
   height: 360rpx;
-  background: linear-gradient(135deg, #eef5ff 0%, #f7f8fa 100%);
+  background: linear-gradient(135deg, #fff5f5 0%, #fff0f0 100%);
   z-index: 0;
 }
 
@@ -147,19 +147,19 @@ onMounted(() => loadData())
   padding: 20rpx 30rpx 40rpx;
 }
 
-.edu-card {
+.experience-card {
   display: flex;
   background: #ffffff;
   border-radius: 32rpx;
   padding: 24rpx;
   margin-bottom: 30rpx;
-  box-shadow: 0 8rpx 24rpx rgba(26, 95, 142, 0.05);
+  box-shadow: 0 8rpx 24rpx rgba(255, 107, 107, 0.05);
   animation: slideIn 0.5s ease-out forwards;
   opacity: 0;
   
   &:active {
     transform: scale(0.98);
-    background: #f8fbff;
+    background: #fff9f9;
   }
 }
 
@@ -180,7 +180,7 @@ onMounted(() => loadData())
     position: absolute;
     top: 12rpx;
     left: 12rpx;
-    background: rgba(26, 95, 142, 0.9);
+    background: rgba(255, 107, 107, 0.9);
     color: #fff;
     font-size: 18rpx;
     padding: 4rpx 12rpx;
@@ -217,7 +217,7 @@ onMounted(() => loadData())
   
   .author-name {
     font-size: 24rpx;
-    color: #1a5f8e;
+    color: #ff6b6b;
     font-weight: 500;
   }
 }

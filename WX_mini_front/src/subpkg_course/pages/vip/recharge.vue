@@ -148,7 +148,7 @@ const redirectToSchoolStatus = (configData: any) => {
   const schoolName = encodeURIComponent(configData?.userSchoolName || '')
   const hasBoundStudent = configData?.hasBoundStudent ? 1 : 0
   uni.redirectTo({
-    url: `/pages/vip/school-status?schoolName=${schoolName}&hasBoundStudent=${hasBoundStudent}`
+    url: `/subpkg_course/pages/vip/school-status?schoolName=${schoolName}&hasBoundStudent=${hasBoundStudent}`
   })
 }
 

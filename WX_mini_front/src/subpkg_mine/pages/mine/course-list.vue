@@ -111,11 +111,11 @@ onShow(() => {
 
 const goToDetail = (id: string) => {
   uni.navigateTo({
-    url: `/pages/course/detail?id=${id}`
+    url: `/subpkg_course/pages/course/detail?id=${id}`
   })
 }
 
-const goHome = () => {
+const goToResource = () => {
   uni.switchTab({
     url: '/pages/resource/index'
   })

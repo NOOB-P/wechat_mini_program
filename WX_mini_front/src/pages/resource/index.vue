@@ -11,7 +11,7 @@
       </view>
 
       <view class="grid-wrap">
-        <view class="grid-item" @click="navTo('/pages/resource/paper')">
+        <view class="grid-item" @click="navTo('/subpkg_resource/pages/paper')">
           <view class="icon-box paper">
             <image class="grid-icon" :src="staticBaseUrl + '/resource/paper.png'" mode="aspectFit" />
           </view>
@@ -21,7 +21,7 @@
           </view>
         </view>
         
-        <view class="grid-item" @click="navTo('/pages/resource/student-talk')">
+        <view class="grid-item" @click="navTo('/subpkg_resource/pages/student-talk')">
           <view class="icon-box student">
             <image class="grid-icon" :src="staticBaseUrl + '/resource/student.png'" mode="aspectFit" />
           </view>
@@ -31,7 +31,7 @@
           </view>
         </view>
         
-        <view class="grid-item" @click="navTo('/pages/resource/family-edu')">
+        <view class="grid-item" @click="navTo('/subpkg_resource/pages/family-edu')">
           <view class="icon-box family">
             <image class="grid-icon" :src="staticBaseUrl + '/resource/family.png'" mode="aspectFit" />
           </view>
@@ -41,12 +41,12 @@
           </view>
         </view>
         
-        <view class="grid-item" @click="navTo('/pages/resource/sync-course')">
+        <view class="grid-item" @click="navTo('/subpkg_resource/pages/sync-course')">
           <view class="icon-box course">
             <image class="grid-icon" :src="staticBaseUrl + '/resource/course.png'" mode="aspectFit" />
           </view>
           <view class="info">
-            <text class="main-title">同步/专题课</text>
+            <text class="main-title">同步课</text>
             <text class="sub-title">巩固复习</text>
           </view>
         </view>
@@ -61,11 +61,11 @@
         </view>
       </view>
       <view class="recommend-grid">
-        <view class="recommend-item" @click="navTo('/pages/course/index')">
+        <view class="recommend-item">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_ai.png'" mode="aspectFill" />
           <text class="recommend-text">精选AI</text>
         </view>
-        <view class="recommend-item" @click="navTo('/pages/course/index')">
+        <view class="recommend-item">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_tutor.png'" mode="aspectFill" />
           <text class="recommend-text">精选家教</text>
         </view>
@@ -85,13 +85,13 @@
         </view>
       </view>
       <view class="recommend-grid">
-        <view class="recommend-item" @click="navTo('/pages/course/index')">
+        <view class="recommend-item">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/ai_study_1.png'" mode="aspectFill" />
         </view>
-        <view class="recommend-item" @click="navTo('/pages/course/index')">
+        <view class="recommend-item">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/ai_study_2.png'" mode="aspectFill" />
         </view>
-        <view class="recommend-item" @click="navTo('/pages/course/index')">
+        <view class="recommend-item">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/ai_study_3.png'" mode="aspectFill" />
         </view>
       </view>
@@ -212,14 +212,10 @@ const onSearch = () => {
   // 触发 computed 更新，实际逻辑在 computed 中已处理
 }
 
-const navTo = (url: string) => {
-  uni.navigateTo({ url })
-}
-
 const handleCourseClick = (course: any) => {
   if (isSVIPUser.value) {
     uni.navigateTo({ 
-      url: `/pages/course/detail?name=${encodeURIComponent(course.name)}&price=${course.price || ''}&image=${encodeURIComponent(course.image || '')}&desc=${encodeURIComponent(course.desc || '')}` 
+      url: `/subpkg_course/pages/course/detail?id=${course.id}` 
     })
   } else {
     uni.showModal({
@@ -228,11 +224,19 @@ const handleCourseClick = (course: any) => {
       confirmText: '去开通',
       success: (res) => {
         if (res.confirm) {
-          uni.navigateTo({ url: '/pages/vip/recharge' })
+          uni.navigateTo({ url: '/subpkg_course/pages/vip/recharge' })
         }
       }
     })
   }
+}
+
+const goToVip = () => {
+  uni.navigateTo({ url: '/subpkg_course/pages/vip/recharge' })
+}
+
+const navTo = (url: string) => {
+  uni.navigateTo({ url })
 }
 
 onMounted(() => {

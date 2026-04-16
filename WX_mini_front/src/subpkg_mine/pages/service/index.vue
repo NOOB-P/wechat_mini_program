@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getFaqCategoryApi, getFaqListApi } from '@/api/service'
+import { getFaqCategoryApi, getFaqListApi } from '@/subpkg_mine/api/service'
 import { getWechatQrByLocationApi } from '@/api/index'
 import { resolveUploadSrc } from '@/utils/upload'
 import { useToast } from 'wot-design-uni'

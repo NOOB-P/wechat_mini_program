@@ -87,19 +87,22 @@ onShow(() => {
 
 const handleGridClick = (type: string) => {
   if (type === 'analysis') {
-    uni.navigateTo({ url: '/pages/score/index' })
+    uni.navigateTo({ url: '/subpkg_analysis/pages/score/index' })
   } else if (type === 'academic') {
-    // 跳转到名校试卷
-    uni.navigateTo({ url: '/pages/resource/paper' })
-  }
+      // 跳转到名校试卷
+      uni.navigateTo({ url: '/subpkg_resource/pages/paper' })
+    }
 }
 
 const navTo = (url: string) => {
-  uni.navigateTo({ url })
+  const subpkgMap: Record<string, string> = {
+    '/pages/course/index': '/subpkg_course/pages/course/index'
+  }
+  uni.navigateTo({ url: subpkgMap[url] || url })
 }
 
 const goToRecharge = () => {
-  uni.navigateTo({ url: '/pages/vip/recharge' })
+  uni.navigateTo({ url: '/subpkg_course/pages/vip/recharge' })
 }
 
 const joinRoom = () => {
@@ -112,16 +115,16 @@ const joinRoom = () => {
 const handleCourseClick = (course: any) => {
   if (course.isPublic || isSVIPUser.value) {
     uni.navigateTo({ 
-      url: `/pages/course/detail?name=${encodeURIComponent(course.name)}&price=${course.price || ''}&image=${encodeURIComponent(course.image || '')}` 
+      url: `/subpkg_course/pages/course/detail?id=${course.id}` 
     })
   } else {
     uni.showModal({
       title: 'SVIP 专属课程',
-      content: '此为精品课程，开通 SVIP 即可无限畅学！',
+      content: '此为 AI 名师精品课程，开通 SVIP 即可无限畅学！',
       confirmText: '去开通',
       success: (res) => {
         if (res.confirm) {
-          uni.navigateTo({ url: '/pages/vip/recharge?type=SVIP' })
+          uni.navigateTo({ url: '/subpkg_course/pages/vip/recharge?type=SVIP' })
         }
       }
     })

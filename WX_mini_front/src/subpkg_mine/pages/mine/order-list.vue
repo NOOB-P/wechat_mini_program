@@ -157,9 +157,9 @@ const loadData = async () => {
   }
 }
 
-const goToCourseDetail = (id: string) => {
+const goToDetail = (id: string) => {
   uni.navigateTo({
-    url: `/pages/course/detail?id=${id}`
+    url: `/subpkg_course/pages/course/detail?id=${id}`
   })
 }
 

@@ -9,30 +9,30 @@ interface NavigateToOptions {
        "/pages/auth/forgot-account" |
        "/pages/auth/forgot-password" |
        "/pages/auth/reset-password" |
-       "/pages/course/detail" |
-       "/pages/course/index" |
-       "/pages/course/pay" |
        "/pages/home/index" |
-       "/pages/mine/course-list" |
-       "/pages/mine/edit-profile" |
        "/pages/mine/index" |
-       "/pages/mine/order-list" |
-       "/pages/paper/index" |
        "/pages/register/index" |
-       "/pages/resource/family-edu" |
        "/pages/resource/index" |
-       "/pages/resource/paper" |
-       "/pages/resource/student-talk" |
-       "/pages/resource/sync-course" |
-       "/pages/score/composition" |
-       "/pages/score/distribution" |
-       "/pages/score/index" |
-       "/pages/score/trend" |
-       "/pages/service/index" |
-       "/pages/vip/index" |
-       "/pages/vip/recharge" |
-       "/pages/vip/school-status" |
-       "/pages/mine/settings/index";
+       "/subpkg_resource/pages/family-edu" |
+       "/subpkg_resource/pages/paper" |
+       "/subpkg_resource/pages/student-talk" |
+       "/subpkg_resource/pages/sync-course" |
+       "/subpkg_course/pages/course/index" |
+       "/subpkg_course/pages/course/detail" |
+       "/subpkg_course/pages/course/pay" |
+       "/subpkg_course/pages/vip/index" |
+       "/subpkg_course/pages/vip/recharge" |
+       "/subpkg_course/pages/vip/school-status" |
+       "/subpkg_analysis/pages/score/index" |
+       "/subpkg_analysis/pages/score/composition" |
+       "/subpkg_analysis/pages/score/distribution" |
+       "/subpkg_analysis/pages/score/trend" |
+       "/subpkg_analysis/pages/paper/index" |
+       "/subpkg_mine/pages/mine/course-list" |
+       "/subpkg_mine/pages/mine/edit-profile" |
+       "/subpkg_mine/pages/mine/order-list" |
+       "/subpkg_mine/pages/mine/settings/index" |
+       "/subpkg_mine/pages/service/index";
 }
 interface RedirectToOptions extends NavigateToOptions {}
 

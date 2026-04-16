@@ -77,7 +77,7 @@
   import { onLoad } from '@dcloudio/uni-app'
   import { useToast } from 'wot-design-uni'
   import { getUserInfoApi } from '@/api/mine'
-  import { openSchoolVipApi } from '@/api/school-status'
+  import { openSchoolVipApi } from '@/subpkg_course/api/school-status'
 
   const text = {
     pageTitle: '\u6821\u8baf\u901a\u72b6\u6001',
@@ -139,9 +139,9 @@
     uni.navigateTo({ url: '/pages/auth/bind-student' })
   }
 
-  const goVipPage = () => {
-    uni.redirectTo({ url: '/pages/vip/index' })
-  }
+  const goBack = () => {
+  uni.redirectTo({ url: '/subpkg_course/pages/vip/index' })
+}
 
   const handleMonthConfirm = (event: any) => {
     const value = Array.isArray(event?.value) ? event.value[0] : event?.value
