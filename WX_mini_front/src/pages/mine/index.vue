@@ -114,7 +114,7 @@ const goToVip = () => {
     <!-- 头部用户信息 -->
     <view class="header-content">
       <view class="nav-bar">
-        <wd-icon name="notification" size="24px" class="notice-icon" />
+        <!-- <wd-icon name="notification" size="24px" class="notice-icon" /> -->
       </view>
       
       <view class="user-info-section" @click="handleEditProfile">
