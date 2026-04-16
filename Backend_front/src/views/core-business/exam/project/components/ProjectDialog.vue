@@ -5,6 +5,7 @@
     width="900px"
     class="project-dialog"
     destroy-on-close
+    align-center
     @close="handleClose"
   >
     <div class="project-layout">
@@ -295,6 +296,7 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+    justify-content: center;
   }
 
   .project-form {
@@ -339,23 +341,26 @@
     }
 
     &.subject-box {
-      flex-direction: column;
-      align-items: flex-start;
+      flex-direction: row;
+      align-items: center;
       gap: 12px;
-      min-height: 120px;
-      padding-bottom: 40px;
+      min-height: 48px;
+      padding: 10px 16px;
       position: relative;
 
       .subject-tags {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 6px;
+        flex: 1;
+        margin-right: 24px;
       }
 
       .el-icon {
         position: absolute;
         right: 16px;
-        bottom: 16px;
+        top: 50%;
+        transform: translateY(-50%);
         color: #94a3b8;
       }
     }
@@ -443,9 +448,9 @@
   }
 
   .subject-tag {
-    border-radius: 6px;
-    padding: 0 10px;
-    height: 28px;
-    line-height: 26px;
+    border-radius: 4px;
+    padding: 0 8px;
+    height: 24px;
+    line-height: 22px;
   }
 </style>

@@ -3,6 +3,7 @@ package com.edu.javasb_back.service.impl;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
+import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import com.edu.javasb_back.model.entity.ExamClass;
 import com.edu.javasb_back.model.entity.ExamProject;
 import com.edu.javasb_back.model.entity.ExamStudentScore;
@@ -57,6 +58,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -71,6 +74,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             "语文", "数学", "英语", "物理", "化学", "生物", "政治", "历史", "地理",
             "信息技术", "体育", "科学", "通用技术", "音乐", "美术"
     );
+    private static final Pattern QUESTION_NUMBER_PATTERN = Pattern.compile("(\\d+)");
 
     @Autowired private ExamProjectRepository examProjectRepository;
     @Autowired private ExamClassRepository examClassRepository;
@@ -190,12 +194,14 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         data.put("classes", ctx.examClasses().stream().map(this::classItem).toList());
         data.put("subjects", scoreSummaryRows(ctx));
         data.put("schools", ctx.examClasses().stream().collect(Collectors.groupingBy(ExamClass::getSchoolId, LinkedHashMap::new, Collectors.toList()))
-                .values().stream().map(items -> Map.of(
-                        "schoolId", items.get(0).getSchoolId(),
-                        "schoolName", items.get(0).getSchool(),
-                        "classCount", items.size(),
-                        "studentCount", items.stream().mapToInt(it -> num(it.getStudentCount())).sum()
-                )).toList());
+                .values().stream().map(items -> {
+                    Map<String, Object> school = new LinkedHashMap<>();
+                    school.put("schoolId", items.get(0).getSchoolId());
+                    school.put("schoolName", items.get(0).getSchool());
+                    school.put("classCount", items.size());
+                    school.put("studentCount", items.stream().mapToInt(it -> num(it.getStudentCount())).sum());
+                    return school;
+                }).toList());
         return Result.success("获取成功", data);
     }
 
@@ -720,34 +726,85 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         project.setSubjectCount(prepared.subjects().size());
         examProjectRepository.save(project);
 
-        examClassRepository.deleteByProjectId(project.getId());
+        syncProjectClassesAndSubjects(project.getId(), prepared);
+    }
+
+    private void syncProjectClassesAndSubjects(String projectId, Prepared prepared) {
+        List<ExamClass> existingClasses = examClassRepository.findByProjectId(projectId);
+        Map<String, ExamClass> existingClassMap = existingClasses.stream()
+                .filter(item -> StringUtils.hasText(item.getSourceClassId()))
+                .collect(Collectors.toMap(ExamClass::getSourceClassId, Function.identity(), (a, b) -> a, LinkedHashMap::new));
+        Set<String> targetClassIds = prepared.classes().stream().map(SysClass::getClassid).collect(Collectors.toCollection(LinkedHashSet::new));
+
         Map<String, String> schoolNameMap = sysSchoolRepository.findBySchoolIdIn(prepared.coveredSchoolIds()).stream()
                 .collect(Collectors.toMap(SysSchool::getSchoolId, SysSchool::getName, (a, b) -> a));
-        List<ExamClass> examClasses = prepared.classes().stream().map(sysClass -> {
-            ExamClass item = new ExamClass();
-            item.setId(id("EC"));
-            item.setProjectId(project.getId());
+
+        List<ExamClass> classesToSave = prepared.classes().stream().map(sysClass -> {
+            ExamClass item = existingClassMap.get(sysClass.getClassid());
+            if (item == null) {
+                item = new ExamClass();
+                item.setId(id("EC"));
+                item.setProjectId(projectId);
+                item.setSourceClassId(sysClass.getClassid());
+            }
             item.setSchoolId(sysClass.getSchoolId());
             item.setSchool(schoolNameMap.getOrDefault(sysClass.getSchoolId(), ""));
             item.setGrade(sysClass.getGrade());
             item.setClassName(sysClass.getAlias());
-            item.setSourceClassId(sysClass.getClassid());
             item.setStudentCount(prepared.studentCountMap().getOrDefault(sysClass.getClassid(), 0));
             return item;
         }).toList();
-        List<ExamClass> savedClasses = examClassRepository.saveAll(examClasses);
-        List<ExamSubject> subjects = new ArrayList<>();
-        for (ExamClass examClass : savedClasses) {
-            for (String subjectName : prepared.subjects()) {
-                ExamSubject subject = new ExamSubject();
-                subject.setId(id("ES"));
-                subject.setClassId(examClass.getId());
-                subject.setSubjectName(subjectName);
-                subject.setScoreUploaded(Boolean.FALSE);
-                subjects.add(subject);
+        List<ExamClass> savedClasses = examClassRepository.saveAll(classesToSave);
+
+        List<ExamClass> classesToDelete = existingClasses.stream()
+                .filter(item -> !targetClassIds.contains(item.getSourceClassId()))
+                .toList();
+        if (!classesToDelete.isEmpty()) {
+            examClassRepository.deleteAll(classesToDelete);
+        }
+
+        syncProjectSubjects(savedClasses, prepared.subjects());
+    }
+
+    private void syncProjectSubjects(List<ExamClass> examClasses, List<String> subjects) {
+        if (examClasses.isEmpty()) return;
+
+        List<String> classIds = examClasses.stream().map(ExamClass::getId).toList();
+        List<ExamSubject> existingSubjects = examSubjectRepository.findByClassIdIn(classIds);
+        Map<String, ExamSubject> existingSubjectMap = existingSubjects.stream()
+                .collect(Collectors.toMap(item -> item.getClassId() + "#" + item.getSubjectName(), Function.identity(), (a, b) -> a, LinkedHashMap::new));
+
+        List<ExamSubject> subjectsToSave = new ArrayList<>();
+        Set<String> targetSubjectKeys = new LinkedHashSet<>();
+        for (ExamClass examClass : examClasses) {
+            for (String subjectName : subjects) {
+                String key = examClass.getId() + "#" + subjectName;
+                targetSubjectKeys.add(key);
+                ExamSubject subject = existingSubjectMap.get(key);
+                if (subject == null) {
+                    subject = new ExamSubject();
+                    subject.setId(id("ES"));
+                    subject.setClassId(examClass.getId());
+                    subject.setSubjectName(subjectName);
+                    subject.setScoreUploaded(Boolean.FALSE);
+                } else {
+                    subject.setClassId(examClass.getId());
+                    subject.setSubjectName(subjectName);
+                }
+                subjectsToSave.add(subject);
             }
         }
-        examSubjectRepository.saveAll(subjects);
+
+        List<ExamSubject> subjectsToDelete = existingSubjects.stream()
+                .filter(item -> !targetSubjectKeys.contains(item.getClassId() + "#" + item.getSubjectName()))
+                .toList();
+
+        if (!subjectsToDelete.isEmpty()) {
+            examSubjectRepository.deleteAll(subjectsToDelete);
+        }
+        if (!subjectsToSave.isEmpty()) {
+            examSubjectRepository.saveAll(subjectsToSave);
+        }
     }
 
     private Prepared prepare(ExamProjectSaveDTO dto) {
@@ -1139,6 +1196,115 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         return Result.success("成绩保存成功", null);
     }
 
+    @Override
+    @Transactional
+    public Result<String> uploadPublicPaper(String projectId, String subjectName, String type, MultipartFile file) {
+        if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
+        if (!StringUtils.hasText(subjectName)) return Result.error("学科名称不能为空");
+        if (!"template".equals(type) && !"original".equals(type)) {
+            return Result.error("试卷类型错误，仅支持 template 或 original");
+        }
+        if (file == null || file.isEmpty()) return Result.error("请上传文件");
+
+        String originalFilename = file.getOriginalFilename();
+        if (!isAllowedPaperFile(originalFilename)) {
+            return Result.error("仅支持 .pdf, .png, .jpg, .jpeg 格式");
+        }
+
+        try {
+            // Store file
+            String storedUrl = storePublicPaperFile(file.getInputStream(), projectId, subjectName, type, originalFilename);
+
+            // Update all subjects in this project with this name
+            List<ExamClass> examClasses = examClassRepository.findByProjectIdOrderBySchoolAscGradeAscClassNameAsc(projectId);
+            if (examClasses.isEmpty()) return Result.error("项目中无班级数据");
+            
+            List<String> examClassIds = examClasses.stream().map(ExamClass::getId).toList();
+            List<ExamSubject> subjects = examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(examClassIds).stream()
+                    .filter(s -> subjectName.equals(s.getSubjectName()))
+                    .toList();
+
+            if (subjects.isEmpty()) return Result.error("项目中无学科数据: " + subjectName);
+
+            for (ExamSubject subject : subjects) {
+                if ("template".equals(type)) {
+                    subject.setAnswerUrl(storedUrl);
+                } else if ("original".equals(type)) {
+                    subject.setPaperUrl(storedUrl);
+                }
+            }
+            examSubjectRepository.saveAllAndFlush(subjects);
+
+            return Result.success("上传成功", storedUrl);
+        } catch (Exception e) {
+            return Result.error("上传失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<Map<String, Object>> getPaperConfig(String projectId, String subjectName) {
+        ExamProject project = examProjectRepository.findById(projectId).orElse(null);
+        if (project == null) return Result.error("项目不存在");
+        List<ExamClass> examClasses = examClassRepository.findByProjectIdOrderBySchoolAscGradeAscClassNameAsc(projectId);
+        if (examClasses.isEmpty()) return Result.success(new HashMap<>());
+        
+        List<String> examClassIds = examClasses.stream().map(ExamClass::getId).toList();
+        Optional<ExamSubject> subjectOpt = examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(examClassIds).stream()
+                .filter(s -> subjectName.equals(s.getSubjectName()))
+                .findFirst();
+
+        Map<String, Object> config = new HashMap<>();
+        if (subjectOpt.isPresent()) {
+            config.put("templateUrl", subjectOpt.get().getAnswerUrl());
+            config.put("originalUrl", subjectOpt.get().getPaperUrl());
+        } else {
+            config.put("templateUrl", null);
+            config.put("originalUrl", null);
+        }
+        Map<String, Object> paperLayouts = map(project.getPaperLayouts());
+        Map<String, Object> subjectLayout = nestedMap(paperLayouts.get(subjectName));
+        config.put("templateRegions", regionList(subjectLayout.get("template")));
+        config.put("originalRegions", regionList(subjectLayout.get("original")));
+        return Result.success(config);
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> savePaperLayout(PaperLayoutSaveDTO dto) {
+        if (dto == null || !StringUtils.hasText(dto.getProjectId())) return Result.error("项目ID不能为空");
+        if (!StringUtils.hasText(dto.getSubjectName())) return Result.error("学科名称不能为空");
+        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType())) {
+            return Result.error("布局类型错误，仅支持 template 或 original");
+        }
+        ExamProject project = examProjectRepository.findById(dto.getProjectId()).orElse(null);
+        if (project == null) return Result.error("项目不存在");
+
+        Map<String, Object> paperLayouts = new LinkedHashMap<>(map(project.getPaperLayouts()));
+        Map<String, Object> subjectLayout = new LinkedHashMap<>(nestedMap(paperLayouts.get(dto.getSubjectName())));
+        subjectLayout.put(dto.getType(), normalizeRegionDtos(dto.getRegions()));
+        paperLayouts.put(dto.getSubjectName(), subjectLayout);
+        project.setPaperLayouts(jsonMap(paperLayouts));
+        examProjectRepository.saveAndFlush(project);
+        return Result.success("保存成功", null);
+    }
+
+    private String storePublicPaperFile(InputStream inputStream, String projectId, String subjectName, String type, String originalFilename) throws Exception {
+        String extension = getFileExtension(originalFilename);
+        Path baseDir = Paths.get(globalConfigProperties.getPaperDir())
+                .resolve("exam-projects")
+                .resolve(safePathSegment(projectId))
+                .resolve(safePathSegment(subjectName))
+                .resolve("public");
+        Files.createDirectories(baseDir);
+
+        String storedName = type + "_" + System.currentTimeMillis() + extension;
+        Path target = baseDir.resolve(storedName);
+        Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
+
+        return "/uploads/papers/exam-projects/" + safePathSegment(projectId) + "/" +
+                safePathSegment(subjectName) + "/public/" + storedName;
+    }
+
     private String json(List<String> values) {
         try { return objectMapper.writeValueAsString(normalize(values)); }
         catch (Exception ignored) { return "[]"; }
@@ -1154,6 +1320,69 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         if (!StringUtils.hasText(json)) return Collections.emptyMap();
         try { return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {}); }
         catch (Exception ignored) { return Collections.emptyMap(); }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> nestedMap(Object value) {
+        if (value instanceof Map<?, ?> mapValue) {
+            Map<String, Object> nested = new LinkedHashMap<>();
+            mapValue.forEach((key, val) -> nested.put(String.valueOf(key), val));
+            return nested;
+        }
+        return Collections.emptyMap();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> regionList(Object value) {
+        if (!(value instanceof Collection<?> collection)) return Collections.emptyList();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        int index = 1;
+        for (Object item : collection) {
+            if (!(item instanceof Map<?, ?> mapValue)) continue;
+            Map<String, Object> row = new LinkedHashMap<>();
+            String regionId = asString(mapValue.get("id"));
+            row.put("id", StringUtils.hasText(regionId) ? regionId : id("PR"));
+            row.put("questionNo", normalizeQuestionNo(asString(mapValue.get("questionNo")), index));
+            row.put("questionType", str(asString(mapValue.get("questionType"))));
+            row.put("knowledgePoint", str(asString(mapValue.get("knowledgePoint"))));
+            row.put("score", nullableRounded(mapValue.get("score")));
+            row.put("remark", str(asString(mapValue.get("remark"))));
+            row.put("sortOrder", mapValue.get("sortOrder") instanceof Number number ? number.intValue() : index);
+            row.put("x", clampRatio(mapValue.get("x")));
+            row.put("y", clampRatio(mapValue.get("y")));
+            row.put("width", clampRatio(mapValue.get("width")));
+            row.put("height", clampRatio(mapValue.get("height")));
+            rows.add(row);
+            index++;
+        }
+        rows.sort(Comparator.comparing(item -> item.get("sortOrder") instanceof Number number ? number.intValue() : Integer.MAX_VALUE));
+        return rows;
+    }
+
+    private List<Map<String, Object>> normalizeRegionDtos(List<PaperLayoutSaveDTO.PaperRegionDTO> regions) {
+        if (regions == null) return Collections.emptyList();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        int index = 1;
+        for (PaperLayoutSaveDTO.PaperRegionDTO item : regions) {
+            if (item == null) continue;
+            Map<String, Object> row = new LinkedHashMap<>();
+            int sortOrder = item.getSortOrder() == null ? index : item.getSortOrder();
+            row.put("id", StringUtils.hasText(item.getId()) ? item.getId().trim() : id("PR"));
+            row.put("questionNo", normalizeQuestionNo(item.getQuestionNo(), sortOrder));
+            row.put("questionType", str(item.getQuestionType()).trim());
+            row.put("knowledgePoint", str(item.getKnowledgePoint()).trim());
+            row.put("score", item.getScore() == null ? null : round(item.getScore()));
+            row.put("remark", str(item.getRemark()).trim());
+            row.put("sortOrder", sortOrder);
+            row.put("x", clampRatio(item.getX()));
+            row.put("y", clampRatio(item.getY()));
+            row.put("width", clampRatio(item.getWidth()));
+            row.put("height", clampRatio(item.getHeight()));
+            rows.add(row);
+            index++;
+        }
+        rows.sort(Comparator.comparing(item -> item.get("sortOrder") instanceof Number number ? number.intValue() : Integer.MAX_VALUE));
+        return rows;
     }
 
     private <T> List<T> page(List<T> rows, int current, int size) {
@@ -1178,6 +1407,97 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     private double dbl(Double value) { return value == null ? 0D : value; }
     private double round(double value) { return Math.round(value * 100D) / 100D; }
     private String str(String value) { return value == null ? "" : value; }
+    private String asString(Object value) { return value == null ? "" : String.valueOf(value); }
+    private String normalizeQuestionNo(String value, int fallbackIndex) {
+        String raw = str(value).trim();
+        if (!StringUtils.hasText(raw)) {
+            return formatQuestionNo(null, fallbackIndex);
+        }
+
+        Matcher matcher = QUESTION_NUMBER_PATTERN.matcher(raw);
+        if (matcher.find()) {
+            return formatQuestionNo(parseIntSafe(matcher.group(1)), fallbackIndex);
+        }
+
+        Integer chineseNumber = parseChineseQuestionNumber(raw);
+        if (chineseNumber != null && chineseNumber > 0) {
+            return formatQuestionNo(chineseNumber, fallbackIndex);
+        }
+
+        String fallback = formatQuestionNo(null, fallbackIndex);
+        return StringUtils.hasText(fallback) ? fallback : raw;
+    }
+
+    private String formatQuestionNo(Integer number, int fallbackIndex) {
+        Integer target = number != null && number > 0 ? number : (fallbackIndex > 0 ? fallbackIndex : null);
+        return target == null ? "" : "第" + target + "题";
+    }
+
+    private Integer parseChineseQuestionNumber(String raw) {
+        String normalized = raw.replaceAll("[题号第\\s()（）【】\\[\\]、.．-]", "");
+        if (!StringUtils.hasText(normalized) || !normalized.matches("[零〇一二两三四五六七八九十百]+")) {
+            return null;
+        }
+
+        int result = 0;
+        int current = 0;
+        for (char ch : normalized.toCharArray()) {
+            if (ch == '百') {
+                result += (current == 0 ? 1 : current) * 100;
+                current = 0;
+                continue;
+            }
+            if (ch == '十') {
+                result += (current == 0 ? 1 : current) * 10;
+                current = 0;
+                continue;
+            }
+            Integer digit = chineseDigit(ch);
+            if (digit == null) {
+                return null;
+            }
+            current = digit;
+        }
+        int value = result + current;
+        return value > 0 ? value : null;
+    }
+
+    private Integer chineseDigit(char ch) {
+        return switch (ch) {
+            case '零', '〇' -> 0;
+            case '一' -> 1;
+            case '二', '两' -> 2;
+            case '三' -> 3;
+            case '四' -> 4;
+            case '五' -> 5;
+            case '六' -> 6;
+            case '七' -> 7;
+            case '八' -> 8;
+            case '九' -> 9;
+            default -> null;
+        };
+    }
+
+    private Integer parseIntSafe(String value) {
+        try { return Integer.parseInt(value); }
+        catch (Exception ignored) { return null; }
+    }
+    private Double nullableRounded(Object value) {
+        if (value == null || !StringUtils.hasText(String.valueOf(value))) return null;
+        try { return round(Double.parseDouble(String.valueOf(value))); }
+        catch (Exception ignored) { return null; }
+    }
+    private double clampRatio(Object value) {
+        double ratio = 0D;
+        if (value instanceof Number number) {
+            ratio = number.doubleValue();
+        } else if (value != null && StringUtils.hasText(String.valueOf(value))) {
+            try { ratio = Double.parseDouble(String.valueOf(value)); }
+            catch (Exception ignored) { ratio = 0D; }
+        }
+        ratio = Math.max(0D, Math.min(ratio, 1D));
+        return Math.round(ratio * 1000000D) / 1000000D;
+    }
 
     private String getCellValue(Cell cell) {
         if (cell == null) return "";

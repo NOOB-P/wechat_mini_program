@@ -3,6 +3,7 @@ package com.edu.javasb_back.controller;
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
+import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import com.edu.javasb_back.service.ExamProjectService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -142,6 +143,30 @@ public class ExamProjectController {
             @RequestParam String studentNo,
             @RequestParam MultipartFile file) {
         return examProjectService.uploadAnswerSheet(projectId, subjectName, studentNo, file);
+    }
+
+    @LogOperation("上传公共试卷(样板/原卷)")
+    @PostMapping("/papers/upload-public")
+    public Result<String> uploadPublicPaper(
+            @RequestParam String projectId,
+            @RequestParam String subjectName,
+            @RequestParam String type,
+            @RequestParam MultipartFile file) {
+        return examProjectService.uploadPublicPaper(projectId, subjectName, type, file);
+    }
+
+    @LogOperation("获取试卷配置")
+    @GetMapping("/papers/config")
+    public Result<Map<String, Object>> getPaperConfig(
+            @RequestParam String projectId,
+            @RequestParam String subjectName) {
+        return examProjectService.getPaperConfig(projectId, subjectName);
+    }
+
+    @LogOperation("保存试卷框选布局")
+    @PostMapping("/papers/layout/save")
+    public Result<Void> savePaperLayout(@RequestBody PaperLayoutSaveDTO dto) {
+        return examProjectService.savePaperLayout(dto);
     }
 
     @LogOperation("保存单个学生成绩")

@@ -2,6 +2,7 @@ package com.edu.javasb_back.service;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
+import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import java.util.Map;
 
 public interface ExamProjectService {
@@ -34,6 +35,21 @@ public interface ExamProjectService {
     Result<Void> importAnswerSheets(String projectId, String subjectName, org.springframework.web.multipart.MultipartFile file);
     Result<String> uploadAnswerSheet(String projectId, String subjectName, String studentNo, org.springframework.web.multipart.MultipartFile file);
     
+    /**
+     * 上传公共试卷(样板/原卷)
+     */
+    Result<String> uploadPublicPaper(String projectId, String subjectName, String type, org.springframework.web.multipart.MultipartFile file);
+
+    /**
+     * 获取试卷配置
+     */
+    Result<java.util.Map<String, Object>> getPaperConfig(String projectId, String subjectName);
+
+    /**
+     * 保存试卷框选布局
+     */
+    Result<Void> savePaperLayout(PaperLayoutSaveDTO dto);
+
     /**
      * 保存单个学生成绩
      */

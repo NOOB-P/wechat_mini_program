@@ -35,6 +35,7 @@ public class ExamProjectSchemaInitializer {
         columns.put("selected_class_ids", "ALTER TABLE exam_projects ADD COLUMN selected_class_ids TEXT NULL COMMENT '普通考试选中的班级ID列表(JSON)' AFTER selected_school_ids");
         columns.put("subject_names", "ALTER TABLE exam_projects ADD COLUMN subject_names TEXT NULL COMMENT '项目科目列表(JSON)' AFTER selected_class_ids");
         columns.put("subject_benchmarks", "ALTER TABLE exam_projects ADD COLUMN subject_benchmarks TEXT NULL COMMENT '学科基准分数配置(JSON)' AFTER subject_names");
+        columns.put("paper_layouts", "ALTER TABLE exam_projects ADD COLUMN paper_layouts TEXT NULL COMMENT '试卷框选布局配置(JSON)' AFTER subject_benchmarks");
         columns.put("school_count", "ALTER TABLE exam_projects ADD COLUMN school_count INT DEFAULT 0 COMMENT '覆盖学校数' AFTER subject_names");
         columns.put("class_count", "ALTER TABLE exam_projects ADD COLUMN class_count INT DEFAULT 0 COMMENT '覆盖班级数' AFTER school_count");
         columns.put("student_count", "ALTER TABLE exam_projects ADD COLUMN student_count INT DEFAULT 0 COMMENT '覆盖学生数' AFTER class_count");
@@ -73,6 +74,7 @@ public class ExamProjectSchemaInitializer {
                         "selected_class_ids = COALESCE(selected_class_ids, '[]'), " +
                         "subject_names = COALESCE(subject_names, '[]'), " +
                         "subject_benchmarks = COALESCE(subject_benchmarks, '{}'), " +
+                        "paper_layouts = COALESCE(paper_layouts, '{}'), " +
                         "school_count = COALESCE(school_count, 0), " +
                         "class_count = COALESCE(class_count, 0), " +
                         "student_count = COALESCE(student_count, 0), " +

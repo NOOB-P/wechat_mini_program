@@ -116,7 +116,7 @@
             >
               <el-table-column v-if="isBatchDeleting" type="selection" width="55" align="center" />
               <el-table-column prop="id" label="内部ID" width="80" align="center" />
-              <el-table-column prop="schoolId" label="唯一标识(ID)" width="180" align="center" />
+              <el-table-column prop="schoolId" label="唯一标识(ID)" width="190" align="center" />
               <el-table-column prop="province" label="省份" width="150" align="center" />
               <el-table-column prop="city" label="城市" width="150" align="center" />
               <el-table-column prop="name" label="学校名称" min-width="200" />

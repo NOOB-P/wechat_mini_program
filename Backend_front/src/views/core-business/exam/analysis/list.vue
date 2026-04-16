@@ -27,15 +27,15 @@
             </div>
             <div class="project-stats mt-4 flex justify-around text-center">
               <div>
-                <div class="stat-value">12</div>
+                <div class="stat-value">{{ item.schoolCount }}</div>
                 <div class="stat-label">参与学校</div>
               </div>
               <div>
-                <div class="stat-value">45</div>
+                <div class="stat-value">{{ item.classCount }}</div>
                 <div class="stat-label">参与班级</div>
               </div>
               <div>
-                <div class="stat-value">2,450</div>
+                <div class="stat-value">{{ item.studentCount }}</div>
                 <div class="stat-label">考生人数</div>
               </div>
             </div>
@@ -55,26 +55,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { fetchAnalysisProjects } from '@/api/core-business/exam/analysis/list'
 
 const router = useRouter()
 const searchForm = ref({
   name: ''
 })
 
-const tableData = ref([
-  { id: '1', name: '2023-2024学年第一学期期中联考', createTime: '2023-11-01' },
-  { id: '2', name: '2024年春季学期摸底考试', createTime: '2024-03-01' },
-  { id: '3', name: '2023年高二上学期期末考试', createTime: '2024-01-15' }
-])
+const tableData = ref<any[]>([])
+
+const loadData = async () => {
+  try {
+    const res = await fetchAnalysisProjects({ name: searchForm.value.name || undefined })
+    tableData.value = res.records || []
+  } catch (error: any) {
+    ElMessage.error(error.message || '加载分析项目失败')
+  }
+}
 
 const handleSearch = () => {
-  // 搜索逻辑
+  loadData()
 }
 
 const resetSearch = () => {
   searchForm.value.name = ''
+  loadData()
 }
 
 const handleEnter = (item: any) => {
@@ -90,6 +98,10 @@ const handleSelectClass = (item: any) => {
     query: { projectId: item.id, projectName: item.name }
   })
 }
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <style scoped>

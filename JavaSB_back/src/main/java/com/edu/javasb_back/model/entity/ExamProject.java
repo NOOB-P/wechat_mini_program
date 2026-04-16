@@ -30,6 +30,9 @@ public class ExamProject {
     @Column(name = "subject_benchmarks", columnDefinition = "TEXT")
     private String subjectBenchmarks;
 
+    @Column(name = "paper_layouts", columnDefinition = "TEXT")
+    private String paperLayouts;
+
     @Column(name = "school_count")
     private Integer schoolCount;
 
@@ -79,6 +82,9 @@ public class ExamProject {
 
     public String getSubjectBenchmarks() { return subjectBenchmarks; }
     public void setSubjectBenchmarks(String subjectBenchmarks) { this.subjectBenchmarks = subjectBenchmarks; }
+
+    public String getPaperLayouts() { return paperLayouts; }
+    public void setPaperLayouts(String paperLayouts) { this.paperLayouts = paperLayouts; }
 
     public Integer getSchoolCount() { return schoolCount; }
     public void setSchoolCount(Integer schoolCount) { this.schoolCount = schoolCount; }

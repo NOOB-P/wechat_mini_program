@@ -5,6 +5,8 @@
     width="800px"
     class="benchmark-dialog"
     append-to-body
+    align-center
+    destroy-on-close
     @close="handleClose"
   >
     <div class="benchmark-layout">
@@ -163,9 +165,15 @@
 </script>
 
 <style scoped lang="scss">
+  .benchmark-dialog {
+    :deep(.el-dialog__body) {
+      padding: 20px 24px;
+    }
+  }
+
   .benchmark-layout {
     display: flex;
-    height: 500px;
+    height: 480px;
     border: 1px solid #f1f5f9;
     border-radius: 8px;
     overflow: hidden;
