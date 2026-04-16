@@ -41,17 +41,17 @@
           <el-table-column prop="classCount" label="班级数" width="90" align="center" />
           <el-table-column prop="studentCount" label="学生数" width="100" align="center" />
           <el-table-column prop="scoreCount" label="成绩条数" width="100" align="center" />
-          <el-table-column label="试卷包" width="100" align="center">
+          <el-table-column label="试卷录入" width="120" align="center">
             <template #default="{ row }">
-              <el-tag :type="row.paperUploaded ? 'success' : 'info'">{{
-                row.paperUploaded ? '录入' : '未录入'
+              <el-tag :type="getRecordStatusType(row.paperCount, row.studentCount)">{{
+                getRecordStatusText(row.paperCount, row.studentCount)
               }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="成绩单" width="100" align="center">
+          <el-table-column label="成绩录入" width="120" align="center">
             <template #default="{ row }">
-              <el-tag :type="row.scoreUploaded ? 'success' : 'info'">{{
-                row.scoreUploaded ? '录入' : '未录入'
+              <el-tag :type="getRecordStatusType(row.scoreCount, row.studentCount)">{{
+                getRecordStatusText(row.scoreCount, row.studentCount)
               }}</el-tag>
             </template>
           </el-table-column>
@@ -149,6 +149,24 @@
 
   async function reload() {
     await loadSummary()
+  }
+
+  function getRecordStatusText(count?: number | null, total?: number | null) {
+    const current = Number(count ?? 0)
+    const target = Number(total ?? 0)
+    if (current <= 0 || target <= 0) {
+      return '未录入'
+    }
+    return `${current}/${target}`
+  }
+
+  function getRecordStatusType(count?: number | null, total?: number | null) {
+    const current = Number(count ?? 0)
+    const target = Number(total ?? 0)
+    if (current <= 0 || target <= 0) {
+      return 'info'
+    }
+    return current >= target ? 'success' : 'warning'
   }
 
   watch(

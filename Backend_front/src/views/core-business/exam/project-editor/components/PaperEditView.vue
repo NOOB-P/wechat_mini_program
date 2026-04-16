@@ -28,7 +28,7 @@
           >
             考生原卷
           </div>
-          <div class="tab-item desc">说明</div>
+          <!-- <div class="tab-item desc">说明</div>-->
         </div>
       </div>
 
@@ -170,7 +170,8 @@
                 </div>
               </div>
               <div class="pdf-notice">
-                当前文件为 PDF，仅支持预览。若需手动框选切割，请上传 png/jpg/jpeg 图片格式。
+                当前资源仍是旧版 PDF 记录，建议重新上传。系统会在上传后自动转换成长图 PNG，
+                再进入框选编辑。
               </div>
               <iframe :src="resolveFileUrl(getFileUrl(activeTab))" class="pdf-iframe"></iframe>
             </div>
@@ -266,6 +267,7 @@
                 :image-url="resolveFileUrl(selectedStudent.answerSheetUrl)"
                 :regions="paperConfig.templateRegions"
                 :subject-name="subjectName"
+                initial-tool="pan"
                 :show-save="false"
                 readonly
               >
@@ -302,8 +304,8 @@
                   </div>
                 </div>
                 <div class="pdf-notice">
-                  当前文件为 PDF，仅支持预览。学生原卷会沿用样板答题卡的框选结果，但 PDF
-                  暂不支持可视化叠加。
+                  当前资源仍是旧版 PDF 记录，建议重新上传。系统会在上传后自动转换成长图 PNG，
+                  并继续沿用样板答题卡的框选结果。
                 </div>
                 <iframe
                   :src="resolveFileUrl(selectedStudent.answerSheetUrl)"

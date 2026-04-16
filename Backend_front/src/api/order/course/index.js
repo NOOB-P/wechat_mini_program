@@ -1,0 +1,12 @@
+import api from '@/utils/http';
+/**
+ * 获取课程订单列表
+ * @param params 查询参数
+ */
+export async function fetchCourseOrderList(params) {
+    return api.get({
+        url: '/api/admin/order/course/list',
+        params
+    });
+}
+//# sourceMappingURL=index.js.map

@@ -102,7 +102,7 @@
           <el-tooltip placement="right" effect="light">
             <template #content>
               <div class="text-xs leading-6 text-gray-600 p-2">
-                <p v-if="importType === 'answerSheet'">1. 请上传 zip 压缩包，压缩包内试卷命名支持“学号_姓名”、“学号”或“姓名”。</p>
+                <p v-if="importType === 'answerSheet'">1. 请上传 zip 压缩包，支持递归扫描多层文件夹，试卷命名支持“学号_姓名”、“学号”或“姓名”。</p>
                 <p v-else>1. 请先<b>下载导入模板</b>，按照模板格式填写考生成绩信息。</p>
                 <p>2. 试卷仅支持 <b>jpg / jpeg / png / pdf</b>，成绩仅支持 <b>xlsx / xls</b>。</p>
                 <p>3. 若数据已存在，系统将根据规则进行<b>更新</b>。</p>
