@@ -82,7 +82,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useToast } from 'wot-design-uni'
-import { getPaperDetailApi } from '@/api/paper'
+import { getPaperDetailApi } from '@/subpkg_analysis/api/paper'
 
 const toast = useToast()
 const paperData = ref<any>(null)

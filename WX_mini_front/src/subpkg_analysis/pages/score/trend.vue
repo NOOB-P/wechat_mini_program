@@ -177,7 +177,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getScoreTrendApi } from '@/api/score'
+import { getScoreTrendApi } from '@/subpkg_analysis/api/score'
 import { useToast } from 'wot-design-uni'
 
 const trendData = ref<any>(null)

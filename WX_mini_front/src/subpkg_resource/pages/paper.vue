@@ -123,7 +123,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getPaperListApi, getPaperSubjectsApi, incrementPaperDownloadApi } from '@/api/resource'
+import { getPaperListApi, getPaperSubjectsApi, incrementPaperDownloadApi } from '@/subpkg_resource/api/resource'
 
 const keyword = ref('')
 const list = ref<any[]>([])

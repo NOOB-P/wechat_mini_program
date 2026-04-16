@@ -329,7 +329,7 @@
 import { ref, computed, watch } from 'vue'
 import { onShow, onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { getStudentScoresApi, getSemesterListApi } from '@/api/score'
+import { getStudentScoresApi, getSemesterListApi } from '@/subpkg_analysis/api/score'
 import { getVipWrongBookApi, submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
 import { getUserInfoApi } from '@/api/mine'
 
@@ -477,7 +477,7 @@ const onPickerConfirm = (e: any) => {
 const goToPaperDetail = (subjectInfo: any) => {
   // 点击各科成绩，携带科目和当前考试参数，跳转到试卷报告页
   uni.navigateTo({
-    url: `/pages/paper/index?subject=${subjectInfo.name}&exam=${currentDisplayLabel.value}`
+    url: `/subpkg_analysis/pages/paper/index?subject=${subjectInfo.name}&exam=${currentDisplayLabel.value}`
   })
 }
 
@@ -485,7 +485,7 @@ const goToDetail = (type: string) => {
   uni.setStorageSync('currentAnalysisData', analysisData.value)
   uni.setStorageSync('currentScoreData', scoreData.value)
   uni.navigateTo({
-    url: `/pages/score/${type}?examId=${pickerValue.value[1] || ''}`
+    url: `/subpkg_analysis/pages/score/${type}?examId=${pickerValue.value[1] || ''}`
   })
 }
 
@@ -593,7 +593,7 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
 }
 
 const goToRecharge = (type: string = 'VIP') => {
-  uni.navigateTo({ url: `/pages/vip/recharge?type=${type}` })
+  uni.navigateTo({ url: `/subpkg_course/pages/vip/recharge?type=${type}` })
 }
 
 const handleExport = () => {

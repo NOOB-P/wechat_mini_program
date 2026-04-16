@@ -79,7 +79,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getSyncCourseListApi, getSyncCourseOptionsApi } from '@/api/resource'
+import { getSyncCourseListApi, getSyncCourseOptionsApi } from '@/subpkg_resource/api/resource'
 
 const grades = ref<string[]>([])
 const gradeIndex = ref(0)
@@ -139,9 +139,9 @@ const onSubjectChange = (item: any) => {
   }
 }
 
-const handleItemClick = (item: any) => {
+const goToDetail = (item: any) => {
   uni.navigateTo({
-    url: `/pages/course/detail?id=${item.id}`
+    url: `/subpkg_course/pages/course/detail?id=${item.id}`
   })
 }
 

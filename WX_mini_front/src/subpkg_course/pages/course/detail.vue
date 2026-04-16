@@ -257,7 +257,7 @@ const handleAction = async () => {
         // 跳转到支付页面
         const orderData = encodeURIComponent(JSON.stringify(res.data))
         uni.navigateTo({
-          url: `/pages/course/pay?order=${orderData}`
+          url: `/subpkg_course/pages/course/pay?order=${orderData}`
         })
       } else {
         toast.error(res.msg || '下单失败')
