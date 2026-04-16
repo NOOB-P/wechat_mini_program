@@ -2,8 +2,7 @@
   <view class="login-container">
     <view class="header">
       <view class="logo-box">
-        <image class="logo-img" src="/static/logo.png" mode="aspectFit" />
-        <view class="brand-name">优题慧</view>
+        <image class="logo-img" src="/static/tabbar/logo.png" mode="aspectFit" />
       </view>
     </view>
 
@@ -60,7 +59,9 @@
       <view class="agreement-row">
         <wd-checkbox v-model="isAgreed" custom-class="agreement-checkbox" />
         <view class="agreement-text">
-          请阅读并勾选<text class="link">《用户服务协议》</text><text class="link">《隐私政策》</text>
+          请阅读并勾选
+          <text class="link" @click="openAgreement('user')">《用户服务协议》</text>
+          <text class="link" @click="openAgreement('privacy')">《隐私政策》</text>
         </view>
       </view>
 
@@ -202,6 +203,24 @@
       </view>
     </wd-popup>
 
+    <wd-popup
+      v-model="showAgreementPopup"
+      position="bottom"
+      custom-style="height: 70%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0; display: flex; flex-direction: column;"
+    >
+      <view class="agreement-popup-content">
+        <view class="agreement-popup-header">
+          <text class="agreement-popup-title">{{ agreementTitle }}</text>
+        </view>
+        <scroll-view scroll-y class="agreement-popup-body">
+          <text class="agreement-popup-text">{{ agreementContent }}</text>
+        </scroll-view>
+        <view class="agreement-popup-footer">
+          <wd-button block type="primary" @click="showAgreementPopup = false">我已阅读并知晓</wd-button>
+        </view>
+      </view>
+    </wd-popup>
+
     <wd-toast id="wd-toast" />
   </view>
 </template>
@@ -209,6 +228,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useToast } from 'wot-design-uni'
+import { userServiceAgreement, privacyPolicy } from '@/static/协议/agreements'
 import {
   bindThirdPartyPhone,
   forgotPassword,
@@ -259,6 +279,21 @@ const bindPhoneForm = ref({
   openid: '',
   type: ''
 })
+
+const showAgreementPopup = ref(false)
+const agreementTitle = ref('')
+const agreementContent = ref('')
+
+const openAgreement = (type: 'user' | 'privacy') => {
+  if (type === 'user') {
+    agreementTitle.value = '用户服务协议'
+    agreementContent.value = userServiceAgreement
+  } else {
+    agreementTitle.value = '隐私政策'
+    agreementContent.value = privacyPolicy
+  }
+  showAgreementPopup.value = true
+}
 
 onMounted(() => {
   const token = uni.getStorageSync('token')
@@ -571,6 +606,9 @@ const handleThirdPartySuccess = (res: any, type: string) => {
 }
 
 const thirdPartyLogin = (type: string) => {
+  if (!isAgreed.value) {
+    return toast.show('请先勾选同意用户协议和隐私政策')
+  }
   if (type === 'wechat') {
     uni.login({
       provider: 'weixin',
@@ -645,20 +683,8 @@ const mockThirdPartyLogin = async (type: string) => {
       align-items: center;
       
       .logo-img {
-        width: 160rpx;
-        height: 160rpx;
-        background: #fff;
-        border-radius: 40rpx;
-        box-shadow: 0 10rpx 30rpx rgba(26, 95, 142, 0.1);
-        padding: 20rpx;
-      }
-      
-      .brand-name {
-        margin-top: 24rpx;
-        font-size: 36rpx;
-        font-weight: bold;
-        color: #1a5f8e;
-        letter-spacing: 4rpx;
+        width: 480rpx;
+        height: 180rpx;
       }
     }
   }
@@ -742,30 +768,32 @@ const mockThirdPartyLogin = async (type: string) => {
       :deep(.submit-btn) {
         height: 100rpx !important;
         border-radius: 50rpx !important;
-        background: linear-gradient(90deg, #1a5f8e 0%, #3a8fcc 100%) !important;
+        background: #4d80f0 !important;
         font-size: 32rpx !important;
         font-weight: bold !important;
         border: none !important;
-        box-shadow: 0 10rpx 20rpx rgba(26, 95, 142, 0.2) !important;
+        box-shadow: 0 10rpx 20rpx rgba(77, 128, 240, 0.2) !important;
       }
     }
 
     .agreement-row {
       margin-top: 40rpx;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       gap: 12rpx;
       padding: 0 10rpx;
 
       .agreement-checkbox {
         transform: scale(0.8);
-        margin-top: -4rpx;
       }
 
       .agreement-text {
         font-size: 24rpx;
         color: #999;
-        line-height: 1.6;
+        line-height: 32rpx;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
         
         .link {
           color: #1a5f8e;
@@ -819,40 +847,69 @@ const mockThirdPartyLogin = async (type: string) => {
     .icons {
       display: flex;
       justify-content: center;
-      gap: 80rpx;
+      gap: 120rpx;
 
       .icon-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-
-        .icon-circle {
-          width: 88rpx;
-          height: 88rpx;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 16rpx;
-          transition: all 0.2s;
-
-          &.wechat {
-            background-color: #07c160;
-            box-shadow: 0 4rpx 16rpx rgba(7, 193, 96, 0.2);
-          }
-
-          &:active {
-            opacity: 0.8;
-            transform: scale(0.9);
-          }
-        }
+        gap: 12rpx;
 
         .icon-text {
-          font-size: 22rpx;
+          font-size: 24rpx;
           color: #999;
         }
       }
     }
+  }
+
+  .agreement-popup-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    padding-bottom: constant(safe-area-inset-bottom);
+    padding-bottom: env(safe-area-inset-bottom);
+
+    .agreement-popup-header {
+      padding-bottom: 30rpx;
+      text-align: center;
+      border-bottom: 1rpx solid #eee;
+
+      .agreement-popup-title {
+        font-size: 36rpx;
+        font-weight: bold;
+        color: #333;
+      }
+    }
+
+    .agreement-popup-body {
+      flex: 1;
+      height: 0;
+      width: 100%;
+      padding: 30rpx 0;
+      
+      :deep(.uni-scroll-view-content) {
+        height: auto;
+      }
+      
+      .agreement-popup-text {
+        display: block;
+        font-size: 28rpx;
+        color: #666;
+        line-height: 1.8;
+        white-space: pre-wrap;
+      }
+    }
+
+    .agreement-popup-footer {
+      padding-top: 30rpx;
+    }
+  }
+
+  :deep(.wd-popup) {
+    background-color: #fff;
   }
 
   .popup-content {
@@ -906,6 +963,16 @@ const mockThirdPartyLogin = async (type: string) => {
 
     .action-btn {
       margin-top: 60rpx;
+
+      :deep(.wd-button) {
+        height: 100rpx !important;
+        border-radius: 50rpx !important;
+        background: #4d80f0 !important;
+        font-size: 32rpx !important;
+        font-weight: bold !important;
+        border: none !important;
+        box-shadow: 0 10rpx 20rpx rgba(77, 128, 240, 0.2) !important;
+      }
     }
   }
 }

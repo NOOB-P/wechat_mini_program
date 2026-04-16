@@ -89,9 +89,11 @@ const handleGridClick = (type: string) => {
   if (type === 'analysis') {
     uni.navigateTo({ url: '/subpkg_analysis/pages/score/index' })
   } else if (type === 'academic') {
-      // 跳转到名校试卷
-      uni.navigateTo({ url: '/subpkg_resource/pages/paper' })
-    }
+    // 跳转到名校试卷
+    uni.navigateTo({ url: '/subpkg_resource/pages/paper' })
+  } else if (type === 'character' || type === 'homework') {
+    toast.show('该功能暂未开放')
+  }
 }
 
 const navTo = (url: string) => {
