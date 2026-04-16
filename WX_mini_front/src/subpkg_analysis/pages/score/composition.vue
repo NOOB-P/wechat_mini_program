@@ -121,7 +121,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getScoreCompositionApi } from '@/api/score'
+import { getScoreCompositionApi } from '@/subpkg_analysis/api/score'
 import { useToast } from 'wot-design-uni'
 
 const subjects = ref(['语文', '数学', '英语', '物理', '化学', '生物'])

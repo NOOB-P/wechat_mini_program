@@ -80,29 +80,29 @@ const handleMenuClick = (item: any) => {
   const type = item.value
   console.log('Menu clicked:', type)
   if (type === 'courses') {
-    uni.navigateTo({ url: '/pages/mine/course-list?type=course' })
+    uni.navigateTo({ url: '/subpkg_mine/pages/mine/course-list?type=course' })
   } else if (type === 'purchased') {
     console.log('Navigating to order-list')
-    uni.navigateTo({ url: '/pages/mine/order-list' })
+    uni.navigateTo({ url: '/subpkg_mine/pages/mine/order-list' })
   } else if (type === 'favorites') {
-    uni.navigateTo({ url: '/pages/mine/course-list?type=collection' })
+    uni.navigateTo({ url: '/subpkg_mine/pages/mine/course-list?type=collection' })
   } else if (type === 'history') {
-    uni.navigateTo({ url: '/pages/mine/course-list?type=record' })
+    uni.navigateTo({ url: '/subpkg_mine/pages/mine/course-list?type=record' })
   } else if (type === 'settings') {
-    uni.navigateTo({ url: '/pages/mine/settings/index' })
+    uni.navigateTo({ url: '/subpkg_mine/pages/mine/settings/index' })
   } else if (type === 'service') {
-    uni.navigateTo({ url: '/pages/service/index' })
+    uni.navigateTo({ url: '/subpkg_mine/pages/service/index' })
   } else {
     uni.showToast({ title: `点击了${item.label}`, icon: 'none' })
   }
 }
 
 const handleEditProfile = () => {
-  uni.navigateTo({ url: '/pages/mine/edit-profile' })
+  uni.navigateTo({ url: '/subpkg_mine/pages/mine/edit-profile' })
 }
 
 const goToVip = () => {
-  uni.navigateTo({ url: '/pages/vip/recharge' })
+  uni.navigateTo({ url: '/subpkg_course/pages/vip/recharge' })
 }
 </script>
 

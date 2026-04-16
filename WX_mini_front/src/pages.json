@@ -47,27 +47,6 @@
 			}
 		},
 		{
-			"path": "pages/course/detail",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "课程详情",
-				"navigationBarBackgroundColor": "#000000",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
-			"path": "pages/course/index",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "课程"
-			}
-		},
-		{
-			"path": "pages/course/pay",
-			"type": "page",
-			"style": {}
-		},
-		{
 			"path": "pages/home/index",
 			"type": "page",
 			"style": {
@@ -75,32 +54,10 @@
 			}
 		},
 		{
-			"path": "pages/mine/course-list",
-			"type": "page",
-			"style": {}
-		},
-		{
-			"path": "pages/mine/edit-profile",
-			"type": "page",
-			"style": {}
-		},
-		{
 			"path": "pages/mine/index",
 			"type": "page",
 			"style": {
 				"navigationBarTitleText": "我的"
-			}
-		},
-		{
-			"path": "pages/mine/order-list",
-			"type": "page",
-			"style": {}
-		},
-		{
-			"path": "pages/paper/index",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "试卷报告"
 			}
 		},
 		{
@@ -111,104 +68,170 @@
 			}
 		},
 		{
-			"path": "pages/resource/family-edu",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "家庭教育"
-			}
-		},
-		{
 			"path": "pages/resource/index",
 			"type": "page",
 			"style": {
 				"navigationBarTitleText": "资源库"
 			}
-		},
-		{
-			"path": "pages/resource/paper",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "名校试卷"
-			}
-		},
-		{
-			"path": "pages/resource/student-talk",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "学霸说"
-			}
-		},
-		{
-			"path": "pages/resource/sync-course",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "同步/专题课"
-			}
-		},
-		{
-			"path": "pages/score/composition",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "成绩构成分析"
-			}
-		},
-		{
-			"path": "pages/score/distribution",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "分数分布统计"
-			}
-		},
-		{
-			"path": "pages/score/index",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "学情分析"
-			}
-		},
-		{
-			"path": "pages/score/trend",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "近六次考试趋势分析"
-			}
-		},
-		{
-			"path": "pages/service/index",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "客服帮助"
-			}
-		},
-		{
-			"path": "pages/vip/index",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "VIP会员"
-			}
-		},
-		{
-			"path": "pages/vip/recharge",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "会员充值"
-			}
-		},
-		{
-			"path": "pages/vip/school-status",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "校讯通状态"
-			}
-		},
-		{
-			"path": "pages/mine/settings/index",
-			"type": "page",
-			"style": {
-				"navigationBarTitleText": "个人设置"
-			}
 		}
 	],
+	"subPackages": [
+		{
+			"root": "subpkg_resource",
+			"pages": [
+				{
+					"path": "pages/family-edu",
+					"style": {
+						"navigationBarTitleText": "家庭教育"
+					}
+				},
+				{
+					"path": "pages/paper",
+					"style": {
+						"navigationBarTitleText": "名校试卷"
+					}
+				},
+				{
+					"path": "pages/student-talk",
+					"style": {
+						"navigationBarTitleText": "学霸说"
+					}
+				},
+				{
+					"path": "pages/sync-course",
+					"style": {
+						"navigationBarTitleText": "同步/专题课"
+					}
+				}
+			]
+		},
+		{
+			"root": "subpkg_course",
+			"pages": [
+				{
+					"path": "pages/course/index",
+					"style": {
+						"navigationBarTitleText": "课程"
+					}
+				},
+				{
+					"path": "pages/course/detail",
+					"style": {
+						"navigationBarTitleText": "课程详情",
+						"navigationBarBackgroundColor": "#000000",
+						"navigationBarTextStyle": "white"
+					}
+				},
+				{
+					"path": "pages/course/pay",
+					"style": {}
+				},
+				{
+					"path": "pages/vip/index",
+					"style": {
+						"navigationBarTitleText": "VIP会员"
+					}
+				},
+				{
+					"path": "pages/vip/recharge",
+					"style": {
+						"navigationBarTitleText": "会员充值"
+					}
+				},
+				{
+					"path": "pages/vip/school-status",
+					"style": {
+						"navigationBarTitleText": "校讯通状态"
+					}
+				}
+			]
+		},
+		{
+			"root": "subpkg_analysis",
+			"pages": [
+				{
+					"path": "pages/score/index",
+					"style": {
+						"navigationBarTitleText": "学情分析"
+					}
+				},
+				{
+					"path": "pages/score/composition",
+					"style": {
+						"navigationBarTitleText": "成绩构成分析"
+					}
+				},
+				{
+					"path": "pages/score/distribution",
+					"style": {
+						"navigationBarTitleText": "分数分布统计"
+					}
+				},
+				{
+					"path": "pages/score/trend",
+					"style": {
+						"navigationBarTitleText": "近六次考试趋势分析"
+					}
+				},
+				{
+					"path": "pages/paper/index",
+					"style": {
+						"navigationBarTitleText": "试卷报告"
+					}
+				}
+			]
+		},
+		{
+			"root": "subpkg_mine",
+			"pages": [
+				{
+					"path": "pages/mine/course-list",
+					"style": {}
+				},
+				{
+					"path": "pages/mine/edit-profile",
+					"style": {}
+				},
+				{
+					"path": "pages/mine/order-list",
+					"style": {}
+				},
+				{
+					"path": "pages/mine/settings/index",
+					"style": {
+						"navigationBarTitleText": "个人设置"
+					}
+				},
+				{
+					"path": "pages/service/index",
+					"style": {
+						"navigationBarTitleText": "客服帮助"
+					}
+				}
+			]
+		}
+	],
+	"preloadRule": {
+		"pages/home/index": {
+			"network": "all",
+			"packages": [
+				"subpkg_course",
+				"subpkg_analysis"
+			]
+		},
+		"pages/resource/index": {
+			"network": "all",
+			"packages": [
+				"subpkg_resource"
+			]
+		},
+		"pages/mine/index": {
+			"network": "all",
+			"packages": [
+				"subpkg_mine"
+			]
+		}
+	},
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "优题慧",
@@ -241,6 +264,5 @@
 			}
 		]
 	},
-	"__esModule": true,
-	"subPackages": []
+	"__esModule": true
 }
