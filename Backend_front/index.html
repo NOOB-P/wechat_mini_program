@@ -30,8 +30,10 @@
           }
 
           const themeType = localStorage.getItem('sys-theme')
+          // 默认进入亮色模式，除非用户在当前会话明确切换过（这里我们可以选择不在这里处理暗色，让 store 去处理）
+          // 或者直接移除暗色初始化，确保默认是亮色
           if (themeType === 'dark') {
-            document.documentElement.classList.add('dark')
+            // document.documentElement.classList.add('dark') 
           }
         } catch (e) {
           console.warn('Failed to apply initial theme:', e)

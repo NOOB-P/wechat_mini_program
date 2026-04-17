@@ -28,8 +28,14 @@
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" icon="Search" @click="handleQuery">查询</el-button>
-        <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+        <el-button type="primary" @click="handleQuery">
+          <ArtSvgIcon icon="ri:search-line" class="mr-1" />
+          查询
+        </el-button>
+        <el-button @click="resetQuery">
+          <ArtSvgIcon icon="ri:refresh-line" class="mr-1" />
+          重置
+        </el-button>
       </el-form-item>
     </el-form>
   </div>
