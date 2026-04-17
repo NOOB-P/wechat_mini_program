@@ -134,12 +134,26 @@ const selectedGrade = ref('')
 const selectedClass = ref('')
 const selectedStudentId = ref('')
 
+const props = defineProps<{
+  phone?: string
+}>()
+
 const form = reactive({
-  phone: '', 
+  phone: props.phone || '', 
   code: ''
 })
 
 onMounted(async () => {
+  // 如果 props 中没有 phone，尝试从当前页面 options 获取（兼容 onLoad）
+  if (!form.phone) {
+    const pages = getCurrentPages()
+    const currentPage = pages[pages.length - 1] as any
+    const options = currentPage.options || currentPage.$page?.options
+    if (options && options.phone) {
+      form.phone = options.phone
+    }
+  }
+  
   // 页面加载时获取省份
   const res = await getProvinces()
   if (res.code === 200) {

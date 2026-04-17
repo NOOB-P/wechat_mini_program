@@ -244,7 +244,7 @@ onMounted(() => {
   position: relative;
   border-bottom-left-radius: 60rpx;
   border-bottom-right-radius: 60rpx;
-  z-index: 0;
+  z-index: 5;
 
   &::after {
     content: '';

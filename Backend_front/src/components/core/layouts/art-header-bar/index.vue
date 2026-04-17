@@ -130,7 +130,7 @@
         </ArtIconButton> -->
 
         <!-- 设置按钮 -->
-        <div v-if="shouldShowSettings">
+        <!-- <div v-if="shouldShowSettings">
           <ElPopover :visible="showSettingGuide" placement="bottom-start" :width="190" :offset="0">
             <template #reference>
               <div class="flex-cc">
@@ -146,14 +146,14 @@
               </p>
             </template>
           </ElPopover>
-        </div>
+        </div> -->
 
         <!-- 主题切换按钮 -->
-        <ArtIconButton
+        <!-- <ArtIconButton
           v-if="shouldShowThemeToggle"
           @click="themeAnimation"
           :icon="isDark ? 'ri:sun-fill' : 'ri:moon-line'"
-        />
+        /> -->
 
         <!-- 用户头像、菜单 -->
         <ArtUserMenu />
@@ -161,7 +161,7 @@
     </div>
 
     <!-- 标签页 -->
-    <ArtWorkTab />
+    <!-- <ArtWorkTab /> -->
 
     <!-- 通知 -->
     <ArtNotification v-model:value="showNotice" ref="notice" />

@@ -105,10 +105,13 @@
   import { fetchLogin, fetchGetRoles } from '@/api/auth/login'
   import { ElNotification, ElMessage, type FormInstance, type FormRules } from 'element-plus'
   import { useSettingStore } from '@/store/modules/setting'
+  import { useTheme } from '@/hooks/core/useTheme'
+  import { SystemThemeEnum } from '@/enums/appEnum'
 
   defineOptions({ name: 'Login' })
 
   const settingStore = useSettingStore()
+  const { switchThemeStyles } = useTheme()
   const { isDark } = storeToRefs(settingStore)
   const { t, locale } = useI18n()
   const formKey = ref(0)
@@ -176,6 +179,9 @@
   const loading = ref(false)
 
   onMounted(async () => {
+    // 进入登录页时强制切换为亮色模式
+    switchThemeStyles(SystemThemeEnum.LIGHT)
+
     try {
       const res = await fetchGetRoles()
       if (res) {

@@ -67,6 +67,14 @@ export const useSettingStore = defineStore(
     /** 系统主题颜色 */
     const systemThemeColor = ref(SETTING_DEFAULT_CONFIG.systemThemeColor)
 
+    // 强制重置为亮色模式（解决缓存中存储了旧的 dark 模式导致进入页面是暗色的问题）
+    if (localStorage.getItem(StorageConfig.THEME_KEY) === SystemThemeEnum.DARK || systemThemeType.value === SystemThemeEnum.DARK) {
+      systemThemeType.value = SystemThemeEnum.LIGHT
+      systemThemeMode.value = SystemThemeEnum.LIGHT
+      menuThemeType.value = MenuThemeEnum.LIGHT
+      localStorage.setItem(StorageConfig.THEME_KEY, SystemThemeEnum.LIGHT)
+    }
+
     // 界面显示设置
     /** 是否显示菜单按钮 */
     const showMenuButton = ref(SETTING_DEFAULT_CONFIG.showMenuButton)

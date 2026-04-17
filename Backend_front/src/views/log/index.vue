@@ -9,15 +9,19 @@
         <el-button
           type="danger"
           plain
-          icon="Delete"
           :disabled="!selectedIds.length"
           @click="handleBatchDelete"
-          >批量删除</el-button
         >
-        <el-button type="warning" plain icon="Download" @click="handleExport">导出日志</el-button>
+          <ArtSvgIcon icon="ri:delete-bin-line" class="mr-1" />
+          批量删除
+        </el-button>
+        <el-button type="warning" plain @click="handleExport">
+          <ArtSvgIcon icon="ri:download-2-line" class="mr-1" />
+          导出日志
+        </el-button>
       </div>
       <div class="right-btns">
-        <el-button icon="Refresh" circle @click="getList" />
+        <ArtIconButton icon="ri:refresh-line" @click="getList" />
       </div>
     </div>
 
@@ -62,7 +66,10 @@
         </el-table-column>
         <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="100">
           <template #default="scope">
-            <el-button link type="primary" icon="View" @click="handleView(scope.row)">详情</el-button>
+            <el-button link type="primary" @click="handleView(scope.row)">
+              <ArtSvgIcon icon="ri:eye-line" class="mr-1" />
+              详情
+            </el-button>
           </template>
         </el-table-column>
       </el-table>

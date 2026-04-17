@@ -559,10 +559,12 @@ export const useWorktabStore = defineStore(
       resetTabTitle
     }
   },
+  /*
   {
     persist: {
       key: 'worktab',
       storage: localStorage
     }
   }
+  */
 )

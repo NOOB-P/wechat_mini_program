@@ -213,6 +213,12 @@
 					"style": {
 						"navigationBarTitleText": "客服帮助"
 					}
+				},
+				{
+					"path": "pages/mine/about",
+					"style": {
+						"navigationBarTitleText": "关于我们"
+					}
 				}
 			]
 		}
