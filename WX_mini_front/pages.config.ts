@@ -191,6 +191,12 @@ export default defineUniPages({
           style: {},
         },
         {
+          path: 'pages/mine/notifications',
+          style: {
+            navigationBarTitleText: '消息通知',
+          },
+        },
+        {
           path: 'pages/mine/settings/index',
           style: {
             navigationBarTitleText: '个人设置',

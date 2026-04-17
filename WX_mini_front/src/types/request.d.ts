@@ -21,4 +21,7 @@ export type uploadFileOptions = {
 /**
  * @Description: request方法传参类型
  */
-export type requestOptions = UniApp.RequestOptions & uploadFileOptions; 
+export type requestOptions = UniApp.RequestOptions &
+  uploadFileOptions & {
+    silent?: boolean;
+  };

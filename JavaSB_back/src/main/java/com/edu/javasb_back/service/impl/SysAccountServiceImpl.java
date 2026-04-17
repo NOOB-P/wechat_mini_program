@@ -1234,28 +1234,45 @@ public class SysAccountServiceImpl implements SysAccountService {
                 || wxAccount.getVipExpireTime().isAfter(phoneAccount.getVipExpireTime()))) {
             phoneAccount.setVipExpireTime(wxAccount.getVipExpireTime());
         }
+        if (wxAccount.getSvipExpireTime() != null
+                && (phoneAccount.getSvipExpireTime() == null
+                || wxAccount.getSvipExpireTime().isAfter(phoneAccount.getSvipExpireTime()))) {
+            phoneAccount.setSvipExpireTime(wxAccount.getSvipExpireTime());
+        }
     }
 
     private void checkVipExpiration(SysAccount account) {
-        if (account == null || account.getVipExpireTime() == null) {
+        if (account == null) {
             return;
         }
 
-        if (account.getRoleId() != null
-                && account.getRoleId() == 3
-                && account.getVipExpireTime().isBefore(java.time.LocalDateTime.now())) {
-            boolean changed = false;
-            if (account.getIsVip() != null && account.getIsVip() == 1) {
-                account.setIsVip(0);
-                changed = true;
-            }
-            if (account.getIsSvip() != null && account.getIsSvip() == 1) {
-                account.setIsSvip(0);
-                changed = true;
-            }
-            if (changed) {
-                accountRepository.save(account);
-            }
+        if (account.getRoleId() == null || account.getRoleId() != 3) {
+            return;
+        }
+
+        boolean changed = false;
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        boolean svipActive = account.getSvipExpireTime() != null && !account.getSvipExpireTime().isBefore(now);
+        boolean vipActiveByOwnExpire = account.getVipExpireTime() != null && !account.getVipExpireTime().isBefore(now);
+
+        if (account.getIsSvip() != null && account.getIsSvip() == 1 && !svipActive) {
+            account.setIsSvip(0);
+            changed = true;
+        }
+
+        boolean effectiveVipActive = vipActiveByOwnExpire || svipActive;
+        if (account.getIsVip() != null && account.getIsVip() == 1 && !effectiveVipActive) {
+            account.setIsVip(0);
+            changed = true;
+        }
+
+        if ((account.getIsVip() == null || account.getIsVip() == 0) && svipActive) {
+            account.setIsVip(1);
+            changed = true;
+        }
+
+        if (changed) {
+            accountRepository.save(account);
         }
     }
 

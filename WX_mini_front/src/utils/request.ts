@@ -25,11 +25,13 @@ const requestInterceptor = (options: requestOptions) => {
 }
 
 export default (options:requestOptions): Promise<any> => {
-    Notify.show({
-        content: '加载中...',
-        duration: false,
-        icon: 'loading'
-    })
+    if (!options.silent) {
+        Notify.show({
+            content: '加载中...',
+            duration: false,
+            icon: 'loading'
+        })
+    }
     
     // 如果开启 mock，则尝试拦截并返回模拟数据
     if (USE_MOCK) {
@@ -40,20 +42,24 @@ export default (options:requestOptions): Promise<any> => {
                 setTimeout(() => {
                     if (mockResponse.code === 200) {
                         resolve(mockResponse);
-                        Notify.show({
-                            content: mockResponse.msg,
-                            duration: 500,
-                            type: 'success',
-                            icon: 'check-outline'
-                        });
+                        if (!options.silent) {
+                            Notify.show({
+                                content: mockResponse.msg,
+                                duration: 500,
+                                type: 'success',
+                                icon: 'check-outline'
+                            });
+                        }
                     } else {
                         reject(mockResponse);
-                        Notify.show({
-                            content: `Mock Error ${mockResponse.code}:${mockResponse.msg}`,
-                            duration: 2000,
-                            type: 'danger',
-                            icon: 'close-outline'
-                        });
+                        if (!options.silent) {
+                            Notify.show({
+                                content: `Mock Error ${mockResponse.code}:${mockResponse.msg}`,
+                                duration: 2000,
+                                type: 'danger',
+                                icon: 'close-outline'
+                            });
+                        }
                     }
                 }, 500); // 模拟网络延迟
             });
@@ -69,39 +75,47 @@ export default (options:requestOptions): Promise<any> => {
                 if(typeof res.data === 'object' && 'code' in res.data) {
                     if(res.data.code === 200) {
                         resolve(res.data)
+                        if (!options.silent) {
+                            Notify.show({
+                                content: res.data.msg,
+                                duration: 500,
+                                type: 'success',
+                                icon: 'check-outline'
+                            })
+                        }
+                    } else {
+                        reject(res.data)
+                        if (!options.silent) {
+                            Notify.show({
+                                content: `Error ${res.data.code}:${res.data.msg}`,
+                                duration: 2000,
+                                type: 'danger',
+                                icon: 'close-outline'
+                            })
+                        }
+                    }
+                } else {
+                    resolve(res.data)
+                    if (!options.silent) {
                         Notify.show({
-                            content: res.data.msg,
+                            content: '请求成功',
                             duration: 500,
                             type: 'success',
                             icon: 'check-outline'
                         })
-                    } else {
-                        reject(res.data)
-                        Notify.show({
-                            content: `Error ${res.data.code}:${res.data.msg}`,
-                            duration: 2000,
-                            type: 'danger',
-                            icon: 'close-outline'
-                        })
                     }
-                } else {
-                    resolve(res.data)
-                    Notify.show({
-                        content: '请求成功',
-                        duration: 500,
-                        type: 'success',
-                        icon: 'check-outline'
-                    })
                 }
             },
             fail(error) {
                 reject(error)
-                Notify.show({
-                    content: `Error: ${error.errMsg}`,
-                    duration: 2000,
-                    type: 'danger',
-                    icon: 'close-outline'
-                })
+                if (!options.silent) {
+                    Notify.show({
+                        content: `Error: ${error.errMsg}`,
+                        duration: 2000,
+                        type: 'danger',
+                        icon: 'close-outline'
+                    })
+                }
             },
             complete() {}
         })

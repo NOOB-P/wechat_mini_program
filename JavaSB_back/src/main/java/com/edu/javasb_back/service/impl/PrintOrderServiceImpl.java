@@ -88,4 +88,18 @@ public class PrintOrderServiceImpl implements PrintOrderService {
         Page<PrintOrder> page = printOrderRepository.findByParams(null, phone, null, PageRequest.of(0, 100, Sort.by("createTime").descending()));
         return Result.success(page.getContent());
     }
+
+    
+    public List<PrintOrder> getPrintOrderExportList(String orderNo, String userName, Integer orderStatus) {
+        return printOrderRepository.findByParams(
+                normalizeKeyword(orderNo),
+                normalizeKeyword(userName),
+                orderStatus,
+                Sort.by(Sort.Direction.DESC, "createTime")
+        );
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+    }
 }

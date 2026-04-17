@@ -6,7 +6,8 @@ import request from '@/utils/request'
 export const getMineInfoApi = () => {
   return request({
     url: '/api/app/mine/info',
-    method: 'GET'
+    method: 'GET',
+    silent: true
   })
 }
 
@@ -84,6 +85,21 @@ export const uploadAvatarApi = (filePath: string) => {
 export const getUserInfoApi = () => {
   return request({
     url: '/api/app/mine/info',
-    method: 'GET'
+    method: 'GET',
+    silent: true
+  })
+}
+
+/**
+ * @Description: 获取当前用户通知列表
+ */
+export const getMineNotificationsApi = (limit?: number) => {
+  return request({
+    url: '/api/app/mine/notifications',
+    method: 'GET',
+    silent: true,
+    data: {
+      limit
+    }
   })
 }

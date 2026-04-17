@@ -81,7 +81,7 @@ const getCourseList = async () => {
 
 const handleCourseClick = (course: any) => {
   uni.navigateTo({
-    url: `/pages/course/detail?id=${course.id}`
+    url: `/subpkg_course/pages/course/detail?id=${course.id}`
   })
 }
 
@@ -89,7 +89,7 @@ const handleBuy = async (event: any, course: any) => {
   event.stopPropagation()
 
   if (course.isPurchased || course.price <= 0) {
-    uni.navigateTo({ url: `/pages/course/detail?id=${course.id}` })
+    uni.navigateTo({ url: `/subpkg_course/pages/course/detail?id=${course.id}` })
     return
   }
 
@@ -98,7 +98,7 @@ const handleBuy = async (event: any, course: any) => {
     if (res.code === 200) {
       const orderData = encodeURIComponent(JSON.stringify(res.data))
       uni.navigateTo({
-        url: `/pages/course/pay?order=${orderData}`
+        url: `/subpkg_course/pages/course/pay?order=${orderData}`
       })
     } else {
       uni.showToast({ title: res.msg || '下单失败', icon: 'none' })

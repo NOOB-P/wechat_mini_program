@@ -90,7 +90,12 @@ public class CourseOrderServiceImpl implements CourseOrderService {
 
     @Override
     public com.edu.javasb_back.common.Result<Map<String, Object>> getCourseOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus) {
-        Page<Map<String, Object>> page = orderRepository.findCourseOrdersWithDetails(orderNo, userName, paymentStatus, PageRequest.of(current - 1, size));
+        Page<Map<String, Object>> page = orderRepository.findCourseOrdersWithDetails(
+                normalizeKeyword(orderNo),
+                normalizeKeyword(userName),
+                paymentStatus,
+                PageRequest.of(current - 1, size)
+        );
         
         Map<String, Object> result = new HashMap<>();
         result.put("records", page.getContent());
@@ -99,5 +104,18 @@ public class CourseOrderServiceImpl implements CourseOrderService {
         result.put("size", size);
         
         return com.edu.javasb_back.common.Result.success(result);
+    }
+
+    @Override
+    public List<Map<String, Object>> getCourseOrderExportList(String orderNo, String userName, Integer paymentStatus) {
+        return orderRepository.findCourseOrdersWithDetailsForExport(
+                normalizeKeyword(orderNo),
+                normalizeKeyword(userName),
+                paymentStatus
+        );
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return keyword == null || keyword.trim().isEmpty() ? null : keyword.trim();
     }
 }

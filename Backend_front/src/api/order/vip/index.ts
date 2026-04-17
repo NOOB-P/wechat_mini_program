@@ -10,3 +10,15 @@ export async function fetchVipOrderList(params?: any) {
     params
   })
 }
+
+/**
+ * 导出 VIP 订单
+ * @param params 查询参数
+ */
+export async function exportVipOrderList(params?: any) {
+  return api.get<any>({
+    url: '/api/admin/order/vip/export',
+    params,
+    responseType: 'blob'
+  })
+}

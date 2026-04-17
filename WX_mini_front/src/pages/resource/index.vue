@@ -69,7 +69,7 @@
           <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_tutor.png'" mode="aspectFill" />
           <text class="recommend-text">精选家教</text>
         </view>
-        <view class="recommend-item" @click="navTo('/pages/course/index')">
+        <view class="recommend-item" @click="navTo('/subpkg_course/pages/course/index')">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_course.png'" mode="aspectFill" />
           <text class="recommend-text">精选课程</text>
         </view>

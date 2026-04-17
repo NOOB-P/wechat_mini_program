@@ -3,13 +3,28 @@
     <div class="search-wrapper bg-white p-5 rounded-lg mb-5 shadow-sm">
       <el-form :model="queryParams" ref="queryFormRef" :inline="true">
         <el-form-item label="订单号" prop="orderNo">
-          <el-input v-model="queryParams.orderNo" placeholder="请输入订单号" clearable style="width: 200px" />
+          <el-input
+            v-model="queryParams.orderNo"
+            placeholder="请输入订单号"
+            clearable
+            style="width: 200px"
+          />
         </el-form-item>
         <el-form-item label="用户名" prop="userName">
-          <el-input v-model="queryParams.userName" placeholder="请输入用户名" clearable style="width: 200px" />
+          <el-input
+            v-model="queryParams.userName"
+            placeholder="请输入用户名"
+            clearable
+            style="width: 200px"
+          />
         </el-form-item>
         <el-form-item label="订单状态" prop="orderStatus">
-          <el-select v-model="queryParams.orderStatus" placeholder="订单状态" clearable style="width: 150px">
+          <el-select
+            v-model="queryParams.orderStatus"
+            placeholder="订单状态"
+            clearable
+            style="width: 150px"
+          >
             <el-option label="待支付" :value="1" />
             <el-option label="待打印" :value="2" />
             <el-option label="待配送" :value="3" />
@@ -20,6 +35,14 @@
         <el-form-item>
           <el-button type="primary" icon="Search" @click="handleQuery">查询</el-button>
           <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+          <el-button
+            type="success"
+            plain
+            icon="Download"
+            :loading="exportLoading"
+            @click="handleExport"
+            >导出</el-button
+          >
         </el-form-item>
       </el-form>
     </div>
@@ -35,7 +58,12 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="文档名称" prop="documentName" min-width="180" :show-overflow-tooltip="true" />
+        <el-table-column
+          label="文档名称"
+          prop="documentName"
+          min-width="180"
+          :show-overflow-tooltip="true"
+        />
         <el-table-column label="打印规格" width="120" align="center">
           <template #default="scope">
             <el-tag size="small" effect="plain">{{ scope.row.printType }}</el-tag>
@@ -59,7 +87,13 @@
         <el-table-column label="操作" width="120" align="center" fixed="right">
           <template #default="scope">
             <el-button link type="primary" @click="handleDetail(scope.row)">详情</el-button>
-            <el-button v-if="scope.row.orderStatus === 2" link type="success" @click="handlePrint(scope.row)">完成打印</el-button>
+            <el-button
+              v-if="scope.row.orderStatus === 2"
+              link
+              type="success"
+              @click="handlePrint(scope.row)"
+              >完成打印</el-button
+            >
           </template>
         </el-table-column>
       </el-table>
@@ -80,10 +114,11 @@
 </template>
 
 <script setup lang="ts">
-  import { fetchPrintOrderList, updatePrintOrderStatus } from '@/api/order'
+  import { exportPrintOrderList, fetchPrintOrderList, updatePrintOrderStatus } from '@/api/order'
   import { ElMessage, ElMessageBox } from 'element-plus'
 
   const loading = ref(false)
+  const exportLoading = ref(false)
   const orderList = ref<any[]>([])
   const total = ref(0)
 
@@ -122,6 +157,20 @@
     ElMessage.info(`查看订单 ${row.orderNo} 的详情`)
   }
 
+  const handleExport = async () => {
+    exportLoading.value = true
+    try {
+      const blob = await exportPrintOrderList(queryParams)
+      downloadFile(blob, `打印订单_${buildTimestamp()}.xlsx`)
+      ElMessage.success('导出成功')
+    } catch (error) {
+      console.error('导出打印订单失败:', error)
+      ElMessage.error('导出打印订单失败')
+    } finally {
+      exportLoading.value = false
+    }
+  }
+
   const handlePrint = (row: any) => {
     ElMessageBox.confirm(
       `确定订单 ${row.orderNo} 已完成打印吗？完成后将进入待配送状态。`,
@@ -131,39 +180,70 @@
         cancelButtonText: '取消',
         type: 'warning'
       }
-    ).then(async () => {
-      try {
-        loading.value = true
-        // 2 (待打印) -> 3 (待配送)
-        await updatePrintOrderStatus(row.id, 3)
-        ElMessage.success('订单已标记为待配送')
-        getList()
-      } finally {
-        loading.value = false
-      }
-    }).catch(() => {})
+    )
+      .then(async () => {
+        try {
+          loading.value = true
+          // 2 (待打印) -> 3 (待配送)
+          await updatePrintOrderStatus(row.id, 3)
+          ElMessage.success('订单已标记为待配送')
+          getList()
+        } finally {
+          loading.value = false
+        }
+      })
+      .catch(() => {})
   }
 
   const getStatusTag = (status: number): 'primary' | 'success' | 'warning' | 'info' | 'danger' => {
     switch (status) {
-      case 1: return 'info'      // 待支付
-      case 2: return 'warning'   // 待打印
-      case 3: return 'primary'   // 待配送
-      case 4: return 'success'   // 已完成
-      case 0: return 'danger'    // 已取消
-      default: return 'info'
+      case 1:
+        return 'info' // 待支付
+      case 2:
+        return 'warning' // 待打印
+      case 3:
+        return 'primary' // 待配送
+      case 4:
+        return 'success' // 已完成
+      case 0:
+        return 'danger' // 已取消
+      default:
+        return 'info'
     }
   }
 
   const getStatusText = (status: number) => {
     switch (status) {
-      case 1: return '待支付'
-      case 2: return '待打印'
-      case 3: return '待配送'
-      case 4: return '已完成'
-      case 0: return '已取消'
-      default: return '未知'
+      case 1:
+        return '待支付'
+      case 2:
+        return '待打印'
+      case 3:
+        return '待配送'
+      case 4:
+        return '已完成'
+      case 0:
+        return '已取消'
+      default:
+        return '未知'
     }
+  }
+
+  const downloadFile = (blob: Blob, fileName: string) => {
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', fileName)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  }
+
+  const buildTimestamp = () => {
+    const now = new Date()
+    const pad = (value: number) => String(value).padStart(2, '0')
+    return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
   }
 
   onMounted(() => {

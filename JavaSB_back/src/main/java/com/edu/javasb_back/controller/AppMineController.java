@@ -2,6 +2,7 @@ package com.edu.javasb_back.controller;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,8 @@ import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.edu.javasb_back.model.dto.AccountUpdateDTO;
 import com.edu.javasb_back.model.dto.PasswordUpdateDTO;
 import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.model.vo.AppNotificationVO;
+import com.edu.javasb_back.service.AppNotificationService;
 import com.edu.javasb_back.service.SysAccountService;
 
 /**
@@ -36,6 +39,9 @@ public class AppMineController {
 
     @Autowired
     private GlobalConfigProperties globalConfigProperties;
+
+    @Autowired
+    private AppNotificationService appNotificationService;
 
     // 辅助方法：获取当前用户的 UID
     private Long getCurrentUid() {
@@ -62,6 +68,19 @@ public class AppMineController {
             return Result.error(401, "未登录");
         }
         return sysAccountService.getUserInfo(uid);
+    }
+
+    /**
+     * 获取当前用户通知列表
+     */
+    @LogOperation("小程序获取通知列表")
+    @GetMapping("/notifications")
+    public Result<List<AppNotificationVO>> getMineNotifications(@RequestParam(required = false) Integer limit) {
+        Long uid = getCurrentUid();
+        if (uid == null) {
+            return Result.error(401, "未登录");
+        }
+        return Result.success("获取通知成功", appNotificationService.getUserNotifications(uid, limit));
     }
 
     /**

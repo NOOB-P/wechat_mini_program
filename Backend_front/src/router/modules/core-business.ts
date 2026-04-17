@@ -19,6 +19,7 @@ export const coreBusinessRoutes: AppRouteRecord = {
       meta: {
         title: '学校数据',
         isHide: true,
+        activePath: '/core-business',
         authMark: 'system:school:list'
       }
     },
@@ -29,6 +30,7 @@ export const coreBusinessRoutes: AppRouteRecord = {
       meta: {
         title: '班级数据',
         isHide: true,
+        activePath: '/core-business',
         authMark: 'system:class:list'
       }
     },
@@ -39,6 +41,7 @@ export const coreBusinessRoutes: AppRouteRecord = {
       meta: {
         title: '学生数据',
         isHide: true,
+        activePath: '/core-business',
         authMark: 'system:student:list'
       }
     }

@@ -3,13 +3,28 @@
     <div class="search-wrapper bg-white p-5 rounded-lg mb-5 shadow-sm">
       <el-form ref="queryFormRef" :model="queryParams" :inline="true">
         <el-form-item :label="text.orderNo" prop="orderNo">
-          <el-input v-model="queryParams.orderNo" :placeholder="text.orderNoPlaceholder" clearable style="width: 200px" />
+          <el-input
+            v-model="queryParams.orderNo"
+            :placeholder="text.orderNoPlaceholder"
+            clearable
+            style="width: 200px"
+          />
         </el-form-item>
         <el-form-item :label="text.userName" prop="userName">
-          <el-input v-model="queryParams.userName" :placeholder="text.userNamePlaceholder" clearable style="width: 200px" />
+          <el-input
+            v-model="queryParams.userName"
+            :placeholder="text.userNamePlaceholder"
+            clearable
+            style="width: 200px"
+          />
         </el-form-item>
         <el-form-item :label="text.paymentStatus" prop="paymentStatus">
-          <el-select v-model="queryParams.paymentStatus" :placeholder="text.paymentStatus" clearable style="width: 150px">
+          <el-select
+            v-model="queryParams.paymentStatus"
+            :placeholder="text.paymentStatus"
+            clearable
+            style="width: 150px"
+          >
             <el-option :label="text.pending" :value="0" />
             <el-option :label="text.paid" :value="1" />
             <el-option :label="text.refunded" :value="2" />
@@ -18,6 +33,14 @@
         <el-form-item>
           <el-button type="primary" icon="Search" @click="handleQuery">{{ text.search }}</el-button>
           <el-button icon="Refresh" @click="resetQuery">{{ text.reset }}</el-button>
+          <el-button
+            type="success"
+            plain
+            icon="Download"
+            :loading="exportLoading"
+            @click="handleExport"
+            >{{ text.export }}</el-button
+          >
         </el-form-item>
       </el-form>
     </div>
@@ -48,10 +71,17 @@
         </el-table-column>
         <el-table-column :label="text.price" width="110" align="center">
           <template #default="scope">
-            <span class="text-red-500 font-bold">{{ `${moneySymbol}${formatPrice(scope.row.price)}` }}</span>
+            <span class="text-red-500 font-bold">{{
+              `${moneySymbol}${formatPrice(scope.row.price)}`
+            }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="text.paymentMethod" prop="paymentMethod" width="120" align="center" />
+        <el-table-column
+          :label="text.paymentMethod"
+          prop="paymentMethod"
+          width="120"
+          align="center"
+        />
         <el-table-column :label="text.paymentStatus" width="100" align="center">
           <template #default="scope">
             <el-tag :type="getStatusTag(scope.row.paymentStatus)">
@@ -62,7 +92,9 @@
         <el-table-column :label="text.createTime" prop="createTime" width="180" align="center" />
         <el-table-column :label="text.action" width="100" align="center" fixed="right">
           <template #default="scope">
-            <el-button link type="primary" @click="handleDetail(scope.row)">{{ text.detail }}</el-button>
+            <el-button link type="primary" @click="handleDetail(scope.row)">{{
+              text.detail
+            }}</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -82,29 +114,45 @@
 
     <el-dialog v-model="detailVisible" :title="text.detailTitle" width="600px" destroy-on-close>
       <el-descriptions :column="1" border>
-        <el-descriptions-item :label="text.orderNo">{{ currentOrder.orderNo || '-' }}</el-descriptions-item>
-        <el-descriptions-item :label="text.userName">{{ currentOrder.userName || '-' }}</el-descriptions-item>
-        <el-descriptions-item :label="text.userPhone">{{ currentOrder.userPhone || '-' }}</el-descriptions-item>
+        <el-descriptions-item :label="text.orderNo">{{
+          currentOrder.orderNo || '-'
+        }}</el-descriptions-item>
+        <el-descriptions-item :label="text.userName">{{
+          currentOrder.userName || '-'
+        }}</el-descriptions-item>
+        <el-descriptions-item :label="text.userPhone">{{
+          currentOrder.userPhone || '-'
+        }}</el-descriptions-item>
         <el-descriptions-item :label="text.packageType">
           <el-tag size="small">{{ currentOrder.packageType || '-' }}</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item :label="text.period">{{ currentOrder.period || '-' }}</el-descriptions-item>
+        <el-descriptions-item :label="text.period">{{
+          currentOrder.period || '-'
+        }}</el-descriptions-item>
         <el-descriptions-item :label="text.sourceType">
           <el-tag size="small" :type="getSourceMeta(currentOrder.sourceType).type">
             {{ getSourceMeta(currentOrder.sourceType).label }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item :label="text.price">
-          <span class="text-red-500 font-bold">{{ `${moneySymbol}${formatPrice(currentOrder.price)}` }}</span>
+          <span class="text-red-500 font-bold">{{
+            `${moneySymbol}${formatPrice(currentOrder.price)}`
+          }}</span>
         </el-descriptions-item>
-        <el-descriptions-item :label="text.paymentMethod">{{ currentOrder.paymentMethod || '-' }}</el-descriptions-item>
+        <el-descriptions-item :label="text.paymentMethod">{{
+          currentOrder.paymentMethod || '-'
+        }}</el-descriptions-item>
         <el-descriptions-item :label="text.paymentStatus">
           <el-tag :type="getStatusTag(currentOrder.paymentStatus)">
             {{ getStatusText(currentOrder.paymentStatus) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item :label="text.createTime">{{ currentOrder.createTime || '-' }}</el-descriptions-item>
-        <el-descriptions-item :label="text.updateTime">{{ currentOrder.updateTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item :label="text.createTime">{{
+          currentOrder.createTime || '-'
+        }}</el-descriptions-item>
+        <el-descriptions-item :label="text.updateTime">{{
+          currentOrder.updateTime || '-'
+        }}</el-descriptions-item>
       </el-descriptions>
       <template #footer>
         <el-button @click="detailVisible = false">{{ text.close }}</el-button>
@@ -116,7 +164,7 @@
 <script setup lang="ts">
   import { onMounted, reactive, ref } from 'vue'
   import { ElMessage } from 'element-plus'
-  import { fetchVipOrderList } from '@/api/order'
+  import { exportVipOrderList, fetchVipOrderList } from '@/api/order'
 
   type TagType = 'success' | 'info' | 'warning' | 'danger'
 
@@ -138,6 +186,7 @@
     action: '\u64cd\u4f5c',
     search: '\u67e5\u8be2',
     reset: '\u91cd\u7f6e',
+    export: '\u5bfc\u51fa',
     detail: '\u8be6\u60c5',
     detailTitle: '\u8ba2\u5355\u8be6\u60c5',
     close: '\u5173\u95ed',
@@ -146,11 +195,14 @@
     refunded: '\u5df2\u9000\u6b3e',
     onlinePurchase: '\u5728\u7ebf\u8d2d\u4e70',
     schoolGift: '\u6821\u8baf\u901a\u8d60\u9001',
-    loadFailed: '\u83b7\u53d6 VIP \u8ba2\u5355\u5217\u8868\u5931\u8d25'
+    loadFailed: '\u83b7\u53d6 VIP \u8ba2\u5355\u5217\u8868\u5931\u8d25',
+    exportSuccess: '\u5bfc\u51fa\u6210\u529f',
+    exportFailed: '\u5bfc\u51fa VIP \u8ba2\u5355\u5931\u8d25'
   }
 
   const moneySymbol = '\uFFE5'
   const loading = ref(false)
+  const exportLoading = ref(false)
   const orderList = ref<any[]>([])
   const total = ref(0)
   const detailVisible = ref(false)
@@ -207,6 +259,20 @@
     detailVisible.value = true
   }
 
+  const handleExport = async () => {
+    exportLoading.value = true
+    try {
+      const blob = await exportVipOrderList(queryParams)
+      downloadFile(blob, `VIP订单_${buildTimestamp()}.xlsx`)
+      ElMessage.success(text.exportSuccess)
+    } catch (error) {
+      console.error('export vip orders failed:', error)
+      ElMessage.error(text.exportFailed)
+    } finally {
+      exportLoading.value = false
+    }
+  }
+
   const getPeriodTag = (period?: string): TagType => {
     if (!period) {
       return 'info'
@@ -249,6 +315,23 @@
   const formatPrice = (price: number | string | undefined) => {
     const numericPrice = Number(price ?? 0)
     return Number.isNaN(numericPrice) ? '0.00' : numericPrice.toFixed(2)
+  }
+
+  const downloadFile = (blob: Blob, fileName: string) => {
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', fileName)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  }
+
+  const buildTimestamp = () => {
+    const now = new Date()
+    const pad = (value: number) => String(value).padStart(2, '0')
+    return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
   }
 
   onMounted(() => {

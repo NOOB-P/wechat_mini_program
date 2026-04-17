@@ -63,25 +63,48 @@ public class VipServiceImpl implements VipService {
         if (accountOpt.isEmpty()) return Result.error("用户不存在");
         
         SysAccount account = accountOpt.get();
-        // 如果没有 VIP 且没有 SVIP 权限
-        if ((account.getIsVip() == null || account.getIsVip() == 0) && 
-            (account.getIsSvip() == null || account.getIsSvip() == 0)) {
-            return Result.error(403, "您尚未开通会员，请先开通后查看");
+        boolean changed = normalizeVipStatus(account);
+        if (changed) {
+            sysAccountRepository.save(account);
         }
 
-        // 校验过期时间
-        if (account.getVipExpireTime() != null && 
-            account.getVipExpireTime().isBefore(java.time.LocalDateTime.now())) {
-            
-            // 自动重置权限标识
-            account.setIsVip(0);
-            account.setIsSvip(0);
-            sysAccountRepository.save(account);
-            
-            return Result.error(403, "您的会员已过期，请续费后继续使用");
+        boolean vipActive = account.getIsVip() != null && account.getIsVip() == 1;
+        boolean svipActive = account.getIsSvip() != null && account.getIsSvip() == 1;
+
+        if (!vipActive && !svipActive) {
+            return Result.error(403, "您尚未开通会员，请先开通后查看");
         }
         
         return Result.success(account);
+    }
+
+    private boolean normalizeVipStatus(SysAccount account) {
+        if (account == null) {
+            return false;
+        }
+
+        boolean changed = false;
+        LocalDateTime now = LocalDateTime.now();
+        boolean svipActive = account.getSvipExpireTime() != null && !account.getSvipExpireTime().isBefore(now);
+        boolean vipActiveByOwnExpire = account.getVipExpireTime() != null && !account.getVipExpireTime().isBefore(now);
+
+        if ((account.getIsSvip() != null && account.getIsSvip() == 1) && !svipActive) {
+            account.setIsSvip(0);
+            changed = true;
+        }
+
+        boolean effectiveVipActive = vipActiveByOwnExpire || svipActive;
+        if ((account.getIsVip() != null && account.getIsVip() == 1) && !effectiveVipActive) {
+            account.setIsVip(0);
+            changed = true;
+        }
+
+        if ((account.getIsVip() == null || account.getIsVip() == 0) && svipActive) {
+            account.setIsVip(1);
+            changed = true;
+        }
+
+        return changed;
     }
 
     @Override

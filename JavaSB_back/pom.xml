@@ -14,7 +14,7 @@
 	<name>JavaSB_back</name>
 	<description>JavaSB_back</description>
 	<properties>
-		<java.version>21</java.version>
+		<java.version>20</java.version>
 		<skipTests>true</skipTests>
 		<poi.version>4.1.2</poi.version>
 	</properties>

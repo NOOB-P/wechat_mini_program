@@ -32,4 +32,8 @@ public interface PrintOrderService {
     Result<PrintOrder> save(PrintOrder printOrder);
 
     Result<List<PrintOrder>> getMyPrintOrders(Long uid);
+    /**
+     * 导出打印订单
+     */
+    List<PrintOrder> getPrintOrderExportList(String orderNo, String userName, Integer orderStatus);
 }
