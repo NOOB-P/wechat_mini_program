@@ -1,0 +1,27 @@
+# Common patterns
+**/target/
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/uploads/
+**/assests/~$*
+
+# Java specific
+.mvn/wrapper/maven-wrapper.jar
+*.iml
+
+# Node.js specific
+*.local
+src/types/import/auto-imports.d.ts
+src/types/import/components.d.ts
+
+# IDEs and OS
+.idea/
+.vscode/
+*.iws
+*.ipr
+.DS_Store
+Thumbs.db
+
+# Husky
+.husky/_/

@@ -1,0 +1,30 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.json",
+  "compilerOptions": {
+    "sourceMap": true,
+    "strict": false,
+    "noImplicitThis": true,
+    "importsNotUsedAsValues": "remove",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "outDir": "dist",
+    "lib": ["esnext", "dom"],
+    "types": [
+      "@dcloudio/types",
+      "node"
+    ]
+  },
+  "exclude": ["node_modules"],
+  "include": [
+    "components.d.ts",
+    "src/**/*.ts",
+    "src/**/*.js",
+    "src/**/*.d.ts",
+    "src/**/*.tsx",
+    "src/**/*.jsx",
+    "src/**/*.vue",
+    "src/**/*.json"
+  ]
+}

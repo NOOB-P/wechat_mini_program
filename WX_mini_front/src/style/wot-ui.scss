@@ -1,0 +1,29 @@
+:root,
+page {
+  // wot-design主题色
+  --wot-color-theme: #4d80f0;
+  --wot-color-success: #34d19d;
+  --wot-color-warning: #f0883a;
+  --wot-color-danger: #fa4350;
+  --wot-color-info: #f0f0f0;
+  // wot-design按钮颜色
+  --wot-button-primary-bg-color: #4d80f0;
+  --wot-button-success-bg-color: #34d19d;
+  --wot-button-warning-bg-color: #f0883a;
+  --wot-button-danger-bg-color: #fa4350;
+  --wot-button-info-bg-color: #f0f0f0;
+
+  // wd-search：统一成单层单色搜索框，避免白灰双层叠加
+  --wot-search-padding: 0;
+  --wot-search-light-bg: transparent;
+  --wot-search-input-bg: transparent;
+}
+
+.wd-search {
+  background: transparent !important;
+}
+
+.wd-search__block,
+.wd-search__cover {
+  background: transparent !important;
+}

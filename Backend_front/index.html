@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+  <head>
+    <title>优题慧小程序智慧管理后台</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Art Design Pro - A modern admin dashboard template built with Vue 3, TypeScript, and Element Plus."
+    />
+    <link rel="shortcut icon" type="image/png" href="src/assets/images/common/logo.png" />
+
+    <style>
+      /* 防止页面刷新时白屏的初始样式 */
+      html {
+        background-color: #fafbfc;
+      }
+
+      html.dark {
+        background-color: #070707;
+      }
+    </style>
+
+    <script>
+      // 初始化 html class 主题属性
+      ;(function () {
+        try {
+          if (typeof Storage === 'undefined' || !window.localStorage) {
+            return
+          }
+
+          const themeType = localStorage.getItem('sys-theme')
+          // 默认进入亮色模式，除非用户在当前会话明确切换过（这里我们可以选择不在这里处理暗色，让 store 去处理）
+          // 或者直接移除暗色初始化，确保默认是亮色
+          if (themeType === 'dark') {
+            // document.documentElement.classList.add('dark') 
+          }
+        } catch (e) {
+          console.warn('Failed to apply initial theme:', e)
+        }
+      })()
+    </script>
+  </head>
+
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
