@@ -48,6 +48,9 @@ public class VipOrderServiceImpl implements VipOrderService {
     private StudentParentBindingRepository studentParentBindingRepository;
 
     @Autowired
+    private com.edu.javasb_back.repository.SysStudentRepository sysStudentRepository;
+
+    @Autowired
     private VipPricingRepository vipPricingRepository;
 
     @Override
@@ -69,6 +72,7 @@ public class VipOrderServiceImpl implements VipOrderService {
         order.setUserUid(userUid);
         order.setUserName(resolveUserName(account));
         order.setUserPhone(resolveUserPhone(account));
+        order.setSchoolName(resolveSchoolName(userUid));
 
         String tierCode = asString(orderData.get("tierCode"));
         String title = asString(orderData.get("packageType"));
@@ -112,6 +116,7 @@ public class VipOrderServiceImpl implements VipOrderService {
         order.setUserUid(userUid);
         order.setUserName(resolveUserName(account));
         order.setUserPhone(resolveUserPhone(account));
+        order.setSchoolName(resolveSchoolName(userUid));
         order.setPackageType(SCHOOL_VIP_PACKAGE);
         order.setPeriod(formatMonthPeriod(months));
         order.setPrice(BigDecimal.ZERO);
@@ -165,11 +170,11 @@ public class VipOrderServiceImpl implements VipOrderService {
     }
 
     @Override
-    public Result<Map<String, Object>> getVipOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus, String startDate, String endDate) {
+    public Result<Map<String, Object>> getVipOrderList(int current, int size, String keyword, String sourceType, Integer paymentStatus, String startDate, String endDate) {
         Pageable pageable = PageRequest.of(current - 1, size, Sort.by("createTime").descending());
         Page<VipOrder> page = vipOrderRepository.findByFilters(
-                normalizeKeyword(orderNo),
-                normalizeKeyword(userName),
+                normalizeKeyword(keyword),
+                sourceType,
                 paymentStatus,
                 parseStartDateTime(startDate),
                 parseEndDateTime(endDate),
@@ -192,10 +197,10 @@ public class VipOrderServiceImpl implements VipOrderService {
     }
 
     @Override
-    public List<VipOrder> getVipOrderExportList(String orderNo, String userName, Integer paymentStatus, String startDate, String endDate) {
+    public List<VipOrder> getVipOrderExportList(String keyword, String sourceType, Integer paymentStatus, String startDate, String endDate) {
         List<VipOrder> orders = vipOrderRepository.findByFilters(
-                normalizeKeyword(orderNo),
-                normalizeKeyword(userName),
+                normalizeKeyword(keyword),
+                sourceType,
                 paymentStatus,
                 parseStartDateTime(startDate),
                 parseEndDateTime(endDate),
@@ -310,6 +315,17 @@ public class VipOrderServiceImpl implements VipOrderService {
 
     private String resolveUserPhone(SysAccount account) {
         return StringUtils.hasText(account.getPhone()) ? account.getPhone() : "";
+    }
+
+    private String resolveSchoolName(Long userUid) {
+        List<com.edu.javasb_back.model.entity.StudentParentBinding> bindings = studentParentBindingRepository.findByParentUid(userUid);
+        if (!bindings.isEmpty()) {
+            String studentId = bindings.get(0).getStudentId();
+            return sysStudentRepository.findById(studentId)
+                    .map(com.edu.javasb_back.model.entity.SysStudent::getSchool)
+                    .orElse("");
+        }
+        return "";
     }
 
     private BigDecimal parsePrice(Object rawPrice) {

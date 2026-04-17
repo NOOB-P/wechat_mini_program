@@ -54,6 +54,9 @@ public class VipOrder {
     @Column(name = "source_type", nullable = false, length = 50)
     private String sourceType = "ONLINE_PURCHASE";
 
+    @Column(name = "school_name", length = 100)
+    private String schoolName;
+
     @CreationTimestamp
     @Column(name = "create_time", updatable = false)
     private LocalDateTime createTime;

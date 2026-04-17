@@ -41,12 +41,11 @@
           />
         </el-form-item>
         <el-form-item class="action-buttons">
-          <el-button type="primary" icon="Search" @click="handleQuery">查询</el-button>
-          <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+          <el-button type="primary" @click="handleQuery">查询</el-button>
+          <el-button @click="resetQuery">重置</el-button>
           <el-button
             type="success"
             plain
-            icon="Download"
             :loading="exportLoading"
             @click="handleExport"
             >导出</el-button
@@ -58,9 +57,9 @@
     <div class="table-wrapper bg-white p-5 rounded-lg shadow-sm">
       <el-table v-loading="loading" :data="orderList" border stripe style="width: 100%">
         <el-table-column label="订单号" prop="order_no" min-width="180" align="center" />
-        <el-table-column label="用户信息" min-width="150">
+        <el-table-column label="用户信息" min-width="150" align="center">
           <template #default="scope">
-            <div class="user-info">
+            <div class="user-info flex flex-col items-center">
               <div class="font-bold">{{ scope.row.user_name }}</div>
               <div class="text-xs text-gray-400">{{ scope.row.user_phone }}</div>
             </div>
@@ -275,9 +274,11 @@
         display: flex;
         align-items: center;
         gap: 12px;
+        justify-content: center;
       }
 
       :deep(.el-button) {
+        min-width: 88px;
         display: inline-flex;
         align-items: center;
         justify-content: center;

@@ -25,10 +25,10 @@ public interface VipOrderService {
     /**
      * 后台分页查询 VIP 订单
      */
-    Result<Map<String, Object>> getVipOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus, String startDate, String endDate);
+    Result<Map<String, Object>> getVipOrderList(int current, int size, String keyword, String sourceType, Integer paymentStatus, String startDate, String endDate);
 
     /**
      * 后台导出 VIP 订单
      */
-    List<VipOrder> getVipOrderExportList(String orderNo, String userName, Integer paymentStatus, String startDate, String endDate);
+    List<VipOrder> getVipOrderExportList(String keyword, String sourceType, Integer paymentStatus, String startDate, String endDate);
 }

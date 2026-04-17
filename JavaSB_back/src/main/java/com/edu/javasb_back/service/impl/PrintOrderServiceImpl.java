@@ -94,6 +94,27 @@ public class PrintOrderServiceImpl implements PrintOrderService {
         );
     }
 
+    @Override
+    public Result<List<PrintOrder>> getMyPrintOrders(Long uid) {
+        if (uid == null) {
+            return Result.error("用户未登录");
+        }
+        
+        Optional<com.edu.javasb_back.model.entity.SysAccount> accountOptional = sysAccountRepository.findById(uid);
+        if (accountOptional.isEmpty()) {
+            return Result.error("用户不存在");
+        }
+        
+        String phone = accountOptional.get().getPhone();
+        if (phone == null || phone.isEmpty()) {
+            return Result.success(List.of());
+        }
+        
+        // 假设目前是通过手机号匹配订单
+        List<PrintOrder> orders = printOrderRepository.findByParams(null, phone, null, null, null, Sort.by(Sort.Direction.DESC, "createTime"));
+        return Result.success(orders);
+    }
+
     private String normalizeKeyword(String keyword) {
         return (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
     }

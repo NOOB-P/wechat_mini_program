@@ -19,12 +19,12 @@ public interface VipOrderRepository extends JpaRepository<VipOrder, Long> {
 
     @Query("SELECT v FROM VipOrder v WHERE " +
             "(:paymentStatus IS NULL OR v.paymentStatus = :paymentStatus) AND " +
-            "(:orderNo IS NULL OR v.orderNo LIKE %:orderNo%) AND " +
-            "(:userName IS NULL OR v.userName LIKE %:userName% OR v.userPhone LIKE %:userName%) AND " +
+            "(:sourceType IS NULL OR v.sourceType = :sourceType) AND " +
+            "(:keyword IS NULL OR v.orderNo LIKE %:keyword% OR v.userName LIKE %:keyword% OR v.userPhone LIKE %:keyword% OR v.schoolName LIKE %:keyword%) AND " +
             "(:startTime IS NULL OR v.createTime >= :startTime) AND " +
             "(:endTime IS NULL OR v.createTime <= :endTime)")
-    Page<VipOrder> findByFilters(@Param("orderNo") String orderNo,
-                                 @Param("userName") String userName,
+    Page<VipOrder> findByFilters(@Param("keyword") String keyword,
+                                 @Param("sourceType") String sourceType,
                                  @Param("paymentStatus") Integer paymentStatus,
                                  @Param("startTime") java.time.LocalDateTime startTime,
                                  @Param("endTime") java.time.LocalDateTime endTime,
@@ -32,12 +32,12 @@ public interface VipOrderRepository extends JpaRepository<VipOrder, Long> {
 
     @Query("SELECT v FROM VipOrder v WHERE " +
             "(:paymentStatus IS NULL OR v.paymentStatus = :paymentStatus) AND " +
-            "(:orderNo IS NULL OR v.orderNo LIKE %:orderNo%) AND " +
-            "(:userName IS NULL OR v.userName LIKE %:userName% OR v.userPhone LIKE %:userName%) AND " +
+            "(:sourceType IS NULL OR v.sourceType = :sourceType) AND " +
+            "(:keyword IS NULL OR v.orderNo LIKE %:keyword% OR v.userName LIKE %:keyword% OR v.userPhone LIKE %:keyword% OR v.schoolName LIKE %:keyword%) AND " +
             "(:startTime IS NULL OR v.createTime >= :startTime) AND " +
             "(:endTime IS NULL OR v.createTime <= :endTime)")
-    List<VipOrder> findByFilters(@Param("orderNo") String orderNo,
-                                 @Param("userName") String userName,
+    List<VipOrder> findByFilters(@Param("keyword") String keyword,
+                                 @Param("sourceType") String sourceType,
                                  @Param("paymentStatus") Integer paymentStatus,
                                  @Param("startTime") java.time.LocalDateTime startTime,
                                  @Param("endTime") java.time.LocalDateTime endTime,
