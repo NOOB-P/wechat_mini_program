@@ -87,7 +87,7 @@ onShow(() => {
 
 const handleGridClick = (type: string) => {
   if (type === 'analysis') {
-    uni.navigateTo({ url: '/subpkg_analysis/pages/score/index' })
+    uni.navigateTo({ url: `/subpkg_analysis/pages/score/index?phone=${userInfo.value.phone || ''}` })
   } else if (type === 'academic') {
     // 跳转到名校试卷
     uni.navigateTo({ url: '/subpkg_resource/pages/paper' })

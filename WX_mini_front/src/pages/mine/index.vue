@@ -92,6 +92,8 @@ const handleMenuClick = (item: any) => {
     uni.navigateTo({ url: '/subpkg_mine/pages/mine/settings/index' })
   } else if (type === 'service') {
     uni.navigateTo({ url: '/subpkg_mine/pages/service/index' })
+  } else if (type === 'about') {
+    uni.navigateTo({ url: '/subpkg_mine/pages/mine/about' })
   } else {
     uni.showToast({ title: `点击了${item.label}`, icon: 'none' })
   }

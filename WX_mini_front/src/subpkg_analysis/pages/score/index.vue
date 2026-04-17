@@ -337,6 +337,7 @@ const toast = useToast()
 const scoreData = ref<any>(null)
 const currentSubject = ref('总分')
 const currentMainTab = ref('analysis')
+const userPhone = ref('') // 存储传入的手机号
 
 const getSubjectThemeClass = (index: number) => {
   const themes = ['bg-theme-blue', 'bg-theme-green', 'bg-theme-yellow', 'bg-theme-yellow', 'bg-theme-blue', 'bg-theme-green']
@@ -354,8 +355,9 @@ const checkVipStatus = async () => {
       // 1. 判断是否绑定学生
       if (res.data.isBoundStudent === 0) {
         toast.show('请先绑定学生')
+        const phone = res.data.phone || userPhone.value
         setTimeout(() => {
-          uni.redirectTo({ url: '/pages/auth/bind-student' })
+          uni.redirectTo({ url: `/pages/auth/bind-student?phone=${phone || ''}` })
         }, 1500)
         return
       }
@@ -628,7 +630,11 @@ const joinRoom = () => {
   }, 1500)
 }
 
-onLoad(async () => {
+onLoad(async (options: any) => {
+  if (options && options.phone) {
+    userPhone.value = options.phone
+    printForm.value.phone = options.phone
+  }
   await checkVipStatus()
   loadInitData()
 })
