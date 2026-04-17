@@ -3,6 +3,7 @@ package com.edu.javasb_back.service;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.PrintOrder;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -29,4 +30,6 @@ public interface PrintOrderService {
      * 保存订单 (用于模拟或创建新订单)
      */
     Result<PrintOrder> save(PrintOrder printOrder);
+
+    Result<List<PrintOrder>> getMyPrintOrders(Long uid);
 }

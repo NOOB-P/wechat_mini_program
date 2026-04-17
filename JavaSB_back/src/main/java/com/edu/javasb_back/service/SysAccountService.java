@@ -5,6 +5,9 @@ import com.edu.javasb_back.model.dto.AccountLoginDTO;
 import com.edu.javasb_back.model.dto.AccountUpdateDTO;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.vo.LoginVO;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Map;
 
 public interface SysAccountService {
     Result<String> sendSmsCode(String phone);
@@ -38,4 +41,14 @@ public interface SysAccountService {
     Result<Void> bindStudentById(Long uid, String studentId);
 
     Result<Void> unbindStudentByParentUid(Long uid);
+
+    Result<Map<String, Object>> getAccountList(Long currentUid, int current, int size, String userName, String userPhone, Integer roleId, String schoolId, String classId);
+
+    Result<Void> addAccount(Long currentUid, SysAccount account);
+
+    Result<Map<String, Object>> importParents(Long currentUid, MultipartFile file);
+
+    Result<Void> editAccount(Long currentUid, Long uid, SysAccount updateData);
+
+    Result<Void> deleteAccount(Long currentUid, Long uid);
 }

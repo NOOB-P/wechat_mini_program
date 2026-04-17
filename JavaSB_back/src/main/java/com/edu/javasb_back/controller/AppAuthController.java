@@ -7,9 +7,9 @@ import com.edu.javasb_back.model.dto.BindStudentDTO;
 import com.edu.javasb_back.model.entity.SysSchool;
 import com.edu.javasb_back.model.entity.SysStudent;
 import com.edu.javasb_back.model.vo.LoginVO;
-import com.edu.javasb_back.repository.SysSchoolRepository;
-import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.service.SysAccountService;
+import com.edu.javasb_back.service.SysSchoolService;
+import com.edu.javasb_back.service.SysStudentService;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,34 +28,34 @@ public class AppAuthController {
     private SysAccountService sysAccountService;
 
     @Autowired
-    private SysSchoolRepository sysSchoolRepository;
+    private SysSchoolService sysSchoolService;
 
     @Autowired
-    private SysStudentRepository sysStudentRepository;
+    private SysStudentService sysStudentService;
 
     @GetMapping("/provinces")
     public Result<List<String>> getProvinces() {
-        return Result.success(sysSchoolRepository.findDistinctProvinces());
+        return sysSchoolService.getProvinces();
     }
 
     @GetMapping("/cities")
     public Result<List<String>> getCities(@RequestParam String province) {
-        return Result.success(sysSchoolRepository.findDistinctCities(province));
+        return sysSchoolService.getCities(province);
     }
 
     @GetMapping("/schools")
     public Result<List<SysSchool>> getSchools(@RequestParam String city) {
-        return Result.success(sysSchoolRepository.findByCity(city));
+        return sysSchoolService.getSchoolsByCity(city);
     }
 
     @GetMapping("/grades")
     public Result<List<String>> getGrades(@RequestParam String schoolId) {
-        return Result.success(sysStudentRepository.findDistinctGrades(schoolId));
+        return sysStudentService.getGrades(schoolId);
     }
 
     @GetMapping("/classes")
     public Result<List<String>> getClasses(@RequestParam String schoolId, @RequestParam String grade) {
-        return Result.success(sysStudentRepository.findDistinctClasses(schoolId, grade));
+        return sysStudentService.getClasses(schoolId, grade);
     }
 
     @GetMapping("/students")
@@ -63,7 +63,7 @@ public class AppAuthController {
             @RequestParam String schoolId,
             @RequestParam String grade,
             @RequestParam String className) {
-        return Result.success(sysStudentRepository.findBySchoolIdAndGradeAndClassName(schoolId, grade, className));
+        return sysStudentService.getStudents(schoolId, grade, className);
     }
 
     @LogOperation("发送短信验证码")

@@ -1,8 +1,10 @@
 package com.edu.javasb_back.service.impl;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.common.permission.PermissionCatalog;
 import com.edu.javasb_back.model.entity.SysRole;
 import com.edu.javasb_back.model.entity.SysRoleMenu;
@@ -132,6 +135,20 @@ public class RolePermissionServiceImpl implements RolePermissionService {
         }
         return PermissionCatalog.getRolePriority(currentRoleCode.get())
                 >= PermissionCatalog.getRolePriority(targetRoleCode.get());
+    }
+
+    @Override
+    public Result<List<Map<String, Object>>> getPermissionOptions() {
+        List<Map<String, Object>> options = getPermissionGroups().stream().map(group -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("menuPermission", group.menuPermission());
+            map.put("title", group.title());
+            map.put("routePath", group.routePath());
+            map.put("icon", group.icon());
+            map.put("permissionCodes", group.permissionCodes());
+            return map;
+        }).collect(Collectors.toList());
+        return Result.success("获取成功", options);
     }
 
     private Optional<String> getRoleCode(Integer roleId) {

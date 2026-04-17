@@ -78,6 +78,21 @@ public class SysSchoolServiceImpl implements SysSchoolService {
     }
 
     @Override
+    public Result<List<String>> getProvinces() {
+        return Result.success(sysSchoolRepository.findDistinctProvinces());
+    }
+
+    @Override
+    public Result<List<String>> getCities(String province) {
+        return Result.success(sysSchoolRepository.findDistinctCities(province));
+    }
+
+    @Override
+    public Result<List<SysSchool>> getSchoolsByCity(String city) {
+        return Result.success(sysSchoolRepository.findByCity(city));
+    }
+
+    @Override
     public Result<Void> addSchool(SysSchool school) {
         if (school.getProvince() == null || school.getProvince().isEmpty()) {
             return Result.error("省份不能为空");
