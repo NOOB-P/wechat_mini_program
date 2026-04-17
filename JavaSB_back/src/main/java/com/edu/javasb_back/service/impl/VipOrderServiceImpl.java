@@ -19,7 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -163,12 +165,14 @@ public class VipOrderServiceImpl implements VipOrderService {
     }
 
     @Override
-    public Result<Map<String, Object>> getVipOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus) {
+    public Result<Map<String, Object>> getVipOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus, String startDate, String endDate) {
         Pageable pageable = PageRequest.of(current - 1, size, Sort.by("createTime").descending());
         Page<VipOrder> page = vipOrderRepository.findByFilters(
                 normalizeKeyword(orderNo),
                 normalizeKeyword(userName),
                 paymentStatus,
+                parseStartDateTime(startDate),
+                parseEndDateTime(endDate),
                 pageable
         );
 
@@ -188,11 +192,13 @@ public class VipOrderServiceImpl implements VipOrderService {
     }
 
     @Override
-    public List<VipOrder> getVipOrderExportList(String orderNo, String userName, Integer paymentStatus) {
+    public List<VipOrder> getVipOrderExportList(String orderNo, String userName, Integer paymentStatus, String startDate, String endDate) {
         List<VipOrder> orders = vipOrderRepository.findByFilters(
                 normalizeKeyword(orderNo),
                 normalizeKeyword(userName),
                 paymentStatus,
+                parseStartDateTime(startDate),
+                parseEndDateTime(endDate),
                 Sort.by(Sort.Direction.DESC, "createTime")
         );
 
@@ -341,5 +347,19 @@ public class VipOrderServiceImpl implements VipOrderService {
 
     private String normalizeKeyword(String keyword) {
         return StringUtils.hasText(keyword) ? keyword.trim() : null;
+    }
+
+    private LocalDateTime parseStartDateTime(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return LocalDate.parse(value.trim()).atStartOfDay();
+    }
+
+    private LocalDateTime parseEndDateTime(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return LocalDate.parse(value.trim()).atTime(LocalTime.MAX);
     }
 }

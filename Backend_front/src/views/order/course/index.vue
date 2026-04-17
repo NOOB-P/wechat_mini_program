@@ -29,7 +29,18 @@
             <el-option label="已支付" :value="1" />
           </el-select>
         </el-form-item>
-        <el-form-item>
+        <el-form-item label="下单日期" prop="dateRange">
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="width: 260px"
+          />
+        </el-form-item>
+        <el-form-item class="action-buttons">
           <el-button type="primary" icon="Search" @click="handleQuery">查询</el-button>
           <el-button icon="Refresh" @click="resetQuery">重置</el-button>
           <el-button
@@ -141,6 +152,7 @@
   const exportLoading = ref(false)
   const orderList = ref<any[]>([])
   const total = ref(0)
+  const dateRange = ref<[string, string] | []>([])
 
   // 详情弹窗相关
   const detailVisible = ref(false)
@@ -151,7 +163,9 @@
     size: 10,
     orderNo: '',
     userName: '',
-    paymentStatus: undefined
+    paymentStatus: undefined,
+    startDate: '',
+    endDate: ''
   })
 
   const getList = async () => {
@@ -172,6 +186,8 @@
 
   const handleQuery = () => {
     queryParams.current = 1
+    queryParams.startDate = dateRange.value[0] || ''
+    queryParams.endDate = dateRange.value[1] || ''
     getList()
   }
 
@@ -179,6 +195,9 @@
     queryParams.orderNo = ''
     queryParams.userName = ''
     queryParams.paymentStatus = undefined
+    queryParams.startDate = ''
+    queryParams.endDate = ''
+    dateRange.value = []
     handleQuery()
   }
 
@@ -249,6 +268,20 @@
   .course-order-container {
     .user-info {
       line-height: 1.2;
+    }
+
+    .action-buttons {
+      :deep(.el-form-item__content) {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      :deep(.el-button) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
     }
   }
 </style>

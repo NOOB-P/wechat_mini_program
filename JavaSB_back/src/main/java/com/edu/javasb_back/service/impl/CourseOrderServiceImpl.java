@@ -15,6 +15,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.stream.Collectors;
 
 @Service
@@ -89,11 +92,13 @@ public class CourseOrderServiceImpl implements CourseOrderService {
     }
 
     @Override
-    public com.edu.javasb_back.common.Result<Map<String, Object>> getCourseOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus) {
+    public com.edu.javasb_back.common.Result<Map<String, Object>> getCourseOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus, String startDate, String endDate) {
         Page<Map<String, Object>> page = orderRepository.findCourseOrdersWithDetails(
                 normalizeKeyword(orderNo),
                 normalizeKeyword(userName),
                 paymentStatus,
+                parseStartDateTime(startDate),
+                parseEndDateTime(endDate),
                 PageRequest.of(current - 1, size)
         );
         
@@ -107,15 +112,31 @@ public class CourseOrderServiceImpl implements CourseOrderService {
     }
 
     @Override
-    public List<Map<String, Object>> getCourseOrderExportList(String orderNo, String userName, Integer paymentStatus) {
+    public List<Map<String, Object>> getCourseOrderExportList(String orderNo, String userName, Integer paymentStatus, String startDate, String endDate) {
         return orderRepository.findCourseOrdersWithDetailsForExport(
                 normalizeKeyword(orderNo),
                 normalizeKeyword(userName),
-                paymentStatus
+                paymentStatus,
+                parseStartDateTime(startDate),
+                parseEndDateTime(endDate)
         );
     }
 
     private String normalizeKeyword(String keyword) {
         return keyword == null || keyword.trim().isEmpty() ? null : keyword.trim();
+    }
+
+    private LocalDateTime parseStartDateTime(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return LocalDate.parse(value.trim()).atStartOfDay();
+    }
+
+    private LocalDateTime parseEndDateTime(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return LocalDate.parse(value.trim()).atTime(LocalTime.MAX);
     }
 }

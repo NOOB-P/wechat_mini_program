@@ -12,6 +12,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,14 +30,21 @@ public class PrintOrderServiceImpl implements PrintOrderService {
     private PrintOrderRepository printOrderRepository;
 
     @Override
-    public Result<Map<String, Object>> findByParams(int current, int size, String orderNo, String userName, Integer orderStatus) {
+    public Result<Map<String, Object>> findByParams(int current, int size, String orderNo, String userName, Integer orderStatus, String startDate, String endDate) {
         Pageable pageable = PageRequest.of(current - 1, size, Sort.by("createTime").descending());
         
         // 如果传入的参数为空字符串，则转为 null，以便 JpaRepository 的 @Query 能够正确处理
         String orderNoParam = (orderNo != null && !orderNo.trim().isEmpty()) ? orderNo : null;
         String userNameParam = (userName != null && !userName.trim().isEmpty()) ? userName : null;
         
-        Page<PrintOrder> page = printOrderRepository.findByParams(orderNoParam, userNameParam, orderStatus, pageable);
+        Page<PrintOrder> page = printOrderRepository.findByParams(
+                orderNoParam,
+                userNameParam,
+                orderStatus,
+                parseStartDateTime(startDate),
+                parseEndDateTime(endDate),
+                pageable
+        );
         
         Map<String, Object> resultData = new HashMap<>();
         resultData.put("records", page.getContent());
@@ -69,16 +79,32 @@ public class PrintOrderServiceImpl implements PrintOrderService {
     }
 
     @Override
-    public List<PrintOrder> getPrintOrderExportList(String orderNo, String userName, Integer orderStatus) {
+    public List<PrintOrder> getPrintOrderExportList(String orderNo, String userName, Integer orderStatus, String startDate, String endDate) {
         return printOrderRepository.findByParams(
                 normalizeKeyword(orderNo),
                 normalizeKeyword(userName),
                 orderStatus,
+                parseStartDateTime(startDate),
+                parseEndDateTime(endDate),
                 Sort.by(Sort.Direction.DESC, "createTime")
         );
     }
 
     private String normalizeKeyword(String keyword) {
         return (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+    }
+
+    private LocalDateTime parseStartDateTime(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return LocalDate.parse(value.trim()).atStartOfDay();
+    }
+
+    private LocalDateTime parseEndDateTime(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return LocalDate.parse(value.trim()).atTime(LocalTime.MAX);
     }
 }

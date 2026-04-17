@@ -20,18 +20,26 @@ public interface VipOrderRepository extends JpaRepository<VipOrder, Long> {
     @Query("SELECT v FROM VipOrder v WHERE " +
             "(:paymentStatus IS NULL OR v.paymentStatus = :paymentStatus) AND " +
             "(:orderNo IS NULL OR v.orderNo LIKE %:orderNo%) AND " +
-            "(:userName IS NULL OR v.userName LIKE %:userName% OR v.userPhone LIKE %:userName%)")
+            "(:userName IS NULL OR v.userName LIKE %:userName% OR v.userPhone LIKE %:userName%) AND " +
+            "(:startTime IS NULL OR v.createTime >= :startTime) AND " +
+            "(:endTime IS NULL OR v.createTime <= :endTime)")
     Page<VipOrder> findByFilters(@Param("orderNo") String orderNo,
                                  @Param("userName") String userName,
                                  @Param("paymentStatus") Integer paymentStatus,
+                                 @Param("startTime") java.time.LocalDateTime startTime,
+                                 @Param("endTime") java.time.LocalDateTime endTime,
                                  Pageable pageable);
 
     @Query("SELECT v FROM VipOrder v WHERE " +
             "(:paymentStatus IS NULL OR v.paymentStatus = :paymentStatus) AND " +
             "(:orderNo IS NULL OR v.orderNo LIKE %:orderNo%) AND " +
-            "(:userName IS NULL OR v.userName LIKE %:userName% OR v.userPhone LIKE %:userName%)")
+            "(:userName IS NULL OR v.userName LIKE %:userName% OR v.userPhone LIKE %:userName%) AND " +
+            "(:startTime IS NULL OR v.createTime >= :startTime) AND " +
+            "(:endTime IS NULL OR v.createTime <= :endTime)")
     List<VipOrder> findByFilters(@Param("orderNo") String orderNo,
                                  @Param("userName") String userName,
                                  @Param("paymentStatus") Integer paymentStatus,
+                                 @Param("startTime") java.time.LocalDateTime startTime,
+                                 @Param("endTime") java.time.LocalDateTime endTime,
                                  Sort sort);
 }

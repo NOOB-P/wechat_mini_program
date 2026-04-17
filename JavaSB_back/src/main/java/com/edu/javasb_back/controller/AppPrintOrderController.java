@@ -63,7 +63,7 @@ public class AppPrintOrderController {
         // 注意：目前 PrintOrder 没有 userUid，暂时用手机号匹配（假设手机号唯一）
         // 如果后端 findByParams 支持按手机号查询更好，目前它支持按 userName 查询
         // 这里暂时传 phone 给 userName 参数进行尝试，或者之后完善后端
-        Result<Map<String, Object>> result = printOrderService.findByParams(1, 100, null, phone, null);
+        Result<Map<String, Object>> result = printOrderService.findByParams(1, 100, null, phone, null, null, null);
         
         if (result.getCode() == 200 && result.getData() != null) {
             List<PrintOrder> list = (List<PrintOrder>) result.getData().get("records");

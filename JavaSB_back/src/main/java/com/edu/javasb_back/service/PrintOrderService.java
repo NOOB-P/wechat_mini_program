@@ -14,7 +14,7 @@ public interface PrintOrderService {
     /**
      * 分页查询打印订单
      */
-    Result<Map<String, Object>> findByParams(int current, int size, String orderNo, String userName, Integer orderStatus);
+    Result<Map<String, Object>> findByParams(int current, int size, String orderNo, String userName, Integer orderStatus, String startDate, String endDate);
     
     /**
      * 根据ID获取订单详情
@@ -34,5 +34,5 @@ public interface PrintOrderService {
     /**
      * 导出打印订单
      */
-    List<PrintOrder> getPrintOrderExportList(String orderNo, String userName, Integer orderStatus);
+    List<PrintOrder> getPrintOrderExportList(String orderNo, String userName, Integer orderStatus, String startDate, String endDate);
 }

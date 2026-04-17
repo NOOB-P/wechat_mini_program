@@ -83,15 +83,15 @@ const fastEnterConfig: FastEnterConfig = {
       order: 5,
       routeName: 'CourseManage'
     },
-    {
-      name: '自习室报名',
-      description: 'AI 自习室预约报名管理',
-      icon: 'ri:robot-line',
-      iconColor: '#5ac8fa',
-      enabled: true,
-      order: 6,
-      routeName: 'StudyRoomManage'
-    },
+    // {
+    //   name: '自习室报名',
+    //   description: 'AI 自习室预约报名管理',
+    //   icon: 'ri:robot-line',
+    //   iconColor: '#5ac8fa',
+    //   enabled: true,
+    //   order: 6,
+    //   routeName: 'StudyRoomManage'
+    // },
     {
       name: 'FAQ 管理',
       description: '常见问题解答配置',

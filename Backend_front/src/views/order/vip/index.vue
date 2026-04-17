@@ -30,7 +30,18 @@
             <el-option :label="text.refunded" :value="2" />
           </el-select>
         </el-form-item>
-        <el-form-item>
+        <el-form-item :label="text.dateRange" prop="dateRange">
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="width: 260px"
+          />
+        </el-form-item>
+        <el-form-item class="action-buttons">
           <el-button type="primary" icon="Search" @click="handleQuery">{{ text.search }}</el-button>
           <el-button icon="Refresh" @click="resetQuery">{{ text.reset }}</el-button>
           <el-button
@@ -181,6 +192,7 @@
     price: '\u8ba2\u5355\u91d1\u989d',
     paymentMethod: '\u652f\u4ed8\u65b9\u5f0f',
     paymentStatus: '\u652f\u4ed8\u72b6\u6001',
+    dateRange: '\u4e0b\u5355\u65e5\u671f',
     createTime: '\u4e0b\u5355\u65f6\u95f4',
     updateTime: '\u66f4\u65b0\u65f6\u95f4',
     action: '\u64cd\u4f5c',
@@ -213,8 +225,12 @@
     size: 10,
     orderNo: '',
     userName: '',
-    paymentStatus: undefined as number | undefined
+    paymentStatus: undefined as number | undefined,
+    startDate: '',
+    endDate: ''
   })
+
+  const dateRange = ref<[string, string] | []>([])
 
   const sourceMetaMap: Record<string, { label: string; type: TagType }> = {
     ONLINE_PURCHASE: {
@@ -231,9 +247,11 @@
     loading.value = true
     try {
       const res = await fetchVipOrderList(queryParams)
-      const data = (res as any)?.data || res || {}
-      orderList.value = Array.isArray(data.records) ? data.records : []
-      total.value = Number(data.total || 0)
+      if (res) {
+        const data = res.data || res
+        orderList.value = Array.isArray(data.records) ? data.records : []
+        total.value = Number(data.total || 0)
+      }
     } catch (error) {
       console.error('fetch vip orders failed:', error)
       ElMessage.error(text.loadFailed)
@@ -244,6 +262,8 @@
 
   const handleQuery = () => {
     queryParams.current = 1
+    queryParams.startDate = dateRange.value[0] || ''
+    queryParams.endDate = dateRange.value[1] || ''
     getList()
   }
 
@@ -251,6 +271,9 @@
     queryParams.orderNo = ''
     queryParams.userName = ''
     queryParams.paymentStatus = undefined
+    queryParams.startDate = ''
+    queryParams.endDate = ''
+    dateRange.value = []
     handleQuery()
   }
 
@@ -338,3 +361,21 @@
     getList()
   })
 </script>
+
+<style scoped lang="scss">
+  .vip-order-container {
+    .action-buttons {
+      :deep(.el-form-item__content) {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      :deep(.el-button) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  }
+</style>

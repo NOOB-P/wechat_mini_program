@@ -36,8 +36,10 @@ public class AdminVipOrderController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) String userName,
-            @RequestParam(required = false) Integer paymentStatus) {
-        return vipOrderService.getVipOrderList(current, size, orderNo, userName, paymentStatus);
+            @RequestParam(required = false) Integer paymentStatus,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        return vipOrderService.getVipOrderList(current, size, orderNo, userName, paymentStatus, startDate, endDate);
     }
 
     @LogOperation("后台导出VIP订单")
@@ -46,8 +48,10 @@ public class AdminVipOrderController {
     public ResponseEntity<Resource> exportVipOrders(
             @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) String userName,
-            @RequestParam(required = false) Integer paymentStatus) {
-        List<VipOrder> orders = vipOrderService.getVipOrderExportList(orderNo, userName, paymentStatus);
+            @RequestParam(required = false) Integer paymentStatus,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        List<VipOrder> orders = vipOrderService.getVipOrderExportList(orderNo, userName, paymentStatus, startDate, endDate);
         List<String> headers = List.of("订单号", "用户名", "手机号", "套餐类型", "购买周期", "开通来源", "订单金额", "支付方式", "支付状态", "下单时间", "更新时间");
         List<List<String>> rows = orders.stream()
                 .map(order -> List.of(

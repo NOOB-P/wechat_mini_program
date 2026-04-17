@@ -25,18 +25,26 @@ public interface PrintOrderRepository extends JpaRepository<PrintOrder, Long> {
     @Query("SELECT p FROM PrintOrder p WHERE " +
            "(:orderNo IS NULL OR p.orderNo LIKE %:orderNo%) AND " +
            "(:userName IS NULL OR p.userName LIKE %:userName% OR p.userPhone LIKE %:userName%) AND " +
-           "(:orderStatus IS NULL OR p.orderStatus = :orderStatus)")
+           "(:orderStatus IS NULL OR p.orderStatus = :orderStatus) AND " +
+           "(:startTime IS NULL OR p.createTime >= :startTime) AND " +
+           "(:endTime IS NULL OR p.createTime <= :endTime)")
     Page<PrintOrder> findByParams(@Param("orderNo") String orderNo, 
                                  @Param("userName") String userName, 
                                  @Param("orderStatus") Integer orderStatus, 
+                                 @Param("startTime") java.time.LocalDateTime startTime,
+                                 @Param("endTime") java.time.LocalDateTime endTime,
                                  Pageable pageable);
 
     @Query("SELECT p FROM PrintOrder p WHERE " +
            "(:orderNo IS NULL OR p.orderNo LIKE %:orderNo%) AND " +
            "(:userName IS NULL OR p.userName LIKE %:userName% OR p.userPhone LIKE %:userName%) AND " +
-           "(:orderStatus IS NULL OR p.orderStatus = :orderStatus)")
+           "(:orderStatus IS NULL OR p.orderStatus = :orderStatus) AND " +
+           "(:startTime IS NULL OR p.createTime >= :startTime) AND " +
+           "(:endTime IS NULL OR p.createTime <= :endTime)")
     List<PrintOrder> findByParams(@Param("orderNo") String orderNo,
                                   @Param("userName") String userName,
                                   @Param("orderStatus") Integer orderStatus,
+                                  @Param("startTime") java.time.LocalDateTime startTime,
+                                  @Param("endTime") java.time.LocalDateTime endTime,
                                   Sort sort);
 }
