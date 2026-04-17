@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -65,5 +66,19 @@ public class PrintOrderServiceImpl implements PrintOrderService {
     public Result<PrintOrder> save(PrintOrder printOrder) {
         PrintOrder savedOrder = printOrderRepository.save(printOrder);
         return Result.success(savedOrder);
+    }
+
+    @Override
+    public List<PrintOrder> getPrintOrderExportList(String orderNo, String userName, Integer orderStatus) {
+        return printOrderRepository.findByParams(
+                normalizeKeyword(orderNo),
+                normalizeKeyword(userName),
+                orderStatus,
+                Sort.by(Sort.Direction.DESC, "createTime")
+        );
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
     }
 }

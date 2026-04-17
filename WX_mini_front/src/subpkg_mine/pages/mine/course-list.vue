@@ -39,7 +39,7 @@
     <view class="empty-state" v-else>
       <wd-icon name="info-circle" size="64px" color="#e0e5ed" />
       <text class="empty-text">暂时还没有相关课程哦~</text>
-      <wd-button type="primary" size="small" plain custom-class="go-study-btn" @click="goHome">去发现好课</wd-button>
+      <wd-button type="primary" size="small" plain custom-class="go-study-btn" @click="goToResource">去发现好课</wd-button>
     </view>
   </view>
 </template>

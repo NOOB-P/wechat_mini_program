@@ -10,3 +10,15 @@ export async function fetchCourseOrderList(params?: any) {
     params
   })
 }
+
+/**
+ * 导出课程订单
+ * @param params 查询参数
+ */
+export async function exportCourseOrderList(params?: any) {
+  return api.get<any>({
+    url: '/api/admin/order/course/export',
+    params,
+    responseType: 'blob'
+  })
+}

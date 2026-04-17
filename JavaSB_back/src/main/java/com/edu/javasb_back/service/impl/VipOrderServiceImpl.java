@@ -2,9 +2,11 @@ package com.edu.javasb_back.service.impl;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.model.entity.VipPricing;
 import com.edu.javasb_back.model.entity.VipOrder;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
+import com.edu.javasb_back.repository.VipPricingRepository;
 import com.edu.javasb_back.repository.VipOrderRepository;
 import com.edu.javasb_back.service.VipOrderService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
@@ -41,6 +44,9 @@ public class VipOrderServiceImpl implements VipOrderService {
 
     @Autowired
     private StudentParentBindingRepository studentParentBindingRepository;
+
+    @Autowired
+    private VipPricingRepository vipPricingRepository;
 
     @Override
     @Transactional
@@ -64,8 +70,12 @@ public class VipOrderServiceImpl implements VipOrderService {
 
         String tierCode = asString(orderData.get("tierCode"));
         String title = asString(orderData.get("packageType"));
+        int months = resolveDurationMonths(orderData);
+        if (months <= 0) {
+            return Result.error(400, "\u4f1a\u5458\u5957\u9910\u65f6\u957f\u65e0\u6548\uff0c\u8bf7\u68c0\u67e5\u4ef7\u683c\u914d\u7f6e");
+        }
         order.setPackageType(StringUtils.hasText(tierCode) ? tierCode : title);
-        order.setPeriod(asString(orderData.get("period")));
+        order.setPeriod(formatMonthPeriod(months));
         order.setPrice(price);
         order.setPaymentStatus(0);
         order.setPaymentMethod(ONLINE_PAYMENT_METHOD);
@@ -92,7 +102,7 @@ public class VipOrderServiceImpl implements VipOrderService {
         }
 
         SysAccount account = accountOptional.get();
-        grantVip(account, months, false);
+        extendMembership(account, months, false);
         sysAccountRepository.save(account);
 
         VipOrder order = new VipOrder();
@@ -136,15 +146,15 @@ public class VipOrderServiceImpl implements VipOrderService {
         }
         vipOrderRepository.save(order);
 
-        Optional<SysAccount> accountOptional = sysAccountRepository.findById(order.getUserUid());
-        if (accountOptional.isPresent()) {
-            SysAccount account = accountOptional.get();
+        Optional<SysAccount> userOptional = sysAccountRepository.findById(order.getUserUid());
+        if (userOptional.isPresent()) {
+            SysAccount account = userOptional.get();
             int months = resolveMonths(order.getPeriod());
             boolean grantSvip = containsIgnoreCase(order.getPackageType(), "SVIP");
             boolean shouldGrantVip = containsIgnoreCase(order.getPackageType(), "VIP");
 
             if (shouldGrantVip || grantSvip) {
-                grantVip(account, months, grantSvip);
+                extendMembership(account, months, grantSvip);
                 sysAccountRepository.save(account);
             }
         }
@@ -155,19 +165,12 @@ public class VipOrderServiceImpl implements VipOrderService {
     @Override
     public Result<Map<String, Object>> getVipOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus) {
         Pageable pageable = PageRequest.of(current - 1, size, Sort.by("createTime").descending());
-
-        Page<VipOrder> page;
-        if (paymentStatus != null) {
-            page = vipOrderRepository.findByPaymentStatus(paymentStatus, pageable);
-        } else if ((orderNo != null && !orderNo.isEmpty()) || (userName != null && !userName.isEmpty())) {
-            page = vipOrderRepository.findByOrderNoContainingOrUserNameContaining(
-                    orderNo != null ? orderNo : "",
-                    userName != null ? userName : "",
-                    pageable
-            );
-        } else {
-            page = vipOrderRepository.findAll(pageable);
-        }
+        Page<VipOrder> page = vipOrderRepository.findByFilters(
+                normalizeKeyword(orderNo),
+                normalizeKeyword(userName),
+                paymentStatus,
+                pageable
+        );
 
         page.getContent().forEach(order -> {
             if (!StringUtils.hasText(order.getSourceType())) {
@@ -184,7 +187,24 @@ public class VipOrderServiceImpl implements VipOrderService {
         return Result.success(resultData);
     }
 
-    private void grantVip(SysAccount account, int months, boolean grantSvip) {
+    @Override
+    public List<VipOrder> getVipOrderExportList(String orderNo, String userName, Integer paymentStatus) {
+        List<VipOrder> orders = vipOrderRepository.findByFilters(
+                normalizeKeyword(orderNo),
+                normalizeKeyword(userName),
+                paymentStatus,
+                Sort.by(Sort.Direction.DESC, "createTime")
+        );
+
+        orders.forEach(order -> {
+            if (!StringUtils.hasText(order.getSourceType())) {
+                order.setSourceType(SOURCE_ONLINE_PURCHASE);
+            }
+        });
+        return orders;
+    }
+
+    private void extendMembership(SysAccount account, int months, boolean grantSvip) {
         account.setIsVip(1);
         if (grantSvip) {
             account.setIsSvip(1);
@@ -194,13 +214,25 @@ public class VipOrderServiceImpl implements VipOrderService {
             return;
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime currentExpire = account.getVipExpireTime();
-        if (currentExpire == null || currentExpire.isBefore(now)) {
-            account.setVipExpireTime(now.plusMonths(months));
+        if (grantSvip) {
+            LocalDateTime nextSvipExpire = extendExpireTime(account.getSvipExpireTime(), months);
+            account.setSvipExpireTime(nextSvipExpire);
+
+            LocalDateTime vipExpireTime = account.getVipExpireTime();
+            if (vipExpireTime == null || vipExpireTime.isBefore(nextSvipExpire)) {
+                account.setVipExpireTime(nextSvipExpire);
+            }
         } else {
-            account.setVipExpireTime(currentExpire.plusMonths(months));
+            account.setVipExpireTime(extendExpireTime(account.getVipExpireTime(), months));
         }
+    }
+
+    private LocalDateTime extendExpireTime(LocalDateTime currentExpire, int months) {
+        LocalDateTime now = LocalDateTime.now();
+        if (currentExpire == null || currentExpire.isBefore(now)) {
+            return now.plusMonths(months);
+        }
+        return currentExpire.plusMonths(months);
     }
 
     private int resolveMonths(String period) {
@@ -210,10 +242,19 @@ public class VipOrderServiceImpl implements VipOrderService {
         if ("\u6708\u5305".equals(period)) {
             return 1;
         }
+        if ("\u6708\u5361".equals(period)) {
+            return 1;
+        }
         if ("\u5b63\u5305".equals(period)) {
             return 4;
         }
+        if ("\u5b63\u5361".equals(period)) {
+            return 4;
+        }
         if ("\u5e74\u5305".equals(period)) {
+            return 12;
+        }
+        if ("\u5e74\u5361".equals(period)) {
             return 12;
         }
 
@@ -223,6 +264,23 @@ public class VipOrderServiceImpl implements VipOrderService {
         } catch (NumberFormatException ex) {
             return 0;
         }
+    }
+
+    private int resolveDurationMonths(Map<String, Object> orderData) {
+        Integer durationMonths = parseInteger(orderData.get("durationMonths"));
+        if (durationMonths != null && durationMonths > 0) {
+            return durationMonths;
+        }
+
+        Integer pricingId = parseInteger(orderData.get("pricingId"));
+        if (pricingId != null) {
+            Optional<VipPricing> pricingOptional = vipPricingRepository.findById(pricingId);
+            if (pricingOptional.isPresent() && pricingOptional.get().getDurationMonths() != null) {
+                return pricingOptional.get().getDurationMonths();
+            }
+        }
+
+        return resolveMonths(asString(orderData.get("period")));
     }
 
     private String formatMonthPeriod(int months) {
@@ -263,7 +321,25 @@ public class VipOrderServiceImpl implements VipOrderService {
         return value == null ? "" : value.toString();
     }
 
+    private Integer parseInteger(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(value.toString().trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
     private boolean containsIgnoreCase(String source, String keyword) {
         return StringUtils.hasText(source) && source.toUpperCase().contains(keyword.toUpperCase());
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return StringUtils.hasText(keyword) ? keyword.trim() : null;
     }
 }

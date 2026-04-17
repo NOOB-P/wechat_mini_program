@@ -35,4 +35,17 @@ public interface CourseOrderRepository extends JpaRepository<CourseOrder, Long> 
                                                                     @Param("userName") String userName, 
                                                                     @Param("paymentStatus") Integer paymentStatus, 
                                                                     Pageable pageable);
+
+    @Query(value = "SELECT co.*, sa.nickname as user_name, sa.phone as user_phone, c.title as course_title " +
+            "FROM course_orders co " +
+            "LEFT JOIN sys_accounts sa ON co.user_uid = sa.uid " +
+            "LEFT JOIN courses c ON co.course_id = c.id " +
+            "WHERE (:paymentStatus IS NULL OR co.payment_status = :paymentStatus) " +
+            "AND (:orderNo IS NULL OR co.order_no LIKE CONCAT('%', :orderNo, '%')) " +
+            "AND (:userName IS NULL OR sa.nickname LIKE CONCAT('%', :userName, '%')) " +
+            "ORDER BY co.create_time DESC",
+            nativeQuery = true)
+    List<java.util.Map<String, Object>> findCourseOrdersWithDetailsForExport(@Param("orderNo") String orderNo,
+                                                                             @Param("userName") String userName,
+                                                                             @Param("paymentStatus") Integer paymentStatus);
 }

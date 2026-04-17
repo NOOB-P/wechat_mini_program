@@ -14,6 +14,7 @@ public class VipOrderSchemaInitializer {
     @PostConstruct
     public void initializeSchema() {
         ensureSourceTypeColumn();
+        ensureSvipExpireTimeColumn();
         backfillSourceType();
     }
 
@@ -29,6 +30,14 @@ public class VipOrderSchemaInitializer {
     private void backfillSourceType() {
         jdbcTemplate.update(
                 "UPDATE vip_orders SET source_type = COALESCE(NULLIF(source_type, ''), 'ONLINE_PURCHASE')"
+        );
+    }
+
+    private void ensureSvipExpireTimeColumn() {
+        addColumnIfMissing(
+                "sys_accounts",
+                "svip_expire_time",
+                "ALTER TABLE sys_accounts ADD COLUMN svip_expire_time DATETIME NULL COMMENT 'SVIP过期时间' AFTER vip_expire_time"
         );
     }
 

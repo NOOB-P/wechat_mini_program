@@ -8,7 +8,7 @@ ui库 Wot Design Uni
 模版 uniapp-WXMiniProgram-develop-template
 
 ### 后端
-springboot JDK21
+springboot JDK20
 
 ### 中间件
 redis

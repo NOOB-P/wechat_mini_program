@@ -27,7 +27,8 @@ export const examRoutes: AppRouteRecord = {
       component: '/core-business/exam/project-editor',
       meta: {
         title: '考试项目编辑',
-        isHide: true
+        isHide: true,
+        activePath: '/exam-hub/project'
       }
     },
     {
@@ -45,7 +46,8 @@ export const examRoutes: AppRouteRecord = {
       component: '/core-business/exam/analysis/dashboard',
       meta: {
         title: '分析大屏',
-        isHide: true
+        isHide: true,
+        activePath: '/exam-hub/analysis-list'
       }
     },
     {
@@ -54,7 +56,8 @@ export const examRoutes: AppRouteRecord = {
       component: '/core-business/exam/analysis/class-select',
       meta: {
         title: '选择分析班级',
-        isHide: true
+        isHide: true,
+        activePath: '/exam-hub/analysis-list'
       }
     },
     {
@@ -63,7 +66,8 @@ export const examRoutes: AppRouteRecord = {
       component: '/core-business/exam/analysis/class-dashboard',
       meta: {
         title: '班级分析大屏',
-        isHide: true
+        isHide: true,
+        activePath: '/exam-hub/analysis-list'
       }
     },
     {
@@ -72,7 +76,8 @@ export const examRoutes: AppRouteRecord = {
       component: '/core-business/exam/analysis/student-report',
       meta: {
         title: '学生分析报告',
-        isHide: true
+        isHide: true,
+        activePath: '/exam-hub/analysis-list'
       }
     },
     {
@@ -81,7 +86,8 @@ export const examRoutes: AppRouteRecord = {
       component: '/core-business/exam/analysis/student-subject-report',
       meta: {
         title: '学生单科分析',
-        isHide: true
+        isHide: true,
+        activePath: '/exam-hub/analysis-list'
       }
     },
     {
@@ -90,7 +96,8 @@ export const examRoutes: AppRouteRecord = {
       component: '/core-business/exam/class',
       meta: {
         title: '考试班级管理',
-        isHide: true
+        isHide: true,
+        activePath: '/exam-hub/project'
       }
     },
     {
@@ -99,7 +106,8 @@ export const examRoutes: AppRouteRecord = {
       component: '/core-business/exam/subject',
       meta: {
         title: '考试科目管理',
-        isHide: true
+        isHide: true,
+        activePath: '/exam-hub/project'
       }
     },
     {
@@ -108,7 +116,8 @@ export const examRoutes: AppRouteRecord = {
       component: '/core-business/exam/subject-score',
       meta: {
         title: '科目成绩管理',
-        isHide: true
+        isHide: true,
+        activePath: '/exam-hub/project'
       }
     }
   ]

@@ -98,6 +98,14 @@ const vipConfigs = ref<any[]>([])
 const urlType = ref('')
 const redirecting = ref(false)
 
+const redirectAfterSuccess = () => {
+  setTimeout(() => {
+    uni.switchTab({
+      url: '/pages/home/index'
+    })
+  }, 1200)
+}
+
 onLoad((options) => {
   uni.setNavigationBarTitle({ title: '会员充值' })
   if (options?.type) {
@@ -133,6 +141,7 @@ const currentPlans = computed(() => {
   return currentConfig.value.pricings.map((item: any) => ({
     id: item.id,
     duration: item.pkgName,
+    durationMonths: item.durationMonths,
     price: item.currentPrice,
     originalPrice: item.originalPrice,
     tag: item.pkgDesc || (item.isBestValue ? '推荐' : '')
@@ -203,6 +212,7 @@ const handlePay = async () => {
       packageType: currentConfig.value.title,
       tierCode: currentConfig.value.tierCode,
       period: selectedPlan.duration,
+      durationMonths: selectedPlan.durationMonths,
       price: selectedPlan.price,
       pricingId: selectedPlan.id
     })
@@ -228,9 +238,7 @@ const handlePay = async () => {
       }
 
       toast.success('开通成功')
-      setTimeout(() => {
-        uni.navigateBack()
-      }, 1500)
+      redirectAfterSuccess()
     }, 1500)
   } catch (error) {
     console.error('pay vip failed', error)

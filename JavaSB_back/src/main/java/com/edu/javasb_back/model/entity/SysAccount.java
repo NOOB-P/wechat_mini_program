@@ -60,6 +60,9 @@ public class SysAccount {
     @Column(name = "vip_expire_time")
     private LocalDateTime vipExpireTime;
 
+    @Column(name = "svip_expire_time")
+    private LocalDateTime svipExpireTime;
+
     @Column(name = "online_status")
     private String onlineStatus = "offline"; // online, offline, banned
 
@@ -150,6 +153,9 @@ public class SysAccount {
 
     public LocalDateTime getVipExpireTime() { return vipExpireTime; }
     public void setVipExpireTime(LocalDateTime vipExpireTime) { this.vipExpireTime = vipExpireTime; }
+
+    public LocalDateTime getSvipExpireTime() { return svipExpireTime; }
+    public void setSvipExpireTime(LocalDateTime svipExpireTime) { this.svipExpireTime = svipExpireTime; }
 
     public String getOnlineStatus() { return onlineStatus; }
     public void setOnlineStatus(String onlineStatus) { this.onlineStatus = onlineStatus; }

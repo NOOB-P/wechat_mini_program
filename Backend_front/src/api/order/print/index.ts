@@ -12,6 +12,18 @@ export function fetchPrintOrderList(params?: any) {
 }
 
 /**
+ * 导出打印订单
+ * @param params 查询参数
+ */
+export function exportPrintOrderList(params?: any) {
+  return api.get<any>({
+    url: '/api/admin/order/print/export',
+    params,
+    responseType: 'blob'
+  })
+}
+
+/**
  * 获取打印订单详情
  * @param id 订单ID
  */

@@ -4,6 +4,7 @@ import com.edu.javasb_back.model.entity.Course;
 import com.edu.javasb_back.model.entity.CourseOrder;
 
 import java.util.List;
+import java.util.Map;
 
 public interface CourseOrderService {
     /**
@@ -30,4 +31,9 @@ public interface CourseOrderService {
      * 后台：分页查询课程订单
      */
     com.edu.javasb_back.common.Result<java.util.Map<String, Object>> getCourseOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus);
+
+    /**
+     * 后台：导出课程订单
+     */
+    List<Map<String, Object>> getCourseOrderExportList(String orderNo, String userName, Integer paymentStatus);
 }
