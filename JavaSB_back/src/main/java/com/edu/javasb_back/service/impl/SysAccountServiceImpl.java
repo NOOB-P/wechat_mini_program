@@ -1,25 +1,35 @@
 package com.edu.javasb_back.service.impl;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.exception.ExcelAnalysisException;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.config.GlobalConfigProperties;
+import com.edu.javasb_back.listener.ParentImportListener;
 import com.edu.javasb_back.model.dto.AccountLoginDTO;
 import com.edu.javasb_back.model.dto.AccountUpdateDTO;
+import com.edu.javasb_back.model.dto.ParentImportDTO;
 import com.edu.javasb_back.model.entity.StudentParentBinding;
 import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.model.entity.SysClass;
 import com.edu.javasb_back.model.entity.SysRole;
+import com.edu.javasb_back.model.entity.SysSchool;
 import com.edu.javasb_back.model.entity.SysStudent;
 import com.edu.javasb_back.model.vo.LoginVO;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
+import com.edu.javasb_back.repository.SysClassRepository;
 import com.edu.javasb_back.repository.SysRoleRepository;
+import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.service.RolePermissionService;
 import com.edu.javasb_back.service.SysAccountService;
 import com.edu.javasb_back.utils.JwtUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,17 +38,23 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.client.RestTemplate;
 
 @Service
 public class SysAccountServiceImpl implements SysAccountService {
 
     private static final ConcurrentHashMap<String, String> smsCodeMap = new ConcurrentHashMap<>();
+    private static final int PARENT_ROLE_ID = 3;
 
     @Autowired
     private SysAccountRepository accountRepository;
@@ -48,6 +64,12 @@ public class SysAccountServiceImpl implements SysAccountService {
 
     @Autowired
     private StudentParentBindingRepository bindingRepository;
+
+    @Autowired
+    private SysSchoolRepository sysSchoolRepository;
+
+    @Autowired
+    private SysClassRepository sysClassRepository;
 
     @Autowired
     private SysRoleRepository sysRoleRepository;
@@ -543,6 +565,388 @@ public class SysAccountServiceImpl implements SysAccountService {
         });
 
         return Result.success("解绑成功", null);
+    }
+
+    @Override
+    public Result<Map<String, Object>> getAccountList(Long currentUid, int current, int size, String userName, String userPhone, Integer roleId, String schoolId, String classId) {
+        Result<SysAccount> adminResult = requireAdmin(currentUid);
+        if (adminResult.getCode() != 200) {
+            return Result.error(adminResult.getCode(), adminResult.getMsg());
+        }
+
+        SysAccount currentUser = adminResult.getData();
+        String finalUserName = StringUtils.hasText(userName) ? userName.trim() : null;
+        String finalUserPhone = StringUtils.hasText(userPhone) ? userPhone.trim() : null;
+        String finalSchoolId = StringUtils.hasText(schoolId) ? schoolId.trim() : null;
+        String finalClassId = StringUtils.hasText(classId) ? classId.trim() : null;
+
+        Pageable pageable = PageRequest.of(current - 1, size, Sort.by(Sort.Order.asc("role_id"), Sort.Order.desc("create_time")));
+        Page<SysAccount> pageData = accountRepository.findAccountsAdvanced(
+                finalUserName, finalUserPhone, roleId, finalSchoolId, finalClassId, pageable);
+
+        List<Map<String, Object>> records = pageData.getContent().stream()
+                .filter(account -> canManageRole(currentUser, account.getRoleId()))
+                .map(this::toAccountListItem)
+                .toList();
+
+        Map<String, Object> resultData = new HashMap<>();
+        resultData.put("records", records);
+        resultData.put("total", pageData.getTotalElements());
+        resultData.put("current", current);
+        resultData.put("size", size);
+        return Result.success("获取成功", resultData);
+    }
+
+    @Override
+    public Result<Void> addAccount(Long currentUid, SysAccount account) {
+        Result<SysAccount> adminResult = requireAdmin(currentUid);
+        if (adminResult.getCode() != 200) {
+            return Result.error(adminResult.getCode(), adminResult.getMsg());
+        }
+
+        SysAccount currentUser = adminResult.getData();
+        if (account.getRoleId() == null) {
+            account.setRoleId(PARENT_ROLE_ID);
+        }
+        if (!canManageRole(currentUser, account.getRoleId())) {
+            return Result.error(403, "越权操作：您无权创建该等级的角色");
+        }
+        if (!StringUtils.hasText(account.getUsername())) {
+            return Result.error("用户名不能为空");
+        }
+        if (accountRepository.existsByUsername(account.getUsername())) {
+            return Result.error("用户名已存在");
+        }
+        if (StringUtils.hasText(account.getPhone()) && accountRepository.existsByPhone(account.getPhone())) {
+            return Result.error("手机号已存在");
+        }
+
+        String rawPassword = StringUtils.hasText(account.getPassword()) ? account.getPassword() : "123456";
+        account.setPassword(passwordEncoder.encode(rawPassword));
+        accountRepository.save(account);
+
+        if (Objects.equals(account.getRoleId(), PARENT_ROLE_ID) && StringUtils.hasText(account.getStudentId())) {
+            Result<Void> bindRes = bindStudentById(account.getUid(), account.getStudentId());
+            if (bindRes.getCode() != 200) {
+                return Result.error("账户创建成功，但绑定学生失败：" + bindRes.getMsg());
+            }
+        }
+
+        return Result.success("添加成功", null);
+    }
+
+    @Override
+    @Transactional
+    public Result<Map<String, Object>> importParents(Long currentUid, MultipartFile file) {
+        Result<SysAccount> adminResult = requireAdmin(currentUid);
+        if (adminResult.getCode() != 200) {
+            return Result.error(adminResult.getCode(), adminResult.getMsg());
+        }
+        if (file == null || file.isEmpty()) {
+            return Result.error("文件内容为空");
+        }
+
+        try {
+            ParentImportListener listener = new ParentImportListener();
+            EasyExcel.read(file.getInputStream(), ParentImportDTO.class, listener).sheet().doRead();
+
+            int successCount = 0;
+            int skippedCount = 0;
+            int bindFailedCount = 0;
+            StringBuilder skippedDetails = new StringBuilder();
+            StringBuilder bindFailedDetails = new StringBuilder();
+
+            for (ParentImportDTO dto : listener.getList()) {
+                String username = trim(dto.getUsername());
+                String nickname = trim(dto.getNickname());
+                String phone = trim(dto.getPhone());
+                String password = trim(dto.getPassword());
+                String studentNo = trim(dto.getStudentNo());
+
+                if (username == null || nickname == null || phone == null) {
+                    skippedCount++;
+                    appendDetail(skippedDetails, username != null ? username : phone, "必填字段缺失");
+                    continue;
+                }
+                if (!phone.matches("^1[3-9]\\d{9}$")) {
+                    skippedCount++;
+                    appendDetail(skippedDetails, username, "手机号格式不正确");
+                    continue;
+                }
+                if (accountRepository.existsByUsername(username)) {
+                    skippedCount++;
+                    appendDetail(skippedDetails, username, "用户名已存在");
+                    continue;
+                }
+                if (accountRepository.existsByPhone(phone)) {
+                    skippedCount++;
+                    appendDetail(skippedDetails, username, "手机号已存在");
+                    continue;
+                }
+
+                SysAccount account = new SysAccount();
+                account.setUsername(username);
+                account.setNickname(nickname);
+                account.setPhone(phone);
+                account.setRoleId(PARENT_ROLE_ID);
+                account.setIsEnabled(1);
+                account.setOnlineStatus("offline");
+                account.setIsVip(parseBooleanFlag(dto.getVip()) ? 1 : 0);
+                account.setIsSvip(parseBooleanFlag(dto.getSvip()) ? 1 : 0);
+                if (account.getIsSvip() == 1) {
+                    account.setIsVip(1);
+                }
+
+                String rawPassword = password;
+                if (!StringUtils.hasText(rawPassword)) {
+                    rawPassword = phone.length() >= 6 ? phone.substring(phone.length() - 6) : "123456";
+                }
+                account.setPassword(passwordEncoder.encode(rawPassword));
+                accountRepository.save(account);
+                successCount++;
+
+                if (studentNo != null) {
+                    Optional<SysStudent> studentOpt = studentRepository.findByStudentNo(studentNo);
+                    if (studentOpt.isPresent()) {
+                        Result<Void> bindResult = bindStudentById(account.getUid(), studentOpt.get().getId());
+                        if (bindResult.getCode() != 200) {
+                            bindFailedCount++;
+                            appendDetail(bindFailedDetails, username, bindResult.getMsg());
+                        }
+                    } else {
+                        bindFailedCount++;
+                        appendDetail(bindFailedDetails, username, "未找到学号为 " + studentNo + " 的学生");
+                    }
+                }
+            }
+
+            StringBuilder message = new StringBuilder("导入完成：成功")
+                    .append(successCount)
+                    .append(" 条，跳过 ")
+                    .append(skippedCount)
+                    .append(" 条");
+            if (bindFailedCount > 0) {
+                message.append("，绑定失败 ").append(bindFailedCount).append(" 条");
+            }
+            if (skippedDetails.length() > 0) {
+                message.append("；跳过明细：").append(skippedDetails);
+            }
+            if (bindFailedDetails.length() > 0) {
+                message.append("；绑定明细：").append(bindFailedDetails);
+            }
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("successCount", successCount);
+            data.put("skippedCount", skippedCount);
+            data.put("bindFailedCount", bindFailedCount);
+            data.put("message", message.toString());
+            return Result.success(message.toString(), data);
+        } catch (ExcelAnalysisException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            return Result.error("导入失败：" + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> editAccount(Long currentUid, Long uid, SysAccount updateData) {
+        Result<SysAccount> adminResult = requireAdmin(currentUid);
+        if (adminResult.getCode() != 200) {
+            return Result.error(adminResult.getCode(), adminResult.getMsg());
+        }
+
+        SysAccount currentUser = adminResult.getData();
+        SysAccount account = accountRepository.findById(uid).orElse(null);
+        if (account == null) {
+            return Result.error("账户不存在");
+        }
+        if (!canManageRole(currentUser, account.getRoleId())) {
+            return Result.error(403, "越权操作：您无权修改该等级的角色");
+        }
+        if (updateData.getRoleId() != null && !canManageRole(currentUser, updateData.getRoleId())) {
+            return Result.error(403, "越权操作：您无权将其角色提升到该等级");
+        }
+
+        if (updateData.getNickname() != null) {
+            account.setNickname(updateData.getNickname());
+        }
+        if (updateData.getEmail() != null) {
+            account.setEmail(updateData.getEmail());
+        }
+        if (updateData.getPhone() != null && !updateData.getPhone().equals(account.getPhone())) {
+            if (accountRepository.existsByPhone(updateData.getPhone())) {
+                return Result.error("手机号已被其他用户使用");
+            }
+            account.setPhone(updateData.getPhone());
+        }
+        if (updateData.getRoleId() != null) {
+            account.setRoleId(updateData.getRoleId());
+        }
+        if (StringUtils.hasText(updateData.getPassword())) {
+            account.setPassword(passwordEncoder.encode(updateData.getPassword()));
+        }
+        accountRepository.save(account);
+
+        if (Objects.equals(account.getRoleId(), PARENT_ROLE_ID)) {
+            if (updateData.getStudentId() != null && !updateData.getStudentId().isEmpty()) {
+                unbindStudentByParentUid(uid);
+                Result<Void> bindRes = bindStudentById(uid, updateData.getStudentId());
+                if (bindRes.getCode() != 200) {
+                    return Result.error("账户更新成功，但绑定学生失败：" + bindRes.getMsg());
+                }
+            } else if ("".equals(updateData.getStudentId())) {
+                unbindStudentByParentUid(uid);
+            }
+        } else {
+            unbindStudentByParentUid(uid);
+        }
+
+        return Result.success("编辑成功", null);
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> deleteAccount(Long currentUid, Long uid) {
+        Result<SysAccount> adminResult = requireAdmin(currentUid);
+        if (adminResult.getCode() != 200) {
+            return Result.error(adminResult.getCode(), adminResult.getMsg());
+        }
+
+        SysAccount currentUser = adminResult.getData();
+        SysAccount targetAccount = accountRepository.findById(uid).orElse(null);
+        if (targetAccount == null) {
+            return Result.error("账户不存在");
+        }
+        if (!canManageRole(currentUser, targetAccount.getRoleId())) {
+            return Result.error(403, "越权操作：您无权删除该等级的角色");
+        }
+        if (currentUser.getUid().equals(uid)) {
+            return Result.error("不能删除当前登录的账户");
+        }
+        if (Objects.equals(targetAccount.getRoleId(), PARENT_ROLE_ID)) {
+            unbindStudentByParentUid(uid);
+        }
+        accountRepository.deleteById(uid);
+        return Result.success("删除成功", null);
+    }
+
+    private Result<SysAccount> requireAdmin(Long currentUid) {
+        if (currentUid == null) {
+            return Result.error(401, "未登录");
+        }
+        SysAccount currentUser = accountRepository.findById(currentUid).orElse(null);
+        if (currentUser == null) {
+            return Result.error(401, "未登录");
+        }
+        if (!isAdminUser(currentUser)) {
+            return Result.error(403, "无权限执行此操作，仅管理员可用");
+        }
+        return Result.success(currentUser);
+    }
+
+    private boolean isAdminUser(SysAccount account) {
+        if (account == null || account.getRoleId() == null) {
+            return false;
+        }
+        return account.getRoleId() == 1 || account.getRoleId() == 2;
+    }
+
+    private boolean canManageRole(SysAccount currentUser, Integer targetRoleId) {
+        if (currentUser == null || currentUser.getRoleId() == null || targetRoleId == null) {
+            return false;
+        }
+        return rolePermissionService.canManageRole(currentUser.getRoleId(), targetRoleId);
+    }
+
+    private Map<String, Object> toAccountListItem(SysAccount account) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", account.getUid());
+        map.put("userName", account.getUsername());
+        map.put("nickName", account.getNickname());
+        map.put("userPhone", account.getPhone());
+        map.put("email", account.getEmail());
+        map.put("userType", String.valueOf(account.getRoleId()));
+        map.put("isVip", account.getIsVip() != null ? account.getIsVip() : 0);
+        map.put("isSvip", account.getIsSvip() != null ? account.getIsSvip() : 0);
+        map.put("isBoundStudent", account.getIsBoundStudent() != null ? account.getIsBoundStudent() : 0);
+        map.put("status", "online".equals(account.getOnlineStatus()) ? "1" : "2");
+        map.put("createTime", account.getCreateTime() != null ? account.getCreateTime().toString() : "");
+
+        if (Objects.equals(account.getRoleId(), PARENT_ROLE_ID)) {
+            List<StudentParentBinding> bindings = bindingRepository.findByParentUid(account.getUid());
+            if (!bindings.isEmpty()) {
+                List<Map<String, Object>> boundStudents = bindings.stream()
+                        .map(this::toBoundStudentItem)
+                        .filter(Objects::nonNull)
+                        .toList();
+                if (!boundStudents.isEmpty()) {
+                    Map<String, Object> firstStudent = boundStudents.get(0);
+                    map.put("schoolName", firstStudent.get("school"));
+                    map.put("className", firstStudent.get("className"));
+                    map.put("studentName", firstStudent.get("name"));
+                    map.put("boundStudents", boundStudents);
+                }
+            }
+        }
+        return map;
+    }
+
+    private Map<String, Object> toBoundStudentItem(StudentParentBinding binding) {
+        Optional<SysStudent> studentOpt = studentRepository.findById(binding.getStudentId());
+        if (studentOpt.isEmpty()) {
+            return null;
+        }
+
+        SysStudent student = studentOpt.get();
+        Map<String, Object> studentMap = new HashMap<>();
+        studentMap.put("id", student.getId());
+        studentMap.put("name", student.getName());
+
+        String schoolName = student.getSchool();
+        if (student.getSchoolId() != null) {
+            schoolName = sysSchoolRepository.findBySchoolId(student.getSchoolId())
+                    .map(SysSchool::getName)
+                    .orElse(student.getSchool());
+        }
+
+        String className = student.getClassName();
+        if (student.getClassId() != null) {
+            className = sysClassRepository.findByClassid(student.getClassId())
+                    .map(item -> (item.getGrade() != null ? item.getGrade() + " " : "") + item.getAlias())
+                    .orElse(student.getClassName());
+        }
+
+        studentMap.put("school", schoolName);
+        studentMap.put("className", className);
+        return studentMap;
+    }
+
+    private String trim(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private boolean parseBooleanFlag(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.trim();
+        return "1".equals(normalized)
+                || "是".equals(normalized)
+                || "true".equalsIgnoreCase(normalized)
+                || "yes".equalsIgnoreCase(normalized)
+                || "y".equalsIgnoreCase(normalized);
+    }
+
+    private void appendDetail(StringBuilder builder, String key, String message) {
+        if (builder.length() > 0) {
+            builder.append("；");
+        }
+        builder.append("[").append(key != null ? key : "未知").append(": ").append(message).append("]");
     }
 
     private Result<Void> validateAccountEnabled(SysAccount account) {

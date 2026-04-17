@@ -43,11 +43,19 @@
               <el-button-group>
                 <el-button
                   size="small"
+                  :type="regionEditorRef?.tool === 'pan' ? 'primary' : 'default'"
+                  :disabled="!canUseEditor"
+                  @click="handleToolboxCommand('panMode')"
+                >
+                  移动试卷
+                </el-button>
+                <el-button
+                  size="small"
                   :type="regionEditorRef?.tool === 'draw' ? 'primary' : 'default'"
                   :disabled="!canUseEditor"
                   @click="handleToolboxCommand('drawMode')"
                 >
-                  框选框
+                  创建选框
                 </el-button>
                 <el-button
                   size="small"
@@ -55,23 +63,7 @@
                   :disabled="!canUseEditor"
                   @click="handleToolboxCommand('adjustMode')"
                 >
-                  调整框选
-                </el-button>
-                <el-button
-                  size="small"
-                  :type="regionEditorRef?.tool === 'pan' ? 'primary' : 'default'"
-                  :disabled="!canUseEditor"
-                  @click="handleToolboxCommand('panMode')"
-                >
-                  移动画布
-                </el-button>
-                <el-button
-                  size="small"
-                  :type="regionEditorRef?.tool === 'select' ? 'primary' : 'default'"
-                  :disabled="!canUseEditor"
-                  @click="handleToolboxCommand('selectMode')"
-                >
-                  选择题目
+                  编辑选框
                 </el-button>
               </el-button-group>
 
@@ -93,12 +85,9 @@
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item command="drawMode">框选框</el-dropdown-item>
-                    <el-dropdown-item command="adjustMode">调整框选</el-dropdown-item>
-                    <el-dropdown-item command="panMode">移动画布</el-dropdown-item>
-                    <el-dropdown-item command="selectMode">选择题目</el-dropdown-item>
-                    <el-dropdown-item divided command="addRegion">添加框选框</el-dropdown-item>
-                    <el-dropdown-item command="modifyRegion">修改框选框</el-dropdown-item>
+                    <el-dropdown-item command="panMode">移动试卷</el-dropdown-item>
+                    <el-dropdown-item command="drawMode">创建选框</el-dropdown-item>
+                    <el-dropdown-item command="adjustMode">编辑选框</el-dropdown-item>
                     <el-dropdown-item command="editRegion">题目属性</el-dropdown-item>
                     <el-dropdown-item command="deleteRegion">删除框选</el-dropdown-item>
                     <el-dropdown-item divided command="zoomIn">放大试卷</el-dropdown-item>

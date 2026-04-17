@@ -45,6 +45,41 @@ export interface ProjectScoreItem {
   updateTime?: string | number[] | null
 }
 
+export interface ScoreImportConflictCandidate {
+  studentNo: string
+  studentName: string
+  school: string
+  grade: string
+  className: string
+}
+
+export interface ScoreImportConflictItem {
+  rowIndex: number
+  identifier: string
+  studentName: string
+  questionScores: number[]
+  totalScore: number
+  candidates: ScoreImportConflictCandidate[]
+}
+
+export interface ScoreImportResult {
+  summary: string
+  successCount: number
+  skipCount: number
+  errorCount: number
+  conflictCount: number
+  logs: string[]
+  conflicts: ScoreImportConflictItem[]
+}
+
+export interface BatchImportResult {
+  summary: string
+  successCount: number
+  skipCount: number
+  errorCount: number
+  logs: string[]
+}
+
 export interface PaperRegionItem {
   id: string
   questionNo: string
@@ -153,10 +188,10 @@ export function fetchImportScore(params: { projectId: string; subjectName: strin
   formData.append('projectId', params.projectId)
   formData.append('subjectName', params.subjectName)
   formData.append('file', params.file)
-  return api.post<void>({
+  return api.post<ScoreImportResult>({
     url: '/api/system/exam-project/scores/import',
     data: formData,
-    showSuccessMessage: true,
+    showSuccessMessage: false,
     headers: {
       'Content-Type': 'multipart/form-data'
     }
@@ -192,10 +227,10 @@ export function fetchImportAnswerSheetZip(params: {
   formData.append('projectId', params.projectId)
   formData.append('subjectName', params.subjectName)
   formData.append('file', params.file)
-  return api.post<void>({
+  return api.post<BatchImportResult>({
     url: '/api/system/exam-project/papers/import',
     data: formData,
-    showSuccessMessage: true,
+    showSuccessMessage: false,
     headers: {
       'Content-Type': 'multipart/form-data'
     }

@@ -31,8 +31,8 @@ public interface ExamProjectService {
 
     void downloadScoreTemplate(jakarta.servlet.http.HttpServletResponse response);
 
-    Result<Void> importScores(String projectId, String subjectName, org.springframework.web.multipart.MultipartFile file);
-    Result<Void> importAnswerSheets(String projectId, String subjectName, org.springframework.web.multipart.MultipartFile file);
+    Result<Map<String, Object>> importScores(String projectId, String subjectName, org.springframework.web.multipart.MultipartFile file);
+    Result<Map<String, Object>> importAnswerSheets(String projectId, String subjectName, org.springframework.web.multipart.MultipartFile file);
     Result<String> uploadAnswerSheet(String projectId, String subjectName, String studentNo, org.springframework.web.multipart.MultipartFile file);
     
     /**

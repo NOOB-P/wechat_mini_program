@@ -19,10 +19,17 @@ import com.edu.javasb_back.repository.SysClassRepository;
 import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.service.ExamProjectService;
+import com.github.junrar.Archive;
+import com.github.junrar.exception.UnsupportedRarEncryptedException;
+import com.github.junrar.exception.UnsupportedRarV5Exception;
+import com.github.junrar.rarfile.FileHeader;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.persistence.criteria.Predicate;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.ImageType;
+import org.apache.pdfbox.rendering.PDFRenderer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.Page;
@@ -36,6 +43,13 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.apache.poi.ss.usermodel.*;
 
+import javax.imageio.ImageIO;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -54,7 +68,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -68,6 +81,7 @@ import java.util.zip.ZipInputStream;
 public class ExamProjectServiceImpl implements ExamProjectService {
 
     private static final String NORMAL = "NORMAL";
+    private static final int PDF_RENDER_DPI = 144;
     private static final Set<String> STUDENT_NO_HEADERS = Set.of("学号", "考号", "准考证号", "学生学号", "studentno", "student_no", "studentid", "student_id");
     private static final Set<String> STUDENT_NAME_HEADERS = Set.of("姓名", "学生姓名", "name", "studentname", "student_name");
     private static final List<String> SUBJECT_OPTIONS = Arrays.asList(
@@ -268,6 +282,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     public Result<Map<String, Object>> getProjectScorePage(String projectId, String subjectName, int current, int size, String keyword, String schoolId, String classId) {
         if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
         Ctx ctx = ctx(projectId);
+        List<ExamStudentScore> convertedScores = new ArrayList<>();
         
         // Find subject IDs for the given subjectName across all classes in the project
         Map<String, String> classIdToSubjectId = ctx.subjects().stream()
@@ -291,6 +306,11 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     if (subjectId == null) return null;
 
                     ExamStudentScore score = scoreMap.get(subjectId + "_" + student.getStudentNo());
+                    String answerSheetUrl = normalizeStoredPaperPreviewUrl(score == null ? null : score.getAnswerSheetUrl());
+                    if (score != null && !java.util.Objects.equals(answerSheetUrl, score.getAnswerSheetUrl())) {
+                        score.setAnswerSheetUrl(answerSheetUrl);
+                        convertedScores.add(score);
+                    }
                     
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("id", score != null ? score.getId() : null);
@@ -306,7 +326,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     item.put("questionScores", score == null ? "[]" : score.getQuestionScores());
                     item.put("hasScore", hasScore(score));
                     item.put("hasAnswerSheet", hasAnswerSheet(score));
-                    item.put("answerSheetUrl", score == null ? null : score.getAnswerSheetUrl());
+                    item.put("answerSheetUrl", answerSheetUrl);
                     item.put("updateTime", score != null ? score.getUpdateTime() : null);
                     return item;
                 })
@@ -318,6 +338,9 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 }).reversed())
                 .toList();
 
+        if (!convertedScores.isEmpty()) {
+            examStudentScoreRepository.saveAllAndFlush(convertedScores);
+        }
         return Result.success("获取成功", pageData(page(rows, current, size), rows.size(), current, size));
     }
 
@@ -363,7 +386,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     @Override
     @Transactional
-    public Result<Void> importScores(String projectId, String subjectName, MultipartFile file) {
+    public Result<Map<String, Object>> importScores(String projectId, String subjectName, MultipartFile file) {
         if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
         if (!StringUtils.hasText(subjectName)) return Result.error("学科名称不能为空");
         if (file == null || file.isEmpty()) return Result.error("请上传成绩文件");
@@ -392,6 +415,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         if (studentNoMap.isEmpty() && studentNameMap.isEmpty()) return Result.error("该项目中暂无考试学生数据");
 
         List<String> logs = new ArrayList<>();
+        List<Map<String, Object>> nameConflicts = new ArrayList<>();
         List<ExamStudentScore> scoresToSave = new ArrayList<>();
         Set<String> updatedSubjectIds = new LinkedHashSet<>();
         Set<String> importedScoreKeys = new LinkedHashSet<>();
@@ -407,6 +431,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         int rowCount = 0;
         int skipCount = 0;
         int errorCount = 0;
+        int conflictCount = 0;
 
         try (InputStream is = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(is)) {
@@ -458,36 +483,6 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     continue;
                 }
 
-                StudentMatch studentMatch = matchStudent(identifierType, identifierRaw, studentNoMap, studentNameMap);
-                if (!studentMatch.ok()) {
-                    logs.add("第" + (rowIndex + 1) + "行: " + studentMatch.msg());
-                    if (studentMatch.skipped()) skipCount++;
-                    else errorCount++;
-                    continue;
-                }
-                SysStudent student = studentMatch.student();
-
-                ExamClass examClass = examClassMap.get(student.getClassId());
-                if (examClass == null) {
-                    logs.add("第" + (rowIndex + 1) + "行: 学生[" + identifierRaw + "]未在当前考试项目的班级名单中");
-                    skipCount++;
-                    continue;
-                }
-
-                ExamSubject subject = classToSubjectMap.get(examClass.getId());
-                if (subject == null) {
-                    logs.add("第" + (rowIndex + 1) + "行: 学生[" + identifierRaw + "]所属班级未开启[" + subjectName + "]科目");
-                    skipCount++;
-                    continue;
-                }
-
-                String scoreKey = subject.getId() + "_" + student.getStudentNo();
-                if (!importedScoreKeys.add(scoreKey)) {
-                    logs.add("第" + (rowIndex + 1) + "行: 学生[" + identifierRaw + "]在当前文件中重复出现");
-                    errorCount++;
-                    continue;
-                }
-
                 List<Double> questionScores = new ArrayList<>();
                 double total = 0;
                 boolean rowHasError = false;
@@ -515,6 +510,48 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     continue;
                 }
 
+                StudentMatch studentMatch = matchStudent(identifierType, identifierRaw, studentNoMap, studentNameMap);
+                if (!studentMatch.ok()) {
+                    if (studentMatch.hasConflict()) {
+                        logs.add("第" + (rowIndex + 1) + "行: " + studentMatch.msg());
+                        nameConflicts.add(buildScoreImportConflict(
+                                rowIndex + 1,
+                                identifierRaw,
+                                questionScores,
+                                total,
+                                studentMatch.candidates()
+                        ));
+                        conflictCount++;
+                    } else {
+                        logs.add("第" + (rowIndex + 1) + "行: " + studentMatch.msg());
+                        if (studentMatch.skipped()) skipCount++;
+                        else errorCount++;
+                    }
+                    continue;
+                }
+                SysStudent student = studentMatch.student();
+
+                ExamClass examClass = examClassMap.get(student.getClassId());
+                if (examClass == null) {
+                    logs.add("第" + (rowIndex + 1) + "行: 学生[" + identifierRaw + "]未在当前考试项目的班级名单中");
+                    skipCount++;
+                    continue;
+                }
+
+                ExamSubject subject = classToSubjectMap.get(examClass.getId());
+                if (subject == null) {
+                    logs.add("第" + (rowIndex + 1) + "行: 学生[" + identifierRaw + "]所属班级未开启[" + subjectName + "]科目");
+                    skipCount++;
+                    continue;
+                }
+
+                String scoreKey = subject.getId() + "_" + student.getStudentNo();
+                if (!importedScoreKeys.add(scoreKey)) {
+                    logs.add("第" + (rowIndex + 1) + "行: 学生[" + identifierRaw + "]在当前文件中重复出现");
+                    errorCount++;
+                    continue;
+                }
+
                 ExamStudentScore score = prepareScoreRecord(existingScoreMap.get(scoreKey), subject, student);
                 score.setTotalScore(total);
                 score.setScoreEntered(Boolean.TRUE);
@@ -530,8 +567,10 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             return Result.error("文件读取失败: " + e.getMessage());
         }
 
-        if (rowCount <= 0) {
-            String summary = String.format("导入失败: 成功 %d 条, 跳过 %d 条, 错误 %d 条", rowCount, skipCount, errorCount);
+        Map<String, Object> resultData = buildScoreImportResultData(rowCount, skipCount, errorCount, conflictCount, logs, nameConflicts);
+        String summary = String.valueOf(resultData.get("summary"));
+
+        if (rowCount <= 0 && conflictCount <= 0) {
             if (!logs.isEmpty()) {
                 String detail = logs.stream().limit(5).collect(Collectors.joining("; "));
                 if (logs.size() > 5) detail += "...等" + logs.size() + "条提示";
@@ -553,26 +592,25 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             }
         }
 
-        String summary = String.format("导入完成: 成功 %d 条, 跳过 %d 条, 错误 %d 条", rowCount, skipCount, errorCount);
         if (!logs.isEmpty()) {
             String detail = logs.stream().limit(5).collect(Collectors.joining("; "));
             if (logs.size() > 5) detail += "...等" + logs.size() + "条提示";
-            return Result.success(summary + ". 提示: " + detail, null);
+            return Result.success(summary + ". 提示: " + detail, resultData);
         }
-        
-        return Result.success(summary, null);
+
+        return Result.success(summary, resultData);
     }
 
     @Override
     @Transactional
-    public Result<Void> importAnswerSheets(String projectId, String subjectName, MultipartFile file) {
+    public Result<Map<String, Object>> importAnswerSheets(String projectId, String subjectName, MultipartFile file) {
         if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
         if (!StringUtils.hasText(subjectName)) return Result.error("学科名称不能为空");
         if (file == null || file.isEmpty()) return Result.error("请上传试卷压缩包");
 
         String originalFilename = file.getOriginalFilename();
-        if (!isZipFile(originalFilename)) {
-            return Result.error("试卷批量导入仅支持 .zip 压缩包");
+        if (!isSupportedArchiveFile(originalFilename)) {
+            return Result.error("试卷批量导入仅支持 .zip / .rar 压缩包");
         }
 
         UploadCtx uploadCtx = buildUploadCtx(projectId, subjectName);
@@ -585,71 +623,58 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         int skipCount = 0;
         int errorCount = 0;
 
-        try (ZipInputStream zipInputStream = new ZipInputStream(file.getInputStream(), StandardCharsets.UTF_8)) {
-            ZipEntry entry;
-            while ((entry = zipInputStream.getNextEntry()) != null) {
-                if (entry.isDirectory()) {
-                    zipInputStream.closeEntry();
-                    continue;
-                }
+        try {
+            List<ArchivePaperEntry> paperEntries = findPaperEntries(file.getInputStream(), originalFilename);
+            if (paperEntries.isEmpty()) {
+                return Result.error("压缩包内未找到可导入的试卷文件，请检查压缩包内是否包含 pdf/png/jpg/jpeg 文件");
+            }
 
-                String entryName = Paths.get(entry.getName()).getFileName().toString();
-                if (!StringUtils.hasText(entryName) || entryName.startsWith(".")) {
-                    zipInputStream.closeEntry();
-                    continue;
-                }
-                if (entryName.startsWith("__MACOSX")) {
-                    zipInputStream.closeEntry();
-                    continue;
-                }
-                if (!isAllowedPaperFile(entryName)) {
-                    logs.add("文件[" + entryName + "]格式不支持，仅支持 jpg/jpeg/png/pdf");
-                    skipCount++;
-                    zipInputStream.closeEntry();
-                    continue;
-                }
+            for (ArchivePaperEntry paperEntry : paperEntries) {
+                String entryName = paperEntry.fileName();
+                String entryPath = paperEntry.entryPath();
 
                 FileMatch fileMatch = matchStudentByPaperFileName(entryName, uploadCtx.studentNoMap(), uploadCtx.studentNameMap());
                 if (!fileMatch.ok()) {
-                    logs.add("文件[" + entryName + "]: " + fileMatch.msg());
+                    logs.add("文件[" + entryPath + "]: " + fileMatch.msg());
                     if (fileMatch.skipped()) skipCount++;
                     else errorCount++;
-                    zipInputStream.closeEntry();
                     continue;
                 }
 
                 SysStudent student = fileMatch.student();
                 ExamClass examClass = uploadCtx.examClassMap().get(student.getClassId());
                 if (examClass == null) {
-                    logs.add("文件[" + entryName + "]: 学生[" + student.getName() + "]未在当前考试项目班级中");
+                    logs.add("文件[" + entryPath + "]: 学生[" + student.getName() + "]未在当前考试项目班级中");
                     skipCount++;
-                    zipInputStream.closeEntry();
                     continue;
                 }
 
                 ExamSubject subject = uploadCtx.classToSubjectMap().get(examClass.getId());
                 if (subject == null) {
-                    logs.add("文件[" + entryName + "]: 学生[" + student.getName() + "]所属班级未开启[" + subjectName + "]科目");
+                    logs.add("文件[" + entryPath + "]: 学生[" + student.getName() + "]所属班级未开启[" + subjectName + "]科目");
                     skipCount++;
-                    zipInputStream.closeEntry();
                     continue;
                 }
 
                 String scoreKey = subject.getId() + "_" + student.getStudentNo();
                 if (!importedKeys.add(scoreKey)) {
-                    logs.add("文件[" + entryName + "]: 当前压缩包内重复上传了同一学生试卷");
+                    logs.add("文件[" + entryPath + "]: 当前压缩包内重复上传了同一学生试卷");
                     errorCount++;
-                    zipInputStream.closeEntry();
                     continue;
                 }
 
-                String storedUrl = storePaperFile(zipInputStream, projectId, subjectName, student.getStudentNo(), entryName);
+                String storedUrl = storePaperFile(
+                        new ByteArrayInputStream(paperEntry.content()),
+                        projectId,
+                        subjectName,
+                        student.getStudentNo(),
+                        entryName
+                );
                 ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), subject, student);
                 score.setAnswerSheetUrl(storedUrl);
                 scoresToSave.add(score);
                 uploadCtx.existingScoreMap().put(scoreKey, score);
                 successCount++;
-                zipInputStream.closeEntry();
             }
         } catch (Exception e) {
             return Result.error("试卷压缩包处理失败: " + e.getMessage());
@@ -659,7 +684,8 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             examStudentScoreRepository.saveAllAndFlush(scoresToSave);
         }
 
-        String summary = String.format("试卷导入完成: 成功 %d 条, 跳过 %d 条, 错误 %d 条", successCount, skipCount, errorCount);
+        Map<String, Object> resultData = buildBatchImportResultData("试卷导入完成", successCount, skipCount, errorCount, logs);
+        String summary = String.valueOf(resultData.get("summary"));
         if (successCount <= 0) {
             if (!logs.isEmpty()) {
                 String detail = logs.stream().limit(5).collect(Collectors.joining("; "));
@@ -671,9 +697,9 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         if (!logs.isEmpty()) {
             String detail = logs.stream().limit(5).collect(Collectors.joining("; "));
             if (logs.size() > 5) detail += "...等" + logs.size() + "条提示";
-            return Result.success(summary + ". 提示: " + detail, null);
+            return Result.success(summary + ". 提示: " + detail, resultData);
         }
-        return Result.success(summary, null);
+        return Result.success(summary, resultData);
     }
 
     @Override
@@ -1092,24 +1118,34 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     }
 
     private String storePaperFile(InputStream inputStream, String projectId, String subjectName, String studentNo, String originalFilename) throws Exception {
-        String extension = getFileExtension(originalFilename);
         Path baseDir = Paths.get(globalConfigProperties.getPaperDir())
                 .resolve("exam-projects")
                 .resolve(safePathSegment(projectId))
                 .resolve(safePathSegment(subjectName));
         Files.createDirectories(baseDir);
 
-        String storedName = safePathSegment(studentNo) + "_" + System.currentTimeMillis() + "_" +
-                UUID.randomUUID().toString().replace("-", "").substring(0, 8) + extension;
-        Path target = baseDir.resolve(storedName);
-        Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
-
-        return "/uploads/papers/exam-projects/" + safePathSegment(projectId) + "/" +
-                safePathSegment(subjectName) + "/" + storedName;
+        String storedNamePrefix = safePathSegment(studentNo) + "_" + System.currentTimeMillis() + "_" +
+                UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        return storePaperAsset(
+                inputStream,
+                baseDir,
+                storedNamePrefix,
+                originalFilename,
+                "/uploads/papers/exam-projects/" + safePathSegment(projectId) + "/" +
+                        safePathSegment(subjectName) + "/"
+        );
     }
 
     private boolean isZipFile(String fileName) {
         return StringUtils.hasText(fileName) && fileName.toLowerCase().endsWith(".zip");
+    }
+
+    private boolean isRarFile(String fileName) {
+        return StringUtils.hasText(fileName) && fileName.toLowerCase().endsWith(".rar");
+    }
+
+    private boolean isSupportedArchiveFile(String fileName) {
+        return isZipFile(fileName) || isRarFile(fileName);
     }
 
     private boolean isAllowedPaperFile(String fileName) {
@@ -1117,10 +1153,201 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         return ".jpg".equals(extension) || ".jpeg".equals(extension) || ".png".equals(extension) || ".pdf".equals(extension);
     }
 
+    private List<ArchivePaperEntry> findPaperEntries(InputStream inputStream, String originalFilename) throws Exception {
+        if (isRarFile(originalFilename)) {
+            return findPaperEntriesFromRar(inputStream);
+        }
+        return findPaperEntriesFromZip(inputStream);
+    }
+
+    private List<ArchivePaperEntry> findPaperEntriesFromZip(InputStream inputStream) throws Exception {
+        List<ArchivePaperEntry> paperEntries = new ArrayList<>();
+        try (ZipInputStream zipInputStream = new ZipInputStream(inputStream, StandardCharsets.UTF_8)) {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                String entryPath = normalizeArchiveEntryPath(entry.getName());
+                if (shouldSkipArchiveEntry(entry.isDirectory(), entryPath)) {
+                    zipInputStream.closeEntry();
+                    continue;
+                }
+
+                String fileName = extractArchiveLeafName(entryPath);
+                if (!isAllowedPaperFile(fileName)) {
+                    zipInputStream.closeEntry();
+                    continue;
+                }
+
+                paperEntries.add(new ArchivePaperEntry(entryPath, fileName, readCurrentZipEntry(zipInputStream)));
+                zipInputStream.closeEntry();
+            }
+        }
+        return paperEntries;
+    }
+
+    private List<ArchivePaperEntry> findPaperEntriesFromRar(InputStream inputStream) throws Exception {
+        List<ArchivePaperEntry> paperEntries = new ArrayList<>();
+        try (Archive archive = new Archive(inputStream)) {
+            if (archive.isEncrypted() || archive.isPasswordProtected()) {
+                throw new IllegalArgumentException("暂不支持带密码的 rar 压缩包");
+            }
+            for (FileHeader fileHeader : archive.getFileHeaders()) {
+                String entryPath = normalizeArchiveEntryPath(fileHeader.getFileName());
+                if (shouldSkipArchiveEntry(fileHeader.isDirectory(), entryPath)) {
+                    continue;
+                }
+
+                String fileName = extractArchiveLeafName(entryPath);
+                if (!isAllowedPaperFile(fileName)) {
+                    continue;
+                }
+
+                try (InputStream entryInputStream = archive.getInputStream(fileHeader)) {
+                    if (entryInputStream == null) {
+                        continue;
+                    }
+                    paperEntries.add(new ArchivePaperEntry(entryPath, fileName, entryInputStream.readAllBytes()));
+                }
+            }
+        } catch (UnsupportedRarV5Exception e) {
+            throw new IllegalArgumentException("当前暂不支持 RAR5 格式压缩包，请重新压缩为 zip 或旧版 rar");
+        } catch (UnsupportedRarEncryptedException e) {
+            throw new IllegalArgumentException("暂不支持带密码的 rar 压缩包");
+        }
+        return paperEntries;
+    }
+
+    private byte[] readCurrentZipEntry(ZipInputStream zipInputStream) throws Exception {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int length;
+        while ((length = zipInputStream.read(buffer)) != -1) {
+            outputStream.write(buffer, 0, length);
+        }
+        return outputStream.toByteArray();
+    }
+
+    private boolean shouldSkipArchiveEntry(boolean isDirectory, String entryPath) {
+        if (isDirectory) return true;
+        if (!StringUtils.hasText(entryPath)) return true;
+        if (entryPath.startsWith("__MACOSX/")) return true;
+        return Arrays.stream(entryPath.split("/"))
+                .map(String::trim)
+                .anyMatch(segment -> !StringUtils.hasText(segment) || segment.startsWith("."));
+    }
+
+    private String normalizeArchiveEntryPath(String entryName) {
+        if (!StringUtils.hasText(entryName)) return "";
+        return entryName.replace('\\', '/').trim();
+    }
+
+    private String extractArchiveLeafName(String entryPath) {
+        if (!StringUtils.hasText(entryPath)) return "";
+        int index = entryPath.lastIndexOf('/');
+        return index >= 0 ? entryPath.substring(index + 1) : entryPath;
+    }
+
+    private String storePaperAsset(InputStream inputStream, Path baseDir, String storedNamePrefix, String originalFilename, String urlPrefix) throws Exception {
+        byte[] fileBytes = inputStream.readAllBytes();
+        String extension = getFileExtension(originalFilename).toLowerCase();
+        String storedName = storedNamePrefix + extension;
+        if (".pdf".equals(extension)) {
+            storedName = storedNamePrefix + ".png";
+            renderPdfAsLongImage(fileBytes, baseDir.resolve(storedName));
+        } else {
+            Files.copy(new ByteArrayInputStream(fileBytes), baseDir.resolve(storedName), StandardCopyOption.REPLACE_EXISTING);
+        }
+        return urlPrefix + storedName;
+    }
+
     private String getFileExtension(String fileName) {
         if (!StringUtils.hasText(fileName)) return "";
         int index = fileName.lastIndexOf('.');
         return index >= 0 ? fileName.substring(index) : "";
+    }
+
+    private String normalizeStoredPaperPreviewUrl(String url) {
+        if (!isPdfFile(url)) return url;
+        Path pdfPath = resolvePaperPath(url);
+        if (pdfPath == null || !Files.exists(pdfPath)) return url;
+
+        String previewFileName = replaceFileExtension(pdfPath.getFileName().toString(), "_preview.png");
+        Path previewPath = pdfPath.getParent().resolve(previewFileName);
+        try {
+            if (!Files.exists(previewPath)) {
+                renderPdfAsLongImage(Files.readAllBytes(pdfPath), previewPath);
+            }
+            return toPaperUrl(previewPath);
+        } catch (Exception ignored) {
+            return url;
+        }
+    }
+
+    private void renderPdfAsLongImage(byte[] pdfBytes, Path targetPath) throws Exception {
+        Files.createDirectories(targetPath.getParent());
+        try (PDDocument document = PDDocument.load(pdfBytes)) {
+            if (document.getNumberOfPages() <= 0) {
+                throw new IllegalArgumentException("PDF 文件没有可渲染的页面");
+            }
+
+            PDFRenderer renderer = new PDFRenderer(document);
+            List<BufferedImage> pageImages = new ArrayList<>();
+            int totalHeight = 0;
+            int maxWidth = 0;
+            for (int i = 0; i < document.getNumberOfPages(); i++) {
+                BufferedImage pageImage = renderer.renderImageWithDPI(i, PDF_RENDER_DPI, ImageType.RGB);
+                pageImages.add(pageImage);
+                totalHeight += pageImage.getHeight();
+                maxWidth = Math.max(maxWidth, pageImage.getWidth());
+            }
+
+            BufferedImage combinedImage = new BufferedImage(maxWidth, totalHeight, BufferedImage.TYPE_INT_RGB);
+            Graphics2D graphics = combinedImage.createGraphics();
+            try {
+                graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                graphics.setColor(Color.WHITE);
+                graphics.fillRect(0, 0, maxWidth, totalHeight);
+
+                int currentY = 0;
+                for (BufferedImage pageImage : pageImages) {
+                    int offsetX = Math.max((maxWidth - pageImage.getWidth()) / 2, 0);
+                    graphics.drawImage(pageImage, offsetX, currentY, null);
+                    currentY += pageImage.getHeight();
+                }
+            } finally {
+                graphics.dispose();
+            }
+            ImageIO.write(combinedImage, "png", targetPath.toFile());
+        }
+    }
+
+    private Path resolvePaperPath(String url) {
+        if (!StringUtils.hasText(url) || !url.startsWith("/uploads/papers/")) return null;
+        Path paperRoot = Paths.get(globalConfigProperties.getPaperDir()).toAbsolutePath().normalize();
+        Path resolvedPath = paperRoot.resolve(url.substring("/uploads/papers/".length())).normalize();
+        if (!resolvedPath.startsWith(paperRoot)) return null;
+        return resolvedPath;
+    }
+
+    private String toPaperUrl(Path path) {
+        Path paperRoot = Paths.get(globalConfigProperties.getPaperDir()).toAbsolutePath().normalize();
+        Path normalizedPath = path.toAbsolutePath().normalize();
+        if (!normalizedPath.startsWith(paperRoot)) {
+            throw new IllegalArgumentException("文件路径超出试卷目录范围");
+        }
+        String relativePath = paperRoot.relativize(normalizedPath).toString().replace('\\', '/');
+        return "/uploads/papers/" + relativePath;
+    }
+
+    private boolean isPdfFile(String fileName) {
+        return StringUtils.hasText(fileName) && fileName.toLowerCase().endsWith(".pdf");
+    }
+
+    private String replaceFileExtension(String fileName, String newSuffix) {
+        if (!StringUtils.hasText(fileName)) return "paper" + newSuffix;
+        int index = fileName.lastIndexOf('.');
+        String baseName = index >= 0 ? fileName.substring(0, index) : fileName;
+        return baseName + newSuffix;
     }
 
     private String safePathSegment(String value) {
@@ -1249,14 +1476,33 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         if (examClasses.isEmpty()) return Result.success(new HashMap<>());
         
         List<String> examClassIds = examClasses.stream().map(ExamClass::getId).toList();
-        Optional<ExamSubject> subjectOpt = examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(examClassIds).stream()
+        List<ExamSubject> subjectRows = examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(examClassIds).stream()
                 .filter(s -> subjectName.equals(s.getSubjectName()))
-                .findFirst();
+                .toList();
 
         Map<String, Object> config = new HashMap<>();
-        if (subjectOpt.isPresent()) {
-            config.put("templateUrl", subjectOpt.get().getAnswerUrl());
-            config.put("originalUrl", subjectOpt.get().getPaperUrl());
+        if (!subjectRows.isEmpty()) {
+            ExamSubject subject = subjectRows.get(0);
+            String templateUrl = normalizeStoredPaperPreviewUrl(subject.getAnswerUrl());
+            String originalUrl = normalizeStoredPaperPreviewUrl(subject.getPaperUrl());
+            boolean changed = false;
+            if (!java.util.Objects.equals(templateUrl, subject.getAnswerUrl())) {
+                for (ExamSubject item : subjectRows) {
+                    item.setAnswerUrl(templateUrl);
+                }
+                changed = true;
+            }
+            if (!java.util.Objects.equals(originalUrl, subject.getPaperUrl())) {
+                for (ExamSubject item : subjectRows) {
+                    item.setPaperUrl(originalUrl);
+                }
+                changed = true;
+            }
+            if (changed) {
+                examSubjectRepository.saveAllAndFlush(subjectRows);
+            }
+            config.put("templateUrl", templateUrl);
+            config.put("originalUrl", originalUrl);
         } else {
             config.put("templateUrl", null);
             config.put("originalUrl", null);
@@ -1289,7 +1535,6 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     }
 
     private String storePublicPaperFile(InputStream inputStream, String projectId, String subjectName, String type, String originalFilename) throws Exception {
-        String extension = getFileExtension(originalFilename);
         Path baseDir = Paths.get(globalConfigProperties.getPaperDir())
                 .resolve("exam-projects")
                 .resolve(safePathSegment(projectId))
@@ -1297,12 +1542,15 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 .resolve("public");
         Files.createDirectories(baseDir);
 
-        String storedName = type + "_" + System.currentTimeMillis() + extension;
-        Path target = baseDir.resolve(storedName);
-        Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
-
-        return "/uploads/papers/exam-projects/" + safePathSegment(projectId) + "/" +
-                safePathSegment(subjectName) + "/public/" + storedName;
+        String storedNamePrefix = type + "_" + System.currentTimeMillis();
+        return storePaperAsset(
+                inputStream,
+                baseDir,
+                storedNamePrefix,
+                originalFilename,
+                "/uploads/papers/exam-projects/" + safePathSegment(projectId) + "/" +
+                        safePathSegment(subjectName) + "/public/"
+        );
     }
 
     private String json(List<String> values) {
@@ -1534,9 +1782,75 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         List<SysStudent> students = studentNameMap.getOrDefault(normalizeStudentName(identifierRaw), Collections.emptyList());
         if (students.isEmpty()) return StudentMatch.skip("姓名[" + identifierRaw + "]未在当前项目名单中");
         if (students.size() > 1) {
-            return StudentMatch.error("姓名[" + identifierRaw + "]匹配到多名学生，请改用“学号”作为第一列重新导入");
+            return StudentMatch.conflict(students, "姓名[" + identifierRaw + "]匹配到多名学生，请手动绑定到正确学生");
         }
         return StudentMatch.ok(students.get(0));
+    }
+
+    private Map<String, Object> buildScoreImportResultData(
+            int successCount,
+            int skipCount,
+            int errorCount,
+            int conflictCount,
+            List<String> logs,
+            List<Map<String, Object>> nameConflicts) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        String summary = String.format("导入完成: 成功 %d 条, 跳过 %d 条, 错误 %d 条", successCount, skipCount, errorCount);
+        if (conflictCount > 0) {
+            summary += "，重名待绑定 " + conflictCount + " 条";
+        }
+        data.put("summary", summary);
+        data.put("successCount", successCount);
+        data.put("skipCount", skipCount);
+        data.put("errorCount", errorCount);
+        data.put("conflictCount", conflictCount);
+        data.put("logs", logs);
+        data.put("conflicts", nameConflicts);
+        return data;
+    }
+
+    private Map<String, Object> buildBatchImportResultData(
+            String prefix,
+            int successCount,
+            int skipCount,
+            int errorCount,
+            List<String> logs) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        String summary = String.format("%s: 成功 %d 条, 跳过 %d 条, 错误 %d 条", prefix, successCount, skipCount, errorCount);
+        data.put("summary", summary);
+        data.put("successCount", successCount);
+        data.put("skipCount", skipCount);
+        data.put("errorCount", errorCount);
+        data.put("logs", logs);
+        return data;
+    }
+
+    private Map<String, Object> buildScoreImportConflict(
+            int rowIndex,
+            String identifierRaw,
+            List<Double> questionScores,
+            double totalScore,
+            List<SysStudent> candidates) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("rowIndex", rowIndex);
+        item.put("identifier", identifierRaw);
+        item.put("studentName", identifierRaw);
+        item.put("questionScores", questionScores);
+        item.put("totalScore", round(totalScore));
+        item.put("candidates", buildConflictCandidates(candidates));
+        return item;
+    }
+
+    private List<Map<String, Object>> buildConflictCandidates(List<SysStudent> candidates) {
+        return candidates.stream().map(student -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("studentNo", student.getStudentNo());
+            item.put("studentName", student.getName());
+            item.put("school", str(student.getSchool()));
+            item.put("grade", str(student.getGrade()));
+            item.put("className", str(student.getClassName()));
+            return item;
+        }).toList();
     }
 
     private String normalizeHeader(String value) {
@@ -1646,17 +1960,26 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             boolean ok,
             boolean skipped,
             SysStudent student,
-            String msg) {
+            String msg,
+            List<SysStudent> candidates) {
         private static StudentMatch ok(SysStudent student) {
-            return new StudentMatch(true, false, student, "");
+            return new StudentMatch(true, false, student, "", Collections.emptyList());
         }
 
         private static StudentMatch skip(String msg) {
-            return new StudentMatch(false, true, null, msg);
+            return new StudentMatch(false, true, null, msg, Collections.emptyList());
         }
 
         private static StudentMatch error(String msg) {
-            return new StudentMatch(false, false, null, msg);
+            return new StudentMatch(false, false, null, msg, Collections.emptyList());
+        }
+
+        private static StudentMatch conflict(List<SysStudent> candidates, String msg) {
+            return new StudentMatch(false, false, null, msg, candidates);
+        }
+
+        private boolean hasConflict() {
+            return !candidates.isEmpty();
         }
     }
 
@@ -1677,4 +2000,9 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             return new FileMatch(false, false, null, msg);
         }
     }
+
+    private record ArchivePaperEntry(
+            String entryPath,
+            String fileName,
+            byte[] content) {}
 }

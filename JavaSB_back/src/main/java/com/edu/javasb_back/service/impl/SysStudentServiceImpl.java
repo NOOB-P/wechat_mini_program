@@ -108,6 +108,21 @@ public class SysStudentServiceImpl implements SysStudentService {
     }
 
     @Override
+    public Result<List<String>> getGrades(String schoolId) {
+        return Result.success(sysStudentRepository.findDistinctGrades(schoolId));
+    }
+
+    @Override
+    public Result<List<String>> getClasses(String schoolId, String grade) {
+        return Result.success(sysStudentRepository.findDistinctClasses(schoolId, grade));
+    }
+
+    @Override
+    public Result<List<SysStudent>> getStudents(String schoolId, String grade, String className) {
+        return Result.success(sysStudentRepository.findBySchoolIdAndGradeAndClassName(schoolId, grade, className));
+    }
+
+    @Override
     @Transactional
     public Result<Void> importStudents(List<StudentImportDTO> students) {
         for (StudentImportDTO dto : students) {
@@ -286,6 +301,41 @@ public class SysStudentServiceImpl implements SysStudentService {
 
         sysStudentRepository.deleteById(id);
         return Result.success("删除学生成功", null);
+    }
+
+    @Override
+    @Transactional
+    public Result<String> batchDeleteStudents(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Result.error("未选中任何学生");
+        }
+
+        int successCount = 0;
+        int failCount = 0;
+        List<String> failedNames = new ArrayList<>();
+        for (String id : ids) {
+            String studentName = "未知学生";
+            Optional<SysStudent> studentOpt = sysStudentRepository.findById(id);
+            if (studentOpt.isPresent()) {
+                studentName = studentOpt.get().getName();
+            }
+
+            Result<Void> result = deleteStudent(id);
+            if (result.getCode() == 200) {
+                successCount++;
+            } else {
+                failCount++;
+                failedNames.add(studentName);
+            }
+        }
+
+        if (failCount > 0) {
+            String failedMsg = String.join("，", failedNames);
+            String detailMsg = "批量删除完成。成功" + successCount + " 个，跳过 " + failCount
+                    + " 个存在绑定账户的学生。未能删除的学生：[" + failedMsg + "]";
+            return Result.success("操作完成，部分成功", detailMsg);
+        }
+        return Result.success("批量删除成功", "批量删除成功");
     }
 
     @Override

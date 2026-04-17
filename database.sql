@@ -864,8 +864,6 @@ INSERT INTO `sys_logs` (`uid`, `user_name`, `nick_name`, `operation`, `method`, 
 (3, 'parent01', '张三爸爸', '查看错题', 'GET', '/api/exams/mistakes', '10.0.0.1', '外网', 200),
 (10, 'parent07', '吴九妈妈', '报名自习室', 'POST', '/api/study-room/enroll', '172.16.0.1', '外网', 200);
 
-SET FOREIGN_KEY_CHECKS = 1;
-
 -- 11. 试卷科目表
 CREATE TABLE IF NOT EXISTS `paper_subjects` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -931,3 +929,5 @@ INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `
 ('上海中学2023-2024学年高一期末考试卷', '数学', '高一', '2024', 'FAMOUS', '名校,期末,数学,精品', 890, 1, '/uploads/papers/demo.pdf', 1),
 ('2023年西安西工大附中初一入学摸底测试', '语文', '初一', '2023', 'FAMOUS', '摸底,语文,PDF版', 2100, 0, '/uploads/papers/demo.pdf', 1),
 ('2024年成都七中高二联考物理压轴卷', '物理', '高二', '2024', 'JOINT', '联考,名校,物理,解析', 1560, 1, '/uploads/papers/demo.pdf', 1);
+
+SET FOREIGN_KEY_CHECKS = 1;

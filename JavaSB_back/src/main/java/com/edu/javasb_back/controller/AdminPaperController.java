@@ -5,9 +5,6 @@ import com.edu.javasb_back.model.entity.ExamPaper;
 import com.edu.javasb_back.model.entity.PaperSubject;
 import com.edu.javasb_back.service.PaperService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -46,18 +43,7 @@ public class AdminPaperController {
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize
     ) {
-        Page<ExamPaper> page = paperService.getPaperList(
-                keyword, subject, grade, type, isRecommend,
-                PageRequest.of(pageNum - 1, pageSize, Sort.by("sortOrder").ascending().and(Sort.by("createTime").ascending()))
-        );
-        
-        java.util.Map<String, Object> resultData = new java.util.HashMap<>();
-        resultData.put("records", page.getContent());
-        resultData.put("total", page.getTotalElements());
-        resultData.put("current", pageNum);
-        resultData.put("size", pageSize);
-        
-        return Result.success(resultData);
+        return paperService.getAdminPaperList(keyword, subject, grade, type, isRecommend, pageNum, pageSize);
     }
 
     @PreAuthorize("hasAuthority('paper:manage:save')")

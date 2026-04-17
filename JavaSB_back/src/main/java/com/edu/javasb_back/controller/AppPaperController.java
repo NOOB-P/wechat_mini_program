@@ -5,9 +5,6 @@ import com.edu.javasb_back.model.entity.ExamPaper;
 import com.edu.javasb_back.model.entity.PaperSubject;
 import com.edu.javasb_back.service.PaperService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -44,11 +41,7 @@ public class AppPaperController {
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize
     ) {
-        Page<ExamPaper> page = paperService.getPaperList(
-                keyword, subject, grade, type, isRecommend,
-                PageRequest.of(pageNum - 1, pageSize, Sort.by("createTime").descending())
-        );
-        return Result.success(page.getContent());
+        return paperService.getAppPaperList(keyword, subject, grade, type, isRecommend, pageNum, pageSize);
     }
 
     /**

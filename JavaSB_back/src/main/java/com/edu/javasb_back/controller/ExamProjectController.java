@@ -117,7 +117,7 @@ public class ExamProjectController {
     @LogOperation("导入成绩")
     @PreAuthorize("hasAuthority('exam:project:score-import')")
     @PostMapping("/scores/import")
-    public Result<Void> importScores(
+    public Result<Map<String, Object>> importScores(
             @RequestParam String projectId,
             @RequestParam String subjectName,
             @RequestParam MultipartFile file) {
@@ -127,7 +127,7 @@ public class ExamProjectController {
     @LogOperation("批量导入试卷")
     @PreAuthorize("hasAuthority('exam:project:paper-import')")
     @PostMapping("/papers/import")
-    public Result<Void> importAnswerSheets(
+    public Result<Map<String, Object>> importAnswerSheets(
             @RequestParam String projectId,
             @RequestParam String subjectName,
             @RequestParam MultipartFile file) {

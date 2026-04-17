@@ -96,13 +96,13 @@
     </el-card>
 
     <!-- 批量上传弹窗 -->
-    <el-dialog v-model="importVisible" :title="importTitle" width="550px">
+    <el-dialog v-model="importVisible" :title="importTitle" width="550px" @closed="resetImportState">
       <div class="import-container">
         <div class="flex justify-start mb-4">
           <el-tooltip placement="right" effect="light">
             <template #content>
               <div class="text-xs leading-6 text-gray-600 p-2">
-                <p v-if="importType === 'answerSheet'">1. 请上传 zip 压缩包，支持递归扫描多层文件夹，试卷命名支持“学号_姓名”、“学号”或“姓名”。</p>
+                <p v-if="importType === 'answerSheet'">1. 请上传 zip / rar 压缩包，支持递归扫描多层文件夹，试卷命名支持“学号_姓名”、“学号”或“姓名”。</p>
                 <p v-else>1. 请先<b>下载导入模板</b>，按照模板格式填写考生成绩信息。</p>
                 <p>2. 试卷仅支持 <b>jpg / jpeg / png / pdf</b>，成绩仅支持 <b>xlsx / xls</b>。</p>
                 <p>3. 若数据已存在，系统将根据规则进行<b>更新</b>。</p>
@@ -120,12 +120,12 @@
           class="upload-demo"
           drag
           action="#"
-          multiple
+          :multiple="importType === 'score'"
           :auto-upload="false"
           :on-change="handleFileChange"
           :file-list="fileList"
           :show-file-list="false"
-          :accept="importType === 'answerSheet' ? '.zip' : '.xlsx, .xls'"
+          :accept="importType === 'answerSheet' ? '.zip,.rar' : '.xlsx, .xls'"
         >
           <div v-if="fileList.length === 0" class="upload-empty-content">
             <el-icon class="el-icon--upload"><upload-filled /></el-icon>
@@ -133,14 +133,14 @@
               将文件拖到此处，或<em>点击上传</em>
             </div>
             <div class="el-upload__tip mt-2">
-              {{ importType === 'answerSheet' ? '仅支持 .zip 压缩包' : '仅支持 .xlsx / .xls 格式文件' }}
+              {{ importType === 'answerSheet' ? '仅支持 .zip / .rar 压缩包' : '仅支持 .xlsx / .xls 格式文件' }}
             </div>
           </div>
           
           <div v-else class="upload-list-content" @click.stop>
             <div class="flex justify-between items-center mb-2 px-2">
               <span class="text-xs font-bold text-gray-500">待处理队列 ({{ fileList.length }})</span>
-              <el-button link type="danger" size="small" @click="fileList = []">清空</el-button>
+              <el-button link type="danger" size="small" @click="resetImportState">清空</el-button>
             </div>
             <el-table :data="fileList" size="small" border max-height="180" class="import-table">
               <el-table-column prop="name" label="文件名" show-overflow-tooltip />
@@ -193,6 +193,74 @@
       </div>
     </el-dialog>
 
+    <el-dialog v-model="scoreConflictVisible" title="重名成绩手动绑定" width="980px" destroy-on-close>
+      <div class="conflict-dialog">
+        <el-alert
+          type="warning"
+          :closable="false"
+          show-icon
+          title="检测到重名学生，请为每条成绩选择正确学生后再确认保存。"
+        />
+
+        <el-table :data="scoreConflictList" border stripe max-height="460" class="conflict-table">
+          <el-table-column prop="sourceFileName" label="来源文件" min-width="150" show-overflow-tooltip />
+          <el-table-column label="Excel行" width="90" align="center">
+            <template #default="{ row }">第{{ row.rowIndex }}行</template>
+          </el-table-column>
+          <el-table-column prop="studentName" label="姓名" width="120" />
+          <el-table-column label="总分" width="90" align="center">
+            <template #default="{ row }">{{ formatScore(row.totalScore) }}</template>
+          </el-table-column>
+          <el-table-column label="小题分" min-width="260">
+            <template #default="{ row }">
+              <div class="question-score-tags">
+                <el-tag
+                  v-for="(score, index) in row.questionScores"
+                  :key="`${row.sourceFileName}-${row.rowIndex}-${index}`"
+                  size="small"
+                  effect="plain"
+                >
+                  {{ index + 1 }}题 {{ formatScore(score) }}
+                </el-tag>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="绑定到学生" min-width="280">
+            <template #default="{ row }">
+              <el-select
+                v-model="row.selectedStudentNo"
+                placeholder="请选择正确学生"
+                filterable
+                clearable
+                class="w-full"
+              >
+                <el-option
+                  v-for="item in row.candidates"
+                  :key="`${row.rowIndex}-${item.studentNo}`"
+                  :label="formatCandidateLabel(item)"
+                  :value="item.studentNo"
+                >
+                  <div class="candidate-option">
+                    <span>{{ item.studentNo }} / {{ item.studentName }}</span>
+                    <span class="candidate-meta">{{ formatCandidateMeta(item) }}</span>
+                  </div>
+                </el-option>
+              </el-select>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <template #footer>
+        <div class="conflict-footer">
+          <el-button @click="scoreConflictVisible = false">暂不处理</el-button>
+          <el-button type="primary" :loading="scoreConflictSaving" @click="handleSaveScoreConflicts">
+            确认绑定并保存成绩
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
     <ScoreEditDialog
       v-model="scoreEditVisible"
       :project-id="projectId"
@@ -210,14 +278,21 @@
     Back, Search, Refresh, Upload, Download,
     InfoFilled, UploadFilled, Delete, Plus, Document, Loading as LoadingIcon
   } from '@element-plus/icons-vue'
-  import { ElMessage, ElMessageBox } from 'element-plus'
+  import { ElMessage } from 'element-plus'
   import ScoreEditDialog from './components/ScoreEditDialog.vue'
   import { 
     fetchProjectScoreList,
     fetchDownloadScoreTemplate,
     fetchImportScore,
     fetchImportAnswerSheetZip,
+    fetchSaveStudentScore,
     fetchUploadStudentAnswerSheet
+  } from '@/api/core-business/exam/project-editor'
+  import type {
+    BatchImportResult,
+    ScoreImportConflictCandidate,
+    ScoreImportConflictItem,
+    ScoreImportResult
   } from '@/api/core-business/exam/project-editor'
   import { fetchProjectOptions } from '@/api/core-business/exam/project'
 
@@ -249,8 +324,23 @@
   const importType = ref<'answerSheet' | 'score'>('answerSheet')
   const fileList = ref<any[]>([])
   const uploadRef = ref<any>()
+  const scoreConflictVisible = ref(false)
+  const scoreConflictSaving = ref(false)
+  const scoreConflictList = ref<PendingScoreConflictItem[]>([])
 
   const importTitle = computed(() => importType.value === 'answerSheet' ? '批量导入试卷答题卡' : '批量导入成绩')
+
+  interface ImportFileItem {
+    name: string
+    uid: string | number
+    raw?: File
+    status?: 'ready' | 'uploading' | 'success' | 'fail'
+  }
+
+  interface PendingScoreConflictItem extends ScoreImportConflictItem {
+    sourceFileName: string
+    selectedStudentNo: string
+  }
 
   async function loadOptions() {
     try {
@@ -328,19 +418,42 @@
 
   function handleBatchUpload(type: 'answerSheet' | 'score') {
     importType.value = type
-    fileList.value = []
+    resetImportState()
     importVisible.value = true
   }
 
-  function handleFileChange(file: any) {
+  function resetImportState() {
+    fileList.value = []
+    uploadRef.value?.clearFiles?.()
+  }
+
+  function handleFileChange(file: ImportFileItem) {
+    const rawFile = file?.raw
+    if (!rawFile) {
+      ElMessage.error('未获取到上传文件')
+      return
+    }
+
     if (importType.value === 'answerSheet') {
-      const isZip = /\.zip$/i.test(file.name || '')
-      if (!isZip) {
-        ElMessage.error('试卷批量导入仅支持 zip 压缩包')
+      const isArchive = /\.(zip|rar)$/i.test(file.name || '')
+      if (!isArchive) {
+        ElMessage.error('试卷批量导入仅支持 zip / rar 压缩包')
         return
       }
+      fileList.value = [{ ...file, status: 'ready' }]
+      return
     }
-    fileList.value.push(file)
+
+    const isExcel = /\.(xlsx|xls)$/i.test(file.name || '')
+    if (!isExcel) {
+      ElMessage.error('成绩导入仅支持 xlsx / xls 文件')
+      return
+    }
+
+    const exists = fileList.value.some((item: ImportFileItem) => item.uid === file.uid)
+    if (!exists) {
+      fileList.value.push({ ...file, status: 'ready' })
+    }
   }
 
   function handleContinueUpload() {
@@ -353,37 +466,71 @@
     importLoading.value = true
     try {
       if (importType.value === 'score') {
+        const pendingConflicts: PendingScoreConflictItem[] = []
+        let importedFileCount = 0
+        let hasScoreWarnings = false
+
         for (const file of fileList.value) {
           file.status = 'uploading'
           try {
-            await fetchImportScore({
+            const result = await fetchImportScore({
               projectId: projectId.value,
               subjectName: subjectName.value,
               file: file.raw
             })
             file.status = 'success'
+            importedFileCount++
+
+            if (result.conflictCount > 0) {
+              pendingConflicts.push(...buildPendingConflicts(file.name, result))
+            } else if (result.errorCount > 0 || result.skipCount > 0) {
+              hasScoreWarnings = true
+              ElMessage.warning(`${file.name}: ${result.summary}`)
+            }
           } catch (error: any) {
             file.status = 'fail'
             ElMessage.error(`${file.name} 导入失败: ${error.message || '未知错误'}`)
           }
         }
-        
-        const allSuccess = fileList.value.every(f => f.status === 'success')
-        if (allSuccess) {
-          ElMessage.success('全部成绩导入成功')
-          importVisible.value = false
+
+        if (importedFileCount > 0) {
           await loadData()
         }
+
+        if (pendingConflicts.length > 0) {
+          scoreConflictList.value = pendingConflicts
+          scoreConflictVisible.value = true
+          importVisible.value = false
+          ElMessage.warning(`发现 ${pendingConflicts.length} 条重名成绩，请手动绑定后保存`)
+          return
+        }
+
+        const allSuccess = fileList.value.every(f => f.status === 'success')
+        if (allSuccess && !hasScoreWarnings) {
+          ElMessage.success(importedFileCount > 1 ? '全部成绩导入成功' : '成绩导入成功')
+          importVisible.value = false
+        } else if (allSuccess) {
+          importVisible.value = false
+        }
       } else {
+        let importedFileCount = 0
+        let hasPaperWarnings = false
+
         for (const file of fileList.value) {
           file.status = 'uploading'
           try {
-            await fetchImportAnswerSheetZip({
+            const result = await fetchImportAnswerSheetZip({
               projectId: projectId.value,
               subjectName: subjectName.value,
               file: file.raw
             })
             file.status = 'success'
+            importedFileCount++
+
+            if (result.errorCount > 0 || result.skipCount > 0) {
+              hasPaperWarnings = true
+              ElMessage.warning(`${file.name}: ${result.summary}`)
+            }
           } catch (error: any) {
             file.status = 'fail'
             ElMessage.error(`${file.name} 导入失败: ${error.message || '未知错误'}`)
@@ -391,14 +538,67 @@
         }
 
         const allSuccess = fileList.value.every(f => f.status === 'success')
-        if (allSuccess) {
-          ElMessage.success('全部试卷导入成功')
+        if (allSuccess && !hasPaperWarnings) {
+          ElMessage.success(importedFileCount > 1 ? '全部试卷导入成功' : '试卷导入成功')
+          importVisible.value = false
+          await loadData()
+        } else if (allSuccess) {
           importVisible.value = false
           await loadData()
         }
       }
     } finally {
       importLoading.value = false
+    }
+  }
+
+  function buildPendingConflicts(fileName: string, result: ScoreImportResult) {
+    return (result.conflicts || []).map((item) => ({
+      ...item,
+      sourceFileName: fileName,
+      selectedStudentNo: ''
+    }))
+  }
+
+  function formatScore(value: number | string | null | undefined) {
+    if (value === null || value === undefined || value === '') return '-'
+    const numericValue = Number(value)
+    return Number.isInteger(numericValue) ? String(numericValue) : numericValue.toFixed(2)
+  }
+
+  function formatCandidateLabel(item: ScoreImportConflictCandidate) {
+    return `${item.studentNo} / ${item.studentName} / ${formatCandidateMeta(item)}`
+  }
+
+  function formatCandidateMeta(item: ScoreImportConflictCandidate) {
+    return [item.school, item.grade, item.className].filter(Boolean).join(' / ')
+  }
+
+  async function handleSaveScoreConflicts() {
+    const unselectedItems = scoreConflictList.value.filter((item) => !item.selectedStudentNo)
+    if (unselectedItems.length > 0) {
+      ElMessage.error(`还有 ${unselectedItems.length} 条重名成绩未选择学生`)
+      return
+    }
+
+    scoreConflictSaving.value = true
+    try {
+      for (const item of scoreConflictList.value) {
+        await fetchSaveStudentScore({
+          projectId: projectId.value,
+          subjectName: subjectName.value,
+          studentNo: item.selectedStudentNo,
+          questionScores: item.questionScores
+        })
+      }
+      scoreConflictVisible.value = false
+      scoreConflictList.value = []
+      await loadData()
+      ElMessage.success('重名成绩已手动绑定并保存')
+    } catch (error: any) {
+      ElMessage.error(error.message || '重名成绩保存失败')
+    } finally {
+      scoreConflictSaving.value = false
     }
   }
 
@@ -641,6 +841,42 @@
 
   .rotating {
     animation: rotate 2s linear infinite;
+  }
+
+  .conflict-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .conflict-table {
+    :deep(.el-select) {
+      width: 100%;
+    }
+  }
+
+  .question-score-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .candidate-option {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.5;
+    padding: 2px 0;
+  }
+
+  .candidate-meta {
+    color: #909399;
+    font-size: 12px;
+  }
+
+  .conflict-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
   }
 
   @keyframes rotate {

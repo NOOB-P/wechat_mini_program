@@ -1,5 +1,6 @@
 package com.edu.javasb_back.service.impl;
 
+import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.ExamPaper;
 import com.edu.javasb_back.model.entity.PaperSubject;
 import com.edu.javasb_back.repository.ExamPaperRepository;
@@ -8,6 +9,7 @@ import com.edu.javasb_back.service.PaperService;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -52,6 +54,38 @@ public class PaperServiceImpl implements PaperService {
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
         return paperRepository.findAll(spec, pageable);
+    }
+
+    @Override
+    public Result<Map<String, Object>> getAdminPaperList(String keyword, String subject, String grade, String type, Boolean isRecommend, int pageNum, int pageSize) {
+        Page<ExamPaper> page = getPaperList(
+                keyword,
+                subject,
+                grade,
+                type,
+                isRecommend,
+                PageRequest.of(pageNum - 1, pageSize, Sort.by("sortOrder").ascending().and(Sort.by("createTime").ascending()))
+        );
+
+        Map<String, Object> resultData = new HashMap<>();
+        resultData.put("records", page.getContent());
+        resultData.put("total", page.getTotalElements());
+        resultData.put("current", pageNum);
+        resultData.put("size", pageSize);
+        return Result.success(resultData);
+    }
+
+    @Override
+    public Result<List<ExamPaper>> getAppPaperList(String keyword, String subject, String grade, String type, Boolean isRecommend, int pageNum, int pageSize) {
+        Page<ExamPaper> page = getPaperList(
+                keyword,
+                subject,
+                grade,
+                type,
+                isRecommend,
+                PageRequest.of(pageNum - 1, pageSize, Sort.by("createTime").descending())
+        );
+        return Result.success(page.getContent());
     }
 
     @Override

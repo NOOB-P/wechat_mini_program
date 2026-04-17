@@ -19,18 +19,11 @@
           </el-tooltip>
           <template #dropdown>
             <el-dropdown-menu class="toolbox-menu">
-              <el-dropdown-item command="addRegion" :disabled="readonly">
-                添加框选框
-              </el-dropdown-item>
-              <el-dropdown-item command="modifyRegion" :disabled="readonly">
-                修改框选框
-              </el-dropdown-item>
-              <el-dropdown-item command="drawMode" :disabled="readonly">框选框</el-dropdown-item>
+              <el-dropdown-item command="panMode">移动试卷</el-dropdown-item>
+              <el-dropdown-item command="drawMode" :disabled="readonly">创建选框</el-dropdown-item>
               <el-dropdown-item command="adjustMode" :disabled="readonly"
-                >调整框选</el-dropdown-item
+                >编辑选框</el-dropdown-item
               >
-              <el-dropdown-item command="panMode">移动画布</el-dropdown-item>
-              <el-dropdown-item command="selectMode">选择题目</el-dropdown-item>
               <el-dropdown-item command="editRegion" :disabled="!selectedRegion || readonly">
                 题目属性
               </el-dropdown-item>
@@ -71,6 +64,7 @@
       class="canvas-viewport"
       :class="[`tool-${tool}`, { readonly }]"
       @mousedown="handleStageMouseDown"
+      @contextmenu.prevent="handleViewportContextMenu"
       @wheel.prevent="handleWheelZoom"
     >
       <div ref="stageRef" class="image-stage" :class="{ ready: imageLoaded }" :style="stageStyle">
@@ -98,8 +92,28 @@
             :style="regionStyle(region)"
             @mousedown.stop="handleRegionMouseDown(region, $event)"
             @click.stop="handleRegionClick(region)"
+            @mouseenter="hoveredRegionId = region.id"
+            @mouseleave="handleRegionMouseLeave(region)"
+            @contextmenu.stop.prevent="handleRegionContextMenu(region, $event)"
           >
             <span class="region-label">{{ regionLabel(region) }}</span>
+            <div
+              v-if="showRegionActions(region)"
+              class="region-actions"
+              @mousedown.stop
+              @click.stop
+            >
+              <button type="button" class="region-action-btn" @click="openRegionDialog(region)">
+                属性
+              </button>
+              <button
+                type="button"
+                class="region-action-btn danger"
+                @click="deleteRegion(region.id)"
+              >
+                删除
+              </button>
+            </div>
             <template v-if="selectedRegionId === region.id && !readonly && tool === 'adjust'">
               <span
                 v-for="direction in resizeDirections"
@@ -115,6 +129,24 @@
             <span class="region-label">新建框选</span>
           </div>
         </div>
+      </div>
+
+      <div
+        v-if="regionContextMenu.visible && !readonly"
+        ref="contextMenuRef"
+        class="region-context-menu"
+        :style="regionContextMenuStyle"
+      >
+        <button type="button" class="context-menu-item" @click="handleContextMenuCommand('edit')">
+          修改属性
+        </button>
+        <button
+          type="button"
+          class="context-menu-item danger"
+          @click="handleContextMenuCommand('delete')"
+        >
+          删除选框
+        </button>
       </div>
 
       <div v-if="!imageLoaded" class="canvas-placeholder"> 正在加载试卷，请稍候... </div>
@@ -238,9 +270,11 @@
   const localRegions = ref<PaperRegionItem[]>([])
   const draftRegion = ref<PaperRegionItem | null>(null)
   const selectedRegionId = ref('')
+  const hoveredRegionId = ref('')
   const suppressClickRegionId = ref('')
   const regionDialogVisible = ref(false)
   const editingRegionId = ref('')
+  const contextMenuRef = ref<HTMLElement>()
 
   const regionForm = reactive({
     questionNo: '',
@@ -280,6 +314,13 @@
     hasManualViewport: false
   })
 
+  const regionContextMenu = reactive({
+    visible: false,
+    x: 0,
+    y: 0,
+    regionId: ''
+  })
+
   const selectedRegion = computed(
     () => localRegions.value.find((item) => item.id === selectedRegionId.value) || null
   )
@@ -287,26 +328,30 @@
   const showSaveAction = computed(() => !props.readonly && props.showSave)
   const scaleText = computed(() => `${Math.round(view.scale * 100)}%`)
   const currentToolText = computed(() => {
-    if (tool.value === 'draw') return '当前工具: 框选框'
-    if (tool.value === 'adjust') return '当前工具: 调整框选'
-    if (tool.value === 'pan') return '当前工具: 移动画布'
-    return '当前工具: 选择题目'
+    if (tool.value === 'draw') return '当前工具: 创建选框'
+    if (tool.value === 'adjust') return '当前工具: 编辑选框'
+    if (tool.value === 'pan') return '当前工具: 移动试卷'
+    return '当前工具: 移动试卷'
   })
   const currentHintText = computed(() => {
     if (props.readonly) {
-      return '当前为只读预览，可切换移动或选择模式查看框选结果，也可在工具箱里放大、缩小和平移试卷。'
+      return '当前为只读预览，可通过移动和缩放查看框选结果，也可在工具箱里放大、缩小和平移试卷。'
     }
     if (tool.value === 'draw') {
-      return '按住鼠标拖拽即可创建框选区域，松开后会自动弹出题目属性设置。'
+      return '按住鼠标拖拽即可创建框选区域，松开后会保留选框，右键或悬停可继续操作。'
     }
     if (tool.value === 'adjust') {
-      return '选中框选后可直接拖动位置，拖拽四角圆点即可调整大小。'
+      return '选中框选后可直接拖动位置，拖拽四角圆点即可调整大小，也可右键管理当前选框。'
     }
     if (tool.value === 'pan') {
-      return '按住鼠标即可拖动画布，也支持鼠标滚轮缩放，方便查看试卷细节。'
+      return '按住鼠标即可拖动试卷，也支持鼠标滚轮缩放，方便查看试卷细节。'
     }
-    return '点击已有框选可编辑题目属性，也可以先选中再通过工具箱删除。'
+    return '点击已有框选可选中区域，右键或悬停后可修改属性、删除选框。'
   })
+  const regionContextMenuStyle = computed(() => ({
+    left: `${regionContextMenu.x}px`,
+    top: `${regionContextMenu.y}px`
+  }))
 
   const stageStyle = computed(() => ({
     width: view.imageWidth ? `${view.imageWidth}px` : 'auto',
@@ -356,18 +401,21 @@
       view.offsetY = 0
       view.hasManualViewport = false
       draftRegion.value = null
+      closeRegionContextMenu()
     }
   )
 
   onMounted(() => {
     window.addEventListener('mousemove', handleWindowMouseMove)
     window.addEventListener('mouseup', handleWindowMouseUp)
+    window.addEventListener('mousedown', handleWindowMouseDown)
     window.addEventListener('resize', handleWindowResize)
   })
 
   onUnmounted(() => {
     window.removeEventListener('mousemove', handleWindowMouseMove)
     window.removeEventListener('mouseup', handleWindowMouseUp)
+    window.removeEventListener('mousedown', handleWindowMouseDown)
     window.removeEventListener('resize', handleWindowResize)
   })
 
@@ -393,7 +441,7 @@
 
   function resolveInitialTool(initialTool?: RegionTool, readonly = false): RegionTool {
     if (readonly) {
-      return initialTool === 'pan' ? 'pan' : 'select'
+      return 'pan'
     }
     if (initialTool && ['draw', 'adjust', 'pan', 'select'].includes(initialTool)) {
       return initialTool
@@ -582,22 +630,26 @@
   function handleToolboxCommand(command: ToolboxCommand) {
     if (command === 'addRegion' || command === 'drawMode') {
       if (props.readonly) return
+      closeRegionContextMenu()
       tool.value = 'draw'
       return
     }
 
     if (command === 'adjustMode') {
       if (props.readonly) return
+      closeRegionContextMenu()
       tool.value = 'adjust'
       return
     }
 
     if (command === 'panMode') {
+      closeRegionContextMenu()
       tool.value = 'pan'
       return
     }
 
     if (command === 'selectMode') {
+      closeRegionContextMenu()
       tool.value = 'select'
       return
     }
@@ -627,7 +679,7 @@
         ElMessage.warning('请先选择一个框选区域')
         return
       }
-      deleteSelectedRegion()
+      deleteRegion(selectedRegion.value.id)
       return
     }
 
@@ -673,6 +725,8 @@
 
   function handleStageMouseDown(event: MouseEvent) {
     if (!imageLoaded.value || !viewportRef.value) return
+    closeRegionContextMenu()
+    if (event.button !== 0) return
 
     if (tool.value === 'pan') {
       interaction.mode = 'pan'
@@ -696,6 +750,7 @@
 
     const point = getRelativePoint(event)
     if (!point) return
+    selectedRegionId.value = ''
 
     interaction.mode = 'draw'
     interaction.startX = point.x
@@ -718,7 +773,9 @@
   }
 
   function handleRegionMouseDown(region: PaperRegionItem, event: MouseEvent) {
+    closeRegionContextMenu()
     selectedRegionId.value = region.id
+    if (event.button !== 0) return
     if (props.readonly || tool.value !== 'adjust') return
 
     const point = getRelativePoint(event)
@@ -746,6 +803,8 @@
     event: MouseEvent
   ) {
     if (props.readonly || tool.value !== 'adjust') return
+    closeRegionContextMenu()
+    if (event.button !== 0) return
     const point = getRelativePoint(event)
     if (!point) return
 
@@ -768,12 +827,70 @@
 
   function handleRegionClick(region: PaperRegionItem) {
     selectedRegionId.value = region.id
-    if (props.readonly || tool.value !== 'select') return
     if (suppressClickRegionId.value === region.id) {
       suppressClickRegionId.value = ''
       return
     }
-    openRegionDialog(region)
+    closeRegionContextMenu()
+  }
+
+  function handleRegionMouseLeave(region: PaperRegionItem) {
+    if (hoveredRegionId.value === region.id) {
+      hoveredRegionId.value = ''
+    }
+  }
+
+  function showRegionActions(region: PaperRegionItem) {
+    return (
+      !props.readonly &&
+      (hoveredRegionId.value === region.id || selectedRegionId.value === region.id)
+    )
+  }
+
+  function handleRegionContextMenu(region: PaperRegionItem, event: MouseEvent) {
+    if (props.readonly || !viewportRef.value) return
+    selectedRegionId.value = region.id
+    hoveredRegionId.value = region.id
+    const rect = viewportRef.value.getBoundingClientRect()
+    regionContextMenu.visible = true
+    regionContextMenu.regionId = region.id
+    const nextX = event.clientX - rect.left + 12
+    const nextY = event.clientY - rect.top + 12
+    regionContextMenu.x = Math.max(8, Math.min(nextX, rect.width - 152))
+    regionContextMenu.y = Math.max(8, Math.min(nextY, rect.height - 92))
+  }
+
+  function handleViewportContextMenu() {
+    closeRegionContextMenu()
+  }
+
+  function closeRegionContextMenu() {
+    regionContextMenu.visible = false
+    regionContextMenu.regionId = ''
+  }
+
+  function handleWindowMouseDown(event: MouseEvent) {
+    if (!regionContextMenu.visible) return
+    const target = event.target as Node | null
+    if (
+      target &&
+      (contextMenuRef.value?.contains(target) || viewportRef.value?.contains(target))
+    ) {
+      return
+    }
+    closeRegionContextMenu()
+  }
+
+  function handleContextMenuCommand(command: 'edit' | 'delete') {
+    const targetRegion = localRegions.value.find((item) => item.id === regionContextMenu.regionId)
+    closeRegionContextMenu()
+    if (!targetRegion) return
+    selectedRegionId.value = targetRegion.id
+    if (command === 'edit') {
+      openRegionDialog(targetRegion)
+      return
+    }
+    deleteRegion(targetRegion.id)
   }
 
   function handleWindowMouseMove(event: MouseEvent) {
@@ -860,8 +977,8 @@
         }
         localRegions.value = [...localRegions.value, region]
         selectedRegionId.value = region.id
+        hoveredRegionId.value = region.id
         emitRegions()
-        nextTick(() => openRegionDialog(region))
       }
       draftRegion.value = null
     }
@@ -881,6 +998,7 @@
   }
 
   function openRegionDialog(region: PaperRegionItem) {
+    closeRegionContextMenu()
     editingRegionId.value = region.id
     regionForm.questionNo = region.questionNo || ''
     regionForm.questionType = region.questionType || ''
@@ -911,12 +1029,15 @@
     regionDialogVisible.value = false
   }
 
-  function deleteSelectedRegion() {
-    if (!selectedRegion.value) return
+  function deleteRegion(regionId: string) {
     localRegions.value = localRegions.value
-      .filter((item) => item.id !== selectedRegion.value?.id)
+      .filter((item) => item.id !== regionId)
       .map((item, index) => ({ ...item, sortOrder: index + 1 }))
     selectedRegionId.value = localRegions.value[0]?.id || ''
+    if (hoveredRegionId.value === regionId) {
+      hoveredRegionId.value = ''
+    }
+    closeRegionContextMenu()
     emitRegions()
   }
 
@@ -1138,6 +1259,42 @@
     inset: 0;
   }
 
+  .region-context-menu {
+    position: absolute;
+    z-index: 30;
+    min-width: 140px;
+    padding: 6px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+    backdrop-filter: blur(10px);
+  }
+
+  .context-menu-item {
+    width: 100%;
+    height: 34px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #1f2937;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    padding: 0 12px;
+    cursor: pointer;
+
+    &:hover {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    &.danger:hover {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+  }
+
   .region-box {
     position: absolute;
     border: 2px solid #2563eb;
@@ -1188,6 +1345,43 @@
     background: rgba(255, 255, 255, 0.86);
     padding: 2px 6px;
     border-radius: 999px;
+  }
+
+  .region-actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 2;
+  }
+
+  .region-action-btn {
+    min-width: 42px;
+    height: 24px;
+    border: none;
+    border-radius: 999px;
+    padding: 0 8px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 24px;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.14);
+    cursor: pointer;
+
+    &:hover {
+      background: #dbeafe;
+    }
+
+    &.danger {
+      color: #dc2626;
+    }
+
+    &.danger:hover {
+      background: #fee2e2;
+    }
   }
 
   .resize-handle {

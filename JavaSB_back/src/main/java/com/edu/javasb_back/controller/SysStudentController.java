@@ -23,9 +23,6 @@ public class SysStudentController {
     private SysStudentService sysStudentService;
 
     @Autowired
-    private com.edu.javasb_back.repository.SysStudentRepository sysStudentRepository;
-
-    @Autowired
     private OrganizationImportService organizationImportService;
 
     @PreAuthorize("hasAuthority('system:student:import')")
@@ -38,7 +35,6 @@ public class SysStudentController {
         } catch (IllegalArgumentException e) {
             return Result.error(e.getMessage());
         } catch (Exception e) {
-            e.printStackTrace();
             return Result.error("导入失败: " + e.getMessage());
         }
     }
@@ -47,8 +43,8 @@ public class SysStudentController {
     @GetMapping("/download-template")
     public ResponseEntity<Resource> downloadTemplate() {
         return TemplateDownloadUtils.buildDownloadResponse(
-                List.of("static/resource/学生导入模板.zip", "templates/学生导入模板.zip"),
-                "学生导入模板.zip"
+                List.of("static/resource/瀛︾敓瀵煎叆妯℃澘.zip", "templates/瀛︾敓瀵煎叆妯℃澘.zip"),
+                "瀛︾敓瀵煎叆妯℃澘.zip"
         );
     }
 
@@ -87,40 +83,13 @@ public class SysStudentController {
 
     @PreAuthorize("hasAuthority('system:student:bound-parents')")
     @GetMapping("/bound-parents/{id}")
-    public Result<java.util.List<String>> getBoundParents(@PathVariable String id) {
+    public Result<List<String>> getBoundParents(@PathVariable String id) {
         return sysStudentService.getBoundParents(id);
     }
 
     @PreAuthorize("hasAuthority('system:student:delete')")
     @PostMapping("/batch-delete")
-    public Result<String> batchDeleteStudents(@RequestBody Map<String, java.util.List<String>> params) {
-        java.util.List<String> ids = params.get("ids");
-        if (ids == null || ids.isEmpty()) {
-            return Result.error("未选中任何学生");
-        }
-        int successCount = 0;
-        int failCount = 0;
-        java.util.List<String> failedNames = new java.util.ArrayList<>();
-        for (String id : ids) {
-            String studentName = "未知学生";
-            java.util.Optional<SysStudent> studentOpt = sysStudentRepository.findById(id);
-            if (studentOpt.isPresent()) {
-                studentName = studentOpt.get().getName();
-            }
-            Result<Void> result = sysStudentService.deleteStudent(id);
-            if (result.getCode() == 200) {
-                successCount++;
-            } else {
-                failCount++;
-                failedNames.add(studentName);
-            }
-        }
-        if (failCount > 0) {
-            String failedMsg = String.join("，", failedNames);
-            String detailMsg = "批量删除完成。成功 " + successCount + " 个，跳过 " + failCount
-                    + " 个存在绑定账户的学生。未能删除的学生：[" + failedMsg + "]";
-            return Result.success("操作完成，部分成功", detailMsg);
-        }
-        return Result.success("批量删除成功", "批量删除成功");
+    public Result<String> batchDeleteStudents(@RequestBody Map<String, List<String>> params) {
+        return sysStudentService.batchDeleteStudents(params.get("ids"));
     }
 }

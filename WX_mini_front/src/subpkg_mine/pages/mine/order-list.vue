@@ -2,9 +2,6 @@
   <view class="order-list-container">
     <wd-toast id="wd-toast" />
     
-    <!-- 顶部背景渐变 -->
-    <view class="header-bg"></view>
-
     <view class="header">
       <view class="tabs-wrap">
         <view 
@@ -186,18 +183,6 @@ onMounted(() => {
 .order-list-container {
   min-height: 100vh;
   background-color: #f7f8fa;
-  position: relative;
-}
-
-.header-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 300rpx;
-  background: linear-gradient(135deg, #d4f9f2 0%, #eef5ff 100%);
-  opacity: 0.6;
-  z-index: 0;
 }
 
 .header {

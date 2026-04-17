@@ -2,9 +2,6 @@
   <view class="course-list-container">
     <wd-toast id="wd-toast" />
     
-    <!-- 顶部背景渐变 -->
-    <view class="header-bg"></view>
-
     <view class="course-list" v-if="courses.length > 0">
       <view v-for="item in courses" :key="item.id" class="course-card" @click="goToDetail(item.id)">
         <view class="card-inner">
@@ -126,20 +123,8 @@ const goToResource = () => {
 .course-list-container {
   min-height: 100vh;
   background-color: #f7f8fa;
-  position: relative;
   padding: 20rpx 30rpx;
   box-sizing: border-box;
-}
-
-.header-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 300rpx;
-  background: linear-gradient(135deg, #d4f9f2 0%, #eef5ff 100%);
-  opacity: 0.6;
-  z-index: 0;
 }
 
 .course-list {
