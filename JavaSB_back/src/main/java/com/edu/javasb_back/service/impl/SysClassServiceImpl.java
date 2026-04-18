@@ -3,7 +3,15 @@ package com.edu.javasb_back.service.impl;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.SysClass;
 import com.edu.javasb_back.model.dto.ClassImportDTO;
+import com.edu.javasb_back.model.entity.StudentParentBinding;
+import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.model.entity.SysStudent;
+import com.edu.javasb_back.repository.ExamResultRepository;
+import com.edu.javasb_back.repository.ExamStudentScoreRepository;
+import com.edu.javasb_back.repository.StudentParentBindingRepository;
+import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysClassRepository;
+import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.service.SysClassService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -17,6 +25,8 @@ import org.springframework.util.StringUtils;
 
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,6 +38,18 @@ public class SysClassServiceImpl implements SysClassService {
 
     @Autowired
     private com.edu.javasb_back.repository.SysStudentRepository sysStudentRepository;
+
+    @Autowired
+    private StudentParentBindingRepository bindingRepository;
+
+    @Autowired
+    private SysAccountRepository sysAccountRepository;
+
+    @Autowired
+    private ExamResultRepository examResultRepository;
+
+    @Autowired
+    private ExamStudentScoreRepository examStudentScoreRepository;
 
     @Override
     public Page<SysClass> getClasses(int page, int size, String classid, String grade, String schoolId) {
@@ -86,16 +108,69 @@ public class SysClassServiceImpl implements SysClassService {
     }
 
     @Override
-    public void deleteClass(Long id) {
+    @Transactional
+    public void deleteClass(Long id, boolean cascade) {
         SysClass sysClass = sysClassRepository.findById(id).orElse(null);
-        if (sysClass != null && sysClass.getClassid() != null) {
-            java.util.List<com.edu.javasb_back.model.entity.SysStudent> students = sysStudentRepository.findBySchoolIdAndGradeAndClassName(
-                    sysClass.getSchoolId(), sysClass.getGrade(), sysClass.getAlias());
-            if (students != null && !students.isEmpty()) {
+        if (sysClass != null) {
+            List<SysStudent> students = getClassStudents(sysClass);
+            if (!cascade && !students.isEmpty()) {
                 throw new RuntimeException("删除失败：当前班级下存在已绑定的学生，请先解绑或删除关联学生");
+            }
+            if (cascade) {
+                deleteStudentsCascade(students);
             }
         }
         sysClassRepository.deleteById(id);
+    }
+
+    private List<SysStudent> getClassStudents(SysClass sysClass) {
+        LinkedHashMap<String, SysStudent> studentMap = new LinkedHashMap<>();
+
+        if (StringUtils.hasText(sysClass.getClassid())) {
+            for (SysStudent student : sysStudentRepository.findByClassId(sysClass.getClassid())) {
+                studentMap.put(student.getId(), student);
+            }
+        }
+
+        for (SysStudent student : sysStudentRepository.findBySchoolIdAndGradeAndClassName(
+                sysClass.getSchoolId(), sysClass.getGrade(), sysClass.getAlias())) {
+            studentMap.put(student.getId(), student);
+        }
+
+        return new ArrayList<>(studentMap.values());
+    }
+
+    private void deleteStudentsCascade(Collection<SysStudent> students) {
+        for (SysStudent student : students) {
+            deleteSingleStudentCascade(student);
+        }
+    }
+
+    private void deleteSingleStudentCascade(SysStudent student) {
+        List<StudentParentBinding> bindings = bindingRepository.findByStudentId(student.getId());
+        if (!bindings.isEmpty()) {
+            for (StudentParentBinding binding : bindings) {
+                sysAccountRepository.findById(binding.getParentUid()).ifPresent(account -> {
+                    account.setIsBoundStudent(0);
+                    sysAccountRepository.save(account);
+                });
+            }
+            bindingRepository.deleteAll(bindings);
+        }
+
+        if (StringUtils.hasText(student.getStudentNo())) {
+            var examResults = examResultRepository.findAllByStudentNo(student.getStudentNo());
+            if (!examResults.isEmpty()) {
+                examResultRepository.deleteAll(examResults);
+            }
+
+            var examScores = examStudentScoreRepository.findByStudentNo(student.getStudentNo());
+            if (!examScores.isEmpty()) {
+                examStudentScoreRepository.deleteAll(examScores);
+            }
+        }
+
+        sysStudentRepository.deleteById(student.getId());
     }
 
     @Override

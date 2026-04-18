@@ -63,30 +63,30 @@
               size="large"
               class="!h-12 w-full"
               plain
-              @click="goPage('PaperManage')"
+              @click="goPage('VipOrderManage')"
             >
-              <template #icon><ArtSvgIcon icon="ri:file-paper-2-line" /></template>
-              试卷管理
+              <template #icon><ArtSvgIcon icon="ri:file-list-3-line" /></template>
+              VIP订单管理
             </el-button>
             <el-button
               type="success"
               size="large"
               class="!h-12 w-full"
               plain
-              @click="goPage('CourseManage')"
+              @click="goPage('CourseOrderManage')"
             >
-              <template #icon><ArtSvgIcon icon="ri:book-open-line" /></template>
-              课程管理
+              <template #icon><ArtSvgIcon icon="ri:book-read-line" /></template>
+              课程订单管理
             </el-button>
             <el-button
               type="warning"
               size="large"
               class="!h-12 w-full"
               plain
-              @click="goPage('StudentProfile')"
+              @click="goPage('PrintOrderManage')"
             >
-              <template #icon><ArtSvgIcon icon="ri:user-add-line" /></template>
-              学生数据
+              <template #icon><ArtSvgIcon icon="ri:printer-line" /></template>
+              打印订单管理
             </el-button>
             <el-button
               type="info"
@@ -96,7 +96,7 @@
               @click="goPage('SchoolOrg')"
             >
               <template #icon><ArtSvgIcon icon="ri:building-line" /></template>
-              学校数据
+              学校档案管理
             </el-button>
           </div>
         </div>

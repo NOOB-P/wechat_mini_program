@@ -35,9 +35,10 @@ export const updateClass = (id: number, data: any) => {
   })
 }
 
-export const deleteClass = (id: number) => {
+export const deleteClass = (id: number, cascade = false) => {
   return api.del<any>({
-    url: `/api/system/class/delete/${id}`
+    url: `/api/system/class/delete/${id}`,
+    params: { cascade }
   })
 }
 

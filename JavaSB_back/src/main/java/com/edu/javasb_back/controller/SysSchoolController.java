@@ -105,8 +105,9 @@ public class SysSchoolController {
 
     @PreAuthorize("hasAuthority('system:school:delete')")
     @DeleteMapping("/delete/{id}")
-    public Result<Void> deleteSchool(@PathVariable Long id) {
-        return sysSchoolService.deleteSchool(id);
+    public Result<Void> deleteSchool(@PathVariable Long id,
+                                     @RequestParam(defaultValue = "false") boolean cascade) {
+        return sysSchoolService.deleteSchool(id, cascade);
     }
 
     @PreAuthorize("hasAuthority('system:school:delete')")

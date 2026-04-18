@@ -7,6 +7,7 @@ import com.edu.javasb_back.model.entity.ExamSubject;
 import com.edu.javasb_back.model.entity.PrintOrder;
 import com.edu.javasb_back.model.entity.StudentParentBinding;
 import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.model.entity.SysNotification;
 import com.edu.javasb_back.model.entity.SysStudent;
 import com.edu.javasb_back.model.entity.VipOrder;
 import com.edu.javasb_back.model.vo.AppNotificationVO;
@@ -17,6 +18,7 @@ import com.edu.javasb_back.repository.ExamSubjectRepository;
 import com.edu.javasb_back.repository.PrintOrderRepository;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
+import com.edu.javasb_back.repository.SysNotificationRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.repository.VipOrderRepository;
 import com.edu.javasb_back.service.AppNotificationService;
@@ -76,6 +78,9 @@ public class AppNotificationServiceImpl implements AppNotificationService {
     @Autowired
     private PrintOrderRepository printOrderRepository;
 
+    @Autowired
+    private SysNotificationRepository sysNotificationRepository;
+
     @Override
     public List<AppNotificationVO> getUserNotifications(Long uid, Integer limit) {
         if (uid == null) {
@@ -95,6 +100,7 @@ public class AppNotificationServiceImpl implements AppNotificationService {
         appendVipNotifications(uid, notifications);
         appendVipExpireNotification(account, notifications);
         appendPrintNotifications(account, notifications);
+        appendSystemNotifications(uid, notifications);
 
         notifications.sort(Comparator.comparing(NotificationWrapper::time, Comparator.nullsLast(Comparator.naturalOrder())).reversed());
 
@@ -102,6 +108,23 @@ public class AppNotificationServiceImpl implements AppNotificationService {
                 .limit(normalizeLimit(limit))
                 .map(NotificationWrapper::payload)
                 .toList();
+    }
+
+    private void appendSystemNotifications(Long uid, List<NotificationWrapper> notifications) {
+        List<SysNotification> sysNotifications = sysNotificationRepository.findPublishedByUid(uid);
+        for (SysNotification sys : sysNotifications) {
+            addNotification(
+                    notifications,
+                    "sys-" + sys.getId(),
+                    sys.getCategory() != null ? sys.getCategory() : "system",
+                    sys.getLevel() != null ? sys.getLevel() : "info",
+                    sys.getTitle(),
+                    sys.getContent(),
+                    sys.getCreateTime() != null ? sys.getCreateTime() : LocalDateTime.now(),
+                    sys.getActionText(),
+                    sys.getActionPath()
+            );
+        }
     }
 
     private void appendScoreNotifications(Long uid, List<NotificationWrapper> notifications) {

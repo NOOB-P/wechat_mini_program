@@ -15,6 +15,15 @@
           <ElSpace wrap>
             <ElButton @click="handleOpenParentImport" v-ripple>家长批量导入</ElButton>
             <ElButton @click="showDialog('add')" v-ripple>新增用户</ElButton>
+            <ElButton
+              v-if="selectedIds.length > 0"
+              type="danger"
+              plain
+              @click="handleBatchDelete"
+              v-ripple
+            >
+              批量删除 ({{ selectedIds.length }})
+            </ElButton>
           </ElSpace>
         </template>
       </ArtTableHeader>
@@ -148,14 +157,14 @@
 <script setup lang="ts">
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { useTable } from '@/hooks/core/useTable'
-  import { fetchGetUserList, fetchDeleteUser, fetchImportParentUsers, fetchDownloadParentTemplate } from '@/api/system/user'
+  import { fetchGetUserList, fetchDeleteUser, fetchImportParentUsers, fetchDownloadParentTemplate, fetchBatchDeleteUser } from '@/api/system/user'
   import defaultAvatar from '@/assets/images/avatar/avatar.webp'
   import UserSearch from './modules/user-search.vue'
   import UserDialog from './modules/user-dialog.vue'
   import { ElTag, ElMessageBox, ElImage, ElMessage } from 'element-plus'
   import { DialogType } from '@/types'
   import { fetchGetRoleList } from '@/api/system/role'
-  import { onMounted } from 'vue'
+  import { onMounted, ref, computed, nextTick, h } from 'vue'
   import { UploadFilled, Loading, Delete, Upload, Document, InfoFilled, Plus } from '@element-plus/icons-vue'
 
   defineOptions({ name: 'User' })
@@ -194,6 +203,7 @@
 
   // 选中行
   const selectedRows = ref<UserListItem[]>([])
+  const selectedIds = computed(() => selectedRows.value.map((row) => row.id as number))
 
   // 搜索表单
   const searchForm = ref({
@@ -436,6 +446,30 @@
         // ...
       }
     }).catch(() => {})
+  }
+
+  /**
+   * 批量删除用户
+   */
+  const handleBatchDelete = (): void => {
+    if (selectedIds.value.length === 0) return
+
+    ElMessageBox.confirm(`确定要删除选中的 ${selectedIds.value.length} 个用户吗？`, '批量删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'error'
+    })
+      .then(async () => {
+        try {
+          await fetchBatchDeleteUser(selectedIds.value)
+          ElMessage.success('批量删除成功')
+          selectedRows.value = [] // 清空选中
+          refreshData()
+        } catch (error) {
+          console.error('批量删除失败:', error)
+        }
+      })
+      .catch(() => {})
   }
 
   /**

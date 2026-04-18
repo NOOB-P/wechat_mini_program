@@ -96,13 +96,23 @@ const currentTab = ref('VIP')
 const selectedPlanIndex = ref(0)
 const vipConfigs = ref<any[]>([])
 const urlType = ref('')
+const redirectSource = ref('')
 const redirecting = ref(false)
 
 const redirectAfterSuccess = () => {
   setTimeout(() => {
-    uni.switchTab({
-      url: '/pages/home/index'
-    })
+    if (redirectSource.value === 'score') {
+      uni.navigateBack({
+        delta: 1,
+        success: () => {
+          // 返回后会自动触发 onShow，重新获取 VIP 状态并刷新数据
+        }
+      })
+    } else {
+      uni.switchTab({
+        url: '/pages/home/index'
+      })
+    }
   }, 1200)
 }
 
@@ -110,6 +120,9 @@ onLoad((options) => {
   uni.setNavigationBarTitle({ title: '会员充值' })
   if (options?.type) {
     urlType.value = String(options.type).toUpperCase()
+  }
+  if (options?.redirect) {
+    redirectSource.value = options.redirect
   }
 })
 

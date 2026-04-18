@@ -8,13 +8,20 @@
     @close="handleClose"
   >
     <div class="subject-select-container">
-      <el-input
-        v-model="searchKeyword"
-        placeholder="搜索学科名称"
-        prefix-icon="Search"
-        clearable
-        class="mb-4"
-      />
+      <div class="search-bar-wrap">
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索或输入自定义学科名称"
+          prefix-icon="Search"
+          clearable
+          class="subject-search-input"
+          @keyup.enter="handleAddCustom"
+        >
+          <template #append>
+            <el-button @click="handleAddCustom">添加</el-button>
+          </template>
+        </el-input>
+      </div>
       
       <div class="subject-header">
         <span>可选学科</span>
@@ -69,8 +76,12 @@
   })
 
   const filteredSubjects = computed(() => {
-    if (!searchKeyword.value) return props.subjects
-    return props.subjects.filter(s => s.toLowerCase().includes(searchKeyword.value.toLowerCase()))
+    // 所有的候选科目 = 预定义科目 + 已选中的自定义科目
+    const customSelected = localSelected.value.filter(s => !props.subjects.includes(s))
+    const allCandidates = [...props.subjects, ...customSelected]
+    
+    if (!searchKeyword.value) return allCandidates
+    return allCandidates.filter(s => s.toLowerCase().includes(searchKeyword.value.toLowerCase()))
   })
 
   function toggleSubject(subject: string) {
@@ -80,6 +91,15 @@
     } else {
       localSelected.value.push(subject)
     }
+  }
+
+  function handleAddCustom() {
+    const name = searchKeyword.value.trim()
+    if (!name) return
+    if (!localSelected.value.includes(name)) {
+      localSelected.value.push(name)
+    }
+    searchKeyword.value = ''
   }
 
   function handleClose() {
@@ -95,6 +115,10 @@
 <style scoped lang="scss">
   .subject-select-container {
     padding: 10px 0;
+  }
+
+  .search-bar-wrap {
+    margin-bottom: 20px;
   }
 
   .subject-header {
@@ -117,7 +141,7 @@
 
   .subject-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 12px;
   }
 
@@ -125,12 +149,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 14px;
+    padding: 8px 10px;
     border: 1px solid #dcdfe6;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s;
-    font-size: 14px;
+    font-size: 13px;
 
     &:hover {
       border-color: #409eff;
@@ -143,9 +167,5 @@
       color: #409eff;
       font-weight: 600;
     }
-  }
-
-  .mb-4 {
-    margin-bottom: 16px;
   }
 </style>

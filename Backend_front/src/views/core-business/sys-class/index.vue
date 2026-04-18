@@ -78,7 +78,9 @@
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleEnterClass(row)">进入</el-button>
             <el-button type="primary" link size="small" @click="handleEditClass(row)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="handleDeleteClass(row)">删除</el-button>
+            <el-button type="danger" link size="small" @click="handleDeleteClass(row)">
+              {{ isClassDeleteArmed(row) ? '确认删除' : '删除' }}
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -309,6 +311,7 @@ const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const pendingClassDeleteId = ref<number | null>(null)
 
 const dialogVisible = ref(false)
 const dialogType = ref<'add' | 'edit'>('add')
@@ -354,6 +357,12 @@ const rules = reactive<FormRules>({
   grade: [{ required: true, message: '请输入年级', trigger: 'blur' }]
 })
 
+const isClassDeleteArmed = (row: any) => pendingClassDeleteId.value === row.id
+
+const clearPendingClassDelete = () => {
+  pendingClassDeleteId.value = null
+}
+
 const fetchList = async () => {
   loading.value = true
   try {
@@ -378,16 +387,19 @@ const fetchList = async () => {
   } catch (error: any) {
     ElMessage.error(error.message || '获取列表失败')
   } finally {
+    clearPendingClassDelete()
     loading.value = false
   }
 }
 
 const handleSearch = () => {
+  clearPendingClassDelete()
   page.value = 1
   fetchList()
 }
 
 const resetSearch = () => {
+  clearPendingClassDelete()
   searchForm.classid = ''
   searchForm.grade = ''
   handleSearch()
@@ -447,17 +459,38 @@ const handleEnterClass = (row: any) => {
 }
 
 const handleDeleteClass = (row: any) => {
-  ElMessageBox.confirm('确认删除该班级吗？', '提示', {
-    type: 'warning'
-  }).then(async () => {
+  if (!row?.id) {
+    ElMessage.warning('无法获取班级ID')
+    return
+  }
+
+  if (!isClassDeleteArmed(row)) {
+    ElMessageBox.confirm(
+      '确认后不会立即删除。删除班级会一并删除该班级下的学生数据。如果确认需要删除，请先点击“确认”，然后再回到列表点击一次“删除”即可执行级联删除。',
+      '删除班级提醒',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+        closeOnClickModal: false
+      }
+    ).then(() => {
+      pendingClassDeleteId.value = row.id
+      ElMessage.warning(`已确认删除风险，如需继续删除班级“${row.grade}${row.alias}”，请再次点击当前行“删除”按钮。`)
+    }).catch(() => {})
+    return
+  }
+
+  clearPendingClassDelete()
+  ;(async () => {
     try {
-      await deleteClass(row.id)
+      await deleteClass(row.id, true)
       ElMessage.success('删除成功')
       fetchList()
     } catch (error: any) {
       ElMessage.error(error.message || '删除失败')
     }
-  })
+  })()
 }
 
 const handleSubmit = async () => {

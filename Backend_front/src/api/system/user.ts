@@ -21,7 +21,9 @@ export function fetchAddUser(data: any) {
       phone: data.userPhone,
       email: data.email,
       roleId: data.userType,
-      password: data.password
+      password: data.password,
+      isVip: data.isVip,
+      isSvip: data.isSvip
     }
   })
 }
@@ -35,7 +37,9 @@ export function fetchEditUser(id: number, data: any) {
       phone: data.userPhone,
       email: data.email,
       roleId: data.userType,
-      password: data.password
+      password: data.password,
+      isVip: data.isVip,
+      isSvip: data.isSvip
     }
   })
 }
@@ -44,6 +48,14 @@ export function fetchEditUser(id: number, data: any) {
 export function fetchDeleteUser(id: number) {
   return api.del<any>({
     url: `/api/system/user/delete/${id}`
+  })
+}
+
+/** 批量删除用户 */
+export function fetchBatchDeleteUser(uids: number[]) {
+  return api.post<any>({
+    url: '/api/system/user/batch-delete',
+    data: { uids }
   })
 }
 

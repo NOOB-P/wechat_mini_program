@@ -15,37 +15,39 @@ export function fetchGetRoleOptions() {
   })
 }
 /** 新增角色 */
-export function fetchAddRole(params: any) {
-  return Promise.resolve({
-    code: 200,
-    msg: '新增成功',
-    data: null
+export function fetchAddRole(data: any) {
+  return api.post<any>({
+    url: '/api/system/role/save',
+    data
   })
 }
 
 /** 更新角色 */
-export function fetchUpdateRole(params: any) {
-  return Promise.resolve({
-    code: 200,
-    msg: '更新成功',
-    data: null
+export function fetchUpdateRole(id: number, data: any) {
+  return api.put<any>({
+    url: `/api/system/role/edit/${id}`,
+    data
   })
 }
 
 /** 删除角色 */
 export function fetchDeleteRole(id: number) {
-  return Promise.resolve({
-    code: 200,
-    msg: '删除成功',
-    data: null
+  return api.del<any>({
+    url: `/api/system/role/${id}`
+  })
+}
+
+/** 获取角色的权限标识列表 */
+export function fetchGetRolePermissions(roleId: number) {
+  return api.get<string[]>({
+    url: `/api/system/role/permissions/${roleId}`
   })
 }
 
 /** 分配权限 */
-export function fetchAssignPermissions(roleId: number, menuIds: number[]) {
-  return Promise.resolve({
-    code: 200,
-    msg: '分配成功',
-    data: null
+export function fetchAssignPermissions(roleId: number, permissionCodes: string[]) {
+  return api.post<any>({
+    url: `/api/system/role/permissions/${roleId}`,
+    data: permissionCodes
   })
 }

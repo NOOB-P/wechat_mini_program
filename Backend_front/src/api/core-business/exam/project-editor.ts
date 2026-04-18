@@ -1,6 +1,9 @@
 import api from '@/utils/http'
 import { normalizeQuestionNo } from '@/utils/exam-utils'
 
+const PAPER_UPLOAD_TIMEOUT = 120000
+const PAPER_OCR_TIMEOUT = 180000
+
 export interface ProjectStudentItem {
   id: string
   studentNo: string
@@ -92,6 +95,19 @@ export interface PaperRegionItem {
   y: number
   width: number
   height: number
+}
+
+export interface PaperOcrAutoCutResult {
+  projectId: string
+  subjectName: string
+  type: 'template' | 'original'
+  paperUrl: string
+  requestId: string
+  ocrSubject: string
+  imageType: string
+  cutType: string
+  recognizedCount: number
+  regions: PaperRegionItem[]
 }
 
 export function normalizePaperRegion(
@@ -275,7 +291,9 @@ export function fetchUploadPublicPaper(params: {
   return api.post<string>({
     url: '/api/system/exam-project/papers/upload-public',
     data: formData,
-    showSuccessMessage: true,
+    timeout: PAPER_UPLOAD_TIMEOUT,
+    showErrorMessage: false,
+    showSuccessMessage: false,
     headers: {
       'Content-Type': 'multipart/form-data'
     }
@@ -294,7 +312,8 @@ export function fetchPaperConfig(params: { projectId: string; subjectName: strin
       originalRegions: PaperRegionItem[]
     }>({
       url: '/api/system/exam-project/papers/config',
-      params
+      params,
+      showErrorMessage: false
     })
     .then((res) => ({
       ...res,
@@ -316,4 +335,23 @@ export function fetchSavePaperLayout(params: {
       regions: normalizePaperRegions(params.regions)
     }
   })
+}
+
+export function fetchAutoCutPaperLayout(params: {
+  projectId: string
+  subjectName: string
+  type: 'template' | 'original'
+  imageType?: string
+}) {
+  return api
+    .post<PaperOcrAutoCutResult>({
+      url: '/api/system/exam-project/papers/layout/ocr-auto',
+      data: params,
+      timeout: PAPER_OCR_TIMEOUT,
+      showErrorMessage: false
+    })
+    .then((res) => ({
+      ...res,
+      regions: normalizePaperRegions(res.regions)
+    }))
 }

@@ -208,46 +208,13 @@
 
         <!-- 错题推送区域（原有 AI 自习室 / 学习建议） -->
         <view v-if="currentMainTab === 'wrong_push'">
-          <view class="tab-content svip-content locked-content">
-            <!-- 权限判断遮罩 -->
-            <view class="svip-lock" v-if="!isSVIPUser">
-              <view class="lock-icon-wrapper svip-badge">
-                <text class="vip-badge-text">SVIP</text>
-              </view>
-              <view class="lock-text">此专区为 SVIP 专属功能</view>
-              <wd-button custom-class="upgrade-btn" @click="goToRecharge('SVIP')">立即升级 SVIP</wd-button>
-            </view>
-            
-            <view v-else>
-              <!-- AI 自习室 -->
-              <view class="card svip-card">
-                <view class="card-title"><wd-icon name="time" class="icon" /> AI 智能自习室</view>
-                <view class="desc">智能辅导 / 专注训练 / 计划管理</view>
-                <view class="room-info">
-                  <view class="status">
-                    <view class="dot"></view> 当前开放中 (08:00 - 23:00)
-                  </view>
-                  <wd-button type="primary" block size="small" @click="joinRoom">一键报名进入自习室</wd-button>
-                </view>
-              </view>
-
-              <!-- AI 学习建议 -->
-              <view class="card svip-card">
-                <view class="card-title"><wd-icon name="chart-pie" class="icon" /> AI 专属学习建议</view>
-                <view class="desc">基于你的近期表现动态生成</view>
-                <view class="ai-suggestion-box">
-                  <view class="s-item">
-                    <text class="s-title">📅 每日学习安排</text>
-                    <text class="s-txt">建议每天 19:00-20:00 攻克数学函数错题，20:00-20:30 进行英语听力磨耳朵。</text>
-                  </view>
-                  <view class="s-item">
-                    <text class="s-title">📚 资源智能推荐</text>
-                    <text class="s-txt">检测到物理运动学模块薄弱，已为您匹配《高一物理必刷题-运动学专练》。</text>
-                    <text class="link">点击直接查看 >></text>
-                  </view>
-                </view>
-              </view>
-            </view>
+          <view class="tab-content svip-content">
+            <AiReportPanel
+              :loading="aiReportLoading"
+              :has-access="isSVIPUser"
+              :report-data="aiReportData"
+              @upgrade="goToRecharge('SVIP')"
+            />
           </view>
         </view>
       </view> <!-- analysis-container 闭合 -->
@@ -329,9 +296,10 @@
 import { ref, computed, watch } from 'vue'
 import { onShow, onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { getStudentScoresApi, getSemesterListApi } from '@/subpkg_analysis/api/score'
+import { getStudentScoresApi, getSemesterListApi, getAiExamReportApi } from '@/subpkg_analysis/api/score'
 import { getVipWrongBookApi, submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
 import { getUserInfoApi } from '@/api/mine'
+import AiReportPanel from '@/subpkg_analysis/components/AiReportPanel.vue'
 
 const toast = useToast()
 const scoreData = ref<any>(null)
@@ -390,6 +358,9 @@ const getMasteryColor = (val: number) => {
 
 const analysisData = ref<any>(null)
 const wrongBookData = ref<any[]>([])
+const aiReportLoading = ref(false)
+const aiReportData = ref<any>(null)
+const aiReportExamId = ref('')
 
 const showPrintDialog = ref(false)
 const printForm = ref({
@@ -556,6 +527,9 @@ const loadInitData = async () => {
 const loadData = async (semesterVal: string, examIdVal: string) => {
   try {
     uni.showLoading({ title: '加载中...', mask: true })
+    aiReportData.value = null
+    aiReportExamId.value = ''
+    aiReportLoading.value = false
     
     // VIP 权限已在 onShow 中通过 checkVipStatus 更新
 
@@ -588,14 +562,42 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
     }
 
     uni.hideLoading()
+    tryLoadAiReport()
   } catch (error: any) {
     uni.hideLoading()
     uni.showToast({ title: error.msg || '网络错误', icon: 'none' })
   }
 }
 
+const loadAiReport = async (examId: string) => {
+  if (!examId || aiReportLoading.value || aiReportExamId.value === examId) return
+  aiReportLoading.value = true
+  try {
+    const res = await getAiExamReportApi({ examId })
+    if (res.code === 200) {
+      aiReportData.value = res.data
+      aiReportExamId.value = examId
+    } else {
+      aiReportData.value = null
+      uni.showToast({ title: res.msg || 'AI报告获取失败', icon: 'none' })
+    }
+  } catch (error: any) {
+    aiReportData.value = null
+    uni.showToast({ title: error.msg || 'AI报告获取失败', icon: 'none' })
+  } finally {
+    aiReportLoading.value = false
+  }
+}
+
+const tryLoadAiReport = () => {
+  const examId = scoreData.value?.examId || pickerValue.value?.[1]
+  if (currentMainTab.value === 'wrong_push' && isSVIPUser.value && examId) {
+    loadAiReport(examId)
+  }
+}
+
 const goToRecharge = (type: string = 'VIP') => {
-  uni.navigateTo({ url: `/subpkg_course/pages/vip/recharge?type=${type}` })
+  uni.navigateTo({ url: `/subpkg_course/pages/vip/recharge?type=${type}&redirect=score` })
 }
 
 const handleExport = () => {
@@ -623,13 +625,6 @@ const submitPrint = async () => {
   }
 }
 
-const joinRoom = () => {
-  toast.loading('正在为您分配座位...')
-  setTimeout(() => {
-    toast.success('报名成功，即将进入自习室')
-  }, 1500)
-}
-
 onLoad(async (options: any) => {
   if (options && options.phone) {
     userPhone.value = options.phone
@@ -639,10 +634,27 @@ onLoad(async (options: any) => {
   loadInitData()
 })
 
-onShow(() => {
+onShow(async () => {
   // 每次进入页面可以再次刷新状态，但 onLoad 里的那次保证了首次加载逻辑正确
-  checkVipStatus()
+  const oldVip = isVIPUser.value
+  const oldSvip = isSVIPUser.value
+  
+  await checkVipStatus()
+  
+  // 如果权限发生了变化（开通了会员），则重新加载当前选中的考试数据
+  if ((isVIPUser.value && !oldVip) || (isSVIPUser.value && !oldSvip)) {
+    if (pickerValue.value[0] && pickerValue.value[1]) {
+      loadData(pickerValue.value[0], pickerValue.value[1])
+    }
+  }
 })
+
+watch(
+  () => [currentMainTab.value, isSVIPUser.value, scoreData.value?.examId],
+  () => {
+    tryLoadAiReport()
+  }
+)
 </script>
 
 <style lang="scss" scoped>
@@ -1397,8 +1409,7 @@ onShow(() => {
   .d-action { margin-top: 40rpx; }
 }
 
-// 错题推送 (SVIP专区) 样式
-.svip-content {
+.tab-content, .svip-content {
   position: relative;
   min-height: 650rpx;
 }

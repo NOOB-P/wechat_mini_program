@@ -179,6 +179,96 @@
 | size | number | 每页条数 |
 | pages | number | 总页数 |
 
+## 9.1 获取试卷配置
+
+- 方法：`GET`
+- 地址：`/api/system/exam-project/papers/config`
+- 请求参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| projectId | string | 是 | 项目ID |
+| subjectName | string | 是 | 学科名称 |
+
+- `data` 返回字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| templateUrl | string/null | 样板答题卡图片地址 |
+| originalUrl | string/null | 原卷图片地址 |
+| templateRegions | array | 样板答题卡框选区域 |
+| originalRegions | array | 原卷框选区域 |
+
+## 9.2 保存试卷框选布局
+
+- 方法：`POST`
+- 地址：`/api/system/exam-project/papers/layout/save`
+- 请求体：
+
+```json
+{
+  "projectId": "EP202604180001",
+  "subjectName": "数学",
+  "type": "original",
+  "regions": [
+    {
+      "id": "PR202604180001",
+      "questionNo": "第1题",
+      "questionType": "选择题",
+      "knowledgePoint": "",
+      "score": 5,
+      "remark": "",
+      "sortOrder": 1,
+      "x": 0.12,
+      "y": 0.08,
+      "width": 0.32,
+      "height": 0.11
+    }
+  ]
+}
+```
+
+- 说明：
+
+- `type` 仅支持 `template` 或 `original`
+- 坐标采用相对比例，取值范围 `0 ~ 1`
+
+## 9.3 OCR 自动切割试卷
+
+- 方法：`POST`
+- 地址：`/api/system/exam-project/papers/layout/ocr-auto`
+- 请求体：
+
+```json
+{
+  "projectId": "EP202604180001",
+  "subjectName": "数学",
+  "type": "original",
+  "imageType": "scan"
+}
+```
+
+- 说明：
+
+- 后端会读取当前项目学科下已上传的样板答题卡或原卷图片，调用阿里云 `RecognizeEduPaperCut` 试卷切题接口
+- 成功后会直接覆盖保存当前 `type` 对应的框选结果
+- `imageType` 可选，未传时走后端全局配置，默认 `scan`
+
+- `data` 返回字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| projectId | string | 项目ID |
+| subjectName | string | 学科名称 |
+| type | string | 切割目标：`template` / `original` |
+| paperUrl | string | 当前识别试卷地址 |
+| requestId | string | 阿里云 OCR 请求ID |
+| ocrSubject | string | 实际传给 OCR 的学科编码 |
+| imageType | string | 实际识别图片类型 |
+| cutType | string | OCR 切割类型 |
+| recognizedCount | number | 成功识别的题目区域数量 |
+| regions | array | 标准化后的框选区域 |
+
 ## 10. 获取分析项目列表
 
 - 方法：`GET`
@@ -218,6 +308,33 @@
 | 参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | projectId | string | 是 | 项目ID |
+
+## 14. 小程序获取考试 AI 成绩报告
+
+- 方法：`GET`
+- 地址：`/api/app/score/ai-report`
+- 请求参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| examId | string | 是 | 考试项目ID |
+
+- 说明：
+
+- 首次调用时，后端会基于当前学生在该考试项目下的总分、各科分数、小题分、项目/学校/年级/班级对比数据调用 `qwen3.6-plus` 生成报告
+- 同一学生在同一考试项目下的报告仅生成一次，后续直接读取缓存
+- AI 报告只返回强势点、薄弱点和错题定向推送，不返回学习计划、课程推荐、自习室等内容
+
+- `data` 返回字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| cached | boolean | 是否命中缓存 |
+| model | string | 实际使用的模型名 |
+| generatedAt | string | 报告生成时间 |
+| summary | object | 总体评价、强势点、薄弱点、重点关注 |
+| subjectInsights | array | 各学科洞察 |
+| wrongQuestionPushes | array | AI 错题定向推送列表 |
 | classId | string | 是 | 考试班级ID |
 
 ## 14. 获取学生分析报告
@@ -244,3 +361,44 @@
 | classId | string | 是 | 考试班级ID |
 | studentNo | string | 是 | 学号 |
 | subjectName | string | 是 | 科目名称 |
+
+# 系统通知管理接口
+
+## 1. 获取通知列表
+
+- 方法：`GET`
+- 地址：`/api/admin/notifications/list`
+- 请求参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| title | string | 否 | 通知标题模糊搜索 |
+
+- `data` 返回字段：`Array<Notification>`
+
+## 2. 保存通知 (新增/修改)
+
+- 方法：`POST`
+- 地址：`/api/admin/notifications/save`
+- 请求体：
+
+```json
+{
+  "id": 1, 
+  "title": "系统维护通知",
+  "content": "我们将于凌晨2点进行系统维护...",
+  "category": "system",
+  "level": "info",
+  "targetType": 0,
+  "targetUid": null,
+  "actionText": "查看详情",
+  "actionPath": "/pages/index/index",
+  "isPublished": 1
+}
+```
+
+## 3. 删除通知
+
+- 方法：`DELETE`
+- 地址：`/api/admin/notifications/{id}`
+

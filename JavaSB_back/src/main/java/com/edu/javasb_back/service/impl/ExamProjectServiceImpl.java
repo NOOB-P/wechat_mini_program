@@ -4,6 +4,7 @@ import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
 import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
+import com.edu.javasb_back.model.dto.PaperOcrAutoCutDTO;
 import com.edu.javasb_back.model.entity.ExamClass;
 import com.edu.javasb_back.model.entity.ExamProject;
 import com.edu.javasb_back.model.entity.ExamStudentScore;
@@ -19,6 +20,7 @@ import com.edu.javasb_back.repository.SysClassRepository;
 import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.service.ExamProjectService;
+import com.edu.javasb_back.service.support.AliyunPaperOcrService;
 import com.github.junrar.Archive;
 import com.github.junrar.exception.UnsupportedRarEncryptedException;
 import com.github.junrar.exception.UnsupportedRarV5Exception;
@@ -85,8 +87,15 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     private static final Set<String> STUDENT_NO_HEADERS = Set.of("学号", "考号", "准考证号", "学生学号", "studentno", "student_no", "studentid", "student_id");
     private static final Set<String> STUDENT_NAME_HEADERS = Set.of("姓名", "学生姓名", "name", "studentname", "student_name");
     private static final List<String> SUBJECT_OPTIONS = Arrays.asList(
-            "语文", "数学", "英语", "物理", "化学", "生物", "政治", "历史", "地理",
-            "信息技术", "体育", "科学", "通用技术", "音乐", "美术"
+            "语文", "小学语文", "初中语文",
+            "数学", "小学数学", "初中数学",
+            "英语", "小学英语", "初中英语",
+            "物理", "初中物理",
+            "化学", "初中化学",
+            "生物", "初中生物",
+            "历史", "初中历史",
+            "地理", "初中地理",
+            "政治", "初中政治"
     );
     private static final Pattern QUESTION_NUMBER_PATTERN = Pattern.compile("(\\d+)");
 
@@ -99,6 +108,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     @Autowired private SysStudentRepository sysStudentRepository;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private GlobalConfigProperties globalConfigProperties;
+    @Autowired private AliyunPaperOcrService aliyunPaperOcrService;
 
     @Override
     public Result<Map<String, Object>> getProjectList(int current, int size, String name) {
@@ -1532,6 +1542,80 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         project.setPaperLayouts(jsonMap(paperLayouts));
         examProjectRepository.saveAndFlush(project);
         return Result.success("保存成功", null);
+    }
+
+    @Override
+    @Transactional
+    public Result<Map<String, Object>> autoCutPaperLayoutByOcr(PaperOcrAutoCutDTO dto) {
+        if (dto == null || !StringUtils.hasText(dto.getProjectId())) return Result.error("项目ID不能为空");
+        if (!StringUtils.hasText(dto.getSubjectName())) return Result.error("学科名称不能为空");
+        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType())) {
+            return Result.error("布局类型错误，仅支持 template 或 original");
+        }
+
+        ExamProject project = examProjectRepository.findById(dto.getProjectId()).orElse(null);
+        if (project == null) return Result.error("项目不存在");
+
+        List<ExamSubject> subjectRows = findProjectSubjectsByName(dto.getProjectId(), dto.getSubjectName());
+        if (subjectRows.isEmpty()) {
+            return Result.error("项目中无学科数据: " + dto.getSubjectName());
+        }
+
+        ExamSubject subject = subjectRows.get(0);
+        String paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
+        String normalizedPaperUrl = normalizeStoredPaperPreviewUrl(paperUrl);
+        if (!StringUtils.hasText(normalizedPaperUrl)) {
+            return Result.error("当前试卷未上传，无法执行 AI 自动切割");
+        }
+
+        Path paperPath = resolvePaperPath(normalizedPaperUrl);
+        if (paperPath == null || !Files.exists(paperPath)) {
+            return Result.error("试卷文件不存在，请重新上传后再试");
+        }
+
+        try {
+            AliyunPaperOcrService.SegmentResult ocrResult =
+                    aliyunPaperOcrService.segmentPaper(paperPath, dto.getSubjectName(), dto.getImageType());
+            List<Map<String, Object>> regions = regionList(ocrResult.getRegions());
+            if (regions.isEmpty()) {
+                return Result.error("OCR 未识别出可切割的题目区域");
+            }
+
+            Map<String, Object> paperLayouts = new LinkedHashMap<>(map(project.getPaperLayouts()));
+            Map<String, Object> subjectLayout = new LinkedHashMap<>(nestedMap(paperLayouts.get(dto.getSubjectName())));
+            subjectLayout.put(dto.getType(), regions);
+            paperLayouts.put(dto.getSubjectName(), subjectLayout);
+            project.setPaperLayouts(jsonMap(paperLayouts));
+            examProjectRepository.saveAndFlush(project);
+
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("projectId", dto.getProjectId());
+            data.put("subjectName", dto.getSubjectName());
+            data.put("type", dto.getType());
+            data.put("paperUrl", normalizedPaperUrl);
+            data.put("requestId", ocrResult.getRequestId());
+            data.put("ocrSubject", ocrResult.getOcrSubject());
+            data.put("imageType", ocrResult.getImageType());
+            data.put("cutType", ocrResult.getCutType());
+            data.put("recognizedCount", regions.size());
+            data.put("regions", regions);
+            return Result.success("AI 自动切割完成", data);
+        } catch (IllegalArgumentException ex) {
+            return Result.error(ex.getMessage());
+        } catch (Exception ex) {
+            return Result.error("AI 自动切割失败: " + ex.getMessage());
+        }
+    }
+
+    private List<ExamSubject> findProjectSubjectsByName(String projectId, String subjectName) {
+        List<ExamClass> examClasses = examClassRepository.findByProjectIdOrderBySchoolAscGradeAscClassNameAsc(projectId);
+        if (examClasses.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> examClassIds = examClasses.stream().map(ExamClass::getId).toList();
+        return examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(examClassIds).stream()
+                .filter(item -> subjectName.equals(item.getSubjectName()))
+                .toList();
     }
 
     private String storePublicPaperFile(InputStream inputStream, String projectId, String subjectName, String type, String originalFilename) throws Exception {

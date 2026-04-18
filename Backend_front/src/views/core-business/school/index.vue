@@ -125,7 +125,9 @@
                 <template #default="{ row }">
                   <el-button type="primary" link size="small" @click="handleEnterSchool(row)">进入</el-button>
                   <el-button type="primary" link size="small" @click="handleEditSchool(row)">编辑</el-button>
-                  <el-button type="danger" link size="small" @click="handleDeleteSchool(row)">删除</el-button>
+                  <el-button type="danger" link size="small" @click="handleDeleteSchool(row)">
+                    {{ isSchoolDeleteArmed(row) ? '确认删除' : '删除' }}
+                  </el-button>
                 </template>
               </el-table-column>
             </el-table>
@@ -313,9 +315,18 @@ const defaultProps = {
 
 const selectedIds = ref<number[]>([])
 const isBatchDeleting = ref(false)
+const pendingSchoolDeleteId = ref<string | number | null>(null)
 
 const handleSelectionChange = (selection: any[]) => {
   selectedIds.value = selection.map(item => item.id)
+}
+
+const getSchoolDeleteId = (data: any) => data.id || data.schoolId
+
+const isSchoolDeleteArmed = (data: any) => pendingSchoolDeleteId.value === getSchoolDeleteId(data)
+
+const clearPendingSchoolDelete = () => {
+  pendingSchoolDeleteId.value = null
 }
 
 const handleBatchDelete = () => {
@@ -490,6 +501,7 @@ const filterNode = (value: any, data: any, node: any) => {
 }
 
 const handleSearch = () => {
+  clearPendingSchoolDelete()
   if (viewType.value === 'tree') {
     treeRef.value?.filter(searchForm.value)
   } else {
@@ -498,6 +510,7 @@ const handleSearch = () => {
 }
 
 const resetSearch = () => {
+  clearPendingSchoolDelete()
   searchForm.value = {
     keyword: '',
     province: '',
@@ -660,6 +673,7 @@ const loadData = async (forceRefetchAll = false) => {
   } catch (error) {
     console.error('获取数据失败:', error)
   } finally {
+    clearPendingSchoolDelete()
     loading.value = false
   }
 }
@@ -757,21 +771,40 @@ const handleEditSchool = (data: any) => {
 }
 
 const handleDeleteSchool = (data: any) => {
-  ElMessageBox.confirm(`确定要删除 ${data.name} 吗？`, '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(async () => {
+  const deleteId = getSchoolDeleteId(data)
+  if (!deleteId) {
+    ElMessage.warning('无法获取学校ID')
+    return
+  }
+
+  if (!isSchoolDeleteArmed(data)) {
+    ElMessageBox.confirm(
+      '确认后不会立即删除。删除学校会一并删除该学校下的班级和学生数据。如果确认需要删除，请先点击“确认”，然后再回到列表点击一次“删除”即可执行级联删除。',
+      '删除学校提醒',
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+        closeOnClickModal: false
+      }
+    ).then(() => {
+      pendingSchoolDeleteId.value = deleteId
+      ElMessage.warning(`已确认删除风险，如需继续删除学校“${data.name}”，请再次点击当前行“删除”按钮。`)
+    }).catch(() => {})
+    return
+  }
+
+  clearPendingSchoolDelete()
+  ;(async () => {
     try {
-      const deleteId = data.id || data.schoolId
-      await fetchDeleteSchool(deleteId)
+      await fetchDeleteSchool(deleteId, true)
       ElMessage.success('删除成功')
       loadData(true)
     } catch (error) {
       console.error('删除失败:', error)
       ElMessage.error('删除失败')
     }
-  })
+  })()
 }
 
 const submitForm = async () => {

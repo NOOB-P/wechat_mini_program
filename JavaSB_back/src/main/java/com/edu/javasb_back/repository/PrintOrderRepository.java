@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 打印订单仓库
@@ -18,6 +19,8 @@ import java.util.List;
 public interface PrintOrderRepository extends JpaRepository<PrintOrder, Long> {
     List<PrintOrder> findByUserPhoneOrderByCreateTimeDesc(String userPhone);
     List<PrintOrder> findByUserNameOrderByCreateTimeDesc(String userName);
+    Optional<PrintOrder> findByOrderNo(String orderNo);
+    List<PrintOrder> findTop5ByOrderByCreateTimeDesc();
     
     /**
      * 根据订单号、用户名、订单状态分页查询

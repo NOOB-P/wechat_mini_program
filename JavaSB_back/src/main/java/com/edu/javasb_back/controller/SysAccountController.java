@@ -115,10 +115,11 @@ public class SysAccountController {
         return sysAccountService.editAccount(getCurrentUid(), uid, updateData);
     }
 
-    @LogOperation("删除账户")
+    @LogOperation("批量删除账户")
     @PreAuthorize("hasAuthority('system:user:delete')")
-    @DeleteMapping("/delete/{uid}")
-    public Result<Void> deleteAccount(@PathVariable Long uid) {
-        return sysAccountService.deleteAccount(getCurrentUid(), uid);
+    @PostMapping("/batch-delete")
+    public Result<Void> batchDelete(@RequestBody Map<String, java.util.List<Long>> body) {
+        java.util.List<Long> uids = body.get("uids");
+        return sysAccountService.batchDeleteAccounts(getCurrentUid(), uids);
     }
 }

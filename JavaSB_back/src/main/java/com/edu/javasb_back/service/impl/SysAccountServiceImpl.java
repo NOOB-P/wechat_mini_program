@@ -50,6 +50,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
+import java.util.*;
+
 @Service
 public class SysAccountServiceImpl implements SysAccountService {
 
@@ -623,6 +626,21 @@ public class SysAccountServiceImpl implements SysAccountService {
 
         String rawPassword = StringUtils.hasText(account.getPassword()) ? account.getPassword() : "123456";
         account.setPassword(passwordEncoder.encode(rawPassword));
+
+        if (Objects.equals(account.getIsSvip(), 1)) {
+            account.setIsVip(1);
+            if (account.getSvipExpireTime() == null) {
+                account.setSvipExpireTime(LocalDateTime.now().plusYears(99));
+            }
+            if (account.getVipExpireTime() == null) {
+                account.setVipExpireTime(LocalDateTime.now().plusYears(99));
+            }
+        } else if (Objects.equals(account.getIsVip(), 1)) {
+            if (account.getVipExpireTime() == null) {
+                account.setVipExpireTime(LocalDateTime.now().plusYears(99));
+            }
+        }
+
         accountRepository.save(account);
 
         if (Objects.equals(account.getRoleId(), PARENT_ROLE_ID) && StringUtils.hasText(account.getStudentId())) {
@@ -783,6 +801,28 @@ public class SysAccountServiceImpl implements SysAccountService {
         if (updateData.getRoleId() != null) {
             account.setRoleId(updateData.getRoleId());
         }
+        if (updateData.getIsVip() != null) {
+            account.setIsVip(updateData.getIsVip());
+            if (Objects.equals(updateData.getIsVip(), 0)) {
+                account.setVipExpireTime(null);
+            } else if (account.getVipExpireTime() == null) {
+                account.setVipExpireTime(LocalDateTime.now().plusYears(99));
+            }
+        }
+        if (updateData.getIsSvip() != null) {
+            account.setIsSvip(updateData.getIsSvip());
+            if (Objects.equals(updateData.getIsSvip(), 1)) {
+                account.setIsVip(1);
+                if (account.getSvipExpireTime() == null) {
+                    account.setSvipExpireTime(LocalDateTime.now().plusYears(99));
+                }
+                if (account.getVipExpireTime() == null) {
+                    account.setVipExpireTime(LocalDateTime.now().plusYears(99));
+                }
+            } else {
+                account.setSvipExpireTime(null);
+            }
+        }
         if (StringUtils.hasText(updateData.getPassword())) {
             account.setPassword(passwordEncoder.encode(updateData.getPassword()));
         }
@@ -829,6 +869,24 @@ public class SysAccountServiceImpl implements SysAccountService {
         }
         accountRepository.deleteById(uid);
         return Result.success("删除成功", null);
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> batchDeleteAccounts(Long currentUid, List<Long> uids) {
+        if (uids == null || uids.isEmpty()) {
+            return Result.error("UID列表不能为空");
+        }
+
+        for (Long uid : uids) {
+            Result<Void> result = deleteAccount(currentUid, uid);
+            if (result.getCode() != 200) {
+                // 如果其中一个删除失败（例如权限不足），抛出异常以回滚事务
+                throw new RuntimeException("批量删除失败: " + result.getMsg());
+            }
+        }
+
+        return Result.success("批量删除成功", null);
     }
 
     private Result<SysAccount> requireAdmin(Long currentUid) {

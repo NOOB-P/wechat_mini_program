@@ -48,7 +48,7 @@ public interface SysAccountService {
 
     Result<Map<String, Object>> importParents(Long currentUid, MultipartFile file);
 
-    Result<Void> editAccount(Long currentUid, Long uid, SysAccount updateData);
-
-    Result<Void> deleteAccount(Long currentUid, Long uid);
+    Result<Void> editAccount(Long operatorUid, Long uid, SysAccount updateData);
+    Result<Void> deleteAccount(Long operatorUid, Long uid);
+    Result<Void> batchDeleteAccounts(Long operatorUid, java.util.List<Long> uids);
 }

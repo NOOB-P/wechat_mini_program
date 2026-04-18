@@ -4,6 +4,7 @@ import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
 import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
+import com.edu.javasb_back.model.dto.PaperOcrAutoCutDTO;
 import com.edu.javasb_back.service.ExamProjectService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -167,6 +168,12 @@ public class ExamProjectController {
     @PostMapping("/papers/layout/save")
     public Result<Void> savePaperLayout(@RequestBody PaperLayoutSaveDTO dto) {
         return examProjectService.savePaperLayout(dto);
+    }
+
+    @LogOperation("OCR 自动切割试卷")
+    @PostMapping("/papers/layout/ocr-auto")
+    public Result<Map<String, Object>> autoCutPaperLayoutByOcr(@RequestBody PaperOcrAutoCutDTO dto) {
+        return examProjectService.autoCutPaperLayoutByOcr(dto);
     }
 
     @LogOperation("保存单个学生成绩")
