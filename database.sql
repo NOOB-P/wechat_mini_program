@@ -622,11 +622,17 @@ INSERT INTO `sys_role_menu` (`role_id`, `permission_code`) VALUES
 (1, 'system:user:import'),
 (1, 'system:user:template'),
 (1, 'system:role:list'),
+(1, 'system:role:save'),
+(1, 'system:role:update'),
+(1, 'system:role:delete'),
 (1, 'system:permission:list'),
 (1, 'system:permission:edit'),
 (1, 'system:permission:options'),
 (1, 'system:log:list'),
 (1, 'system:log:delete'),
+(1, 'system:notification:list'),
+(1, 'system:notification:save'),
+(1, 'system:notification:delete'),
 (2, 'dashboard:analysis:view'),
 (2, 'system:school:list'),
 (2, 'system:school:add'),
@@ -705,11 +711,17 @@ INSERT INTO `sys_role_menu` (`role_id`, `permission_code`) VALUES
 (2, 'system:user:import'),
 (2, 'system:user:template'),
 (2, 'system:role:list'),
+(2, 'system:role:save'),
+(2, 'system:role:update'),
+(2, 'system:role:delete'),
 (2, 'system:permission:list'),
 (2, 'system:permission:edit'),
 (2, 'system:permission:options'),
 (2, 'system:log:list'),
-(2, 'system:log:delete');
+(2, 'system:log:delete'),
+(2, 'system:notification:list'),
+(2, 'system:notification:save'),
+(2, 'system:notification:delete');
 
 -- 3. 学校结构表数据
 INSERT INTO `schools` (`school_id`, `province`, `city`, `name`, `type`, `status`) VALUES
@@ -922,6 +934,24 @@ INSERT IGNORE INTO `courses` (`id`, `title`, `type`, `status`, `is_recommend`, `
 ('CRS001', '初中数学基础巩固', 'general', 1, 1, 0.00),
 ('CRS002', '中考物理冲刺班', 'general', 1, 1, 99.00),
 ('CRS003', '小学英语启蒙课', 'general', 1, 0, 0.00);
+
+-- 17. 系统通知表
+DROP TABLE IF EXISTS `sys_notifications`;
+CREATE TABLE `sys_notifications` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '通知ID',
+    `title` VARCHAR(200) NOT NULL COMMENT '通知标题',
+    `content` TEXT NOT NULL COMMENT '通知内容',
+    `category` VARCHAR(50) DEFAULT 'system' COMMENT '通知分类 (system, score, course, vip, etc.)',
+    `level` VARCHAR(20) DEFAULT 'info' COMMENT '通知级别 (info, warning, success, error)',
+    `target_type` TINYINT DEFAULT 0 COMMENT '发送目标类型: 0-全部用户, 1-指定用户',
+    `target_uid` BIGINT DEFAULT NULL COMMENT '指定接收用户UID',
+    `action_text` VARCHAR(50) COMMENT '跳转按钮文字',
+    `action_path` VARCHAR(255) COMMENT '跳转路径',
+    `is_published` TINYINT DEFAULT 1 COMMENT '是否发布: 1-已发布, 0-草稿',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX `idx_target_uid` (`target_uid`)
+) ENGINE=InnoDB COMMENT='系统通知公告表';
 
 -- 14. 初始化试卷数据
 INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `tags`, `download_count`, `is_recommend`, `file_path`, `sort_order`) VALUES

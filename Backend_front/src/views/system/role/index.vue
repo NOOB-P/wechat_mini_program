@@ -229,11 +229,9 @@
       type: 'warning'
     })
       .then(async () => {
-        const res = await fetchDeleteRole(row.roleId)
-        if (res.code === 200) {
-          ElMessage.success('删除成功')
-          refreshData()
-        }
+        await fetchDeleteRole(row.id)
+        ElMessage.success('删除成功')
+        refreshData()
       })
       .catch(() => {
         ElMessage.info('已取消删除')

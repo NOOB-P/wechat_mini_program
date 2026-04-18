@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.LocalDateTime;
 
 @Data
@@ -24,7 +23,8 @@ public class SysRole {
     @Column(length = 255)
     private String description;
 
-    private Integer status = 1;
+    @Column(columnDefinition = "TINYINT DEFAULT 1")
+    private Integer status; // 1-启用, 0-禁用
 
     @CreationTimestamp
     @Column(name = "create_time", updatable = false)
@@ -34,25 +34,19 @@ public class SysRole {
     @Column(name = "update_time")
     private LocalDateTime updateTime;
 
-    // 手动添加 Getter 和 Setter 方法，以防 Lombok 失效
+    // Getters and Setters (Required by backend rules)
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
-
     public String getRoleName() { return roleName; }
     public void setRoleName(String roleName) { this.roleName = roleName; }
-
     public String getRoleCode() { return roleCode; }
     public void setRoleCode(String roleCode) { this.roleCode = roleCode; }
-
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-
     public Integer getStatus() { return status; }
     public void setStatus(Integer status) { this.status = status; }
-
     public LocalDateTime getCreateTime() { return createTime; }
     public void setCreateTime(LocalDateTime createTime) { this.createTime = createTime; }
-
     public LocalDateTime getUpdateTime() { return updateTime; }
     public void setUpdateTime(LocalDateTime updateTime) { this.updateTime = updateTime; }
 }

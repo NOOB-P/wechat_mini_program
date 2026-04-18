@@ -174,7 +174,7 @@ public class VipOrderServiceImpl implements VipOrderService {
         Pageable pageable = PageRequest.of(current - 1, size, Sort.by("createTime").descending());
         Page<VipOrder> page = vipOrderRepository.findByFilters(
                 normalizeKeyword(keyword),
-                sourceType,
+                normalizeKeyword(sourceType),
                 paymentStatus,
                 parseStartDateTime(startDate),
                 parseEndDateTime(endDate),

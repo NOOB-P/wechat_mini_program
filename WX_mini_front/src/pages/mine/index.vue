@@ -105,9 +105,17 @@ const getNotificationStorageKey = () => {
   return `mine_notification_last_read_${userInfo.uid || 'guest'}`
 }
 
+const getReadIdsKey = () => {
+  return `mine_notification_read_ids_${userInfo.uid || 'guest'}`
+}
+
 const getLastReadAt = () => {
   const value = Number(uni.getStorageSync(getNotificationStorageKey()) || 0)
   return Number.isNaN(value) ? 0 : value
+}
+
+const getReadIds = () => {
+  return uni.getStorageSync(getReadIdsKey()) || []
 }
 
 const parseTimeToMs = (time?: string) => {
@@ -119,11 +127,14 @@ const parseTimeToMs = (time?: string) => {
 
 const loadNotificationSummary = async () => {
   try {
-    const res = await getMineNotificationsApi(20)
+    const res = await getMineNotificationsApi(50)
     if (res.code === 200) {
       const list = Array.isArray(res.data) ? res.data : []
       const lastReadAt = getLastReadAt()
-      notificationCount.value = list.filter((item: any) => parseTimeToMs(item.time) > lastReadAt).length
+      const readIds = getReadIds()
+      notificationCount.value = list.filter((item: any) => 
+        parseTimeToMs(item.time) > lastReadAt && !readIds.includes(item.id)
+      ).length
     } else {
       notificationCount.value = 0
     }

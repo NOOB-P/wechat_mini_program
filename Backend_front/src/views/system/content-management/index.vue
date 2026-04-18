@@ -24,9 +24,11 @@
         <el-table-column label="已分配权限" min-width="360">
           <template #default="{ row }">
             <div class="flex flex-wrap gap-2">
-              <el-tag v-for="code in row.permissionCodes" :key="code" type="success" effect="plain">
-                {{ getPermissionTitle(code) }}
-              </el-tag>
+              <template v-for="code in row.permissionCodes" :key="code">
+                <el-tag v-if="getPermissionTitle(code) !== code" type="success" effect="plain">
+                  {{ getPermissionTitle(code) }}
+                </el-tag>
+              </template>
             </div>
           </template>
         </el-table-column>

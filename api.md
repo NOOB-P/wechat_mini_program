@@ -244,3 +244,44 @@
 | classId | string | 是 | 考试班级ID |
 | studentNo | string | 是 | 学号 |
 | subjectName | string | 是 | 科目名称 |
+
+# 系统通知管理接口
+
+## 1. 获取通知列表
+
+- 方法：`GET`
+- 地址：`/api/admin/notifications/list`
+- 请求参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| title | string | 否 | 通知标题模糊搜索 |
+
+- `data` 返回字段：`Array<Notification>`
+
+## 2. 保存通知 (新增/修改)
+
+- 方法：`POST`
+- 地址：`/api/admin/notifications/save`
+- 请求体：
+
+```json
+{
+  "id": 1, 
+  "title": "系统维护通知",
+  "content": "我们将于凌晨2点进行系统维护...",
+  "category": "system",
+  "level": "info",
+  "targetType": 0,
+  "targetUid": null,
+  "actionText": "查看详情",
+  "actionPath": "/pages/index/index",
+  "isPublished": 1
+}
+```
+
+## 3. 删除通知
+
+- 方法：`DELETE`
+- 地址：`/api/admin/notifications/{id}`
+
