@@ -16,6 +16,7 @@ import java.util.Optional;
 public interface VipOrderRepository extends JpaRepository<VipOrder, Long> {
     Optional<VipOrder> findByOrderNo(String orderNo);
     List<VipOrder> findByUserUidOrderByCreateTimeDesc(Long userUid);
+    List<VipOrder> findTop5ByOrderByCreateTimeDesc();
 
     @Query("SELECT v FROM VipOrder v WHERE " +
             "(:paymentStatus IS NULL OR v.paymentStatus = :paymentStatus) AND " +

@@ -10,7 +10,10 @@ public interface SysClassService {
     Page<SysClass> getClasses(int page, int size, String classid, String grade, String schoolId);
     Result<SysClass> createClass(SysClass sysClass);
     SysClass updateClass(Long id, SysClass sysClass);
-    void deleteClass(Long id);
+    default void deleteClass(Long id) {
+        deleteClass(id, false);
+    }
+    void deleteClass(Long id, boolean cascade);
     SysClass getClassById(Long id);
     Result<Void> batchAddClasses(String schoolId, String grade, String format, int classStart, int classEnd);
     Result<Void> importClasses(List<ClassImportDTO> list);

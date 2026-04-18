@@ -1,13 +1,11 @@
 package com.edu.javasb_back.service.impl;
 
-import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.model.entity.SysSchool;
-import com.edu.javasb_back.model.vo.SchoolNodeVO;
-import com.edu.javasb_back.repository.SysClassRepository;
-import com.edu.javasb_back.model.entity.SysClass;
-import com.edu.javasb_back.repository.SysSchoolRepository;
-import com.edu.javasb_back.service.SysSchoolService;
-import jakarta.persistence.criteria.Predicate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -15,15 +13,18 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-
-import com.edu.javasb_back.model.dto.SchoolImportDTO;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
+
+import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.model.dto.SchoolImportDTO;
+import com.edu.javasb_back.model.entity.SysClass;
+import com.edu.javasb_back.model.entity.SysSchool;
+import com.edu.javasb_back.model.vo.SchoolNodeVO;
+import com.edu.javasb_back.repository.SysClassRepository;
+import com.edu.javasb_back.repository.SysSchoolRepository;
+import com.edu.javasb_back.service.SysSchoolService;
+
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 public class SysSchoolServiceImpl implements SysSchoolService {
@@ -33,6 +34,9 @@ public class SysSchoolServiceImpl implements SysSchoolService {
 
     @Autowired
     private SysClassRepository sysClassRepository;
+
+    @Autowired
+    private com.edu.javasb_back.repository.SysStudentRepository sysStudentRepository;
 
     @Override
     public Result<List<SchoolNodeVO>> getSchoolTree() {
@@ -141,7 +145,8 @@ public class SysSchoolServiceImpl implements SysSchoolService {
     }
 
     @Override
-    public Result<Void> deleteSchool(Long id) {
+    @Transactional
+    public Result<Void> deleteSchool(Long id, boolean cascade) {
         if (id == null) {
             return Result.error("学校ID不能为空");
         }
@@ -155,7 +160,20 @@ public class SysSchoolServiceImpl implements SysSchoolService {
         if (school.getSchoolId() != null) {
             List<SysClass> classes = sysClassRepository.findBySchoolId(school.getSchoolId());
             if (classes != null && !classes.isEmpty()) {
-                return Result.error("删除失败：当前学校下存在已绑定的班级，请先解绑或删除关联班级");
+                if (!cascade) {
+                    return Result.error("删除失败：当前学校下存在已绑定的班级，请先解绑或删除关联班级");
+                }
+                // 级联删除班级和学生
+                for (SysClass sysClass : classes) {
+                    // 删除该班级下的所有学生
+                    java.util.List<com.edu.javasb_back.model.entity.SysStudent> students = sysStudentRepository.findBySchoolIdAndGradeAndClassName(
+                            sysClass.getSchoolId(), sysClass.getGrade(), sysClass.getAlias());
+                    if (students != null && !students.isEmpty()) {
+                        sysStudentRepository.deleteAll(students);
+                    }
+                    // 删除班级
+                    sysClassRepository.delete(sysClass);
+                }
             }
         }
 

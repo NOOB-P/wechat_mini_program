@@ -55,6 +55,17 @@ export const systemRoutes: AppRouteRecord = {
         roles: ['R_SUPER', 'R_ADMIN'],
         authMark: 'system:permission:list'
       }
+    },
+    {
+      path: 'notification',
+      name: 'Notification',
+      component: '/system/notification',
+      meta: {
+        title: 'menus.system.notification',
+        keepAlive: true,
+        roles: ['R_SUPER', 'R_ADMIN'],
+        authMark: 'system:notification:list'
+      }
     }
     // {
     //   path: 'menu',

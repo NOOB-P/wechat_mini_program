@@ -25,5 +25,9 @@ public interface SysStudentRepository extends JpaRepository<SysStudent, String>,
     @Query("SELECT s FROM SysStudent s WHERE s.schoolId = :schoolId AND s.grade = :grade AND s.className = :className")
     List<SysStudent> findBySchoolIdAndGradeAndClassName(@Param("schoolId") String schoolId, @Param("grade") String grade, @Param("className") String className);
 
+    List<SysStudent> findBySchoolId(String schoolId);
+
+    List<SysStudent> findByClassId(String classId);
+
     List<SysStudent> findByClassIdIn(List<String> classIds);
 }

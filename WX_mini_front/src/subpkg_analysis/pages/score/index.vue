@@ -597,7 +597,7 @@ const tryLoadAiReport = () => {
 }
 
 const goToRecharge = (type: string = 'VIP') => {
-  uni.navigateTo({ url: `/subpkg_course/pages/vip/recharge?type=${type}` })
+  uni.navigateTo({ url: `/subpkg_course/pages/vip/recharge?type=${type}&redirect=score` })
 }
 
 const handleExport = () => {
@@ -634,9 +634,19 @@ onLoad(async (options: any) => {
   loadInitData()
 })
 
-onShow(() => {
+onShow(async () => {
   // 每次进入页面可以再次刷新状态，但 onLoad 里的那次保证了首次加载逻辑正确
-  checkVipStatus()
+  const oldVip = isVIPUser.value
+  const oldSvip = isSVIPUser.value
+  
+  await checkVipStatus()
+  
+  // 如果权限发生了变化（开通了会员），则重新加载当前选中的考试数据
+  if ((isVIPUser.value && !oldVip) || (isSVIPUser.value && !oldSvip)) {
+    if (pickerValue.value[0] && pickerValue.value[1]) {
+      loadData(pickerValue.value[0], pickerValue.value[1])
+    }
+  }
 })
 
 watch(
@@ -1399,8 +1409,7 @@ watch(
   .d-action { margin-top: 40rpx; }
 }
 
-// 错题推送 (SVIP专区) 样式
-.svip-content {
+.tab-content, .svip-content {
   position: relative;
   min-height: 650rpx;
 }

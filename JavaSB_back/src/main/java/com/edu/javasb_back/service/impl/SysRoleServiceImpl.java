@@ -2,19 +2,19 @@ package com.edu.javasb_back.service.impl;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.SysRole;
+import com.edu.javasb_back.model.entity.SysRoleMenu;
+import com.edu.javasb_back.repository.SysRoleMenuRepository;
 import com.edu.javasb_back.repository.SysRoleRepository;
-import com.edu.javasb_back.service.RolePermissionService;
 import com.edu.javasb_back.service.SysRoleService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class SysRoleServiceImpl implements SysRoleService {
@@ -23,65 +23,98 @@ public class SysRoleServiceImpl implements SysRoleService {
     private SysRoleRepository sysRoleRepository;
 
     @Autowired
-    private RolePermissionService rolePermissionService;
+    private SysRoleMenuRepository sysRoleMenuRepository;
 
     @Override
-    public Result<Map<String, Object>> getRoleList(int current, int size, String roleName, String roleCode, Integer status) {
-        Pageable pageable = PageRequest.of(current - 1, size, Sort.by(Sort.Direction.ASC, "id"));
-        Page<SysRole> pageData = sysRoleRepository.findRoles(roleName, roleCode, status, pageable);
+    public List<SysRole> getRoleList(String roleName, String roleCode, Integer status) {
+        SysRole role = new SysRole();
+        role.setRoleName(roleName);
+        role.setRoleCode(roleCode);
+        role.setStatus(status);
 
-        List<Map<String, Object>> records = pageData.getContent().stream().map(this::toRoleItem).toList();
-        Map<String, Object> resultData = new HashMap<>();
-        resultData.put("records", records);
-        resultData.put("total", pageData.getTotalElements());
-        resultData.put("current", current);
-        resultData.put("size", size);
-        return Result.success("获取成功", resultData);
+        ExampleMatcher matcher = ExampleMatcher.matching()
+                .withMatcher("roleName", ExampleMatcher.GenericPropertyMatchers.contains())
+                .withMatcher("roleCode", ExampleMatcher.GenericPropertyMatchers.contains())
+                .withIgnoreNullValues();
+
+        return sysRoleRepository.findAll(Example.of(role, matcher));
     }
 
     @Override
-    public Result<List<Map<String, Object>>> getRoleOptions() {
-        List<Map<String, Object>> options = sysRoleRepository.findAll().stream()
-                .filter(role -> role.getStatus() != null && role.getStatus() == 1)
-                .filter(role -> !"student".equalsIgnoreCase(role.getRoleCode()))
-                .map(role -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("id", role.getId());
-                    map.put("roleName", role.getRoleName());
-                    map.put("roleCode", role.getRoleCode());
-                    return map;
-                })
-                .toList();
-        return Result.success(options);
+    public List<SysRole> getActiveRoles() {
+        return sysRoleRepository.findByStatus(1);
+    }
+
+    @Override
+    public SysRole saveRole(SysRole role) {
+        return sysRoleRepository.save(role);
+    }
+
+    @Override
+    public void deleteRole(Integer id) {
+        sysRoleRepository.deleteById(id);
+    }
+
+    @Override
+    public SysRole getRoleById(Integer id) {
+        return sysRoleRepository.findById(id).orElse(null);
     }
 
     @Override
     public Result<Map<String, Object>> getRolePermissions(int current, int size, String roleName) {
-        Pageable pageable = PageRequest.of(current - 1, size, Sort.by(Sort.Direction.ASC, "id"));
-        Page<SysRole> rolePage = sysRoleRepository.findRoles(roleName, null, null, pageable);
+        Pageable pageable = PageRequest.of(current - 1, size, Sort.by("id").ascending());
+        Page<SysRole> page;
+        if (org.springframework.util.StringUtils.hasText(roleName)) {
+            page = sysRoleRepository.findByRoleNameContaining(roleName, pageable);
+        } else {
+            page = sysRoleRepository.findAll(pageable);
+        }
 
-        List<Map<String, Object>> records = rolePage.getContent().stream().map(role -> {
-            Map<String, Object> map = toRoleItem(role);
-            map.put("permissionCodes", rolePermissionService.getMenuPermissionsByRoleId(role.getId()));
+        List<Map<String, Object>> list = page.getContent().stream().map(role -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", role.getId());
+            map.put("roleName", role.getRoleName());
+            map.put("roleCode", role.getRoleCode());
+            map.put("description", role.getDescription());
+            
+            // 获取权限代码
+            List<String> permissions = sysRoleMenuRepository.findByRoleId(role.getId()).stream()
+                    .map(m -> m.getPermissionCode())
+                    .collect(Collectors.toList());
+            map.put("permissionCodes", permissions);
             return map;
-        }).toList();
+        }).collect(Collectors.toList());
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("records", records);
-        data.put("total", rolePage.getTotalElements());
-        data.put("current", current);
-        data.put("size", size);
-        return Result.success("获取成功", data);
+        Map<String, Object> result = new HashMap<>();
+        result.put("records", list);
+        result.put("total", page.getTotalElements());
+
+        return Result.success("获取成功", result);
     }
 
-    private Map<String, Object> toRoleItem(SysRole role) {
-        Map<String, Object> map = new HashMap<>();
-        map.put("id", role.getId());
-        map.put("roleName", role.getRoleName());
-        map.put("roleCode", role.getRoleCode());
-        map.put("description", role.getDescription());
-        map.put("status", role.getStatus());
-        map.put("createTime", role.getCreateTime() != null ? role.getCreateTime().toString() : "");
-        return map;
+    @Override
+    public List<String> getRolePermissionCodes(Integer roleId) {
+        return sysRoleMenuRepository.findByRoleId(roleId).stream()
+                .map(SysRoleMenu::getPermissionCode)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void saveRolePermissions(Integer roleId, List<String> permissionCodes) {
+        // 先删除旧权限
+        List<SysRoleMenu> oldPermissions = sysRoleMenuRepository.findByRoleId(roleId);
+        sysRoleMenuRepository.deleteAll(oldPermissions);
+
+        // 保存新权限
+        if (permissionCodes != null && !permissionCodes.isEmpty()) {
+            List<SysRoleMenu> newPermissions = permissionCodes.stream().map(code -> {
+                SysRoleMenu menu = new SysRoleMenu();
+                menu.setRoleId(roleId);
+                menu.setPermissionCode(code);
+                return menu;
+            }).collect(Collectors.toList());
+            sysRoleMenuRepository.saveAll(newPermissions);
+        }
     }
 }

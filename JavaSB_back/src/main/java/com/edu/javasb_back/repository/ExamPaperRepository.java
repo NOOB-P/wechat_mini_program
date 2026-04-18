@@ -12,4 +12,5 @@ public interface ExamPaperRepository extends JpaRepository<ExamPaper, Long>, Jpa
     List<ExamPaper> findByIsRecommendTrue();
     List<ExamPaper> findBySubject(String subject);
     List<ExamPaper> findByType(String type);
+    List<ExamPaper> findTop5ByOrderByCreateTimeDesc();
 }

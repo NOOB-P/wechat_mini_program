@@ -4,22 +4,14 @@ import com.edu.javasb_back.model.entity.SysRole;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface SysRoleRepository extends JpaRepository<SysRole, Integer> {
     Optional<SysRole> findByRoleCode(String roleCode);
-
-    @Query("SELECT r FROM SysRole r WHERE " +
-           "(:roleName IS NULL OR r.roleName LIKE %:roleName%) AND " +
-           "(:roleCode IS NULL OR r.roleCode LIKE %:roleCode%) AND " +
-           "(:status IS NULL OR r.status = :status)")
-    Page<SysRole> findRoles(@Param("roleName") String roleName,
-                            @Param("roleCode") String roleCode,
-                            @Param("status") Integer status,
-                            Pageable pageable);
+    List<SysRole> findByRoleNameContaining(String roleName);
+    Page<SysRole> findByRoleNameContaining(String roleName, Pageable pageable);
+    List<SysRole> findByStatus(Integer status);
 }

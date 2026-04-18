@@ -52,6 +52,8 @@ public interface CourseRepository extends JpaRepository<Course, String> {
     @Query(value = "SELECT * FROM courses WHERE id IN (:ids)", nativeQuery = true)
     List<Course> findAllByIdSql(@Param("ids") List<String> ids);
 
+    List<Course> findTop5ByOrderByCreateTimeDesc();
+
     /**
      * 使用 SQL 原生语句查询同步课程的选项 (年级和科目)
      */

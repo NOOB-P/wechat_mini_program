@@ -1,5 +1,6 @@
 package com.edu.javasb_back.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -133,4 +134,13 @@ public interface SysAccountRepository extends JpaRepository<SysAccount, Long> {
                                            @Param("schoolId") String schoolId, 
                                            @Param("classId") String classId, 
                                            Pageable pageable);
+
+    List<SysAccount> findTop5ByOrderByCreateTimeDesc();
+
+    @Query(value = "SELECT DATE_FORMAT(create_time, '%m/%d') as date, COUNT(*) as count " +
+                   "FROM sys_accounts " +
+                   "WHERE create_time >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) " +
+                   "GROUP BY DATE_FORMAT(create_time, '%m/%d') " +
+                   "ORDER BY date ASC", nativeQuery = true)
+    List<Object[]> findRegistrationStats();
 }

@@ -54,9 +54,10 @@ export function fetchUpdateSchool(params: { id: string, province: string, city: 
 }
 
 /** 删除节点 */
-export function fetchDeleteSchool(id: string) {
+export function fetchDeleteSchool(id: string | number, cascade = false) {
   return api.del<any>({
-    url: `/api/system/school/delete/${id}`
+    url: `/api/system/school/delete/${id}`,
+    params: { cascade }
   })
 }
 

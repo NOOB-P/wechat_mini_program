@@ -15,6 +15,7 @@ import java.util.Optional;
 public interface CourseOrderRepository extends JpaRepository<CourseOrder, Long> {
     List<CourseOrder> findByUserUidAndPaymentStatus(Long userUid, Integer paymentStatus);
     List<CourseOrder> findByUserUidOrderByCreateTimeDesc(Long userUid);
+    List<CourseOrder> findTop5ByOrderByCreateTimeDesc();
     Optional<CourseOrder> findByUserUidAndCourseIdAndPaymentStatus(Long userUid, String courseId, Integer paymentStatus);
     boolean existsByUserUidAndCourseIdAndPaymentStatus(Long userUid, String courseId, Integer paymentStatus);
 
