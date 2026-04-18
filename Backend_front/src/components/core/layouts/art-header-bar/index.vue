@@ -44,9 +44,9 @@
         />
 
         <!-- 快速入口 -->
-        <ArtFastEnter v-if="shouldShowFastEnter && width >= headerBarFastEnterMinWidth">
+        <!-- <ArtFastEnter v-if="shouldShowFastEnter && width >= headerBarFastEnterMinWidth">
           <ArtIconButton icon="ri:function-line" class="ml-3" />
-        </ArtFastEnter>
+        </ArtFastEnter> -->
 
         <!-- 面包屑 -->
         <ArtBreadcrumb

@@ -35,9 +35,11 @@ public class AdminPrintOrderController {
             @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) String userName,
             @RequestParam(required = false) Integer status,
-            @RequestParam(required = false) Integer orderStatus) {
+            @RequestParam(required = false) Integer orderStatus,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
         Integer finalStatus = status != null ? status : orderStatus;
-        return printOrderService.findByParams(current, size, orderNo, userName, finalStatus);
+        return printOrderService.findByParams(current, size, orderNo, userName, finalStatus, startDate, endDate);
     }
 
     @LogOperation("后台查询打印订单详情")
@@ -69,9 +71,11 @@ public class AdminPrintOrderController {
             @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) String userName,
             @RequestParam(required = false) Integer status,
-            @RequestParam(required = false) Integer orderStatus) {
+            @RequestParam(required = false) Integer orderStatus,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
         Integer finalStatus = status != null ? status : orderStatus;
-        List<PrintOrder> orders = printOrderService.getPrintOrderExportList(orderNo, userName, finalStatus);
+        List<PrintOrder> orders = printOrderService.getPrintOrderExportList(orderNo, userName, finalStatus, startDate, endDate);
         List<String> headers = List.of("订单号", "用户名", "手机号", "文档名称", "打印规格", "页数", "配送方式", "订单金额", "订单状态", "下单时间", "更新时间");
         List<List<String>> rows = orders.stream()
                 .map(order -> List.of(

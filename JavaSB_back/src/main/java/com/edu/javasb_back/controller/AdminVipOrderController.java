@@ -28,33 +28,38 @@ public class AdminVipOrderController {
     @Autowired
     private VipOrderService vipOrderService;
 
-    @LogOperation("后台查询VIP订单列表")
+    @LogOperation("后台分页查询VIP订单")
     @PreAuthorize("hasAuthority('order:vip:list')")
     @GetMapping("/list")
     public Result<java.util.Map<String, Object>> getVipOrderList(
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String orderNo,
-            @RequestParam(required = false) String userName,
-            @RequestParam(required = false) Integer paymentStatus) {
-        return vipOrderService.getVipOrderList(current, size, orderNo, userName, paymentStatus);
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String sourceType,
+            @RequestParam(required = false) Integer paymentStatus,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        return vipOrderService.getVipOrderList(current, size, keyword, sourceType, paymentStatus, startDate, endDate);
     }
 
     @LogOperation("后台导出VIP订单")
     @PreAuthorize("hasAuthority('order:vip:list')")
     @GetMapping("/export")
     public ResponseEntity<Resource> exportVipOrders(
-            @RequestParam(required = false) String orderNo,
-            @RequestParam(required = false) String userName,
-            @RequestParam(required = false) Integer paymentStatus) {
-        List<VipOrder> orders = vipOrderService.getVipOrderExportList(orderNo, userName, paymentStatus);
-        List<String> headers = List.of("订单号", "用户名", "手机号", "套餐类型", "购买周期", "开通来源", "订单金额", "支付方式", "支付状态", "下单时间", "更新时间");
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String sourceType,
+            @RequestParam(required = false) Integer paymentStatus,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        List<VipOrder> orders = vipOrderService.getVipOrderExportList(keyword, sourceType, paymentStatus, startDate, endDate);
+        List<String> headers = List.of("订单号", "用户名", "手机号", "套餐类型", "开通学校", "购买周期", "开通来源", "订单金额", "支付方式", "支付状态", "下单时间", "更新时间");
         List<List<String>> rows = orders.stream()
                 .map(order -> List.of(
                         valueOf(order.getOrderNo()),
                         valueOf(order.getUserName()),
                         valueOf(order.getUserPhone()),
                         valueOf(order.getPackageType()),
+                        valueOf(order.getSchoolName()),
                         valueOf(order.getPeriod()),
                         resolveSourceType(order.getSourceType()),
                         formatAmount(order.getPrice()),

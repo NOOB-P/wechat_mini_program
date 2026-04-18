@@ -62,7 +62,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/resource/paper/**").permitAll() // 放行试卷管理接口
                 .requestMatchers("/api/app/resource/paper/**").permitAll() // 放行小程序试卷资源接口
                 .requestMatchers("/api/app/course/**").permitAll() // 放行小程序课程相关接口
-                .requestMatchers("/api/app/mine/info").permitAll()
+                .requestMatchers("/api/app/mine/**").permitAll() // 放行小程序个人中心相关接口
                 .requestMatchers("/api/app/order/print/**").permitAll() // 放行小程序打印订单接口
                 .requestMatchers("/api/customer/**").permitAll() // 客服相关接口
                 .requestMatchers("/error").permitAll() // 错误页面

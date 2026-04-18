@@ -2,21 +2,24 @@
   <div class="vip-order-container p-5">
     <div class="search-wrapper bg-white p-5 rounded-lg mb-5 shadow-sm">
       <el-form ref="queryFormRef" :model="queryParams" :inline="true">
-        <el-form-item :label="text.orderNo" prop="orderNo">
+        <el-form-item :label="text.keyword" prop="keyword">
           <el-input
-            v-model="queryParams.orderNo"
-            :placeholder="text.orderNoPlaceholder"
+            v-model="queryParams.keyword"
+            :placeholder="text.keywordPlaceholder"
             clearable
-            style="width: 200px"
+            style="width: 300px"
           />
         </el-form-item>
-        <el-form-item :label="text.userName" prop="userName">
-          <el-input
-            v-model="queryParams.userName"
-            :placeholder="text.userNamePlaceholder"
+        <el-form-item :label="text.sourceType" prop="sourceType">
+          <el-select
+            v-model="queryParams.sourceType"
+            :placeholder="text.sourceType"
             clearable
-            style="width: 200px"
-          />
+            style="width: 150px"
+          >
+            <el-option :label="text.onlinePurchase" value="ONLINE_PURCHASE" />
+            <el-option :label="text.schoolGift" value="SCHOOL_GIFT" />
+          </el-select>
         </el-form-item>
         <el-form-item :label="text.paymentStatus" prop="paymentStatus">
           <el-select
@@ -30,13 +33,23 @@
             <el-option :label="text.refunded" :value="2" />
           </el-select>
         </el-form-item>
-        <el-form-item>
-          <el-button type="primary" icon="Search" @click="handleQuery">{{ text.search }}</el-button>
-          <el-button icon="Refresh" @click="resetQuery">{{ text.reset }}</el-button>
+        <el-form-item :label="text.dateRange" prop="dateRange">
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="width: 260px"
+          />
+        </el-form-item>
+        <el-form-item class="action-buttons">
+          <el-button type="primary" @click="handleQuery">{{ text.search }}</el-button>
+          <el-button @click="resetQuery">{{ text.reset }}</el-button>
           <el-button
             type="success"
             plain
-            icon="Download"
             :loading="exportLoading"
             @click="handleExport"
             >{{ text.export }}</el-button
@@ -48,15 +61,16 @@
     <div class="table-wrapper bg-white p-5 rounded-lg shadow-sm">
       <el-table v-loading="loading" :data="orderList" border stripe style="width: 100%">
         <el-table-column :label="text.orderNo" prop="orderNo" min-width="180" align="center" />
-        <el-table-column :label="text.userInfo" min-width="160">
+        <el-table-column :label="text.userInfo" min-width="160" align="center">
           <template #default="scope">
-            <div class="user-info">
+            <div class="user-info flex flex-col items-center">
               <div class="font-bold">{{ scope.row.userName || '-' }}</div>
               <div class="text-xs text-gray-400">{{ scope.row.userPhone || '-' }}</div>
             </div>
           </template>
         </el-table-column>
         <el-table-column :label="text.packageType" prop="packageType" width="120" align="center" />
+        <el-table-column :label="text.school" prop="schoolName" min-width="150" align="center" />
         <el-table-column :label="text.period" prop="period" width="120" align="center">
           <template #default="scope">
             <el-tag :type="getPeriodTag(scope.row.period)">{{ scope.row.period || '-' }}</el-tag>
@@ -126,6 +140,9 @@
         <el-descriptions-item :label="text.packageType">
           <el-tag size="small">{{ currentOrder.packageType || '-' }}</el-tag>
         </el-descriptions-item>
+        <el-descriptions-item :label="text.school">
+          {{ currentOrder.schoolName || '-' }}
+        </el-descriptions-item>
         <el-descriptions-item :label="text.period">{{
           currentOrder.period || '-'
         }}</el-descriptions-item>
@@ -169,35 +186,37 @@
   type TagType = 'success' | 'info' | 'warning' | 'danger'
 
   const text = {
-    orderNo: '\u8ba2\u5355\u53f7',
-    orderNoPlaceholder: '\u8bf7\u8f93\u5165\u8ba2\u5355\u53f7',
-    userName: '\u7528\u6237\u540d',
-    userNamePlaceholder: '\u8bf7\u8f93\u5165\u7528\u6237\u540d',
-    userInfo: '\u7528\u6237\u4fe1\u606f',
-    userPhone: '\u624b\u673a\u53f7',
-    packageType: '\u5957\u9910\u7c7b\u578b',
-    period: '\u8d2d\u4e70\u5468\u671f',
-    sourceType: '\u5f00\u901a\u6765\u6e90',
-    price: '\u8ba2\u5355\u91d1\u989d',
-    paymentMethod: '\u652f\u4ed8\u65b9\u5f0f',
-    paymentStatus: '\u652f\u4ed8\u72b6\u6001',
-    createTime: '\u4e0b\u5355\u65f6\u95f4',
-    updateTime: '\u66f4\u65b0\u65f6\u95f4',
-    action: '\u64cd\u4f5c',
-    search: '\u67e5\u8be2',
-    reset: '\u91cd\u7f6e',
-    export: '\u5bfc\u51fa',
-    detail: '\u8be6\u60c5',
-    detailTitle: '\u8ba2\u5355\u8be6\u60c5',
-    close: '\u5173\u95ed',
-    pending: '\u5f85\u652f\u4ed8',
-    paid: '\u5df2\u652f\u4ed8',
-    refunded: '\u5df2\u9000\u6b3e',
-    onlinePurchase: '\u5728\u7ebf\u8d2d\u4e70',
-    schoolGift: '\u6821\u8baf\u901a\u8d60\u9001',
-    loadFailed: '\u83b7\u53d6 VIP \u8ba2\u5355\u5217\u8868\u5931\u8d25',
-    exportSuccess: '\u5bfc\u51fa\u6210\u529f',
-    exportFailed: '\u5bfc\u51fa VIP \u8ba2\u5355\u5931\u8d25'
+    keyword: '关键词',
+    keywordPlaceholder: '请输入订单号/用户名/手机号/学校',
+    orderNo: '订单号',
+    userName: '用户名',
+    school: '学校',
+    userInfo: '用户信息',
+    userPhone: '手机号',
+    packageType: '套餐类型',
+    period: '购买周期',
+    sourceType: '开通来源',
+    price: '订单金额',
+    paymentMethod: '支付方式',
+    paymentStatus: '支付状态',
+    dateRange: '下单日期',
+    createTime: '下单时间',
+    updateTime: '更新时间',
+    action: '操作',
+    search: '查询',
+    reset: '重置',
+    export: '导出',
+    detail: '详情',
+    detailTitle: '订单详情',
+    close: '关闭',
+    pending: '待支付',
+    paid: '已支付',
+    refunded: '已退款',
+    onlinePurchase: '在线购买',
+    schoolGift: '校讯通赠送',
+    loadFailed: '获取 VIP 订单列表失败',
+    exportSuccess: '导出成功',
+    exportFailed: '导出 VIP 订单失败'
   }
 
   const moneySymbol = '\uFFE5'
@@ -211,10 +230,14 @@
   const queryParams = reactive({
     current: 1,
     size: 10,
-    orderNo: '',
-    userName: '',
-    paymentStatus: undefined as number | undefined
+    keyword: '',
+    sourceType: '',
+    paymentStatus: undefined as number | undefined,
+    startDate: '',
+    endDate: ''
   })
+
+  const dateRange = ref<[string, string] | []>([])
 
   const sourceMetaMap: Record<string, { label: string; type: TagType }> = {
     ONLINE_PURCHASE: {
@@ -231,9 +254,11 @@
     loading.value = true
     try {
       const res = await fetchVipOrderList(queryParams)
-      const data = (res as any)?.data || res || {}
-      orderList.value = Array.isArray(data.records) ? data.records : []
-      total.value = Number(data.total || 0)
+      if (res) {
+        const data = res.data || res
+        orderList.value = Array.isArray(data.records) ? data.records : []
+        total.value = Number(data.total || 0)
+      }
     } catch (error) {
       console.error('fetch vip orders failed:', error)
       ElMessage.error(text.loadFailed)
@@ -244,13 +269,18 @@
 
   const handleQuery = () => {
     queryParams.current = 1
+    queryParams.startDate = dateRange.value[0] || ''
+    queryParams.endDate = dateRange.value[1] || ''
     getList()
   }
 
   const resetQuery = () => {
-    queryParams.orderNo = ''
-    queryParams.userName = ''
+    queryParams.keyword = ''
+    queryParams.sourceType = ''
     queryParams.paymentStatus = undefined
+    queryParams.startDate = ''
+    queryParams.endDate = ''
+    dateRange.value = []
     handleQuery()
   }
 
@@ -338,3 +368,23 @@
     getList()
   })
 </script>
+
+<style scoped lang="scss">
+  .vip-order-container {
+    .action-buttons {
+      :deep(.el-form-item__content) {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        justify-content: center;
+      }
+
+      :deep(.el-button) {
+        min-width: 88px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  }
+</style>
