@@ -99,7 +99,7 @@
             <!-- VIP 权限判断遮罩 -->
             <view class="vip-lock-mask" v-if="!isVIPUser">
               <view class="lock-icon-wrapper">
-                <image class="lock-img" src="/static/images/vip-lock.png" mode="aspectFit" />
+                <text class="vip-badge-text">VIP</text>
               </view>
               <view class="lock-text">开通 VIP 解锁深度分析</view>
               <wd-button custom-class="upgrade-btn" @click="goToRecharge('VIP')">立即开通 VIP</wd-button>
@@ -145,11 +145,11 @@
 
         <!-- 错题集区域 -->
         <view v-if="currentMainTab === 'wrong_book'">
-          <view class="tab-content" style="position: relative; min-height: 600rpx;">
+          <view class="tab-content locked-content">
             <!-- VIP 权限判断遮罩 -->
             <view class="vip-lock-mask" v-if="!isVIPUser">
               <view class="lock-icon-wrapper">
-                <image class="lock-img" src="/static/images/vip-lock.png" mode="aspectFit" />
+                <text class="vip-badge-text">VIP</text>
               </view>
               <view class="lock-text">开通 VIP 解锁错题集及打印功能</view>
               <wd-button custom-class="upgrade-btn" @click="goToRecharge('VIP')">立即开通 VIP</wd-button>
@@ -208,11 +208,11 @@
 
         <!-- 错题推送区域（原有 AI 自习室 / 学习建议） -->
         <view v-if="currentMainTab === 'wrong_push'">
-          <view class="tab-content svip-content">
+          <view class="tab-content svip-content locked-content">
             <!-- 权限判断遮罩 -->
             <view class="svip-lock" v-if="!isSVIPUser">
-              <view class="lock-icon-wrapper">
-                <image class="lock-img" src="/static/images/svip-lock.png" mode="aspectFit" />
+              <view class="lock-icon-wrapper svip-badge">
+                <text class="vip-badge-text">SVIP</text>
               </view>
               <view class="lock-text">此专区为 SVIP 专属功能</view>
               <wd-button custom-class="upgrade-btn" @click="goToRecharge('SVIP')">立即升级 SVIP</wd-button>
@@ -950,11 +950,12 @@ onShow(() => {
 }
 
 // VIP 区域样式
-.vip-analysis-section {
+.vip-analysis-section, .locked-content {
   position: relative;
   overflow: hidden;
   margin-top: 20rpx;
   margin-bottom: 40rpx;
+  min-height: 650rpx; // 统一高度，防止切换跳动
 }
 
 .vip-tag {
@@ -982,22 +983,40 @@ onShow(() => {
   justify-content: center;
   border-radius: 24rpx;
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
-  min-height: 450rpx;
   
   .lock-icon-wrapper {
-    width: 140rpx;
-    height: 140rpx;
-    background: #fffcf0;
+    width: 160rpx;
+    height: 160rpx;
+    background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 24rpx;
-    box-shadow: 0 4rpx 12rpx rgba(246, 211, 101, 0.2);
+    box-shadow: 0 4rpx 16rpx rgba(246, 211, 101, 0.3);
+    border: 4rpx solid #fff;
 
-    .lock-img {
-      width: 80rpx;
-      height: 80rpx;
+    &.svip-badge {
+      background: linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%);
+      box-shadow: 0 4rpx 16rpx rgba(92, 107, 192, 0.25);
+    }
+
+    .vip-badge-text {
+      font-size: 36rpx;
+      font-weight: 900;
+      background: linear-gradient(135deg, #f6a623 0%, #f7c948 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 2rpx;
+    }
+
+    &.svip-badge .vip-badge-text {
+      background: linear-gradient(135deg, #5c6bc0 0%, #7986cb 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 32rpx;
     }
   }
 
@@ -1012,7 +1031,7 @@ onShow(() => {
   .upgrade-btn {
     width: 320rpx !important;
     height: 88rpx !important;
-    background: #4d80f0 !important;
+    background: linear-gradient(135deg, #4d80f0 0%, #6a9df8 100%) !important;
     color: #ffffff !important;
     border: none !important;
     border-radius: 44rpx !important;
@@ -1381,7 +1400,7 @@ onShow(() => {
 // 错题推送 (SVIP专区) 样式
 .svip-content {
   position: relative;
-  min-height: 600rpx;
+  min-height: 650rpx;
 }
 
 .vip-analysis-section {
@@ -1389,7 +1408,7 @@ onShow(() => {
   overflow: hidden;
   margin-top: 20rpx;
   margin-bottom: 40rpx;
-  min-height: 400rpx;
+  min-height: 650rpx;
   background: #fff;
   border-radius: 24rpx;
 }

@@ -102,8 +102,8 @@ const fastEnterConfig: FastEnterConfig = {
       routeName: 'FaqManage'
     },
     {
-      name: '微信群配置',
-      description: '互动群组二维码管理',
+      name: '企业微信客服',
+      description: '企微客服入口与展示位置管理',
       icon: 'ri:wechat-line',
       iconColor: '#07c160',
       enabled: true,

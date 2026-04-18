@@ -1,6 +1,11 @@
 package com.edu.javasb_back.model.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Data;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -17,8 +22,11 @@ public class WechatConfig {
     @Column(name = "group_name", nullable = false, length = 100)
     private String groupName;
 
-    @Column(name = "qr_code_path", nullable = false, length = 255)
-    private String qrCodePath;
+    @Column(name = "corp_id", nullable = false, length = 100)
+    private String corpId;
+
+    @Column(name = "customer_service_url", nullable = false, length = 500)
+    private String customerServiceUrl;
 
     @Column(nullable = false)
     private Integer status = 1;
@@ -36,8 +44,11 @@ public class WechatConfig {
     public String getGroupName() { return groupName; }
     public void setGroupName(String groupName) { this.groupName = groupName; }
 
-    public String getQrCodePath() { return qrCodePath; }
-    public void setQrCodePath(String qrCodePath) { this.qrCodePath = qrCodePath; }
+    public String getCorpId() { return corpId; }
+    public void setCorpId(String corpId) { this.corpId = corpId; }
+
+    public String getCustomerServiceUrl() { return customerServiceUrl; }
+    public void setCustomerServiceUrl(String customerServiceUrl) { this.customerServiceUrl = customerServiceUrl; }
 
     public Integer getStatus() { return status; }
     public void setStatus(Integer status) { this.status = status; }
