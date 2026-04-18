@@ -57,12 +57,89 @@ public class GlobalConfigProperties {
      */
     private String courseVideoDir = "src/main/resources/uploads/course/video/";
 
+    /**
+     * 通义千问 API Key
+     */
+    private String qwenApiKey;
+
+    /**
+     * 通义千问 Chat Completions 地址
+     */
+    private String qwenChatUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+
+    /**
+     * 通义千问模型名
+     */
+    private String qwenModel = "qwen3.6-plus";
+
+    /**
+     * AI 报告提示词版本
+     */
+    private String qwenPromptVersion = "qwen-score-report-v1";
+
+    /**
+     * 阿里云 OCR AccessKey ID
+     */
+    private String aliyunOcrAccessKeyId;
+
+    /**
+     * 阿里云 OCR AccessKey Secret
+     */
+    private String aliyunOcrAccessKeySecret;
+
+    /**
+     * 阿里云 OCR 接口 Endpoint
+     */
+    private String aliyunOcrEndpoint = "ocr-api.cn-hangzhou.aliyuncs.com";
+
+    /**
+     * 阿里云试卷切题默认学科
+     */
+    private String aliyunOcrSubjectDefault = "default";
+
+    /**
+     * 阿里云试卷切题默认图片类型
+     */
+    private String aliyunOcrImageType = "scan";
+
+    /**
+     * 阿里云试卷切题默认切割类型
+     */
+    private String aliyunOcrCutType = "question";
+
+    /**
+     * 是否返回原图坐标
+     */
+    private Boolean aliyunOcrOutputOriCoord = Boolean.FALSE;
+
     // 手动添加 Getter 和 Setter 方法，以防 Lombok 失效
     public String getCourseCoverDir() { return courseCoverDir; }
     public void setCourseCoverDir(String courseCoverDir) { this.courseCoverDir = courseCoverDir; }
 
     public String getCourseVideoDir() { return courseVideoDir; }
     public void setCourseVideoDir(String courseVideoDir) { this.courseVideoDir = courseVideoDir; }
+    public String getQwenApiKey() { return qwenApiKey; }
+    public void setQwenApiKey(String qwenApiKey) { this.qwenApiKey = qwenApiKey; }
+    public String getQwenChatUrl() { return qwenChatUrl; }
+    public void setQwenChatUrl(String qwenChatUrl) { this.qwenChatUrl = qwenChatUrl; }
+    public String getQwenModel() { return qwenModel; }
+    public void setQwenModel(String qwenModel) { this.qwenModel = qwenModel; }
+    public String getQwenPromptVersion() { return qwenPromptVersion; }
+    public void setQwenPromptVersion(String qwenPromptVersion) { this.qwenPromptVersion = qwenPromptVersion; }
+    public String getAliyunOcrAccessKeyId() { return aliyunOcrAccessKeyId; }
+    public void setAliyunOcrAccessKeyId(String aliyunOcrAccessKeyId) { this.aliyunOcrAccessKeyId = aliyunOcrAccessKeyId; }
+    public String getAliyunOcrAccessKeySecret() { return aliyunOcrAccessKeySecret; }
+    public void setAliyunOcrAccessKeySecret(String aliyunOcrAccessKeySecret) { this.aliyunOcrAccessKeySecret = aliyunOcrAccessKeySecret; }
+    public String getAliyunOcrEndpoint() { return aliyunOcrEndpoint; }
+    public void setAliyunOcrEndpoint(String aliyunOcrEndpoint) { this.aliyunOcrEndpoint = aliyunOcrEndpoint; }
+    public String getAliyunOcrSubjectDefault() { return aliyunOcrSubjectDefault; }
+    public void setAliyunOcrSubjectDefault(String aliyunOcrSubjectDefault) { this.aliyunOcrSubjectDefault = aliyunOcrSubjectDefault; }
+    public String getAliyunOcrImageType() { return aliyunOcrImageType; }
+    public void setAliyunOcrImageType(String aliyunOcrImageType) { this.aliyunOcrImageType = aliyunOcrImageType; }
+    public String getAliyunOcrCutType() { return aliyunOcrCutType; }
+    public void setAliyunOcrCutType(String aliyunOcrCutType) { this.aliyunOcrCutType = aliyunOcrCutType; }
+    public Boolean getAliyunOcrOutputOriCoord() { return aliyunOcrOutputOriCoord; }
+    public void setAliyunOcrOutputOriCoord(Boolean aliyunOcrOutputOriCoord) { this.aliyunOcrOutputOriCoord = aliyunOcrOutputOriCoord; }
     public String getPaperDir() { return paperDir; }
     public void setPaperDir(String paperDir) { this.paperDir = paperDir; }
 

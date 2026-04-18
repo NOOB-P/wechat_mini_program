@@ -78,25 +78,16 @@
                 </el-button>
               </el-tooltip>
 
-              <el-dropdown trigger="hover" @command="handleToolboxCommand">
-                <el-button size="small" class="tool-btn" :disabled="!canUseEditor">
-                  <el-icon><Tools /></el-icon> 工具箱
-                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="panMode">移动试卷</el-dropdown-item>
-                    <el-dropdown-item command="drawMode">创建选框</el-dropdown-item>
-                    <el-dropdown-item command="adjustMode">编辑选框</el-dropdown-item>
-                    <el-dropdown-item command="editRegion">题目属性</el-dropdown-item>
-                    <el-dropdown-item command="deleteRegion">删除框选</el-dropdown-item>
-                    <el-dropdown-item divided command="zoomIn">放大试卷</el-dropdown-item>
-                    <el-dropdown-item command="zoomOut">缩小试卷</el-dropdown-item>
-                    <el-dropdown-item command="fitView">铺满视图</el-dropdown-item>
-                    <el-dropdown-item command="resetView">恢复原始比例</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+              <el-button
+                size="small"
+                type="primary"
+                plain
+                :loading="ocrLoading"
+                :disabled="!canUseEditor"
+                @click="handleAutoCut"
+              >
+                AI自动切割
+              </el-button>
 
               <div class="zoom-indicator" v-if="regionEditorRef?.scale">
                 {{ Math.round(regionEditorRef.scale * 100) }}%
@@ -325,18 +316,11 @@
 
 <script setup lang="ts">
   import { computed, ref, onMounted, watch } from 'vue'
-  import {
-    UploadFilled,
-    Back,
-    ArrowLeft,
-    Search,
-    Tools,
-    ArrowDown,
-    InfoFilled
-  } from '@element-plus/icons-vue'
-  import { ElMessage } from 'element-plus'
+  import { UploadFilled, Back, ArrowLeft, Search, InfoFilled } from '@element-plus/icons-vue'
+  import { ElMessage, ElMessageBox } from 'element-plus'
   import PaperRegionEditor from './PaperRegionEditor.vue'
   import {
+    fetchAutoCutPaperLayout,
     fetchSavePaperLayout,
     fetchProjectScoreList,
     fetchUploadStudentAnswerSheet,
@@ -360,7 +344,10 @@
   const studentList = ref<any[]>([])
   const selectedStudent = ref<any>(null)
   const loading = ref(false)
+  const ocrLoading = ref(false)
   const regionEditorRef = ref<any>(null)
+  const PAPER_RESULT_CONFIRM_INTERVAL = 2000
+  const PAPER_RESULT_CONFIRM_ATTEMPTS = 15
 
   // 搜索和分页
   const searchKeyword = ref('')
@@ -381,12 +368,124 @@
       showIntegratedToolbar.value && hasFile(activeTab.value) && !isPdf(getFileUrl(activeTab.value))
   )
 
+  type PaperTab = 'template' | 'original'
+  type PaperConfigState = {
+    templateUrl: string | null
+    originalUrl: string | null
+    templateRegions: PaperRegionItem[]
+    originalRegions: PaperRegionItem[]
+  }
+
+  function syncPaperConfig(config: PaperConfigState) {
+    paperConfig.value = {
+      templateUrl: config.templateUrl || null,
+      originalUrl: config.originalUrl || null,
+      templateRegions: normalizePaperRegions(config.templateRegions),
+      originalRegions: normalizePaperRegions(config.originalRegions)
+    }
+    return paperConfig.value
+  }
+
+  function getPaperUrlByType(config: PaperConfigState, type: PaperTab) {
+    return type === 'template' ? config.templateUrl || '' : config.originalUrl || ''
+  }
+
+  function getPaperRegionsByType(config: PaperConfigState, type: PaperTab) {
+    return type === 'template' ? config.templateRegions : config.originalRegions
+  }
+
+  function updatePaperUrl(type: PaperTab, url: string | null) {
+    if (type === 'template') {
+      paperConfig.value.templateUrl = url
+      return
+    }
+    paperConfig.value.originalUrl = url
+  }
+
+  function getRegionSignature(regions: PaperRegionItem[]) {
+    return JSON.stringify(normalizePaperRegions(regions))
+  }
+
+  function shouldConfirmPaperResult(error: any) {
+    const message = String(error?.message || '').toLowerCase()
+    return ['网络', '连接异常', 'timeout', '超时', 'gateway'].some((keyword) =>
+      message.includes(keyword.toLowerCase())
+    )
+  }
+
+  function getErrorMessage(error: any, fallback: string) {
+    return String(error?.message || fallback)
+  }
+
+  function wait(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
   function handleToolboxCommand(command: string) {
     regionEditorRef.value?.handleToolboxCommand(command)
   }
 
   function handleSaveRegions() {
     regionEditorRef.value?.save()
+  }
+
+  async function handleAutoCut() {
+    if (!canUseEditor.value) {
+      ElMessage.warning('请先上传图片格式试卷后再执行 AI 自动切割')
+      return
+    }
+
+    const currentType = activeTab.value as PaperTab
+    const currentRegions = getRegions(currentType)
+    const previousSignature = getRegionSignature(currentRegions)
+    if (currentRegions.length > 0) {
+      try {
+        await ElMessageBox.confirm(
+          'AI 自动切割会覆盖当前试卷已有的框选结果，是否继续？',
+          '覆盖确认',
+          {
+            type: 'warning',
+            confirmButtonText: '继续切割',
+            cancelButtonText: '取消'
+          }
+        )
+      } catch {
+        return
+      }
+    }
+
+    ocrLoading.value = true
+    try {
+      const res = await fetchAutoCutPaperLayout({
+        projectId: props.projectId,
+        subjectName: props.subjectName,
+        type: currentType
+      })
+      handleRegionsChange(currentType, res.regions)
+      await refreshConfigSilently()
+      regionEditorRef.value?.handleToolboxCommand('adjustMode')
+      ElMessage.success(`AI 自动切割完成，已识别 ${res.recognizedCount} 个题目区域`)
+      emit('saved')
+    } catch (e: any) {
+      console.error(e)
+      if (shouldConfirmPaperResult(e)) {
+        ElMessage.info('AI 切割响应较慢，正在确认后台切割结果...')
+        const confirmedConfig = await confirmAutoCutResult(currentType, previousSignature)
+        if (confirmedConfig) {
+          const confirmedRegions = getPaperRegionsByType(confirmedConfig, currentType)
+          handleRegionsChange(currentType, confirmedRegions)
+          regionEditorRef.value?.handleToolboxCommand('adjustMode')
+          ElMessage.success(`AI 自动切割已完成，已识别 ${confirmedRegions.length} 个题目区域`)
+          emit('saved')
+          return
+        }
+        ElMessage.error('AI 自动切割请求超时，暂未确认最终结果，请稍后刷新查看')
+        return
+      }
+      ElMessage.error(getErrorMessage(e, 'AI 自动切割失败'))
+    } finally {
+      ocrLoading.value = false
+    }
   }
 
   const studentSplitLabel = computed(() =>
@@ -413,22 +512,69 @@
     loadStudents()
   })
 
-  async function loadConfig() {
+  async function loadConfig(options: { silent?: boolean } = {}) {
     try {
       const res = await fetchPaperConfig({
         projectId: props.projectId,
         subjectName: props.subjectName
       })
-      paperConfig.value = {
+      return syncPaperConfig({
         templateUrl: res.templateUrl || null,
         originalUrl: res.originalUrl || null,
-        templateRegions: normalizePaperRegions(res.templateRegions),
-        originalRegions: normalizePaperRegions(res.originalRegions)
-      }
+        templateRegions: res.templateRegions,
+        originalRegions: res.originalRegions
+      })
     } catch (e: any) {
       console.error(e)
-      ElMessage.error(e.message || '获取试卷配置失败')
+      if (!options.silent) {
+        ElMessage.error(getErrorMessage(e, '获取试卷配置失败'))
+      }
+      throw e
     }
+  }
+
+  async function refreshConfigSilently() {
+    try {
+      return await loadConfig({ silent: true })
+    } catch {
+      return null
+    }
+  }
+
+  async function confirmPaperState(
+    predicate: (config: PaperConfigState) => boolean,
+    options: { initialDelay?: number; attempts?: number; interval?: number } = {}
+  ) {
+    const initialDelay = options.initialDelay ?? 1500
+    const attempts = options.attempts ?? PAPER_RESULT_CONFIRM_ATTEMPTS
+    const interval = options.interval ?? PAPER_RESULT_CONFIRM_INTERVAL
+
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      await wait(attempt === 0 ? initialDelay : interval)
+      const latestConfig = await refreshConfigSilently()
+      if (latestConfig && predicate(latestConfig)) {
+        return latestConfig
+      }
+    }
+    return null
+  }
+
+  async function confirmAutoCutResult(type: PaperTab, previousSignature: string) {
+    return confirmPaperState((config) => {
+      const regions = getPaperRegionsByType(config, type)
+      if (!regions.length) {
+        return false
+      }
+      const currentSignature = getRegionSignature(regions)
+      return !previousSignature || currentSignature !== previousSignature
+    })
+  }
+
+  async function confirmPaperUploadResult(type: PaperTab, previousUrl: string) {
+    return confirmPaperState((config) => {
+      const currentUrl = getPaperUrlByType(config, type)
+      return !!currentUrl && (!previousUrl || currentUrl !== previousUrl)
+    })
   }
 
   async function loadStudents() {
@@ -546,20 +692,34 @@
 
   async function handleFileUpload(type: string, file: any) {
     if (!validatePaperFile(file.raw)) return
+    const currentType = type as PaperTab
+    const previousUrl = getFileUrl(currentType)
     loading.value = true
     try {
-      await fetchUploadPublicPaper({
+      const uploadedUrl = await fetchUploadPublicPaper({
         projectId: props.projectId,
         subjectName: props.subjectName,
-        type: type as 'template' | 'original',
+        type: currentType,
         file: file.raw
       })
+      updatePaperUrl(currentType, uploadedUrl)
+      await refreshConfigSilently()
       ElMessage.success('上传成功')
-      await loadConfig()
       emit('saved')
     } catch (e: any) {
       console.error(e)
-      ElMessage.error(e.message || '上传试卷失败')
+      if (shouldConfirmPaperResult(e)) {
+        ElMessage.info('上传响应较慢，正在确认试卷是否已经处理完成...')
+        const confirmedConfig = await confirmPaperUploadResult(currentType, previousUrl)
+        if (confirmedConfig) {
+          ElMessage.success('试卷上传已完成')
+          emit('saved')
+          return
+        }
+        ElMessage.error('试卷上传请求超时，暂未确认最终结果，请稍后刷新查看')
+        return
+      }
+      ElMessage.error(getErrorMessage(e, '上传试卷失败'))
     } finally {
       loading.value = false
     }

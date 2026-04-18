@@ -2,6 +2,7 @@ package com.edu.javasb_back.controller;
 
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.service.ScoreAiReportService;
 import com.edu.javasb_back.service.ScoreService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -22,6 +23,9 @@ public class AppScoreController {
 
     @Autowired
     private ScoreService scoreService;
+
+    @Autowired
+    private ScoreAiReportService scoreAiReportService;
 
     // 辅助方法：获取当前用户的 UID
     private Long getCurrentUid() {
@@ -95,5 +99,16 @@ public class AppScoreController {
         Long uid = getCurrentUid();
         if (uid == null) return Result.error(401, "请先登录");
         return scoreService.getScoreTrend(uid, examId);
+    }
+
+    /**
+     * 获取考试 AI 成绩报告
+     */
+    @LogOperation("获取考试AI成绩报告")
+    @GetMapping("/ai-report")
+    public Result<Map<String, Object>> getExamAiReport(@RequestParam String examId) {
+        Long uid = getCurrentUid();
+        if (uid == null) return Result.error(401, "请先登录");
+        return scoreAiReportService.getExamAiReport(uid, examId);
     }
 }

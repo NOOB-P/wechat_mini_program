@@ -3,6 +3,7 @@ package com.edu.javasb_back.service;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
 import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
+import com.edu.javasb_back.model.dto.PaperOcrAutoCutDTO;
 import java.util.Map;
 
 public interface ExamProjectService {
@@ -49,6 +50,11 @@ public interface ExamProjectService {
      * 保存试卷框选布局
      */
     Result<Void> savePaperLayout(PaperLayoutSaveDTO dto);
+
+    /**
+     * OCR 自动切割试卷题目区域
+     */
+    Result<Map<String, Object>> autoCutPaperLayoutByOcr(PaperOcrAutoCutDTO dto);
 
     /**
      * 保存单个学生成绩

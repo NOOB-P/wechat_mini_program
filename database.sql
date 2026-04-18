@@ -364,7 +364,26 @@ CREATE TABLE `user_study_records` (
     UNIQUE KEY `uk_user_record` (`user_uid`, `course_id`)
 ) ENGINE=InnoDB COMMENT='学习记录表 (点击立即学习算学习记录)';
 
--- 8. AI 自习室报名表
+-- 8. 学生成绩 AI 报告缓存表
+DROP TABLE IF EXISTS `student_exam_ai_reports`;
+CREATE TABLE `student_exam_ai_reports` (
+    `id` VARCHAR(50) PRIMARY KEY COMMENT 'AI报告ID',
+    `project_id` VARCHAR(50) NOT NULL COMMENT '考试项目ID',
+    `student_no` VARCHAR(50) NOT NULL COMMENT '学生学号',
+    `student_name` VARCHAR(50) DEFAULT NULL COMMENT '学生姓名',
+    `school_id` VARCHAR(50) DEFAULT NULL COMMENT '学校ID',
+    `class_id` VARCHAR(50) DEFAULT NULL COMMENT '考试班级ID',
+    `model_name` VARCHAR(100) DEFAULT NULL COMMENT '模型名称',
+    `prompt_version` VARCHAR(50) DEFAULT NULL COMMENT '提示词版本',
+    `report_content` LONGTEXT COMMENT 'AI报告内容(JSON)',
+    `source_snapshot` LONGTEXT COMMENT '生成报告使用的原始快照(JSON)',
+    `status` VARCHAR(20) DEFAULT 'SUCCESS' COMMENT '状态',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY `uk_student_exam_ai_report` (`project_id`, `student_no`)
+) ENGINE=InnoDB COMMENT='学生考试AI分析报告缓存表';
+
+-- 8.1 AI 自习室报名表
 DROP TABLE IF EXISTS `study_room_enrollments`;
 CREATE TABLE `study_room_enrollments` (
     `id` VARCHAR(50) PRIMARY KEY COMMENT '报名记录ID',

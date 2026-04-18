@@ -57,3 +57,15 @@ export const getScoreTrendApi = (params: any) => {
     data: params
   })
 }
+
+/**
+ * @Description: 获取考试 AI 成绩报告（首次生成后缓存）
+ * @param {object} params 查询参数 (examId)
+ */
+export const getAiExamReportApi = (params: any) => {
+  return request({
+    url: '/api/app/score/ai-report',
+    method: 'GET',
+    data: params
+  })
+}

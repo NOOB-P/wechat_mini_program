@@ -75,26 +75,57 @@ public class ScoreServiceImpl implements ScoreService {
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final Map<String, Double> DEFAULT_FULL_SCORES = new LinkedHashMap<>();
-    private static final List<String> SUBJECT_ORDER = List.of("语文", "数学", "英语", "物理", "化学", "生物", "政治", "历史", "地理");
+    private static final List<String> SUBJECT_ORDER = List.of(
+            "语文", "小学语文", "初中语文",
+            "数学", "小学数学", "初中数学",
+            "英语", "小学英语", "初中英语",
+            "物理", "初中物理",
+            "化学", "初中化学",
+            "生物", "初中生物",
+            "政治", "初中政治",
+            "历史", "初中历史",
+            "地理", "初中地理"
+    );
     private static final Map<String, List<String>> KNOWLEDGE_POINT_MAP = new HashMap<>();
 
     static {
         DEFAULT_FULL_SCORES.put("语文", 150D);
+        DEFAULT_FULL_SCORES.put("小学语文", 100D);
+        DEFAULT_FULL_SCORES.put("初中语文", 120D);
         DEFAULT_FULL_SCORES.put("数学", 150D);
+        DEFAULT_FULL_SCORES.put("小学数学", 100D);
+        DEFAULT_FULL_SCORES.put("初中数学", 120D);
         DEFAULT_FULL_SCORES.put("英语", 150D);
+        DEFAULT_FULL_SCORES.put("小学英语", 100D);
+        DEFAULT_FULL_SCORES.put("初中英语", 120D);
         DEFAULT_FULL_SCORES.put("物理", 100D);
+        DEFAULT_FULL_SCORES.put("初中物理", 100D);
         DEFAULT_FULL_SCORES.put("化学", 100D);
+        DEFAULT_FULL_SCORES.put("初中化学", 100D);
         DEFAULT_FULL_SCORES.put("生物", 100D);
+        DEFAULT_FULL_SCORES.put("初中生物", 100D);
         DEFAULT_FULL_SCORES.put("政治", 100D);
+        DEFAULT_FULL_SCORES.put("初中政治", 100D);
         DEFAULT_FULL_SCORES.put("历史", 100D);
+        DEFAULT_FULL_SCORES.put("初中历史", 100D);
         DEFAULT_FULL_SCORES.put("地理", 100D);
+        DEFAULT_FULL_SCORES.put("初中地理", 100D);
 
         KNOWLEDGE_POINT_MAP.put("数学", List.of("基础运算", "函数理解", "综合应用", "压轴突破"));
+        KNOWLEDGE_POINT_MAP.put("小学数学", List.of("基础运算", "函数理解", "综合应用", "压轴突破"));
+        KNOWLEDGE_POINT_MAP.put("初中数学", List.of("基础运算", "函数理解", "综合应用", "压轴突破"));
         KNOWLEDGE_POINT_MAP.put("语文", List.of("基础积累", "阅读理解", "文言文", "写作表达"));
+        KNOWLEDGE_POINT_MAP.put("小学语文", List.of("基础积累", "阅读理解", "文言文", "写作表达"));
+        KNOWLEDGE_POINT_MAP.put("初中语文", List.of("基础积累", "阅读理解", "文言文", "写作表达"));
         KNOWLEDGE_POINT_MAP.put("英语", List.of("词汇掌握", "语法理解", "阅读分析", "写作表达"));
+        KNOWLEDGE_POINT_MAP.put("小学英语", List.of("词汇掌握", "语法理解", "阅读分析", "写作表达"));
+        KNOWLEDGE_POINT_MAP.put("初中英语", List.of("词汇掌握", "语法理解", "阅读分析", "写作表达"));
         KNOWLEDGE_POINT_MAP.put("物理", List.of("概念掌握", "公式运用", "实验分析", "综合建模"));
+        KNOWLEDGE_POINT_MAP.put("初中物理", List.of("概念掌握", "公式运用", "实验分析", "综合建模"));
         KNOWLEDGE_POINT_MAP.put("化学", List.of("基础概念", "方程推断", "实验探究", "综合应用"));
+        KNOWLEDGE_POINT_MAP.put("初中化学", List.of("基础概念", "方程推断", "实验探究", "综合应用"));
         KNOWLEDGE_POINT_MAP.put("生物", List.of("概念识记", "图表分析", "实验理解", "综合迁移"));
+        KNOWLEDGE_POINT_MAP.put("初中生物", List.of("概念识记", "图表分析", "实验理解", "综合迁移"));
     }
 
     private record ProjectSnapshot(
