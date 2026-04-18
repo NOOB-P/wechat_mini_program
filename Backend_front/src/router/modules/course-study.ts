@@ -29,14 +29,14 @@ export const courseStudyRoutes: AppRouteRecord = {
         authMark: 'course:manage:list'
       }
     },
-    {
-      path: 'study-room',
-      name: 'StudyRoomManage',
-      component: '/course-study/study-room',
-      meta: {
-        title: 'AI 自习室报名',
-        authMark: 'course:manage:list'
-      }
-    }
+    // {
+    //   path: 'study-room',
+    //   name: 'StudyRoomManage',
+    //   component: '/course-study/study-room',
+    //   meta: {
+    //     title: 'AI 自习室报名',
+    //     authMark: 'course:manage:list'
+    //   }
+    // }
   ]
 }

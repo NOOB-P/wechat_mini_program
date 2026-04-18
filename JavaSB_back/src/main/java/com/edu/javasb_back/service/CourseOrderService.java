@@ -30,10 +30,10 @@ public interface CourseOrderService {
     /**
      * 后台：分页查询课程订单
      */
-    com.edu.javasb_back.common.Result<java.util.Map<String, Object>> getCourseOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus);
+    com.edu.javasb_back.common.Result<java.util.Map<String, Object>> getCourseOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus, String startDate, String endDate);
 
     /**
      * 后台：导出课程订单
      */
-    List<Map<String, Object>> getCourseOrderExportList(String orderNo, String userName, Integer paymentStatus);
+    List<Map<String, Object>> getCourseOrderExportList(String orderNo, String userName, Integer paymentStatus, String startDate, String endDate);
 }

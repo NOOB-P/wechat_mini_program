@@ -13,6 +13,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,14 +34,21 @@ public class PrintOrderServiceImpl implements PrintOrderService {
     private SysAccountRepository sysAccountRepository;
 
     @Override
-    public Result<Map<String, Object>> findByParams(int current, int size, String orderNo, String userName, Integer orderStatus) {
+    public Result<Map<String, Object>> findByParams(int current, int size, String orderNo, String userName, Integer orderStatus, String startDate, String endDate) {
         Pageable pageable = PageRequest.of(current - 1, size, Sort.by("createTime").descending());
         
         // 如果传入的参数为空字符串，则转为 null，以便 JpaRepository 的 @Query 能够正确处理
         String orderNoParam = (orderNo != null && !orderNo.trim().isEmpty()) ? orderNo : null;
         String userNameParam = (userName != null && !userName.trim().isEmpty()) ? userName : null;
         
-        Page<PrintOrder> page = printOrderRepository.findByParams(orderNoParam, userNameParam, orderStatus, pageable);
+        Page<PrintOrder> page = printOrderRepository.findByParams(
+                orderNoParam,
+                userNameParam,
+                orderStatus,
+                parseStartDateTime(startDate),
+                parseEndDateTime(endDate),
+                pageable
+        );
         
         Map<String, Object> resultData = new HashMap<>();
         resultData.put("records", page.getContent());
@@ -73,33 +83,53 @@ public class PrintOrderServiceImpl implements PrintOrderService {
     }
 
     @Override
-    public Result<List<PrintOrder>> getMyPrintOrders(Long uid) {
-        if (uid == null) {
-            return Result.error(401, "请先登录");
-        }
-
-        String phone = sysAccountRepository.findById(uid)
-                .map(account -> account.getPhone())
-                .orElse(null);
-        if (phone == null || phone.isBlank()) {
-            return Result.success(List.of());
-        }
-
-        Page<PrintOrder> page = printOrderRepository.findByParams(null, phone, null, PageRequest.of(0, 100, Sort.by("createTime").descending()));
-        return Result.success(page.getContent());
-    }
-
-    
-    public List<PrintOrder> getPrintOrderExportList(String orderNo, String userName, Integer orderStatus) {
+    public List<PrintOrder> getPrintOrderExportList(String orderNo, String userName, Integer orderStatus, String startDate, String endDate) {
         return printOrderRepository.findByParams(
                 normalizeKeyword(orderNo),
                 normalizeKeyword(userName),
                 orderStatus,
+                parseStartDateTime(startDate),
+                parseEndDateTime(endDate),
                 Sort.by(Sort.Direction.DESC, "createTime")
         );
     }
 
+    @Override
+    public Result<List<PrintOrder>> getMyPrintOrders(Long uid) {
+        if (uid == null) {
+            return Result.error("用户未登录");
+        }
+        
+        Optional<com.edu.javasb_back.model.entity.SysAccount> accountOptional = sysAccountRepository.findById(uid);
+        if (accountOptional.isEmpty()) {
+            return Result.error("用户不存在");
+        }
+        
+        String phone = accountOptional.get().getPhone();
+        if (phone == null || phone.isEmpty()) {
+            return Result.success(List.of());
+        }
+        
+        // 假设目前是通过手机号匹配订单
+        List<PrintOrder> orders = printOrderRepository.findByParams(null, phone, null, null, null, Sort.by(Sort.Direction.DESC, "createTime"));
+        return Result.success(orders);
+    }
+
     private String normalizeKeyword(String keyword) {
         return (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+    }
+
+    private LocalDateTime parseStartDateTime(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return LocalDate.parse(value.trim()).atStartOfDay();
+    }
+
+    private LocalDateTime parseEndDateTime(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return LocalDate.parse(value.trim()).atTime(LocalTime.MAX);
     }
 }

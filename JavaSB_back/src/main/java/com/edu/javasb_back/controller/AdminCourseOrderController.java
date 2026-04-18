@@ -34,8 +34,10 @@ public class AdminCourseOrderController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) String userName,
-            @RequestParam(required = false) Integer paymentStatus) {
-        return courseOrderService.getCourseOrderList(current, size, orderNo, userName, paymentStatus);
+            @RequestParam(required = false) Integer paymentStatus,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        return courseOrderService.getCourseOrderList(current, size, orderNo, userName, paymentStatus, startDate, endDate);
     }
 
     @LogOperation("后台导出课程订单")
@@ -44,8 +46,10 @@ public class AdminCourseOrderController {
     public ResponseEntity<Resource> exportCourseOrders(
             @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) String userName,
-            @RequestParam(required = false) Integer paymentStatus) {
-        List<Map<String, Object>> orders = courseOrderService.getCourseOrderExportList(orderNo, userName, paymentStatus);
+            @RequestParam(required = false) Integer paymentStatus,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        List<Map<String, Object>> orders = courseOrderService.getCourseOrderExportList(orderNo, userName, paymentStatus, startDate, endDate);
         List<String> headers = List.of("订单号", "用户名", "手机号", "课程名称", "订单金额", "支付方式", "支付状态", "下单时间", "更新时间");
         List<List<String>> rows = orders.stream()
                 .map(order -> List.of(

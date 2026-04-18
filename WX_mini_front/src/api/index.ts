@@ -31,15 +31,17 @@ export const getHomePublicCoursesApi = () => {
 }
 
 /**
- * @Description: 根据位置获取微信二维码
+ * @Description: 根据位置获取企微客服配置
  */
-export const getWechatQrByLocationApi = (location: string) => {
+export const getWechatCustomerServiceByLocationApi = (location: string) => {
   return request({
     url: '/api/customer/wechat/get-by-location',
     method: 'GET',
     data: { location }
   })
 }
+
+export const getWechatQrByLocationApi = getWechatCustomerServiceByLocationApi
 
 /**
  * @Description: 获取首页推荐课程

@@ -29,13 +29,23 @@
             <el-option label="已支付" :value="1" />
           </el-select>
         </el-form-item>
-        <el-form-item>
-          <el-button type="primary" icon="Search" @click="handleQuery">查询</el-button>
-          <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+        <el-form-item label="下单日期" prop="dateRange">
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="width: 260px"
+          />
+        </el-form-item>
+        <el-form-item class="action-buttons">
+          <el-button type="primary" @click="handleQuery">查询</el-button>
+          <el-button @click="resetQuery">重置</el-button>
           <el-button
             type="success"
             plain
-            icon="Download"
             :loading="exportLoading"
             @click="handleExport"
             >导出</el-button
@@ -47,9 +57,9 @@
     <div class="table-wrapper bg-white p-5 rounded-lg shadow-sm">
       <el-table v-loading="loading" :data="orderList" border stripe style="width: 100%">
         <el-table-column label="订单号" prop="order_no" min-width="180" align="center" />
-        <el-table-column label="用户信息" min-width="150">
+        <el-table-column label="用户信息" min-width="150" align="center">
           <template #default="scope">
-            <div class="user-info">
+            <div class="user-info flex flex-col items-center">
               <div class="font-bold">{{ scope.row.user_name }}</div>
               <div class="text-xs text-gray-400">{{ scope.row.user_phone }}</div>
             </div>
@@ -141,6 +151,7 @@
   const exportLoading = ref(false)
   const orderList = ref<any[]>([])
   const total = ref(0)
+  const dateRange = ref<[string, string] | []>([])
 
   // 详情弹窗相关
   const detailVisible = ref(false)
@@ -151,7 +162,9 @@
     size: 10,
     orderNo: '',
     userName: '',
-    paymentStatus: undefined
+    paymentStatus: undefined,
+    startDate: '',
+    endDate: ''
   })
 
   const getList = async () => {
@@ -172,6 +185,8 @@
 
   const handleQuery = () => {
     queryParams.current = 1
+    queryParams.startDate = dateRange.value[0] || ''
+    queryParams.endDate = dateRange.value[1] || ''
     getList()
   }
 
@@ -179,6 +194,9 @@
     queryParams.orderNo = ''
     queryParams.userName = ''
     queryParams.paymentStatus = undefined
+    queryParams.startDate = ''
+    queryParams.endDate = ''
+    dateRange.value = []
     handleQuery()
   }
 
@@ -249,6 +267,22 @@
   .course-order-container {
     .user-info {
       line-height: 1.2;
+    }
+
+    .action-buttons {
+      :deep(.el-form-item__content) {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        justify-content: center;
+      }
+
+      :deep(.el-button) {
+        min-width: 88px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
     }
   }
 </style>

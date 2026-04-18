@@ -32,13 +32,23 @@
             <el-option label="已取消" :value="0" />
           </el-select>
         </el-form-item>
-        <el-form-item>
-          <el-button type="primary" icon="Search" @click="handleQuery">查询</el-button>
-          <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+        <el-form-item label="下单日期" prop="dateRange">
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="width: 260px"
+          />
+        </el-form-item>
+        <el-form-item class="action-buttons">
+          <el-button type="primary" @click="handleQuery">查询</el-button>
+          <el-button @click="resetQuery">重置</el-button>
           <el-button
             type="success"
             plain
-            icon="Download"
             :loading="exportLoading"
             @click="handleExport"
             >导出</el-button
@@ -50,9 +60,9 @@
     <div class="table-wrapper bg-white p-5 rounded-lg shadow-sm">
       <el-table v-loading="loading" :data="orderList" border stripe style="width: 100%">
         <el-table-column label="订单号" prop="orderNo" min-width="180" align="center" />
-        <el-table-column label="下单用户" min-width="150">
+        <el-table-column label="下单用户" min-width="150" align="center">
           <template #default="scope">
-            <div class="user-info">
+            <div class="user-info flex flex-col items-center">
               <div class="font-bold">{{ scope.row.userName }}</div>
               <div class="text-xs text-gray-400">{{ scope.row.userPhone }}</div>
             </div>
@@ -62,6 +72,7 @@
           label="文档名称"
           prop="documentName"
           min-width="180"
+          align="center"
           :show-overflow-tooltip="true"
         />
         <el-table-column label="打印规格" width="120" align="center">
@@ -73,7 +84,7 @@
         <el-table-column label="配送方式" prop="deliveryMethod" width="100" align="center" />
         <el-table-column label="订单总额" width="100" align="center">
           <template #default="scope">
-            <span class="text-red-500 font-bold">¥{{ scope.row.totalPrice.toFixed(2) }}</span>
+            <span class="text-red-500 font-bold">¥{{ (scope.row.totalPrice || 0).toFixed(2) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="订单状态" width="100" align="center">
@@ -114,6 +125,7 @@
 </template>
 
 <script setup lang="ts">
+  import { onMounted, reactive, ref } from 'vue'
   import { exportPrintOrderList, fetchPrintOrderList, updatePrintOrderStatus } from '@/api/order'
   import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -121,21 +133,29 @@
   const exportLoading = ref(false)
   const orderList = ref<any[]>([])
   const total = ref(0)
+  const dateRange = ref<[string, string] | []>([])
 
   const queryParams = reactive({
     current: 1,
     size: 10,
     orderNo: '',
     userName: '',
-    orderStatus: undefined
+    orderStatus: undefined,
+    startDate: '',
+    endDate: ''
   })
 
   const getList = async () => {
     loading.value = true
     try {
       const res = await fetchPrintOrderList(queryParams)
-      orderList.value = res.records
-      total.value = res.total
+      if (res) {
+        orderList.value = res.records || []
+        total.value = res.total || 0
+      }
+    } catch (error) {
+      console.error('获取打印订单列表失败:', error)
+      ElMessage.error('获取打印订单列表失败')
     } finally {
       loading.value = false
     }
@@ -143,6 +163,8 @@
 
   const handleQuery = () => {
     queryParams.current = 1
+    queryParams.startDate = dateRange.value[0] || ''
+    queryParams.endDate = dateRange.value[1] || ''
     getList()
   }
 
@@ -150,6 +172,9 @@
     queryParams.orderNo = ''
     queryParams.userName = ''
     queryParams.orderStatus = undefined
+    queryParams.startDate = ''
+    queryParams.endDate = ''
+    dateRange.value = []
     handleQuery()
   }
 
@@ -250,3 +275,23 @@
     getList()
   })
 </script>
+
+<style scoped lang="scss">
+  .print-order-container {
+    .action-buttons {
+      :deep(.el-form-item__content) {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        justify-content: center;
+      }
+
+      :deep(.el-button) {
+        min-width: 88px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  }
+</style>

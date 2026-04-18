@@ -132,10 +132,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { getCourseListApi } from '@/api/course'
-import { getWechatQrByLocationApi } from '@/api/index'
+import { getWechatCustomerServiceByLocationApi } from '@/api/index'
 import { onShow } from '@dcloudio/uni-app'
 import { getUserInfoApi } from '@/api/mine'
-import { resolveUploadSrc } from '@/utils/upload'
+import { openEnterpriseCustomerServiceChat } from '@/utils/customer-service'
 import { useToast } from 'wot-design-uni'
 
 const staticBaseUrl = __VITE_SERVER_BASEURL__ + '/static'
@@ -150,11 +150,11 @@ const qrGroupName = ref('')
 const joinStudyRoom = async () => {
   try {
     toast.loading('正在获取自习室二维码...')
-    const res = await getWechatQrByLocationApi('HELP_SERVICE')
-    if (res.code === 200 && res.data?.qrCodePath) {
-      currentQrCode.value = resolveUploadSrc(res.data.qrCodePath, true)
+    const res = await getWechatCustomerServiceByLocationApi('HELP_SERVICE')
+    if (res.code === 200 && res.data) {
+      // keep legacy local state harmlessly initialized
       qrGroupName.value = res.data.groupName || '自习室报名群'
-      showQrPopup.value = true
+      await openEnterpriseCustomerServiceChat(res.data)
     } else {
       toast.show(res.msg || '暂无自习室二维码')
     }

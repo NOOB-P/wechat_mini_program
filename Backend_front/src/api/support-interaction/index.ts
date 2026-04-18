@@ -1,5 +1,4 @@
 import api from '@/utils/http'
-import { mockWechatConfig } from '@/mock/support-interaction/config'
 
 /**
  * FAQ 相关接口
@@ -67,7 +66,7 @@ export function fetchDeleteFaq(id: string | number) {
 }
 
 /**
- * 微信配置相关接口 (多群管理)
+ * 企业微信客服配置接口
  */
 export function fetchGetWechatConfigList() {
   return api.get<any>({
@@ -92,15 +91,5 @@ export function fetchUpdateWechatConfig(data: any) {
 export function fetchDeleteWechatConfig(id: number) {
   return api.del<any>({
     url: `/api/customer/wechat/delete/${id}`
-  })
-}
-
-export function fetchUploadWechatQrCode(data: FormData) {
-  return api.post<any>({
-    url: '/api/customer/wechat/upload',
-    data,
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
   })
 }

@@ -1,7 +1,6 @@
 package com.edu.javasb_back.service.impl;
 
 import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.WechatConfig;
 import com.edu.javasb_back.repository.SysAccountRepository;
@@ -11,15 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class WechatConfigServiceImpl implements WechatConfigService {
@@ -29,9 +21,6 @@ public class WechatConfigServiceImpl implements WechatConfigService {
 
     @Autowired
     private SysAccountRepository sysAccountRepository;
-
-    @Autowired
-    private GlobalConfigProperties globalConfigProperties;
 
     @Override
     public Result<List<WechatConfig>> getList() {
@@ -45,39 +34,12 @@ public class WechatConfigServiceImpl implements WechatConfigService {
 
     @Override
     public Result<WechatConfig> getByLocation(String location) {
-        List<WechatConfig> list = wechatConfigRepository.findByDisplayLocationAndStatusOrderByUpdateTimeDesc(location, 1);
+        List<WechatConfig> list =
+                wechatConfigRepository.findByDisplayLocationAndStatusOrderByUpdateTimeDesc(location, 1);
         if (list.isEmpty()) {
             return Result.error("暂无配置");
         }
-        WechatConfig config = list.get(0);
-        config.setQrCodePath(normalizeQrCodePath(config.getQrCodePath()));
-        return Result.success("获取成功", config);
-    }
-
-    @Override
-    public Result<String> upload(Long currentUid, MultipartFile file) {
-        Result<Void> adminResult = requireAdmin(currentUid);
-        if (adminResult.getCode() != 200) {
-            return Result.error(adminResult.getCode(), adminResult.getMsg());
-        }
-        if (file == null || file.isEmpty()) {
-            return Result.error("文件不能为空");
-        }
-
-        try {
-            String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
-            String uploadDir = globalConfigProperties.getUploadDir();
-            File dir = new File(uploadDir);
-            if (!dir.exists()) {
-                dir.mkdirs();
-            }
-
-            Path path = Paths.get(uploadDir, fileName);
-            Files.write(path, file.getBytes());
-            return Result.success("上传成功", "/uploads/code/" + fileName);
-        } catch (IOException e) {
-            return Result.error("上传失败: " + e.getMessage());
-        }
+        return Result.success("获取成功", list.get(0));
     }
 
     @Override
@@ -87,12 +49,11 @@ public class WechatConfigServiceImpl implements WechatConfigService {
         if (adminResult.getCode() != 200) {
             return adminResult;
         }
-        if (!StringUtils.hasText(config.getGroupName())) {
-            return Result.error("群名称不能为空");
+        Result<Void> validateResult = validateConfig(config);
+        if (validateResult != null) {
+            return validateResult;
         }
-        if (!StringUtils.hasText(config.getQrCodePath())) {
-            return Result.error("请先上传二维码");
-        }
+        normalizeConfig(config);
         wechatConfigRepository.save(config);
         return Result.success("添加成功", null);
     }
@@ -108,11 +69,15 @@ public class WechatConfigServiceImpl implements WechatConfigService {
         if (config == null) {
             return Result.error("配置不存在");
         }
+
         if (updateData.getGroupName() != null) {
             config.setGroupName(updateData.getGroupName());
         }
-        if (updateData.getQrCodePath() != null) {
-            config.setQrCodePath(updateData.getQrCodePath());
+        if (updateData.getCorpId() != null) {
+            config.setCorpId(updateData.getCorpId());
+        }
+        if (updateData.getCustomerServiceUrl() != null) {
+            config.setCustomerServiceUrl(updateData.getCustomerServiceUrl());
         }
         if (updateData.getStatus() != null) {
             config.setStatus(updateData.getStatus());
@@ -120,6 +85,12 @@ public class WechatConfigServiceImpl implements WechatConfigService {
         if (updateData.getDisplayLocation() != null) {
             config.setDisplayLocation(updateData.getDisplayLocation());
         }
+
+        Result<Void> validateResult = validateConfig(config);
+        if (validateResult != null) {
+            return validateResult;
+        }
+        normalizeConfig(config);
         wechatConfigRepository.save(config);
         return Result.success("修改成功", null);
     }
@@ -131,15 +102,7 @@ public class WechatConfigServiceImpl implements WechatConfigService {
         if (adminResult.getCode() != 200) {
             return adminResult;
         }
-        WechatConfig config = wechatConfigRepository.findById(id).orElse(null);
-        if (config != null) {
-            String absolutePath = resolveUploadAbsolutePath(config.getQrCodePath());
-            if (absolutePath != null) {
-                File file = new File(absolutePath);
-                if (file.exists()) {
-                    file.delete();
-                }
-            }
+        if (wechatConfigRepository.existsById(id)) {
             wechatConfigRepository.deleteById(id);
         }
         return Result.success("删除成功", null);
@@ -160,55 +123,38 @@ public class WechatConfigServiceImpl implements WechatConfigService {
         return Result.success("校验通过", null);
     }
 
-    private String normalizeQrCodePath(String qrCodePath) {
-        if (!StringUtils.hasText(qrCodePath)) {
-            return qrCodePath;
+    private Result<Void> validateConfig(WechatConfig config) {
+        if (config == null) {
+            return Result.error("参数不能为空");
         }
-        String normalizedPath = qrCodePath.trim();
-        int uploadsIndex = normalizedPath.indexOf("/uploads/");
-        if (uploadsIndex != -1) {
-            normalizedPath = normalizedPath.substring(uploadsIndex);
+        if (!StringUtils.hasText(config.getGroupName())) {
+            return Result.error("配置名称不能为空");
         }
-        if (!normalizedPath.startsWith("/uploads/")) {
-            return normalizedPath;
+        if (!StringUtils.hasText(config.getCorpId())) {
+            return Result.error("企微 ID 不能为空");
         }
-        if (normalizedPath.startsWith("/uploads/code/") || normalizedPath.startsWith("/uploads/papers/")) {
-            return normalizedPath;
+        if (!StringUtils.hasText(config.getCustomerServiceUrl())) {
+            return Result.error("客服链接不能为空");
         }
 
-        String fileName = normalizedPath.substring("/uploads/".length());
-        File legacyFile = new File(resolveUploadRootDir(), fileName);
-        if (legacyFile.exists()) {
-            return normalizedPath;
+        String displayLocation = config.getDisplayLocation();
+        if (StringUtils.hasText(displayLocation)
+                && !"NONE".equals(displayLocation.trim())
+                && !"HOME_BANNER".equals(displayLocation.trim())
+                && !"HELP_SERVICE".equals(displayLocation.trim())) {
+            return Result.error("展示位置不合法");
         }
-
-        File codeFile = new File(globalConfigProperties.getUploadDir(), fileName);
-        if (codeFile.exists()) {
-            return "/uploads/code/" + fileName;
-        }
-        return normalizedPath;
+        return null;
     }
 
-    private String resolveUploadAbsolutePath(String uploadPath) {
-        if (!StringUtils.hasText(uploadPath)) {
-            return null;
+    private void normalizeConfig(WechatConfig config) {
+        config.setGroupName(config.getGroupName().trim());
+        config.setCorpId(config.getCorpId().trim());
+        config.setCustomerServiceUrl(config.getCustomerServiceUrl().trim());
+        if (StringUtils.hasText(config.getDisplayLocation())) {
+            config.setDisplayLocation(config.getDisplayLocation().trim());
+        } else {
+            config.setDisplayLocation("NONE");
         }
-        String normalizedPath = normalizeQrCodePath(uploadPath);
-        if (!StringUtils.hasText(normalizedPath) || !normalizedPath.startsWith("/uploads/")) {
-            return null;
-        }
-        if (normalizedPath.startsWith("/uploads/code/")) {
-            return Paths.get(globalConfigProperties.getUploadDir(), normalizedPath.substring("/uploads/code/".length())).toString();
-        }
-        if (normalizedPath.startsWith("/uploads/papers/")) {
-            return Paths.get(globalConfigProperties.getPaperDir(), normalizedPath.substring("/uploads/papers/".length())).toString();
-        }
-        return Paths.get(resolveUploadRootDir(), normalizedPath.substring("/uploads/".length())).toString();
-    }
-
-    private String resolveUploadRootDir() {
-        File uploadDir = new File(globalConfigProperties.getUploadDir());
-        File parentDir = uploadDir.getParentFile();
-        return parentDir != null ? parentDir.getAbsolutePath() : uploadDir.getAbsolutePath();
     }
 }

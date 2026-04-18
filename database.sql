@@ -421,15 +421,17 @@ CREATE TABLE `faqs` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='客服支持常见问题表';
 
--- 11. 微信群配置表
+-- 11. 企业微信客服配置表
 DROP TABLE IF EXISTS `wechat_configs`;
 CREATE TABLE `wechat_configs` (
     `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT '配置ID',
-    `group_name` VARCHAR(100) NOT NULL COMMENT '群名称',
-    `qr_code_path` VARCHAR(255) NOT NULL COMMENT '二维码图片相对路径',
+    `group_name` VARCHAR(100) NOT NULL COMMENT '配置名称',
+    `corp_id` VARCHAR(100) NOT NULL COMMENT '企业微信ID',
+    `customer_service_url` VARCHAR(500) NOT NULL COMMENT '客服链接',
+    `display_location` VARCHAR(50) DEFAULT 'NONE' COMMENT '展示位置: HOME_BANNER, HELP_SERVICE, NONE',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
-) ENGINE=InnoDB COMMENT='官方微信群二维码配置表';
+) ENGINE=InnoDB COMMENT='企业微信客服配置表';
 
 -- ---------------------------------------------------------
 -- 订单与交易模块
@@ -502,6 +504,7 @@ CREATE TABLE `vip_orders` (
     `payment_status` TINYINT DEFAULT 0 COMMENT '支付状态: 0-待支付, 1-已支付, 2-已退款',
     `payment_method` VARCHAR(50) COMMENT '支付方式(微信/支付宝)',
     `source_type` VARCHAR(50) NOT NULL DEFAULT 'ONLINE_PURCHASE' COMMENT '订单来源: ONLINE_PURCHASE-在线购买, SCHOOL_GIFT-校讯通赠送',
+    `school_name` VARCHAR(100) COMMENT '开通学校(针对校讯通赠送)',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='VIP/SVIP购买订单表';
@@ -853,13 +856,11 @@ INSERT INTO `faqs` (`id`, `category_name`, `category_id`, `question`, `answer`, 
 ('FAQ004', '账号问题', 1, '忘记密码怎么办？', '在登录页面点击“忘记密码”，通过绑定的手机号验证后即可重置。', 1),
 ('FAQ005', '技术支持', 5, 'APP闪退怎么办？', '请尝试清理缓存或更新到最新版本。如果问题依旧，请联系客服。', 1);
 
--- 11. 微信群配置表数据
-ALTER TABLE `wechat_configs` ADD COLUMN `display_location` VARCHAR(50) DEFAULT 'NONE' COMMENT '展示位置: HOME_BANNER, HELP_SERVICE, NONE';
-
-INSERT INTO `wechat_configs` (`group_name`, `qr_code_path`, `status`, `display_location`) VALUES
-('官方家长交流1群', '/uploads/qrcode1.png', 1, 'HOME_BANNER'),
-('初一学习辅导群', '/uploads/qrcode2.png', 1, 'HELP_SERVICE'),
-('北京家长备考群', '/uploads/qrcode3.png', 1, 'NONE');
+-- 11. 企业微信客服配置表数据
+INSERT INTO `wechat_configs` (`group_name`, `corp_id`, `customer_service_url`, `status`, `display_location`) VALUES
+('首页企微客服', 'ww1234567890abcdef', 'https://work.weixin.qq.com/kfid/kfc1234567890abcdef', 1, 'HOME_BANNER'),
+('帮助中心企微客服', 'ww1234567890abcdef', 'https://work.weixin.qq.com/kfid/kfcabcdef1234567890', 1, 'HELP_SERVICE'),
+('备用企微客服', 'wwfedcba0987654321', 'https://work.weixin.qq.com/kfid/kfc0987654321fedcba', 0, 'NONE');
 
 -- 12. 错题打印订单表数据
 INSERT INTO `print_orders` (`order_no`, `user_name`, `user_phone`, `document_name`, `pages`, `print_type`, `delivery_method`, `total_price`, `order_status`) VALUES
@@ -869,11 +870,11 @@ INSERT INTO `print_orders` (`order_no`, `user_name`, `user_phone`, `document_nam
 ('POD202404010004', '吴九妈妈', '13800000009', '吴九化学重点', 20, '彩色双面', '标准快递', 30.00, 1);
 
 -- 13. VIP套餐订单表数据
-INSERT INTO `vip_orders` (`order_no`, `user_uid`, `user_name`, `user_phone`, `package_type`, `period`, `price`, `payment_status`, `payment_method`) VALUES
-('VOD202309010001', 3, '张三爸爸', '13800000002', 'SVIP专业版', '年包', 365.00, 1, '微信支付'),
-('VOD202309150002', 4, '李四妈妈', '13800000003', 'VIP基础版', '季包', 99.00, 1, '支付宝'),
-('VOD202310010003', 5, '王五妈妈', '13800000004', 'SVIP专业版', '月包', 39.00, 1, '微信支付'),
-('VOD202404010004', 10, '吴九妈妈', '13800000009', 'SVIP专业版', '年包', 365.00, 1, '微信支付');
+INSERT INTO `vip_orders` (`order_no`, `user_uid`, `user_name`, `user_phone`, `package_type`, `period`, `price`, `payment_status`, `payment_method`, `source_type`, `school_name`) VALUES
+('VOD202309010001', 3, '张三爸爸', '13800000002', 'SVIP专业版', '年包', 365.00, 1, '微信支付', 'ONLINE_PURCHASE', '第一中学'),
+('VOD202309150002', 4, '李四妈妈', '13800000003', 'VIP基础版', '季包', 99.00, 1, '支付宝', 'ONLINE_PURCHASE', '第一中学'),
+('VOD202310010003', 5, '王五妈妈', '13800000004', 'SVIP专业版', '月包', 39.00, 1, '微信支付', 'SCHOOL_GIFT', '第二中学'),
+('VOD202404010004', 10, '吴九妈妈', '13800000009', 'SVIP专业版', '年包', 365.00, 1, '微信支付', 'ONLINE_PURCHASE', '实验中学');
 
 -- 14. 系统操作日志表数据
 INSERT INTO `sys_logs` (`uid`, `user_name`, `nick_name`, `operation`, `method`, `url`, `ip`, `location`, `status`) VALUES
