@@ -25,7 +25,7 @@ export const supportInteractionRoutes: AppRouteRecord = {
       name: 'WechatConfig',
       component: '/support-interaction/wechat',
       meta: {
-        title: '微信群二维码',
+        title: '企业微信客服',
         authMark: 'support:wechat:list'
       }
     }

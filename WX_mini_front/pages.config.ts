@@ -118,7 +118,9 @@ export default defineUniPages({
         },
         {
           path: 'pages/course/pay',
-          style: {},
+          style: {
+            navigationBarTitleText: '订单支付',
+          },
         },
         {
           path: 'pages/vip/index',
@@ -180,15 +182,27 @@ export default defineUniPages({
       pages: [
         {
           path: 'pages/mine/course-list',
-          style: {},
+          style: {
+            navigationBarTitleText: '我的课程',
+          },
+        },
+        {
+          path: 'pages/mine/about',
+          style: {
+            navigationBarTitleText: '关于我们',
+          },
         },
         {
           path: 'pages/mine/edit-profile',
-          style: {},
+          style: {
+            navigationBarTitleText: '修改资料',
+          },
         },
         {
           path: 'pages/mine/order-list',
-          style: {},
+          style: {
+            navigationBarTitleText: '已购订单',
+          },
         },
         {
           path: 'pages/mine/notifications',

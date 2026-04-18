@@ -2,8 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getFaqCategoryApi, getFaqListApi } from '@/subpkg_mine/api/service'
-import { getWechatQrByLocationApi } from '@/api/index'
-import { resolveUploadSrc } from '@/utils/upload'
+import { getWechatCustomerServiceByLocationApi } from '@/api/index'
+import { openEnterpriseCustomerServiceChat } from '@/utils/customer-service'
 import { useToast } from 'wot-design-uni'
 
 const toast = useToast()
@@ -14,35 +14,18 @@ const faqs = ref<any[]>([])
 const activeFaq = ref<string[]>([])
 const isLoading = ref(false)
 
-const staticBaseUrl = __VITE_SERVER_BASEURL__ + '/static'
-
-// 二维码弹窗相关
-const showQrPopup = ref(false)
-const currentQrCode = ref('')
-const qrGroupName = ref('')
-
 const handleContactClick = async () => {
   try {
-    toast.loading('请稍后...')
-    const res = await getWechatQrByLocationApi('HELP_SERVICE')
-    if (res.code === 200) {
-      currentQrCode.value = resolveUploadSrc(res.data.qrCodePath, true)
-      qrGroupName.value = res.data.groupName
-      showQrPopup.value = true
-    } else {
-      // 如果没有配置专用二维码，则回退到普通联系客服
-      uni.showModal({
-        title: '联系客服',
-        content: '暂无专用二维码，是否进入在线客服聊天？',
-        success: (modalRes) => {
-          if (modalRes.confirm) {
-            // 此处无法直接触发 button 的 open-type，通常建议直接在页面放二维码
-          }
-        }
-      })
+    toast.loading('加载中...')
+    const res = await getWechatCustomerServiceByLocationApi('HELP_SERVICE')
+    if (res.code !== 200 || !res.data) {
+      toast.show(res.msg || '客服暂不可用')
+      return
     }
-  } catch (e) {
-    toast.error('获取信息失败')
+    await openEnterpriseCustomerServiceChat(res.data)
+  } catch (error) {
+    console.error('Failed to open customer service chat:', error)
+    toast.error((error as any)?.msg || '无法打开客服会话')
   } finally {
     toast.close()
   }
@@ -53,10 +36,9 @@ const normalizeCategoryName = (category: any) => {
   return category?.name || category?.categoryName || category?.label || ''
 }
 
-// 核心：手动加载 FAQ 方法
 const loadFaqData = async () => {
   if (isLoading.value || currentTab.value === null) return
-  
+
   isLoading.value = true
   try {
     const params: { categoryName?: string; question?: string } = {}
@@ -72,42 +54,36 @@ const loadFaqData = async () => {
     const res = await getFaqListApi(params)
     if (res.code === 200) {
       faqs.value = res.data.records || []
-      activeFaq.value = [] 
+      activeFaq.value = []
     }
   } catch (error) {
-    console.error('获取 FAQ 列表失败:', error)
+    console.error('Failed to load FAQ list:', error)
   } finally {
     isLoading.value = false
   }
 }
 
-// 初始化获取分类
 const getCategories = async () => {
   try {
     const res = await getFaqCategoryApi()
     if (res.code === 200) {
-      const categoryNames = (res.data || [])
-        .map(normalizeCategoryName)
-        .filter(Boolean)
+      const categoryNames = (res.data || []).map(normalizeCategoryName).filter(Boolean)
       const catList = ['全部', ...categoryNames]
-      categories.value = catList.map(name => ({ id: name, name }))
-      
+      categories.value = catList.map((name) => ({ id: name, name }))
+
       currentTab.value = '全部'
       loadFaqData()
     }
   } catch (error) {
-    console.error('获取 FAQ 分类失败:', error)
+    console.error('Failed to load FAQ categories:', error)
   }
 }
 
-// 搜索处理
 const handleSearch = () => {
   loadFaqData()
 }
 
-// Tab 切换处理：由组件事件显式触发
 const onTabChange = (e: any) => {
-  // 修正：wd-tabs 的 change 事件返回的是对象 { name, index }
   const newId = e.name
   if (currentTab.value !== newId) {
     currentTab.value = newId
@@ -117,7 +93,7 @@ const onTabChange = (e: any) => {
 
 onLoad(() => {
   uni.setNavigationBarTitle({
-    title: '客服帮助'
+    title: '客服与帮助'
   })
 })
 
@@ -128,24 +104,22 @@ onMounted(() => {
 
 <template>
   <view class="service-container">
-    <!-- 顶部大面积柔和渐变 -->
     <view class="header-section">
       <view class="header-content">
         <view class="title-row">
           <text class="page-title">帮助中心</text>
           <view class="online-status">
             <view class="status-dot"></view>
-            <text>客服在线</text>
+            <text>在线</text>
           </view>
         </view>
-        <text class="page-subtitle">遇见问题？我们会竭诚为您解答</text>
+        <text class="page-subtitle">搜索常见问题或直接联系在线客服。</text>
       </view>
-      
-      <!-- 悬浮搜索框 -->
+
       <view class="search-box-wrap">
         <wd-search
           v-model="searchValue"
-          placeholder="搜索您想了解的问题"
+          placeholder="搜索问题"
           hide-cancel
           @search="handleSearch"
           @clear="handleSearch"
@@ -155,13 +129,12 @@ onMounted(() => {
     </view>
 
     <view class="content-body animate-fade-in">
-      <!-- 快捷分类 - 采用胶囊样式 -->
       <view class="category-scroll-wrap">
         <scroll-view scroll-x class="category-scroll" show-scrollbar="false">
           <view class="category-list">
-            <view 
-              v-for="cat in categories" 
-              :key="cat.id" 
+            <view
+              v-for="cat in categories"
+              :key="cat.id"
               class="category-pill"
               :class="{ active: currentTab === cat.id }"
               @click="onTabChange({ name: cat.id })"
@@ -172,20 +145,19 @@ onMounted(() => {
         </scroll-view>
       </view>
 
-      <!-- FAQ 卡片容器 -->
       <view class="faq-card-container">
         <view class="faq-card-header">
           <wd-icon name="chat" size="18px" color="#1a5f8e" />
-          <text class="faq-card-title">常见问题解答</text>
+          <text class="faq-card-title">常见问题</text>
         </view>
 
         <view class="faq-list-wrap">
           <template v-if="faqs.length > 0">
             <wd-collapse v-model="activeFaq" :accordion="true">
-              <wd-collapse-item 
-                v-for="faq in faqs" 
-                :key="faq.id" 
-                :title="faq.question" 
+              <wd-collapse-item
+                v-for="faq in faqs"
+                :key="faq.id"
+                :title="faq.question"
                 :name="String(faq.id)"
                 custom-class="faq-collapse-item"
               >
@@ -197,10 +169,10 @@ onMounted(() => {
               </wd-collapse-item>
             </wd-collapse>
           </template>
-          
+
           <view v-else-if="!isLoading" class="empty-state">
             <image class="empty-img" src="https://img.yzcdn.cn/vant/empty-image-default.png" mode="aspectFit" />
-            <text class="empty-text">未找到相关问题，您可以尝试更换关键词</text>
+            <text class="empty-text">未找到匹配的问题。</text>
           </view>
         </view>
       </view>
@@ -211,22 +183,12 @@ onMounted(() => {
         <view class="contact-btn-inner">
           <wd-icon name="chat" size="24px" color="#fff" />
           <view class="btn-text-group">
-            <text class="main-text">添加客服微信 (推荐)</text>
-            <text class="sub-text">1对1 专属咨询服务</text>
+            <text class="main-text">开启在线客服</text>
+            <text class="sub-text">一对一专业支持</text>
           </view>
         </view>
       </view>
     </view>
-
-    <!-- 微信二维码弹窗 -->
-    <wd-popup v-model="showQrPopup" custom-style="padding: 40rpx; border-radius: 32rpx; width: 80%;" position="center">
-      <view class="qr-popup-content">
-        <view class="qr-title-text">{{ qrGroupName || '添加客服微信' }}</view>
-        <view class="qr-desc-text">长按识别二维码或保存到相册</view>
-        <image :src="currentQrCode" mode="widthFix" class="qr-img-box" show-menu-by-longpress />
-        <wd-button block @click="showQrPopup = false" custom-style="margin-top: 30rpx; border-radius: 40rpx;">关闭</wd-button>
-      </view>
-    </wd-popup>
 
     <wd-toast id="wd-toast" />
   </view>
@@ -240,7 +202,6 @@ onMounted(() => {
   padding-bottom: 240rpx;
 }
 
-/* 顶部大背景 - 采用与名校试卷类似的轻盈风格 */
 .header-section {
   min-height: 280rpx;
   background: linear-gradient(135deg, #eefaf6 0%, #eef5ff 100%);
@@ -266,7 +227,7 @@ onMounted(() => {
 .header-content {
   color: #333;
   margin-bottom: 20rpx;
-  
+
   .title-row {
     display: flex;
     align-items: center;
@@ -288,7 +249,7 @@ onMounted(() => {
     background: rgba(46, 213, 115, 0.1);
     padding: 4rpx 16rpx;
     border-radius: 20rpx;
-    
+
     .status-dot {
       width: 10rpx;
       height: 10rpx;
@@ -296,21 +257,20 @@ onMounted(() => {
       border-radius: 50%;
       box-shadow: 0 0 8rpx #2ed573;
     }
-    
+
     text {
       font-size: 20rpx;
       color: #27ae60;
       font-weight: 500;
     }
   }
-  
+
   .page-subtitle {
     font-size: 24rpx;
     color: #666;
   }
 }
 
-/* 悬浮搜索框 */
 .search-box-wrap {
   margin-top: 28rpx;
   background: #fff;
@@ -325,7 +285,6 @@ onMounted(() => {
   padding: 34rpx 30rpx 30rpx;
 }
 
-/* 快捷分类 */
 .category-scroll-wrap {
   margin-bottom: 40rpx;
 }
@@ -349,7 +308,7 @@ onMounted(() => {
   color: #666;
   border: 1rpx solid #f0f3f5;
   transition: all 0.3s;
-  
+
   &.active {
     background: #1a5f8e;
     color: #fff;
@@ -359,7 +318,6 @@ onMounted(() => {
   }
 }
 
-/* FAQ 卡片 */
 .faq-card-container {
   background: #fff;
   border-radius: 32rpx;
@@ -374,7 +332,7 @@ onMounted(() => {
   gap: 12rpx;
   padding: 30rpx;
   border-bottom: 1rpx solid #f5f7fa;
-  
+
   .faq-card-title {
     font-size: 30rpx;
     font-weight: bold;
@@ -394,7 +352,7 @@ onMounted(() => {
     padding: 30rpx !important;
     background-color: #fff !important;
   }
-  
+
   .wd-collapse-item__header {
     border-bottom: 1rpx solid #f9fafb !important;
   }
@@ -406,8 +364,8 @@ onMounted(() => {
 }
 
 .answer-inner {
-  padding: 10rpx 10rpx 10rpx;
-  
+  padding: 10rpx;
+
   .answer-text {
     font-size: 26rpx;
     color: #666;
@@ -415,20 +373,19 @@ onMounted(() => {
   }
 }
 
-/* 空状态 */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 100rpx 40rpx;
-  
+
   .empty-img {
     width: 200rpx;
     height: 200rpx;
     margin-bottom: 30rpx;
     opacity: 0.8;
   }
-  
+
   .empty-text {
     font-size: 24rpx;
     color: #999;
@@ -437,7 +394,6 @@ onMounted(() => {
   }
 }
 
-/* 底部联系按钮 */
 .contact-footer {
   position: fixed;
   bottom: 0;
@@ -459,7 +415,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   transition: all 0.3s;
-  
+
   &:active {
     transform: scale(0.97);
     box-shadow: 0 6rpx 16rpx rgba(46, 213, 115, 0.2);
@@ -475,44 +431,17 @@ onMounted(() => {
 .btn-text-group {
   display: flex;
   flex-direction: column;
-  
+
   .main-text {
     color: #fff;
     font-size: 32rpx;
     font-weight: bold;
     letter-spacing: 2rpx;
   }
-  
+
   .sub-text {
     color: rgba(255, 255, 255, 0.8);
     font-size: 20rpx;
-  }
-}
-
-/* 二维码弹窗样式 */
-.qr-popup-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  
-  .qr-title-text {
-    font-size: 34rpx;
-    font-weight: bold;
-    color: #333;
-    margin-bottom: 12rpx;
-  }
-  
-  .qr-desc-text {
-    font-size: 24rpx;
-    color: #999;
-    margin-bottom: 32rpx;
-  }
-  
-  .qr-img-box {
-    width: 440rpx;
-    height: 440rpx;
-    border-radius: 20rpx;
-    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.08);
   }
 }
 

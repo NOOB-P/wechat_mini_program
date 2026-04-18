@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onHide } from '@dcloudio/uni-app'
 import { getMineNotificationsApi, getUserInfoApi } from '@/api/mine'
 import { resolveAvatarSrc } from '@/utils/avatar'
+
+const isPageVisible = ref(false)
 
 const userInfo = reactive({
   uid: 0,
@@ -150,6 +152,7 @@ const loadPageData = async () => {
 }
 
 onShow(() => {
+  isPageVisible.value = true
   const token = uni.getStorageSync('token')
   if (!token) {
     uni.reLaunch({ url: '/pages/login/index' })
@@ -157,10 +160,14 @@ onShow(() => {
     loadPageData()
   }
 })
+
+onHide(() => {
+  isPageVisible.value = false
+})
 </script>
 
 <template>
-  <view class="mine-container">
+  <view v-show="isPageVisible" class="mine-container">
     <view class="header-bg"></view>
 
     <view class="header-content">

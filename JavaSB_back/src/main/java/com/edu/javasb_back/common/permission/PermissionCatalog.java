@@ -90,7 +90,6 @@ public final class PermissionCatalog {
     public static final String SUPPORT_FAQ_CATEGORY_DELETE = "support:faq-category:delete";
 
     public static final String SUPPORT_WECHAT_LIST = "support:wechat:list";
-    public static final String SUPPORT_WECHAT_UPLOAD = "support:wechat:upload";
     public static final String SUPPORT_WECHAT_ADD = "support:wechat:add";
     public static final String SUPPORT_WECHAT_EDIT = "support:wechat:edit";
     public static final String SUPPORT_WECHAT_DELETE = "support:wechat:delete";
@@ -278,12 +277,11 @@ public final class PermissionCatalog {
             ),
             new PermissionGroup(
                     SUPPORT_WECHAT_LIST,
-                    "微信群二维码",
+                    "企业微信客服",
                     "/support-interaction/wechat",
                     "ri:customer-service-2-line",
                     List.of(
                             SUPPORT_WECHAT_LIST,
-                            SUPPORT_WECHAT_UPLOAD,
                             SUPPORT_WECHAT_ADD,
                             SUPPORT_WECHAT_EDIT,
                             SUPPORT_WECHAT_DELETE
