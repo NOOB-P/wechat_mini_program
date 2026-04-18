@@ -265,7 +265,7 @@ export default defineUniPages({
 		  },
 		  {
 			iconPath: 'static/tabbar/tabbar_mine.png',
-			selectedIconPath: 'static/tabbar/tabbar_mine.png',
+			selectedIconPath: 'static/tabbar/tabbar_mine_active.png',
 			pagePath: 'pages/mine/index',
 			text: '我的',
 		  },
