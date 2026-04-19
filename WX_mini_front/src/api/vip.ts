@@ -52,6 +52,14 @@ export const createVipOrderApi = (data: any) => {
   })
 }
 
+export const createVipPayApi = (orderNo: string) => {
+  return request({
+    url: '/api/app/vip/order/pay',
+    method: 'POST',
+    data: { orderNo }
+  })
+}
+
 export const simulatePayCallbackApi = (orderNo: string) => {
   return request({
     url: '/api/app/vip/order/callback',

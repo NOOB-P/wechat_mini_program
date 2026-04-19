@@ -338,6 +338,48 @@ public class SysAccountServiceImpl implements SysAccountService {
     }
 
     @Override
+    @Transactional
+    public Result<Map<String, Object>> bindWechat(Long uid, String code) {
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
+        if (!StringUtils.hasText(code)) {
+            return Result.error("微信登录凭证不能为空");
+        }
+
+        Optional<SysAccount> accountOptional = accountRepository.findById(uid);
+        if (accountOptional.isEmpty()) {
+            return Result.error("用户不存在");
+        }
+
+        try {
+            String openid = extractWechatOpenid(code);
+            SysAccount account = accountOptional.get();
+
+            Optional<SysAccount> existAccountOptional = accountRepository.findByWxid(openid);
+            if (existAccountOptional.isPresent() && !existAccountOptional.get().getUid().equals(uid)) {
+                return Result.error(409, "该微信账号已绑定其他用户");
+            }
+
+            if (StringUtils.hasText(account.getWxid()) && !openid.equals(account.getWxid())) {
+                return Result.error(409, "当前账号已绑定其他微信账号");
+            }
+
+            account.setWxid(openid);
+            accountRepository.save(account);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("openid", openid);
+            return Result.success("微信绑定成功", result);
+        } catch (IllegalStateException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("微信绑定异常: " + e.getMessage());
+        }
+    }
+
+    @Override
     public Result<SysAccount> getUserInfo(Long uid) {
         Optional<SysAccount> accountOpt = accountRepository.findByUidSql(uid);
         if (accountOpt.isEmpty()) {

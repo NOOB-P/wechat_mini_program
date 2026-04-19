@@ -1,11 +1,8 @@
 package com.edu.javasb_back.controller;
 
-import com.edu.javasb_back.annotation.LogOperation;
-import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.model.dto.SchoolVipOpenDTO;
-import com.edu.javasb_back.model.entity.VipOrder;
-import com.edu.javasb_back.service.VipOrderService;
-import com.edu.javasb_back.service.VipService;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,8 +13,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Map;
+import com.edu.javasb_back.annotation.LogOperation;
+import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.model.dto.SchoolVipOpenDTO;
+import com.edu.javasb_back.model.entity.VipOrder;
+import com.edu.javasb_back.service.VipOrderService;
+import com.edu.javasb_back.service.VipService;
 
 @RestController
 @RequestMapping("/api/app/vip")
@@ -46,9 +47,19 @@ public class AppVipController {
     public Result<VipOrder> createVipOrder(@RequestBody Map<String, Object> orderData) {
         Long userUid = getCurrentUid();
         if (userUid == null) {
-            return Result.error(401, "\u8bf7\u5148\u767b\u5f55");
+            return Result.error(401, "请先登录");
         }
         return vipOrderService.createVipOrder(userUid, orderData);
+    }
+
+    @LogOperation("App create VIP wechat pay params")
+    @PostMapping("/order/pay")
+    public Result<Map<String, Object>> createVipPayParams(@RequestBody Map<String, Object> data) {
+        Long userUid = getCurrentUid();
+        if (userUid == null) {
+            return Result.error(401, "请先登录");
+        }
+        return vipOrderService.createWechatPayParams(userUid, data == null ? null : (String) data.get("orderNo"));
     }
 
     @LogOperation("App open school VIP")
@@ -56,7 +67,7 @@ public class AppVipController {
     public Result<Map<String, Object>> openSchoolVip(@RequestBody SchoolVipOpenDTO request) {
         Long userUid = getCurrentUid();
         if (userUid == null) {
-            return Result.error(401, "\u8bf7\u5148\u767b\u5f55");
+            return Result.error(401, "请先登录");
         }
         return vipOrderService.openSchoolVip(userUid, request == null ? null : request.getMonths());
     }
@@ -66,7 +77,7 @@ public class AppVipController {
     public Result<Map<String, Object>> getRechargeConfig() {
         Long userUid = getCurrentUid();
         if (userUid == null) {
-            return Result.error(401, "\u8bf7\u5148\u767b\u5f55");
+            return Result.error(401, "请先登录");
         }
         return vipService.getRechargeDisplayConfig(userUid);
     }
@@ -76,7 +87,7 @@ public class AppVipController {
     public Result<Map<String, Object>> getVipAnalysis() {
         Long userUid = getCurrentUid();
         if (userUid == null) {
-            return Result.error(401, "\u8bf7\u5148\u767b\u5f55");
+            return Result.error(401, "请先登录");
         }
         return vipService.getVipAnalysis(userUid);
     }
@@ -86,7 +97,7 @@ public class AppVipController {
     public Result<List<Map<String, Object>>> getWrongBookList(@RequestParam Map<String, Object> params) {
         Long userUid = getCurrentUid();
         if (userUid == null) {
-            return Result.error(401, "\u8bf7\u5148\u767b\u5f55");
+            return Result.error(401, "请先登录");
         }
         return vipService.getWrongBookList(userUid, params);
     }
@@ -102,7 +113,7 @@ public class AppVipController {
     public Result<Void> submitPrintOrder(@RequestBody Map<String, Object> orderData) {
         Long userUid = getCurrentUid();
         if (userUid == null) {
-            return Result.error(401, "\u8bf7\u5148\u767b\u5f55");
+            return Result.error(401, "请先登录");
         }
         return vipService.submitPrintOrder(userUid, orderData);
     }
@@ -110,7 +121,6 @@ public class AppVipController {
     @LogOperation("Mock VIP pay callback")
     @PostMapping("/order/callback")
     public Result<String> paySuccessCallback(@RequestBody Map<String, String> data) {
-        String orderNo = data.get("orderNo");
-        return vipOrderService.paySuccessCallback(orderNo);
+        return vipOrderService.paySuccessCallback(data.get("orderNo"));
     }
 }
