@@ -35,7 +35,7 @@
     <view class="section-group">
       <view class="section-header">系统支持</view>
       <wd-cell-group border>
-        <wd-cell title="上传日志" is-link @click="handleUploadLogs" />
+        <!-- <wd-cell title="上传日志" is-link @click="handleUploadLogs" /> -->
         <wd-cell title="版本更新" :value="settingsInfo.version" is-link @click="handleCheckUpdate" />
       </wd-cell-group>
     </view>
