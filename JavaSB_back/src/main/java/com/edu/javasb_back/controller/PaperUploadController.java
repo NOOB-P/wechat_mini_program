@@ -1,7 +1,7 @@
 package com.edu.javasb_back.controller;
 
 import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.config.GlobalConfigProperties;
+import com.edu.javasb_back.service.OssStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 @RestController
@@ -18,7 +17,7 @@ import java.util.UUID;
 public class PaperUploadController {
 
     @Autowired
-    private GlobalConfigProperties globalConfigProperties;
+    private OssStorageService ossStorageService;
 
     @PreAuthorize("hasAuthority('paper:manage:upload')")
     @PostMapping("/upload")
@@ -38,16 +37,8 @@ public class PaperUploadController {
         }
 
         String fileName = UUID.randomUUID().toString() + suffix;
-        String paperDir = globalConfigProperties.getPaperDir();
-        File destDir = new File(paperDir);
-        if (!destDir.exists()) {
-            destDir.mkdirs();
-        }
-
-        File destFile = new File(destDir.getAbsolutePath() + File.separator + fileName);
         try {
-            file.transferTo(destFile);
-            return Result.success("上传成功", "/uploads/papers/" + fileName);
+            return Result.success("上传成功", ossStorageService.upload(file, "papers/" + fileName));
         } catch (IOException e) {
             e.printStackTrace();
             return Result.error("上传失败: " + e.getMessage());

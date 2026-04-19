@@ -90,11 +90,8 @@
           <el-form-item label="课程视频" prop="videoUrl">
             <el-upload
               class="video-uploader"
-              action="/api/system/course/upload-video"
-              :headers="uploadHeaders"
               :show-file-list="false"
-              :on-success="handleVideoUploadSuccess"
-              :on-error="handleVideoUploadError"
+              :http-request="handleVideoUploadRequest"
               :before-upload="beforeVideoUpload"
               v-loading="videoUploading"
             >
@@ -143,11 +140,13 @@
 
 <script setup lang="ts">
 import { ref, watch, shallowRef, onBeforeUnmount, computed, nextTick } from 'vue'
+import type { UploadRequestOptions } from 'element-plus'
 import { Plus, VideoPlay } from '@element-plus/icons-vue'
 import '@wangeditor/editor/dist/css/style.css'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/modules/user'
+import { directUploadCourseVideo } from '@/api/course-study/course'
 
 const props = defineProps({
   visible: Boolean,
@@ -235,23 +234,6 @@ const handleUploadSuccess = (res: any) => {
   }
 }
 
-const handleVideoUploadSuccess = (res: any) => {
-  videoUploading.value = false
-  if (res.code === 200) {
-    form.value.videoUrl = res.data
-    formRef.value?.validateField('videoUrl')
-    ElMessage.success('视频上传成功')
-  } else {
-    ElMessage.error(res.msg || '视频上传失败')
-  }
-}
-
-const handleVideoUploadError = (err: any) => {
-  videoUploading.value = false
-  console.error('上传失败:', err)
-  ElMessage.error('视频上传失败，可能是文件过大或网络问题')
-}
-
 const beforeUpload = (file: File) => {
   const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png'
   if (!isJpgOrPng) {
@@ -279,6 +261,25 @@ const beforeVideoUpload = (file: File) => {
   }
   videoUploading.value = true
   return isMp4 && isLt500M
+}
+
+const handleVideoUploadRequest = async (options: UploadRequestOptions) => {
+  try {
+    const file = options.file as File
+    const videoUrl = await directUploadCourseVideo(file, (percent) => {
+      options.onProgress?.({ percent } as any)
+    })
+    form.value.videoUrl = videoUrl
+    formRef.value?.validateField('videoUrl')
+    ElMessage.success('视频上传成功')
+    options.onSuccess?.({ url: videoUrl } as any)
+  } catch (error: any) {
+    console.error('上传失败:', error)
+    ElMessage.error(error.message || '视频上传失败，可能是文件过大或网络问题')
+    options.onError?.(error)
+  } finally {
+    videoUploading.value = false
+  }
 }
 
 const handleSubmit = async () => {

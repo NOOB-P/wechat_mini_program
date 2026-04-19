@@ -20,6 +20,7 @@ import com.edu.javasb_back.repository.SysClassRepository;
 import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.service.ExamProjectService;
+import com.edu.javasb_back.service.OssStorageService;
 import com.edu.javasb_back.service.support.AliyunPaperOcrService;
 import com.github.junrar.Archive;
 import com.github.junrar.exception.UnsupportedRarEncryptedException;
@@ -57,7 +58,6 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -109,6 +109,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private GlobalConfigProperties globalConfigProperties;
     @Autowired private AliyunPaperOcrService aliyunPaperOcrService;
+    @Autowired private OssStorageService ossStorageService;
 
     @Override
     public Result<Map<String, Object>> getProjectList(int current, int size, String name) {
@@ -1128,21 +1129,13 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     }
 
     private String storePaperFile(InputStream inputStream, String projectId, String subjectName, String studentNo, String originalFilename) throws Exception {
-        Path baseDir = Paths.get(globalConfigProperties.getPaperDir())
-                .resolve("exam-projects")
-                .resolve(safePathSegment(projectId))
-                .resolve(safePathSegment(subjectName));
-        Files.createDirectories(baseDir);
-
         String storedNamePrefix = safePathSegment(studentNo) + "_" + System.currentTimeMillis() + "_" +
                 UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         return storePaperAsset(
                 inputStream,
-                baseDir,
+                "papers/exam-projects/" + safePathSegment(projectId) + "/" + safePathSegment(subjectName) + "/",
                 storedNamePrefix,
-                originalFilename,
-                "/uploads/papers/exam-projects/" + safePathSegment(projectId) + "/" +
-                        safePathSegment(subjectName) + "/"
+                originalFilename
         );
     }
 
@@ -1256,17 +1249,22 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         return index >= 0 ? entryPath.substring(index + 1) : entryPath;
     }
 
-    private String storePaperAsset(InputStream inputStream, Path baseDir, String storedNamePrefix, String originalFilename, String urlPrefix) throws Exception {
+    private String storePaperAsset(InputStream inputStream, String objectKeyPrefix, String storedNamePrefix, String originalFilename) throws Exception {
         byte[] fileBytes = inputStream.readAllBytes();
         String extension = getFileExtension(originalFilename).toLowerCase();
+        String normalizedPrefix = objectKeyPrefix.endsWith("/") ? objectKeyPrefix : objectKeyPrefix + "/";
         String storedName = storedNamePrefix + extension;
         if (".pdf".equals(extension)) {
             storedName = storedNamePrefix + ".png";
-            renderPdfAsLongImage(fileBytes, baseDir.resolve(storedName));
+            byte[] imageBytes = renderPdfAsLongImageBytes(fileBytes);
+            return ossStorageService.uploadBytes(imageBytes, normalizedPrefix + storedName, "image/png");
         } else {
-            Files.copy(new ByteArrayInputStream(fileBytes), baseDir.resolve(storedName), StandardCopyOption.REPLACE_EXISTING);
+            return ossStorageService.uploadBytes(
+                    fileBytes,
+                    normalizedPrefix + storedName,
+                    resolveContentTypeByExtension(extension)
+            );
         }
-        return urlPrefix + storedName;
     }
 
     private String getFileExtension(String fileName) {
@@ -1277,6 +1275,20 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     private String normalizeStoredPaperPreviewUrl(String url) {
         if (!isPdfFile(url)) return url;
+        if (ossStorageService.isOssUrl(url)) {
+            try {
+                byte[] pdfBytes = ossStorageService.download(url);
+                byte[] previewBytes = renderPdfAsLongImageBytes(pdfBytes);
+                String objectKey = ossStorageService.extractObjectKey(url);
+                int index = objectKey.lastIndexOf('.');
+                String previewKey = index >= 0
+                        ? objectKey.substring(0, index) + "_preview.png"
+                        : objectKey + "_preview.png";
+                return ossStorageService.uploadBytes(previewBytes, previewKey, "image/png");
+            } catch (Exception ignored) {
+                return url;
+            }
+        }
         Path pdfPath = resolvePaperPath(url);
         if (pdfPath == null || !Files.exists(pdfPath)) return url;
 
@@ -1294,6 +1306,11 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     private void renderPdfAsLongImage(byte[] pdfBytes, Path targetPath) throws Exception {
         Files.createDirectories(targetPath.getParent());
+        byte[] imageBytes = renderPdfAsLongImageBytes(pdfBytes);
+        Files.write(targetPath, imageBytes);
+    }
+
+    private byte[] renderPdfAsLongImageBytes(byte[] pdfBytes) throws Exception {
         try (PDDocument document = PDDocument.load(pdfBytes)) {
             if (document.getNumberOfPages() <= 0) {
                 throw new IllegalArgumentException("PDF 文件没有可渲染的页面");
@@ -1327,11 +1344,20 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             } finally {
                 graphics.dispose();
             }
-            ImageIO.write(combinedImage, "png", targetPath.toFile());
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            ImageIO.write(combinedImage, "png", outputStream);
+            return outputStream.toByteArray();
         }
     }
 
     private Path resolvePaperPath(String url) {
+        if (ossStorageService.isOssUrl(url)) {
+            try {
+                return ossStorageService.downloadToTempFile(url);
+            } catch (Exception e) {
+                return null;
+            }
+        }
         if (!StringUtils.hasText(url) || !url.startsWith("/uploads/papers/")) return null;
         Path paperRoot = Paths.get(globalConfigProperties.getPaperDir()).toAbsolutePath().normalize();
         Path resolvedPath = paperRoot.resolve(url.substring("/uploads/papers/".length())).normalize();
@@ -1351,6 +1377,15 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     private boolean isPdfFile(String fileName) {
         return StringUtils.hasText(fileName) && fileName.toLowerCase().endsWith(".pdf");
+    }
+
+    private String resolveContentTypeByExtension(String extension) {
+        return switch (extension) {
+            case ".png" -> "image/png";
+            case ".jpg", ".jpeg" -> "image/jpeg";
+            case ".pdf" -> "application/pdf";
+            default -> "application/octet-stream";
+        };
     }
 
     private String replaceFileExtension(String fileName, String newSuffix) {
@@ -1572,6 +1607,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         if (paperPath == null || !Files.exists(paperPath)) {
             return Result.error("试卷文件不存在，请重新上传后再试");
         }
+        boolean shouldDeleteTempPaper = ossStorageService.isOssUrl(normalizedPaperUrl);
 
         try {
             AliyunPaperOcrService.SegmentResult ocrResult =
@@ -1604,6 +1640,13 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             return Result.error(ex.getMessage());
         } catch (Exception ex) {
             return Result.error("AI 自动切割失败: " + ex.getMessage());
+        } finally {
+            if (shouldDeleteTempPaper) {
+                try {
+                    Files.deleteIfExists(paperPath);
+                } catch (Exception ignored) {
+                }
+            }
         }
     }
 
@@ -1619,21 +1662,13 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     }
 
     private String storePublicPaperFile(InputStream inputStream, String projectId, String subjectName, String type, String originalFilename) throws Exception {
-        Path baseDir = Paths.get(globalConfigProperties.getPaperDir())
-                .resolve("exam-projects")
-                .resolve(safePathSegment(projectId))
-                .resolve(safePathSegment(subjectName))
-                .resolve("public");
-        Files.createDirectories(baseDir);
-
         String storedNamePrefix = type + "_" + System.currentTimeMillis();
         return storePaperAsset(
                 inputStream,
-                baseDir,
+                "papers/exam-projects/" + safePathSegment(projectId) + "/" +
+                        safePathSegment(subjectName) + "/public/",
                 storedNamePrefix,
-                originalFilename,
-                "/uploads/papers/exam-projects/" + safePathSegment(projectId) + "/" +
-                        safePathSegment(subjectName) + "/public/"
+                originalFilename
         );
     }
 

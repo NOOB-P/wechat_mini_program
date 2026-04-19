@@ -51,9 +51,6 @@
     /* 小程序特有相关 */
     "mp-weixin" : {
         "appid" : "wxd18b4cd16e9e909f",
-        "requiredPrivateInfos" : [
-            "openCustomerServiceChat"
-        ],
         "setting" : {
             "urlCheck" : false,
             "es6": true,

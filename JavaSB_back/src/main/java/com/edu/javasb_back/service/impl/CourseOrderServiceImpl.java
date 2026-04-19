@@ -29,6 +29,9 @@ public class CourseOrderServiceImpl implements CourseOrderService {
     @Autowired
     private CourseRepository courseRepository;
 
+    @Autowired
+    private com.edu.javasb_back.repository.SysNotificationRepository notificationRepository;
+
     @Override
     @Transactional
     public CourseOrder createOrder(Long userUid, String courseId) {
@@ -71,6 +74,19 @@ public class CourseOrderServiceImpl implements CourseOrderService {
                     courseRepository.findById(order.getCourseId()).ifPresent(course -> {
                         course.setBuyers((course.getBuyers() == null ? 0 : course.getBuyers()) + 1);
                         courseRepository.save(course);
+
+                        // 发送购买成功通知
+                        com.edu.javasb_back.model.entity.SysNotification notification = new com.edu.javasb_back.model.entity.SysNotification();
+                        notification.setTitle("课程购买成功");
+                        notification.setContent("您已成功购买课程《" + course.getTitle() + "》，现在可以开始学习啦！");
+                        notification.setCategory("SYSTEM");
+                        notification.setLevel("info");
+                        notification.setTargetType(1); // 指定用户
+                        notification.setTargetUid(order.getUserUid());
+                        notification.setIsPublished(1);
+                        notification.setActionText("去学习");
+                        notification.setActionPath("/subpkg_course/pages/course/detail?id=" + course.getId());
+                        notificationRepository.save(notification);
                     });
                 });
     }

@@ -1,12 +1,12 @@
 package com.edu.javasb_back.service.impl;
 
 import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.edu.javasb_back.model.entity.ExamClass;
 import com.edu.javasb_back.model.entity.ExamSubject;
 import com.edu.javasb_back.repository.ExamClassRepository;
 import com.edu.javasb_back.repository.ExamSubjectRepository;
 import com.edu.javasb_back.service.ExamSubjectService;
+import com.edu.javasb_back.service.OssStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,10 +14,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +29,7 @@ public class ExamSubjectServiceImpl implements ExamSubjectService {
     private ExamClassRepository examClassRepository;
 
     @Autowired
-    private GlobalConfigProperties globalConfigProperties;
+    private OssStorageService ossStorageService;
 
     @Override
     public Result<Map<String, Object>> getSubjectList(String classId) {
@@ -141,20 +137,11 @@ public class ExamSubjectServiceImpl implements ExamSubjectService {
     }
 
     private String storeSubjectFile(InputStream inputStream, String classId, String subjectName, String type, String originalFilename) throws Exception {
-        String extension = getFileExtension(originalFilename);
-        Path baseDir = Paths.get(globalConfigProperties.getPaperDir())
-                .resolve("exam-classes")
-                .resolve(safePathSegment(classId))
-                .resolve(safePathSegment(subjectName));
-        Files.createDirectories(baseDir);
-
         String storedName = type + "_" + System.currentTimeMillis() + "_" +
-                UUID.randomUUID().toString().replace("-", "").substring(0, 8) + extension;
-        Path target = baseDir.resolve(storedName);
-        Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
-
-        return "/uploads/papers/exam-classes/" + safePathSegment(classId) + "/" +
+                UUID.randomUUID().toString().replace("-", "").substring(0, 8) + getFileExtension(originalFilename);
+        String objectKey = "papers/exam-classes/" + safePathSegment(classId) + "/" +
                 safePathSegment(subjectName) + "/" + storedName;
+        return ossStorageService.upload(inputStream, -1, objectKey, resolveContentType(originalFilename));
     }
 
     private String safePathSegment(String value) {
@@ -170,5 +157,15 @@ public class ExamSubjectServiceImpl implements ExamSubjectService {
         }
         int index = fileName.lastIndexOf('.');
         return index >= 0 ? fileName.substring(index) : "";
+    }
+
+    private String resolveContentType(String fileName) {
+        String extension = getFileExtension(fileName).toLowerCase();
+        return switch (extension) {
+            case ".png" -> "image/png";
+            case ".jpg", ".jpeg" -> "image/jpeg";
+            case ".pdf" -> "application/pdf";
+            default -> "application/octet-stream";
+        };
     }
 }
