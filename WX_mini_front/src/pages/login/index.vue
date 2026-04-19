@@ -36,10 +36,10 @@
         <wd-tab title="账号登录" name="password">
           <view class="input-group">
             <view class="input-item">
-              <wd-input v-model="phone" placeholder="请输入账号" type="text" no-border />
+              <wd-input v-model="phone" placeholder="请输入账号" type="text" :maxlength="11" no-border />
             </view>
             <view class="input-item">
-              <wd-input v-model="password" placeholder="请输入密码" show-password type="text" no-border />
+              <wd-input v-model="password" placeholder="请输入密码" show-password type="text" :maxlength="20" no-border />
             </view>
           </view>
         </wd-tab>
@@ -405,13 +405,19 @@ const handleLogin = async () => {
     return toast.show('请先勾选同意用户协议和隐私政策')
   }
   if (!phone.value) {
-    return toast.show('请输入手机号')
+    return toast.show(loginType.value === 'phone' ? '请输入手机号' : '请输入账号')
+  }
+  if (loginType.value === 'phone' && phone.value.length !== 11) {
+    return toast.show('请输入正确的11位手机号')
+  }
+  if (loginType.value === 'password' && (phone.value.length < 3 || phone.value.length > 20)) {
+    return toast.show('账号长度应在3-20位之间')
   }
   if (loginType.value === 'phone' && !code.value) {
     return toast.show('请输入验证码')
   }
-  if (loginType.value === 'password' && !password.value) {
-    return toast.show('请输入密码')
+  if (loginType.value === 'password' && (!password.value || password.value.length < 6 || password.value.length > 20)) {
+    return toast.show('密码长度应在6-20位之间')
   }
 
   try {
