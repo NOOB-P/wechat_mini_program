@@ -13,6 +13,8 @@ import java.util.Optional;
 
 @Repository
 public interface CourseOrderRepository extends JpaRepository<CourseOrder, Long> {
+    Optional<CourseOrder> findByOrderNo(String orderNo);
+    Optional<CourseOrder> findByOrderNoAndUserUid(String orderNo, Long userUid);
     List<CourseOrder> findByUserUidAndPaymentStatus(Long userUid, Integer paymentStatus);
     List<CourseOrder> findByUserUidOrderByCreateTimeDesc(Long userUid);
     List<CourseOrder> findTop5ByOrderByCreateTimeDesc();

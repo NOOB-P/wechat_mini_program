@@ -9,6 +9,7 @@ import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.VipPricingRepository;
 import com.edu.javasb_back.repository.VipOrderRepository;
 import com.edu.javasb_back.service.VipOrderService;
+import com.edu.javasb_back.service.WechatPayService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -53,6 +54,9 @@ public class VipOrderServiceImpl implements VipOrderService {
     @Autowired
     private VipPricingRepository vipPricingRepository;
 
+    @Autowired
+    private WechatPayService wechatPayService;
+
     @Override
     @Transactional
     public Result<VipOrder> createVipOrder(Long userUid, Map<String, Object> orderData) {
@@ -89,6 +93,53 @@ public class VipOrderServiceImpl implements VipOrderService {
 
         VipOrder savedOrder = vipOrderRepository.save(order);
         return Result.success(savedOrder);
+    }
+
+    @Override
+    public Result<Map<String, Object>> createWechatPayParams(Long userUid, String orderNo) {
+        if (!StringUtils.hasText(orderNo)) {
+            return Result.error("订单号不能为空");
+        }
+
+        Optional<VipOrder> orderOptional = vipOrderRepository.findByOrderNoAndUserUid(orderNo, userUid);
+        if (orderOptional.isEmpty()) {
+            return Result.error("订单不存在");
+        }
+
+        VipOrder order = orderOptional.get();
+        if (order.getPaymentStatus() != null && order.getPaymentStatus() == 1) {
+            return Result.error(400, "订单已支付");
+        }
+
+        Optional<SysAccount> accountOptional = sysAccountRepository.findById(userUid);
+        if (accountOptional.isEmpty()) {
+            return Result.error("用户不存在");
+        }
+
+        SysAccount account = accountOptional.get();
+        if (!StringUtils.hasText(account.getWxid())) {
+            return Result.error(40101, "请先绑定微信后再发起支付");
+        }
+
+        try {
+            Map<String, Object> payParams = wechatPayService.createJsapiPayParams(
+                    order.getOrderNo(),
+                    "会员开通-" + order.getPackageType(),
+                    order.getPrice(),
+                    account.getWxid(),
+                    "VIP");
+            Map<String, Object> result = new HashMap<>();
+            result.put("orderNo", order.getOrderNo());
+            result.put("payParams", payParams);
+            result.put("packageType", order.getPackageType());
+            result.put("period", order.getPeriod());
+            return Result.success("获取支付参数成功", result);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("获取支付参数失败: " + e.getMessage());
+        }
     }
 
     @Override

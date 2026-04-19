@@ -26,6 +26,8 @@ public interface SysAccountService {
 
     Result<LoginVO> bindWechatPhone(AccountLoginDTO loginDTO);
 
+    Result<java.util.Map<String, Object>> bindWechat(Long uid, String code);
+
     Result<SysAccount> getUserInfo(Long uid);
 
     Result<SysAccount> getUserInfoByUsername(String username);

@@ -13,6 +13,11 @@ public interface VipOrderService {
     Result<VipOrder> createVipOrder(Long userUid, Map<String, Object> orderData);
 
     /**
+     * 为 VIP 订单生成微信支付参数
+     */
+    Result<Map<String, Object>> createWechatPayParams(Long userUid, String orderNo);
+
+    /**
      * 校讯通开通并同步赠送 VIP
      */
     Result<Map<String, Object>> openSchoolVip(Long userUid, Integer months);

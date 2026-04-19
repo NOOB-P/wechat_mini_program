@@ -17,8 +17,8 @@ import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.Course;
 import com.edu.javasb_back.model.entity.CourseOrder;
-import com.edu.javasb_back.service.CourseService;
 import com.edu.javasb_back.service.CourseOrderService;
+import com.edu.javasb_back.service.CourseService;
 
 @RestController
 @RequestMapping("/api/app")
@@ -30,7 +30,6 @@ public class AppCourseController {
     @Autowired
     private CourseOrderService orderService;
 
-    // 辅助方法：获取当前用户的 UID
     private Long getCurrentUid() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
@@ -49,9 +48,7 @@ public class AppCourseController {
         Result<List<Course>> result = courseService.getGeneralCourseList();
         Long uid = getCurrentUid();
         if (uid != null && result.getData() != null) {
-            result.getData().forEach(course -> {
-                course.setIsPurchased(orderService.isCoursePurchased(uid, course.getId()));
-            });
+            result.getData().forEach(course -> course.setIsPurchased(orderService.isCoursePurchased(uid, course.getId())));
         }
         return result;
     }
@@ -70,9 +67,7 @@ public class AppCourseController {
         Result<List<Course>> result = courseService.getSyncCourseList(subject, grade);
         Long uid = getCurrentUid();
         if (uid != null && result.getData() != null) {
-            result.getData().forEach(course -> {
-                course.setIsPurchased(orderService.isCoursePurchased(uid, course.getId()));
-            });
+            result.getData().forEach(course -> course.setIsPurchased(orderService.isCoursePurchased(uid, course.getId())));
         }
         return result;
     }
@@ -83,9 +78,7 @@ public class AppCourseController {
         Result<List<Course>> result = courseService.getFamilyEduList();
         Long uid = getCurrentUid();
         if (uid != null && result.getData() != null) {
-            result.getData().forEach(course -> {
-                course.setIsPurchased(orderService.isCoursePurchased(uid, course.getId()));
-            });
+            result.getData().forEach(course -> course.setIsPurchased(orderService.isCoursePurchased(uid, course.getId())));
         }
         return result;
     }
@@ -96,27 +89,23 @@ public class AppCourseController {
         Result<List<Course>> result = courseService.getStudentTalkList();
         Long uid = getCurrentUid();
         if (uid != null && result.getData() != null) {
-            result.getData().forEach(course -> {
-                course.setIsPurchased(orderService.isCoursePurchased(uid, course.getId()));
-            });
+            result.getData().forEach(course -> course.setIsPurchased(orderService.isCoursePurchased(uid, course.getId())));
         }
         return result;
     }
 
-    @LogOperation("获取同步课程筛选选项")
+    @LogOperation("获取同步课程筛选项")
     @GetMapping("/resource/sync-course/options")
     public Result<Map<String, List<Map<String, Object>>>> getSyncCourseOptions() {
         return courseService.getSyncCourseOptions();
     }
 
-    @LogOperation("收藏/取消收藏课程")
+    @LogOperation("收藏或取消收藏课程")
     @PostMapping("/course/collect")
     public Result<Void> collectCourse(@RequestBody Map<String, Object> params) {
         Long uid = getCurrentUid();
         if (uid == null) return Result.error(401, "请先登录");
-        String courseId = (String) params.get("courseId");
-        Boolean isCollect = (Boolean) params.get("isCollect");
-        return courseService.collectCourse(uid, courseId, isCollect);
+        return courseService.collectCourse(uid, (String) params.get("courseId"), (Boolean) params.get("isCollect"));
     }
 
     @LogOperation("记录学习进度")
@@ -124,9 +113,8 @@ public class AppCourseController {
     public Result<Void> recordLearning(@RequestBody Map<String, Object> params) {
         Long uid = getCurrentUid();
         if (uid == null) return Result.error(401, "请先登录");
-        String courseId = (String) params.get("courseId");
         Integer progress = (Integer) params.get("progress");
-        return courseService.recordLearning(uid, courseId, progress != null ? progress : 0);
+        return courseService.recordLearning(uid, (String) params.get("courseId"), progress != null ? progress : 0);
     }
 
     @LogOperation("获取我的课程")
@@ -158,21 +146,27 @@ public class AppCourseController {
     public Result<CourseOrder> buyCourse(@RequestBody Map<String, Object> params) {
         Long uid = getCurrentUid();
         if (uid == null) return Result.error(401, "请先登录");
-        String courseId = (String) params.get("courseId");
         try {
-            CourseOrder order = orderService.createOrder(uid, courseId);
+            CourseOrder order = orderService.createOrder(uid, (String) params.get("courseId"));
             return Result.success("订单创建成功", order);
         } catch (Exception e) {
             return Result.error(e.getMessage());
         }
     }
 
-    @LogOperation("模拟支付")
+    @LogOperation("创建课程微信支付参数")
+    @PostMapping("/course/pay")
+    public Result<Map<String, Object>> createCoursePayParams(@RequestBody Map<String, Object> params) {
+        Long uid = getCurrentUid();
+        if (uid == null) return Result.error(401, "请先登录");
+        return orderService.createWechatPayParams(uid, params == null ? null : (String) params.get("orderNo"));
+    }
+
+    @LogOperation("模拟课程支付")
     @PostMapping("/course/pay-mock")
     public Result<Void> payMock(@RequestBody Map<String, Object> params) {
-        String orderNo = (String) params.get("orderNo");
         try {
-            orderService.paySuccess(orderNo);
+            orderService.paySuccess((String) params.get("orderNo"));
             return Result.success("支付成功", null);
         } catch (Exception e) {
             return Result.error("支付处理失败");

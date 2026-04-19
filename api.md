@@ -401,4 +401,88 @@
 
 - 方法：`DELETE`
 - 地址：`/api/admin/notifications/{id}`
+# 小程序支付接口
 
+统一返回格式：
+```json
+{
+  "code": 200,
+  "msg": "提示信息",
+  "data": {}
+}
+```
+
+状态码补充说明：
+
+| code | 说明 |
+| --- | --- |
+| 200 | 请求成功 |
+| 401 | 未登录 |
+| 40101 | 未绑定微信 OpenID，需要先调用微信绑定接口 |
+| 500 | 业务处理失败 |
+
+## 1. 绑定当前登录用户微信 OpenID
+
+- 方法：`POST`
+- 地址：`/api/app/auth/wechat/bind`
+- 请求体：
+
+```json
+{
+  "code": "wx.login 返回的 code"
+}
+```
+
+- `data` 返回字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| openid | string | 当前账号绑定的微信 OpenID |
+
+## 2. 创建课程微信支付参数
+
+- 方法：`POST`
+- 地址：`/api/app/course/pay`
+- 请求体：
+
+```json
+{
+  "orderNo": "课程订单号"
+}
+```
+
+- `data` 返回字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| orderNo | string | 本地订单号 |
+| payParams | object | `uni.requestPayment` 所需参数 |
+
+## 3. 创建 VIP 微信支付参数
+
+- 方法：`POST`
+- 地址：`/api/app/vip/order/pay`
+- 请求体：
+
+```json
+{
+  "orderNo": "VIP订单号"
+}
+```
+
+- `data` 返回字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| orderNo | string | 本地订单号 |
+| packageType | string | 套餐类型 |
+| period | string | 套餐周期 |
+| payParams | object | `uni.requestPayment` 所需参数 |
+
+## 4. 微信支付回调
+
+- 方法：`POST`
+- 地址：`/api/pay/wechat/notify`
+- 说明：
+- 仅供微信支付平台回调，不需要前端调用
+- 后端会校验签名并按订单号前缀分别处理课程订单与 VIP 订单

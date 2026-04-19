@@ -12,6 +12,7 @@ import com.edu.javasb_back.service.SysSchoolService;
 import com.edu.javasb_back.service.SysStudentService;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,6 +33,18 @@ public class AppAuthController {
 
     @Autowired
     private SysStudentService sysStudentService;
+
+    private Long getCurrentUid() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return null;
+        }
+        try {
+            return Long.parseLong(authentication.getName());
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     @GetMapping("/provinces")
     public Result<List<String>> getProvinces() {
@@ -100,6 +113,16 @@ public class AppAuthController {
     @PostMapping("/login/wechat/bind-phone")
     public Result<LoginVO> bindWechatPhone(@RequestBody AccountLoginDTO loginDTO) {
         return sysAccountService.bindWechatPhone(loginDTO);
+    }
+
+    @LogOperation("小程序绑定微信 OpenID")
+    @PostMapping("/wechat/bind")
+    public Result<java.util.Map<String, Object>> bindWechat(@RequestBody AccountLoginDTO loginDTO) {
+        Long uid = getCurrentUid();
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
+        return sysAccountService.bindWechat(uid, loginDTO.getCode());
     }
 
     @LogOperation("确认绑定学生账号")

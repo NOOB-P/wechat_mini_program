@@ -15,6 +15,7 @@ import java.util.Optional;
 @Repository
 public interface VipOrderRepository extends JpaRepository<VipOrder, Long> {
     Optional<VipOrder> findByOrderNo(String orderNo);
+    Optional<VipOrder> findByOrderNoAndUserUid(String orderNo, Long userUid);
     List<VipOrder> findByUserUidOrderByCreateTimeDesc(Long userUid);
     List<VipOrder> findTop5ByOrderByCreateTimeDesc();
 
