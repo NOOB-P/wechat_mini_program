@@ -1,5 +1,6 @@
 package com.edu.javasb_back.service.impl;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.config.datasource.DataSourceName;
 import com.edu.javasb_back.model.entity.Course;
 import com.edu.javasb_back.model.entity.CourseOrder;
 import com.edu.javasb_back.model.entity.SysAccount;
@@ -28,6 +30,7 @@ import com.edu.javasb_back.service.CourseOrderService;
 import com.edu.javasb_back.service.WechatPayService;
 
 @Service
+@Transactional(readOnly = true)
 public class CourseOrderServiceImpl implements CourseOrderService {
 
     private static final String WECHAT_PAYMENT_METHOD = "微信支付";
@@ -91,6 +94,7 @@ public class CourseOrderServiceImpl implements CourseOrderService {
     }
 
     @Override
+    @DS(DataSourceName.MASTER)
     public Result<Map<String, Object>> createWechatPayParams(Long userUid, String orderNo) {
         if (!StringUtils.hasText(orderNo)) {
             return Result.error("订单号不能为空");

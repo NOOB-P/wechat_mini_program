@@ -1,6 +1,8 @@
 package com.edu.javasb_back.service.impl;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.config.datasource.DataSourceName;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.VipPricing;
 import com.edu.javasb_back.model.entity.VipOrder;
@@ -31,6 +33,7 @@ import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
+@Transactional(readOnly = true)
 public class VipOrderServiceImpl implements VipOrderService {
 
     private static final String SOURCE_ONLINE_PURCHASE = "ONLINE_PURCHASE";
@@ -96,6 +99,7 @@ public class VipOrderServiceImpl implements VipOrderService {
     }
 
     @Override
+    @DS(DataSourceName.MASTER)
     public Result<Map<String, Object>> createWechatPayParams(Long userUid, String orderNo) {
         if (!StringUtils.hasText(orderNo)) {
             return Result.error("订单号不能为空");

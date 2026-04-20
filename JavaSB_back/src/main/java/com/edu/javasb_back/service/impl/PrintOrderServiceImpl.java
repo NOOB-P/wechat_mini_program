@@ -25,6 +25,7 @@ import java.util.Optional;
  * 打印订单服务实现类
  */
 @Service
+@Transactional(readOnly = true)
 public class PrintOrderServiceImpl implements PrintOrderService {
 
     @Autowired

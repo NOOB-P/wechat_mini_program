@@ -18,6 +18,7 @@ import java.util.Map;
  * 打印配置服务实现类
  */
 @Service
+@Transactional(readOnly = true)
 public class PrintConfigServiceImpl implements PrintConfigService {
 
     @Autowired

@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 public class ExamSubjectServiceImpl implements ExamSubjectService {
 
     @Autowired
