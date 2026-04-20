@@ -21,40 +21,45 @@ const emit = defineEmits(['click'])
 
 <style lang="scss" scoped>
 .function-banner {
-  background: #fff;
-  border-radius: 24rpx;
-  padding: 30rpx 24rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+  background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+  border-radius: 32rpx;
+  padding: 40rpx 32rpx;
+  margin: 24rpx 0;
+  box-shadow: 0 8rpx 24rpx rgba(26, 95, 142, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border: 1px solid rgba(26, 95, 142, 0.05);
 
   .banner-content {
     display: flex;
     align-items: center;
-    gap: 20rpx;
+    gap: 32rpx;
   }
 
   .banner-icon-img {
-    width: 100rpx;
-    height: 100rpx;
+    width: 140rpx;
+    height: 140rpx;
+    filter: drop-shadow(0 4rpx 8rpx rgba(0, 0, 0, 0.1));
   }
 
   .banner-text-wrap {
     display: flex;
     flex-direction: column;
-    gap: 8rpx;
+    gap: 12rpx;
 
     .banner-title {
-      font-size: 34rpx;
-      font-weight: bold;
-      color: #333;
+      font-size: 40rpx;
+      font-weight: 800;
+      color: #1a5f8e;
+      letter-spacing: 2rpx;
     }
 
     .banner-desc {
-      font-size: 24rpx;
-      color: #999;
+      font-size: 26rpx;
+      color: #666;
+      max-width: 400rpx;
+      line-height: 1.4;
     }
   }
 }

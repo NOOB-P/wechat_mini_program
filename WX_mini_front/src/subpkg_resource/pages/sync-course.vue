@@ -1,5 +1,6 @@
 <template>
   <view class="sync-container">
+    <wd-toast id="wd-toast" />
     <!-- 极简清爽头部 -->
     <view class="header-wrap">
       <view class="grade-pill-box">
@@ -58,7 +59,20 @@
                 <wd-icon name="video" size="14px" color="#999" />
                 <text>共 {{ item.episodes }} 节课</text>
               </view>
-              <view class="learn-btn">开始学习</view>
+              <view class="action-section">
+                <view class="price-box-bottom" v-if="item.isPurchased">
+                  <text class="price-val">已购买</text>
+                </view>
+                <view class="price-box-bottom" v-else-if="item.price > 0">
+                  <text class="price-val">￥{{ item.price }}</text>
+                </view>
+                <view class="price-box-bottom free" v-else>
+                  <text class="price-val">免费</text>
+                </view>
+                <view class="action-btn" @click.stop="handleAction(item)">
+                  <text>{{ (item.price > 0 && !item.isPurchased) ? '立即购买' : '开始学习' }}</text>
+                </view>
+              </view>
             </view>
           </view>
         </view>
@@ -80,6 +94,8 @@
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getSyncCourseListApi, getSyncCourseOptionsApi } from '@/subpkg_resource/api/resource'
+import { buyCourseApi } from '@/api/course'
+import { useToast } from 'wot-design-uni'
 
 const grades = ref<string[]>([])
 const gradeIndex = ref(0)
@@ -88,6 +104,7 @@ const subjects = ref<string[]>([])
 const currentSubject = ref('')
 
 const list = ref<any[]>([])
+const toast = useToast()
 
 const loadOptions = async () => {
   try {
@@ -126,6 +143,29 @@ const loadData = async () => {
   }
 }
 
+const handleAction = async (item: any) => {
+  if (item.price > 0 && !item.isPurchased) {
+    try {
+      toast.loading('正在下单...')
+      const res = await buyCourseApi(item.id)
+      if (res.code === 200) {
+        const orderData = encodeURIComponent(JSON.stringify(res.data))
+        uni.navigateTo({
+          url: `/subpkg_course/pages/course/pay?order=${orderData}`
+        })
+      } else {
+        toast.error(res.msg || '下单失败')
+      }
+    } catch (e) {
+      toast.error('网络错误')
+    } finally {
+      toast.close()
+    }
+  } else {
+    handleItemClick(item)
+  }
+}
+
 const onGradeChange = (e: any) => {
   gradeIndex.value = e.detail.value
   loadData()
@@ -139,7 +179,7 @@ const onSubjectChange = (item: any) => {
   }
 }
 
-const goToDetail = (item: any) => {
+const handleItemClick = (item: any) => {
   uni.navigateTo({
     url: `/subpkg_course/pages/course/detail?id=${item.id}`
   })
@@ -310,14 +350,45 @@ onMounted(() => loadOptions())
     font-size: 22rpx;
     color: #999;
   }
+
+  .action-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4rpx;
+  }
+
+  .price-box-bottom {
+    margin-right: 12rpx;
+    margin-bottom: 2rpx;
+    .price-val {
+      font-size: 24rpx;
+      font-weight: bold;
+      color: #ff6b6b;
+    }
+    &.free {
+      .price-val {
+        color: #52c41a;
+      }
+    }
+  }
   
-  .learn-btn {
-    color: #1a5f8e;
-    font-size: 24rpx;
-    font-weight: 600;
-    padding: 8rpx 24rpx;
+  .action-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    padding: 10rpx 32rpx;
     border-radius: 30rpx;
-    background: #f0f6ff;
+    box-shadow: 0 6rpx 16rpx rgba(79, 172, 254, 0.24);
+    
+    text {
+      color: #fff;
+      font-size: 22rpx;
+      font-weight: bold;
+    }
+    
+    &:active {
+      transform: scale(0.96);
+      opacity: 0.9;
+    }
   }
 }
 

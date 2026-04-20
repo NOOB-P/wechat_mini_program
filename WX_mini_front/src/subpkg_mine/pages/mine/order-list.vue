@@ -169,6 +169,9 @@ onLoad((options: any) => {
   if (options.tab) {
     currentTab.value = options.tab
   }
+  if (options.type === 'purchased') {
+    currentTab.value = 'course'
+  }
   uni.setNavigationBarTitle({
     title: '已购订单'
   })

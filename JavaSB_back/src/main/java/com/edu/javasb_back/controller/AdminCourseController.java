@@ -19,14 +19,14 @@ import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.Course;
 import com.edu.javasb_back.service.CourseService;
+import com.edu.javasb_back.service.OssStorageService;
 
 import com.edu.javasb_back.model.entity.CourseEpisode;
 import com.edu.javasb_back.model.entity.CourseVideo;
-import com.edu.javasb_back.config.GlobalConfigProperties;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.UUID;
 
 /**
@@ -40,7 +40,7 @@ public class AdminCourseController {
     private CourseService courseService;
 
     @Autowired
-    private GlobalConfigProperties globalConfigProperties;
+    private OssStorageService ossStorageService;
 
     @LogOperation("管理端：获取课程列表")
     @PreAuthorize("hasAuthority('course:manage:list')")
@@ -157,13 +157,9 @@ public class AdminCourseController {
         String originalFilename = file.getOriginalFilename();
         String suffix = originalFilename.substring(originalFilename.lastIndexOf("."));
         String fileName = UUID.randomUUID().toString() + suffix;
-        
-        File destDir = new File(globalConfigProperties.getCourseCoverDir());
-        if (!destDir.exists()) destDir.mkdirs();
-        
+
         try {
-            file.transferTo(new File(destDir.getAbsolutePath() + File.separator + fileName));
-            return Result.success("上传成功", "/uploads/course/cover/" + fileName);
+            return Result.success("上传成功", ossStorageService.upload(file, "course/cover/" + fileName));
         } catch (IOException e) {
             return Result.error("上传失败 : " + e.getMessage());
         }
@@ -179,15 +175,43 @@ public class AdminCourseController {
         String originalFilename = file.getOriginalFilename();
         String suffix = originalFilename.substring(originalFilename.lastIndexOf("."));
         String fileName = UUID.randomUUID().toString() + suffix;
-        
-        File destDir = new File(globalConfigProperties.getCourseVideoDir());
-        if (!destDir.exists()) destDir.mkdirs();
-        
+
         try {
-            file.transferTo(new File(destDir.getAbsolutePath() + File.separator + fileName));
-            return Result.success("上传成功", "/uploads/course/video/" + fileName);
+            return Result.success("上传成功", ossStorageService.upload(file, "course/video/" + fileName));
         } catch (IOException e) {
             return Result.error("上传失败 : " + e.getMessage());
+        }
+    }
+
+    @LogOperation("管理端 : 获取课程视频直传签名")
+    @PreAuthorize("hasAuthority('course:manage:edit')")
+    @PostMapping("/upload-video-signature")
+    public Result<Map<String, Object>> createVideoUploadSignature(@RequestBody Map<String, Object> params) {
+        String fileName = params.get("fileName") == null ? null : String.valueOf(params.get("fileName"));
+        String contentType = params.get("contentType") == null ? null : String.valueOf(params.get("contentType"));
+        if (fileName == null || fileName.isBlank()) {
+            return Result.error("文件名不能为空");
+        }
+        String suffix = fileName.contains(".") ? fileName.substring(fileName.lastIndexOf('.')).toLowerCase() : "";
+        if (!".mp4".equals(suffix)) {
+            return Result.error("仅支持 MP4 格式");
+        }
+
+        String objectKey = "course/video/" + UUID.randomUUID() + suffix;
+        try {
+            OssStorageService.DirectUploadToken token = ossStorageService.createPutUploadToken(
+                    objectKey,
+                    contentType,
+                    10 * 60 * 1000L
+            );
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("signedUrl", token.signedUrl());
+            data.put("publicUrl", token.publicUrl());
+            data.put("objectKey", token.objectKey());
+            data.put("expireAt", token.expireAt());
+            return Result.success("获取上传签名成功", data);
+        } catch (IOException e) {
+            return Result.error("生成上传签名失败 : " + e.getMessage());
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.edu.javasb_back.controller;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
@@ -19,12 +18,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.edu.javasb_back.model.dto.AccountUpdateDTO;
 import com.edu.javasb_back.model.dto.PasswordUpdateDTO;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.vo.AppNotificationVO;
 import com.edu.javasb_back.service.AppNotificationService;
+import com.edu.javasb_back.service.OssStorageService;
 import com.edu.javasb_back.service.SysAccountService;
 
 /**
@@ -38,10 +37,10 @@ public class AppMineController {
     private SysAccountService sysAccountService;
 
     @Autowired
-    private GlobalConfigProperties globalConfigProperties;
+    private AppNotificationService appNotificationService;
 
     @Autowired
-    private AppNotificationService appNotificationService;
+    private OssStorageService ossStorageService;
 
     // 辅助方法：获取当前用户的 UID
     private Long getCurrentUid() {
@@ -119,14 +118,6 @@ public class AppMineController {
             return Result.error("上传文件为空");
         }
 
-        // 确定上传目录
-        String uploadDir = globalConfigProperties.getUploadDir();
-        File folder = new File(uploadDir);
-        if (!folder.exists()) {
-            folder.mkdirs();
-        }
-
-        // 生成文件名
         String originalFilename = file.getOriginalFilename();
         String extension = "";
         if (originalFilename != null && originalFilename.contains(".")) {
@@ -134,11 +125,8 @@ public class AppMineController {
         }
         String fileName = UUID.randomUUID().toString().replace("-", "") + extension;
 
-        // 保存文件
         try {
-            file.transferTo(new File(folder.getAbsolutePath() + File.separator + fileName));
-            // 统一返回相对路径，由前端基于当前服务地址拼接，避免写死本机地址
-            String avatarUrl = "/uploads/code/" + fileName;
+            String avatarUrl = ossStorageService.upload(file, "code/" + fileName);
             return Result.success("上传成功", avatarUrl);
         } catch (IOException e) {
             e.printStackTrace();
