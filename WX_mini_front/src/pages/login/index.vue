@@ -44,7 +44,7 @@
           </view>
         </wd-tab>
       </wd-tabs>
-
+      <!-- 暂时注释，后续再开启，请不要随意将其注释去除 -->
       <!-- <view v-if="loginType === 'phone'" class="wechat-phone-login">
         <button class="wx-phone-login-btn" open-type="getPhoneNumber" @getphonenumber="handleWechatPhoneLogin">
           <wd-icon name="wechat" size="24px" color="#fff" />

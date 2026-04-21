@@ -40,6 +40,10 @@ export const createCoursePayApi = (orderNo: string) => {
   return request({ url: '/api/app/course/pay', method: 'POST', data: { orderNo } })
 }
 
+export const confirmCourseVirtualPayApi = (orderNo: string, security: Record<string, any>) => {
+  return request({ url: '/api/app/course/pay/confirm', method: 'POST', data: { orderNo, security } })
+}
+
 export const payMockApi = (orderNo: string) => {
   return request({ url: '/api/app/course/pay-mock', method: 'POST', data: { orderNo } })
 }

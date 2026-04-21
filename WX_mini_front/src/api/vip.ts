@@ -60,6 +60,14 @@ export const createVipPayApi = (orderNo: string) => {
   })
 }
 
+export const confirmVipVirtualPayApi = (orderNo: string, security: Record<string, any>) => {
+  return request({
+    url: '/api/app/vip/order/pay/confirm',
+    method: 'POST',
+    data: { orderNo, security }
+  })
+}
+
 export const simulatePayCallbackApi = (orderNo: string) => {
   return request({
     url: '/api/app/vip/order/callback',

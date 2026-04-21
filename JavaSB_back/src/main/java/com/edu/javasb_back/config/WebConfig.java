@@ -19,21 +19,19 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // 将 /uploads/** 映射到本地磁盘路径
         String uploadDir = globalConfigProperties.getUploadDir();
-        String paperDir = globalConfigProperties.getPaperDir();
         String uploadRootDir = resolveUploadRootDir(uploadDir);
         String coverDir = globalConfigProperties.getCourseCoverDir();
         String videoDir = globalConfigProperties.getCourseVideoDir();
 
         registerResourceHandler(registry, "/uploads/code/**", uploadDir);
-        registerResourceHandler(registry, "/uploads/papers/**", paperDir);
         registerResourceHandler(registry, "/uploads/course/cover/**", coverDir);
         registerResourceHandler(registry, "/uploads/course/video/**", videoDir);
 
         registerResourceHandler(registry, "/static/uploads/course/cover/**", coverDir);
         registerResourceHandler(registry, "/static/uploads/course/video/**", videoDir);
 
-        registerResourceHandler(registry, "/uploads/**", uploadRootDir, uploadDir, paperDir, coverDir, videoDir);
-        registerResourceHandler(registry, "/static/uploads/**", uploadRootDir, uploadDir, paperDir, coverDir, videoDir);
+        registerResourceHandler(registry, "/uploads/**", uploadRootDir, uploadDir, coverDir, videoDir);
+        registerResourceHandler(registry, "/static/uploads/**", uploadRootDir, uploadDir, coverDir, videoDir);
 
         // 将 /static/** 映射到 classpath 下的 static 目录
         registry.addResourceHandler("/static/**")

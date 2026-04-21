@@ -36,7 +36,7 @@
 
     <view class="bottom-bar">
       <view class="total">
-        <text>合计：</text>
+        <text>合计： </text>
         <text class="amount">￥{{ order.price }}</text>
       </view>
       <wd-button type="primary" block :loading="loading" @click="handlePay">立即支付</wd-button>
@@ -48,10 +48,10 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { createCoursePayApi, getCourseDetailApi } from '@/api/course'
-import { createVipPayApi } from '@/api/vip'
+import { createCoursePayApi, getCourseDetailApi, confirmCourseVirtualPayApi } from '@/api/course'
+import { createVipPayApi, confirmVipVirtualPayApi } from '@/api/vip'
 import { getUserInfoApi } from '@/api/mine'
-import { ensureWechatPayBound, requestWechatPay } from '@/utils/wechat-pay'
+import { ensureWechatPayBound, requestWechatPaymentByType } from '@/utils/wechat-pay'
 
 const toast = useToast()
 const loading = ref(false)
@@ -80,10 +80,50 @@ const loadCourseDetail = async (id: string) => {
   }
 }
 
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+const confirmCourseVirtualPayWithRetry = async (orderNo: string, security: Record<string, any>) => {
+  for (let index = 0; index < 3; index += 1) {
+    try {
+      const res = await confirmCourseVirtualPayApi(orderNo, security)
+      if (res.code === 200) {
+        return res
+      }
+    } catch (error) {
+      if (index === 2) {
+        throw {
+          code: 'PAY_CONFIRM_FAILED',
+          msg: '支付已完成，但订单状态同步失败，请稍后刷新订单列表'
+        }
+      }
+      await wait(800)
+    }
+  }
+}
+
+const confirmVipVirtualPayWithRetry = async (orderNo: string, security: Record<string, any>) => {
+  for (let index = 0; index < 3; index += 1) {
+    try {
+      const res = await confirmVipVirtualPayApi(orderNo, security)
+      if (res.code === 200) {
+        return res
+      }
+    } catch (error) {
+      if (index === 2) {
+        throw {
+          code: 'PAY_CONFIRM_FAILED',
+          msg: '支付已完成，但会员状态同步失败，请稍后刷新页面'
+        }
+      }
+      await wait(800)
+    }
+  }
+}
+
 const fetchPayParams = async () => {
   const isVip = order.value.type === 'VIP'
   const payApi = isVip ? createVipPayApi : createCoursePayApi
-  
+
   try {
     return await payApi(order.value.orderNo)
   } catch (error: any) {
@@ -114,11 +154,28 @@ const handlePay = async () => {
 
   loading.value = true
   try {
-    // 移除系统 Loading，微信支付自带加载
+    toast.loading('正在准备支付...')
     await ensureWechatPayBound()
     const payRes = await fetchPayParams()
-    await requestWechatPay(payRes.data?.payParams || {})
-    
+    const paymentType = payRes.data?.paymentType
+    const payParams = payRes.data?.payParams || {}
+
+    await requestWechatPaymentByType(paymentType, payParams)
+
+    if (paymentType === 'VIRTUAL') {
+      try {
+        if (order.value.type === 'VIP') {
+          await confirmVipVirtualPayWithRetry(order.value.orderNo, payRes.data?.security || {})
+        } else {
+          await confirmCourseVirtualPayWithRetry(order.value.orderNo, payRes.data?.security || {})
+        }
+      } catch (confirmError) {
+        console.warn('Pay confirm failed, relying on backend notify', confirmError)
+        toast.show('支付成功，正在同步状态...')
+        await wait(2000)
+      }
+    }
+
     if (order.value.type === 'VIP') {
       await refreshUserInfo()
     }
@@ -138,6 +195,10 @@ const handlePay = async () => {
       toast.show('已取消支付')
       return
     }
+    if (error?.code === 'PAY_CONFIRM_FAILED') {
+      toast.error(error.msg)
+      return
+    }
     toast.error(error?.msg || error?.message || '支付失败，请稍后重试')
   } finally {
     loading.value = false
@@ -145,7 +206,9 @@ const handlePay = async () => {
 }
 
 const formatTime = (time?: string) => {
-  if (!time) return ''
+  if (!time) {
+    return ''
+  }
   return time.replace('T', ' ').slice(0, 19)
 }
 </script>

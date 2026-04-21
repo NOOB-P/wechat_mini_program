@@ -48,14 +48,41 @@ import com.edu.javasb_back.repository.SysRoleRepository;
 import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.service.RolePermissionService;
+import com.edu.javasb_back.service.SmsService;
 import com.edu.javasb_back.service.SysAccountService;
 import com.edu.javasb_back.utils.JwtUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.client.RestTemplate;
+
+import java.time.LocalDateTime;
+import java.util.*;
+
+
 @Service
 public class SysAccountServiceImpl implements SysAccountService {
 
-    private static final ConcurrentHashMap<String, String> smsCodeMap = new ConcurrentHashMap<>();
     private static final int PARENT_ROLE_ID = 3;
 
     @Autowired
@@ -89,6 +116,9 @@ public class SysAccountServiceImpl implements SysAccountService {
     private JwtUtils jwtUtils;
 
     @Autowired
+    private SmsService smsService;
+
+    @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
     private final RestTemplate restTemplate = new RestTemplate();
@@ -96,13 +126,18 @@ public class SysAccountServiceImpl implements SysAccountService {
 
     @Override
     public Result<String> sendSmsCode(String phone) {
-        if (!StringUtils.hasText(phone) || phone.length() != 11) {
+        if (!isValidPhone(phone)) {
             return Result.error("手机号格式不正确");
         }
-        String code = String.format("%06d", new Random().nextInt(1000000));
-        smsCodeMap.put(phone, code);
-        System.out.println("【模拟短信】手机号: " + phone + "，验证码: " + code);
-        return Result.success("验证码已发送", code);
+        try {
+            smsService.sendVerificationCode(phone);
+            return Result.success("验证码已发送", null);
+        } catch (IllegalStateException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("短信发送失败，请稍后重试");
+        }
     }
 
     @Override
@@ -183,8 +218,7 @@ public class SysAccountServiceImpl implements SysAccountService {
             return Result.error("手机号和验证码不能为空");
         }
 
-        String cachedCode = smsCodeMap.get(loginDTO.getPhone());
-        if (cachedCode == null || !cachedCode.equals(loginDTO.getCode())) {
+        if (!smsService.verifyCode(loginDTO.getPhone(), loginDTO.getCode())) {
             return Result.error("验证码错误或已过期");
         }
 
@@ -203,7 +237,7 @@ public class SysAccountServiceImpl implements SysAccountService {
             account = accountRepository.save(account);
         }
 
-        smsCodeMap.remove(loginDTO.getPhone());
+        smsService.removeVerificationCode(loginDTO.getPhone());
         return generateLoginResult(account);
     }
 
@@ -271,15 +305,14 @@ public class SysAccountServiceImpl implements SysAccountService {
             return Result.error("微信OpenID不能为空");
         }
 
-        String cachedCode = smsCodeMap.get(loginDTO.getPhone());
-        if (cachedCode == null || !cachedCode.equals(loginDTO.getCode())) {
+        if (!smsService.verifyCode(loginDTO.getPhone(), loginDTO.getCode())) {
             return Result.error("验证码错误或已过期");
         }
 
         String phone = loginDTO.getPhone();
         String openid = loginDTO.getOpenid();
-        if (openid != null) {
-            smsCodeMap.remove(phone);
+        if (StringUtils.hasText(openid)) {
+            smsService.removeVerificationCode(phone);
             return loginOrRegisterWechatPhone(phone, openid);
         }
 
@@ -332,7 +365,7 @@ public class SysAccountServiceImpl implements SysAccountService {
             loginAccount = accountRepository.save(newAccount);
         }
 
-        smsCodeMap.remove(phone);
+        smsService.removeVerificationCode(phone);
         return generateLoginResult(loginAccount);
     }
 
@@ -455,8 +488,7 @@ public class SysAccountServiceImpl implements SysAccountService {
             if (!StringUtils.hasText(updateDTO.getCode())) {
                 return Result.error("修改手机号需要提供验证码");
             }
-            String cachedCode = smsCodeMap.get(updateDTO.getPhone());
-            if ((cachedCode == null || !cachedCode.equals(updateDTO.getCode())) && !"123456".equals(updateDTO.getCode())) {
+            if (!smsService.verifyCode(updateDTO.getPhone(), updateDTO.getCode()) && !"123456".equals(updateDTO.getCode())) {
                 return Result.error("验证码不正确或已过期");
             }
 
@@ -465,7 +497,7 @@ public class SysAccountServiceImpl implements SysAccountService {
                 return Result.error("该手机号已被其他账号绑定");
             }
             newPhone = updateDTO.getPhone();
-            smsCodeMap.remove(updateDTO.getPhone());
+            smsService.removeVerificationCode(updateDTO.getPhone());
         }
 
         int rows = accountRepository.updateBasicInfoSql(uid, newNickname, newPhone, newEmail, newAvatar);
@@ -1113,8 +1145,18 @@ public class SysAccountServiceImpl implements SysAccountService {
         }
 
         String openid = (String) resultMap.get("openid");
+        String sessionKey = (String) resultMap.get("session_key");
         if (!StringUtils.hasText(openid)) {
             throw new IllegalStateException("获取微信OpenID失败");
+        }
+
+        // 缓存 session_key，用于后续虚拟支付签名等逻辑
+        if (StringUtils.hasText(sessionKey)) {
+            try {
+                stringRedisTemplate.opsForValue().set("wechat:session_key:" + openid, sessionKey, 24, TimeUnit.HOURS);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
         return openid;
     }
@@ -1401,5 +1443,9 @@ public class SysAccountServiceImpl implements SysAccountService {
             account.setRoleName(role.getRoleName());
         });
         account.setPermissions(rolePermissionService.getPermissionCodesByRoleId(account.getRoleId()));
+    }
+
+    private boolean isValidPhone(String phone) {
+        return StringUtils.hasText(phone) && phone.matches("^1[3-9]\\d{9}$");
     }
 }

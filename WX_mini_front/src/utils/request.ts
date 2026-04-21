@@ -5,7 +5,12 @@ import { getMockData } from '@/mock/index'
 const Notify = useNotify()
 
 // 是否开启 mock (通常只在开发环境下开启)
-const USE_MOCK = String(import.meta.env.VITE_USE_MOCK || 'false').toLowerCase() === 'true'
+const USE_MOCK = import.meta.env.DEV
+const MOCK_BYPASS_URLS = [
+    '/api/app/auth/sendCode',
+    '/api/app/auth/login/phone',
+    '/api/app/auth/login/wechat/bind-phone'
+]
 
 // 请求拦截
 const requestInterceptor = (options: requestOptions) => {
@@ -34,7 +39,7 @@ export default (options:requestOptions): Promise<any> => {
     }
     
     // 如果开启 mock，则尝试拦截并返回模拟数据
-    if (USE_MOCK) {
+    if (USE_MOCK && !MOCK_BYPASS_URLS.includes(options.url)) {
         const mockResponse = getMockData(options.url, options.data);
         if (mockResponse) {
             console.log('拦截到 Mock 数据:', mockResponse);

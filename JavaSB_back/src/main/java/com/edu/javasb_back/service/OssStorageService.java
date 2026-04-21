@@ -15,12 +15,15 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class OssStorageService {
@@ -33,6 +36,9 @@ public class OssStorageService {
 
     @Value("${aliyun.oss.bucket}")
     private String bucket;
+
+    @Value("${aliyun.oss.endpoint}")
+    private String endpoint;
 
     @Value("${aliyun.oss.cdn-base-url}")
     private String cdnBaseUrl;
@@ -169,6 +175,38 @@ public class OssStorageService {
         }
         String normalized = baseUrl.trim();
         return normalized.endsWith("/") ? normalized : normalized + "/";
+    }
+
+    private List<String> supportedUrlPrefixes() {
+        List<String> prefixes = new ArrayList<>();
+        String cdnPrefix = normalizedBaseUrl();
+        if (StringUtils.hasText(cdnPrefix)) {
+            prefixes.add(cdnPrefix);
+        }
+
+        String rawOssPrefix = rawOssBaseUrl();
+        if (StringUtils.hasText(rawOssPrefix) && !prefixes.contains(rawOssPrefix)) {
+            prefixes.add(rawOssPrefix);
+        }
+        return prefixes;
+    }
+
+    private String rawOssBaseUrl() {
+        if (!StringUtils.hasText(bucket)) {
+            return "";
+        }
+        try {
+            URI endpointUri = URI.create(endpoint.startsWith("http://") || endpoint.startsWith("https://")
+                    ? endpoint
+                    : "https://" + endpoint);
+            String host = endpointUri.getHost();
+            if (!StringUtils.hasText(host)) {
+                return "";
+            }
+            return "https://" + bucket + "." + host + "/";
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 
     private String resolveContentType(String fileName, String explicitContentType) {

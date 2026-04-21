@@ -544,3 +544,88 @@
 - 说明：
 - 仅供微信支付平台回调，不需要前端调用
 - 后端会校验签名并按订单号前缀分别处理课程订单与 VIP 订单
+
+## 支付改造补充（虚拟支付拆分）
+
+### 1. 课程支付参数接口
+
+- 方法：`POST`
+- 地址：`/api/app/course/pay`
+- 请求体：
+
+```json
+{
+  "orderNo": "课程订单号"
+}
+```
+
+- `data` 返回字段：
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| orderNo | string | 本地订单号 |
+| paymentType | string | 支付类型，`VIRTUAL` 表示微信虚拟支付，`PHYSICAL` 表示普通微信支付 |
+| payParams | object | 支付参数；虚拟商品场景下返回 `offerId`、`goodsId` |
+| security | object | 虚拟支付确认签名，包含 `timestamp`、`nonceStr`、`signature` |
+| courseTitle | string | 课程标题 |
+
+### 2. 课程虚拟支付确认接口
+
+- 方法：`POST`
+- 地址：`/api/app/course/pay/confirm`
+- 请求体：
+
+```json
+{
+  "orderNo": "课程订单号",
+  "security": {
+    "timestamp": "1713700000",
+    "nonceStr": "随机串",
+    "signature": "后端签名"
+  }
+}
+```
+
+### 3. VIP 支付参数接口
+
+- 方法：`POST`
+- 地址：`/api/app/vip/order/pay`
+- 请求体：
+
+```json
+{
+  "orderNo": "VIP订单号"
+}
+```
+
+- `data` 返回字段：
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| orderNo | string | 本地订单号 |
+| paymentType | string | 支付类型，`VIRTUAL` 表示微信虚拟支付，`PHYSICAL` 表示普通微信支付 |
+| packageType | string | 套餐类型 |
+| period | string | 套餐周期 |
+| payParams | object | 支付参数；虚拟商品场景下返回 `offerId`、`goodsId` |
+| security | object | 虚拟支付确认签名，包含 `timestamp`、`nonceStr`、`signature` |
+
+### 4. VIP 虚拟支付确认接口
+
+- 方法：`POST`
+- 地址：`/api/app/vip/order/pay/confirm`
+- 请求体：
+
+```json
+{
+  "orderNo": "VIP订单号",
+  "security": {
+    "timestamp": "1713700000",
+    "nonceStr": "随机串",
+    "signature": "后端签名"
+  }
+}
+```
+
+### 5. 说明
+
+- 课程、VIP 等虚拟商品统一返回 `paymentType=VIRTUAL`，前端走 `wx.requestVirtualPayment`
+- 错题打印等实物商品继续保留原有普通微信支付逻辑
+- 后端保留普通微信支付回调 `/api/pay/wechat/notify`，仅用于实物商品或后续普通支付场景

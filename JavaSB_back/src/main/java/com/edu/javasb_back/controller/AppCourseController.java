@@ -32,7 +32,9 @@ public class AppCourseController {
 
     private Long getCurrentUid() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
             return null;
         }
         try {
@@ -61,9 +63,8 @@ public class AppCourseController {
 
     @LogOperation("获取同步课程列表")
     @GetMapping("/resource/sync-course/list")
-    public Result<List<Course>> getSyncCourseList(
-            @RequestParam(value = "subject", required = false) String subject,
-            @RequestParam(value = "grade", required = false) String grade) {
+    public Result<List<Course>> getSyncCourseList(@RequestParam(value = "subject", required = false) String subject,
+                                                  @RequestParam(value = "grade", required = false) String grade) {
         Result<List<Course>> result = courseService.getSyncCourseList(subject, grade);
         Long uid = getCurrentUid();
         if (uid != null && result.getData() != null) {
@@ -108,7 +109,9 @@ public class AppCourseController {
     @PostMapping("/course/collect")
     public Result<Void> collectCourse(@RequestBody Map<String, Object> params) {
         Long uid = getCurrentUid();
-        if (uid == null) return Result.error(401, "请先登录");
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
         return courseService.collectCourse(uid, (String) params.get("courseId"), (Boolean) params.get("isCollect"));
     }
 
@@ -116,7 +119,9 @@ public class AppCourseController {
     @PostMapping("/course/learn")
     public Result<Void> recordLearning(@RequestBody Map<String, Object> params) {
         Long uid = getCurrentUid();
-        if (uid == null) return Result.error(401, "请先登录");
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
         Integer progress = (Integer) params.get("progress");
         return courseService.recordLearning(uid, (String) params.get("courseId"), progress != null ? progress : 0);
     }
@@ -125,7 +130,9 @@ public class AppCourseController {
     @GetMapping("/mine/course/list")
     public Result<List<Course>> getMyCourses() {
         Long uid = getCurrentUid();
-        if (uid == null) return Result.error(401, "请先登录");
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
         return courseService.getMyCourses(uid);
     }
 
@@ -133,7 +140,9 @@ public class AppCourseController {
     @GetMapping("/mine/collection/list")
     public Result<List<Course>> getMyCollections() {
         Long uid = getCurrentUid();
-        if (uid == null) return Result.error(401, "请先登录");
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
         return courseService.getMyCollections(uid);
     }
 
@@ -141,7 +150,9 @@ public class AppCourseController {
     @GetMapping("/course/purchased")
     public Result<List<Course>> getPurchasedCourses() {
         Long uid = getCurrentUid();
-        if (uid == null) return Result.error(401, "请先登录");
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
         return Result.success(orderService.getPurchasedCourses(uid));
     }
 
@@ -149,7 +160,9 @@ public class AppCourseController {
     @PostMapping("/course/buy")
     public Result<CourseOrder> buyCourse(@RequestBody Map<String, Object> params) {
         Long uid = getCurrentUid();
-        if (uid == null) return Result.error(401, "请先登录");
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
         try {
             CourseOrder order = orderService.createOrder(uid, (String) params.get("courseId"));
             return Result.success("订单创建成功", order);
@@ -158,12 +171,26 @@ public class AppCourseController {
         }
     }
 
-    @LogOperation("创建课程微信支付参数")
+    @LogOperation("创建课程支付参数")
     @PostMapping("/course/pay")
     public Result<Map<String, Object>> createCoursePayParams(@RequestBody Map<String, Object> params) {
         Long uid = getCurrentUid();
-        if (uid == null) return Result.error(401, "请先登录");
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
         return orderService.createWechatPayParams(uid, params == null ? null : (String) params.get("orderNo"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @LogOperation("确认课程虚拟支付")
+    @PostMapping("/course/pay/confirm")
+    public Result<String> confirmCourseVirtualPay(@RequestBody Map<String, Object> params) {
+        Long uid = getCurrentUid();
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
+        Map<String, Object> security = params == null ? null : (Map<String, Object>) params.get("security");
+        return orderService.confirmVirtualPayment(uid, params == null ? null : (String) params.get("orderNo"), security);
     }
 
     @LogOperation("模拟课程支付")
@@ -181,7 +208,9 @@ public class AppCourseController {
     @GetMapping("/mine/record/list")
     public Result<List<Map<String, Object>>> getMyStudyRecords() {
         Long uid = getCurrentUid();
-        if (uid == null) return Result.error(401, "请先登录");
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
         return courseService.getMyStudyRecords(uid);
     }
 }
