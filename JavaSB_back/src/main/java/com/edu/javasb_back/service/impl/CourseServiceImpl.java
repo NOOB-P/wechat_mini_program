@@ -22,6 +22,7 @@ import com.edu.javasb_back.service.CourseOrderService;
 import com.edu.javasb_back.service.CourseService;
 
 @Service
+@Transactional(readOnly = true)
 public class CourseServiceImpl implements CourseService {
 
     @Autowired
@@ -45,6 +46,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public Result<Course> getCourseDetail(Long uid, String courseId) {
         Optional<Course> courseOpt = courseRepository.findByIdSql(courseId);
         if (courseOpt.isPresent()) {
@@ -115,6 +117,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public Result<Void> collectCourse(Long uid, String courseId, boolean isCollect) {
         if (isCollect) {
             interactionRepository.addCollectionSql(uid, courseId);
@@ -125,6 +128,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public Result<Void> recordLearning(Long uid, String courseId, Integer progress) {
         interactionRepository.recordStudyRecordSql(uid, courseId, progress);
         return Result.success("学习记录已更新", null);
@@ -151,6 +155,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public Result<Void> addCourse(Course course) {
         if (course.getId() == null || course.getId().isEmpty()) {
             course.setId("CRS" + System.currentTimeMillis());
@@ -160,6 +165,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public Result<Void> updateCourse(Course course) {
         if (course.getId() == null || !courseRepository.existsById(course.getId())) {
             return Result.error("课程不存在");
@@ -169,12 +175,14 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public Result<Void> deleteCourse(String id) {
         courseRepository.deleteById(id);
         return Result.success("删除成功", null);
     }
 
     @Override
+    @Transactional
     public Result<Void> changeStatus(String id, Integer status) {
         Optional<Course> courseOpt = courseRepository.findById(id);
         if (courseOpt.isPresent()) {

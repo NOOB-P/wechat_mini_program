@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class WechatConfigServiceImpl implements WechatConfigService {
 
     @Autowired

@@ -1,0 +1,88 @@
+spring:
+  application:
+    name: JavaSB_back
+  datasource:
+    dynamic:
+      enabled: true
+      primary: master
+      strict: false
+      grace-destroy: true
+      datasource:
+        master:
+          url: jdbc:mysql://localhost:3306/edu_data?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+          username: root
+          password: root123
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          hikari:
+            max-lifetime: 600000
+            idle-timeout: 300000
+            minimum-idle: 5
+            maximum-pool-size: 20
+            connection-timeout: 30000
+        slave:
+          # Keep slave pointing to master for now; switch the connection later when replication is ready.
+          url: jdbc:mysql://localhost:3306/edu_data?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+          username: root
+          password: root123
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          hikari:
+            max-lifetime: 600000
+            idle-timeout: 300000
+            minimum-idle: 5
+            maximum-pool-size: 20
+            connection-timeout: 30000
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+
+server:
+  port: 8082
+
+app:
+  config:
+    default-password: 123456
+    jwt-secret: your_super_secret_key_for_jwt_token_generation_with_at_least_256_bits
+    jwt-expiration: 86400000
+    wechat-app-id: wxd18b4cd16e9e909f
+    wechat-app-secret: 68efdbfd5ad540ed834f194ce379bc56
+    upload-dir: src/main/resources/uploads/code/
+    paper-dir: src/main/resources/uploads/papers/
+    course-cover-dir: src/main/resources/uploads/course/cover/
+    course-video-dir: src/main/resources/uploads/course/video/
+    upload-temp-dir: ${APP_UPLOAD_TEMP_DIR:${java.io.tmpdir}/edu-upload-temp/}
+    oss-endpoint: ${ALIYUN_OSS_ENDPOINT:oss-cn-hangzhou.aliyuncs.com}
+    oss-bucket: ${ALIYUN_OSS_BUCKET:back-resources}
+    oss-access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID:${ALIYUN_OCR_ACCESS_KEY_ID:LTAI5t6UdoMXCkFprZp7uYc8}}
+    oss-access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:${ALIYUN_OCR_ACCESS_KEY_SECRET:lUxOPYPkVUUUKeGt9wwGkf7hlWrUi4}}
+    oss-public-base-url: ${ALIYUN_OSS_PUBLIC_BASE_URL:https://back-resources.oss-cn-hangzhou.aliyuncs.com/}
+    qwen-api-key: ${QWEN_API_KEY:sk-6cf983c5f39b45edb304ae6fde0325c0}
+    qwen-chat-url: ${QWEN_CHAT_URL:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
+    qwen-model: ${QWEN_MODEL:qwen3.6-plus}
+    qwen-prompt-version: ${QWEN_PROMPT_VERSION:qwen-score-report-v1}
+    aliyun-ocr-access-key-id: ${ALIYUN_OCR_ACCESS_KEY_ID:LTAI5t6UdoMXCkFprZp7uYc8}
+    aliyun-ocr-access-key-secret: ${ALIYUN_OCR_ACCESS_KEY_SECRET:lUxOPYPkVUUUKeGt9wwGkf7hlWrUi4}
+    aliyun-ocr-endpoint: ${ALIYUN_OCR_ENDPOINT:ocr-api.cn-hangzhou.aliyuncs.com}
+    aliyun-ocr-subject-default: ${ALIYUN_OCR_SUBJECT_DEFAULT:default}
+    aliyun-ocr-image-type: ${ALIYUN_OCR_IMAGE_TYPE:scan}
+    aliyun-ocr-cut-type: ${ALIYUN_OCR_CUT_TYPE:question}
+    aliyun-ocr-output-ori-coord: ${ALIYUN_OCR_OUTPUT_ORI_COORD:false}
+
+wechat:
+  pay:
+    appid: ${WECHAT_PAY_APPID:${app.config.wechat-app-id}}
+    mchid: ${WECHAT_PAY_MCHID:1744383897}
+    apiV3Key: ${WECHAT_PAY_API_V3_KEY:Zjq125800liuyue20011018chent903b}
+    privateKeyPath: ${WECHAT_PAY_PRIVATE_KEY_PATH:apiclient_key.pem}
+    publicKeyPath: ${WECHAT_PAY_PUBLIC_KEY_PATH:pub_key.pem}
+    publicKeyId: ${WECHAT_PAY_PUBLIC_KEY_ID:PUB_KEY_ID_0117443838972026041800381657002000}
+    merchantSerialNumber: ${WECHAT_PAY_MERCHANT_SERIAL_NUMBER:64D622036126915C5930E5EDD8D27CC0A9FAEB7F}
+    notifyUrl: ${WECHAT_PAY_NOTIFY_URL:http://10.62.50.208:8082/api/pay/wechat/notify}

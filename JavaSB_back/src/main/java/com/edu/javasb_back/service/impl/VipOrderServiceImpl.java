@@ -1,5 +1,6 @@
 package com.edu.javasb_back.service.impl;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.*;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
@@ -31,6 +32,7 @@ import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
+@Transactional(readOnly = true)
 public class VipOrderServiceImpl implements VipOrderService {
 
     private static final String SOURCE_ONLINE_PURCHASE = "ONLINE_PURCHASE";
