@@ -85,7 +85,10 @@ public class VipOrderServiceImpl implements VipOrderService {
     private WechatPayService wechatPayService;
 
     @Autowired
+<<<<<<< HEAD
     private WechatPayProperties wechatPayProperties;
+=======
+>>>>>>> b2e37d11db5c65cbbbcf3dbbcf15b49233c10115
     private SysNotificationService notificationService;
 
     @Override

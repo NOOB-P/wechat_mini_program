@@ -269,7 +269,6 @@ const handlePay = async () => {
   submitting.value = true
   try {
     toast.loading('正在准备支付...')
-
     const createRes = await createVipOrderApi({
       packageType: currentConfig.value.title,
       tierCode: currentConfig.value.tierCode,

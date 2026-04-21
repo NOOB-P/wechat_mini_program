@@ -88,6 +88,12 @@ aliyun:
     bucket: ${app.config.oss-bucket}
     cdn-base-url: ${app.config.oss-public-base-url}
 
+aliyun:
+  oss:
+    endpoint: ${app.config.oss-endpoint}
+    bucket: ${app.config.oss-bucket}
+    cdn-base-url: ${app.config.oss-public-base-url}
+
 wechat:
   pay:
     appid: ${WECHAT_PAY_APPID:${app.config.wechat-app-id}}

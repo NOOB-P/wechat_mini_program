@@ -49,7 +49,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { createCoursePayApi, getCourseDetailApi, confirmCourseVirtualPayApi } from '@/api/course'
-import { createVipPayApi } from '@/api/vip'
+import { createVipPayApi, confirmVipVirtualPayApi } from '@/api/vip'
 import { getUserInfoApi } from '@/api/mine'
 import { ensureWechatPayBound, requestWechatPaymentByType } from '@/utils/wechat-pay'
 
@@ -101,6 +101,25 @@ const confirmCourseVirtualPayWithRetry = async (orderNo: string, security: Recor
   }
 }
 
+const confirmVipVirtualPayWithRetry = async (orderNo: string, security: Record<string, any>) => {
+  for (let index = 0; index < 3; index += 1) {
+    try {
+      const res = await confirmVipVirtualPayApi(orderNo, security)
+      if (res.code === 200) {
+        return res
+      }
+    } catch (error) {
+      if (index === 2) {
+        throw {
+          code: 'PAY_CONFIRM_FAILED',
+          msg: '支付已完成，但会员状态同步失败，请稍后刷新页面'
+        }
+      }
+      await wait(800)
+    }
+  }
+}
+
 const fetchPayParams = async () => {
   const isVip = order.value.type === 'VIP'
   const payApi = isVip ? createVipPayApi : createCoursePayApi
@@ -145,10 +164,14 @@ const handlePay = async () => {
 
     if (paymentType === 'VIRTUAL') {
       try {
-        await confirmCourseVirtualPayWithRetry(order.value.orderNo, payRes.data?.security || {})
+        if (order.value.type === 'VIP') {
+          await confirmVipVirtualPayWithRetry(order.value.orderNo, payRes.data?.security || {})
+        } else {
+          await confirmCourseVirtualPayWithRetry(order.value.orderNo, payRes.data?.security || {})
+        }
       } catch (confirmError) {
-        console.warn('Course pay confirm failed, relying on backend notify', confirmError)
-        toast.show('支付成功，正在解锁课程...')
+        console.warn('Pay confirm failed, relying on backend notify', confirmError)
+        toast.show('支付成功，正在同步状态...')
         await wait(2000)
       }
     }
