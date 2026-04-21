@@ -43,6 +43,9 @@ public class OssStorageService {
     @Value("${aliyun.oss.cdn-base-url}")
     private String cdnBaseUrl;
 
+    @Value("${aliyun.oss.endpoint}")
+    private String endpoint;
+
     public String upload(MultipartFile file, String objectKey) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("上传文件不能为空");
@@ -125,17 +128,21 @@ public class OssStorageService {
             return null;
         }
         String trimmedUrl = url.trim();
-        for (String prefix : supportedUrlPrefixes()) {
-            if (!StringUtils.hasText(prefix) || !trimmedUrl.startsWith(prefix)) {
-                continue;
-            }
-            String rawObjectKey = trimmedUrl.substring(prefix.length()).trim();
-            if (!StringUtils.hasText(rawObjectKey)) {
-                return null;
-            }
-            String objectKey = normalizeObjectKey(rawObjectKey);
-            return StringUtils.hasText(objectKey) ? objectKey : null;
+        
+        // Try CDN base URL
+        String cdnUrl = normalizedBaseUrl();
+        if (StringUtils.hasText(cdnUrl) && trimmedUrl.startsWith(cdnUrl)) {
+            String rawKey = trimmedUrl.substring(cdnUrl.length()).trim();
+            return normalizeObjectKey(rawKey);
         }
+
+        // Try raw OSS URL: https://{bucket}.{endpoint}/
+        String ossUrl = "https://" + bucket + "." + endpoint + "/";
+        if (trimmedUrl.startsWith(ossUrl)) {
+            String rawKey = trimmedUrl.substring(ossUrl.length()).trim();
+            return normalizeObjectKey(rawKey);
+        }
+
         return null;
     }
 
@@ -143,12 +150,15 @@ public class OssStorageService {
         return normalizedBaseUrl() + normalizeObjectKey(objectKey);
     }
 
-    public String convertToCdnUrl(String url) {
-        String objectKey = extractObjectKey(url);
-        if (!StringUtils.hasText(objectKey)) {
+    public String toCdnUrl(String url) {
+        if (!StringUtils.hasText(url)) {
             return url;
         }
-        return buildUrl(objectKey);
+        String objectKey = extractObjectKey(url);
+        if (StringUtils.hasText(objectKey)) {
+            return buildUrl(objectKey);
+        }
+        return url;
     }
 
     private String normalizeObjectKey(String objectKey) {
@@ -207,6 +217,16 @@ public class OssStorageService {
         return StringUtils.hasText(guessed) ? guessed : "application/octet-stream";
     }
 
+    public void delete(String url) throws IOException {
+        String objectKey = extractObjectKey(url);
+        if (StringUtils.hasText(objectKey)) {
+            execute(client -> {
+                client.deleteObject(bucket, objectKey);
+                return null;
+            });
+        }
+    }
+
     private String getFileSuffix(String url) {
         if (!StringUtils.hasText(url)) {
             return ".tmp";
@@ -226,13 +246,32 @@ public class OssStorageService {
 
     private <T> T execute(OssCallback<T> callback) throws IOException {
         validateConfig();
-        try {
-            return callback.execute(ossClient);
-        } catch (IOException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IOException("OSS 操作失败: " + e.getMessage(), e);
+        int maxRetries = 3;
+        int retryCount = 0;
+        Exception lastException = null;
+
+        while (retryCount < maxRetries) {
+            try {
+                return callback.execute(ossClient);
+            } catch (Exception e) {
+                retryCount++;
+                lastException = e;
+                if (retryCount >= maxRetries) {
+                    break;
+                }
+                // Optional: add a small delay before retry
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+            }
         }
+
+        if (lastException instanceof IOException ioException) {
+            throw ioException;
+        }
+        throw new IOException("OSS 操作在重试 " + maxRetries + " 次后依然失败: " + lastException.getMessage(), lastException);
     }
 
     @FunctionalInterface

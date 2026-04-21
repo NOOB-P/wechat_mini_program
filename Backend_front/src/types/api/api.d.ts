@@ -155,10 +155,12 @@ declare namespace Api {
     type RoleList = Api.Common.PaginatedResponse<RoleListItem>
 
     interface RoleListItem {
+      id?: number
       roleId: number
       roleName: string
       roleCode: string
       description: string
+      status?: number
       enabled: boolean
       createTime: string
     }
@@ -317,10 +319,12 @@ declare namespace Api {
 
     /** 角色列表项 */
     interface RoleListItem {
+      id?: number
       roleId: number
       roleName: string
       roleCode: string
       description: string
+      status?: number
       enabled: boolean
       createTime: string
     }

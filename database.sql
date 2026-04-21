@@ -47,6 +47,7 @@ CREATE TABLE `sys_accounts` (
 ) ENGINE=InnoDB COMMENT='系统统一账号表';
 
 -- 2.1 角色权限关联表
+DROP TABLE IF EXISTS `sys_user_modules`;
 DROP TABLE IF EXISTS `sys_role_menu`;
 CREATE TABLE `sys_role_menu` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -224,6 +225,7 @@ CREATE TABLE `exam_projects` (
     `subject_names` TEXT COMMENT '项目科目列表(JSON)',
     `subject_benchmarks` TEXT COMMENT '学科基准分数配置',
     `paper_layouts` TEXT COMMENT '试卷框选布局配置(JSON)',
+    `paper_merge_info` TEXT COMMENT 'PDF拼接分页信息(JSON)',
     `school_count` INT DEFAULT 0 COMMENT '覆盖学校数',
     `class_count` INT DEFAULT 0 COMMENT '覆盖班级数',
     `student_count` INT DEFAULT 0 COMMENT '覆盖学生数',
@@ -405,7 +407,7 @@ CREATE TABLE `faq_categories` (
     `sort` INT DEFAULT 0 COMMENT '排序',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB COMMENT='FAQ 分类表';
 
 -- 10. 常见问题 FAQ 表
@@ -418,7 +420,7 @@ CREATE TABLE `faqs` (
     `answer` TEXT NOT NULL COMMENT '问题解答',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB COMMENT='客服支持常见问题表';
 
 -- 11. 企业微信客服配置表
@@ -563,7 +565,7 @@ INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `avatar`, `password`,
 (9, 'parent06', '周八爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000008', 'parent06@example.com', 3, 0, 0, 'offline', 1, 1),
 (10, 'parent07', '吴九妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000009', 'parent07@example.com', 3, 1, 1, 'offline', 1, 1);
 
--- 2.1 角色权限初始化数据
+-- 2.1 角色权限关联初始化数据
 INSERT INTO `sys_role_menu` (`role_id`, `permission_code`) VALUES
 (1, 'dashboard:analysis:view'),
 (1, 'system:school:list'),
@@ -643,106 +645,16 @@ INSERT INTO `sys_role_menu` (`role_id`, `permission_code`) VALUES
 (1, 'system:user:import'),
 (1, 'system:user:template'),
 (1, 'system:role:list'),
-(1, 'system:role:save'),
-(1, 'system:role:update'),
-(1, 'system:role:delete'),
 (1, 'system:permission:list'),
 (1, 'system:permission:edit'),
 (1, 'system:permission:options'),
 (1, 'system:log:list'),
-(1, 'system:log:delete'),
-(1, 'system:notification:list'),
-(1, 'system:notification:save'),
-(1, 'system:notification:delete'),
-(2, 'dashboard:analysis:view'),
-(2, 'system:school:list'),
-(2, 'system:school:add'),
-(2, 'system:school:edit'),
-(2, 'system:school:delete'),
-(2, 'system:school:import'),
-(2, 'system:class:list'),
-(2, 'system:class:add'),
-(2, 'system:class:batch-add'),
-(2, 'system:class:edit'),
-(2, 'system:class:delete'),
-(2, 'system:class:import'),
-(2, 'system:class:detail'),
-(2, 'system:student:list'),
-(2, 'system:student:add'),
-(2, 'system:student:edit'),
-(2, 'system:student:delete'),
-(2, 'system:student:import'),
-(2, 'system:student:bound-parents'),
-(2, 'exam:project:list'),
-(2, 'exam:project:options'),
-(2, 'exam:project:add'),
-(2, 'exam:project:edit'),
-(2, 'exam:project:delete'),
-(2, 'exam:project:detail'),
-(2, 'exam:project:students'),
-(2, 'exam:project:score-summary'),
-(2, 'exam:project:score-list'),
-(2, 'exam:project:score-template'),
-(2, 'exam:project:score-import'),
-(2, 'exam:project:score-save'),
-(2, 'exam:project:paper-import'),
-(2, 'exam:project:paper-upload'),
-(2, 'exam:class:list'),
-(2, 'exam:class:add'),
-(2, 'exam:class:edit'),
-(2, 'exam:class:delete'),
-(2, 'order:vip:list'),
-(2, 'order:course:list'),
-(2, 'order:print:list'),
-(2, 'order:print:detail'),
-(2, 'order:print:status'),
-(2, 'course:manage:list'),
-(2, 'course:manage:add'),
-(2, 'course:manage:edit'),
-(2, 'course:manage:delete'),
-(2, 'course:manage:status'),
-(2, 'paper:manage:list'),
-(2, 'paper:manage:save'),
-(2, 'paper:manage:delete'),
-(2, 'paper:manage:upload'),
-(2, 'paper:subject:list'),
-(2, 'paper:subject:save'),
-(2, 'paper:subject:delete'),
-(2, 'payment:vip:list'),
-(2, 'payment:vip:edit'),
-(2, 'payment:print:list'),
-(2, 'payment:print:edit'),
-(2, 'support:faq:list'),
-(2, 'support:faq:add'),
-(2, 'support:faq:edit'),
-(2, 'support:faq:delete'),
-(2, 'support:faq-category:list'),
-(2, 'support:faq-category:add'),
-(2, 'support:faq-category:edit'),
-(2, 'support:faq-category:delete'),
-(2, 'support:wechat:list'),
-(2, 'support:wechat:upload'),
-(2, 'support:wechat:add'),
-(2, 'support:wechat:edit'),
-(2, 'support:wechat:delete'),
-(2, 'system:user:list'),
-(2, 'system:user:add'),
-(2, 'system:user:edit'),
-(2, 'system:user:delete'),
-(2, 'system:user:import'),
-(2, 'system:user:template'),
-(2, 'system:role:list'),
-(2, 'system:role:save'),
-(2, 'system:role:update'),
-(2, 'system:role:delete'),
-(2, 'system:permission:list'),
-(2, 'system:permission:edit'),
-(2, 'system:permission:options'),
-(2, 'system:log:list'),
-(2, 'system:log:delete'),
-(2, 'system:notification:list'),
-(2, 'system:notification:save'),
-(2, 'system:notification:delete');
+(1, 'system:log:delete');
+
+INSERT INTO `sys_role_menu` (`role_id`, `permission_code`)
+SELECT 2, `permission_code`
+FROM `sys_role_menu`
+WHERE `role_id` = 1;
 
 -- 3. 学校结构表数据
 INSERT INTO `schools` (`school_id`, `province`, `city`, `name`, `type`, `status`) VALUES
@@ -979,5 +891,27 @@ INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `
 ('上海中学2023-2024学年高一期末考试卷', '数学', '高一', '2024', 'FAMOUS', '名校,期末,数学,精品', 890, 1, '/uploads/papers/demo.pdf', 1),
 ('2023年西安西工大附中初一入学摸底测试', '语文', '初一', '2023', 'FAMOUS', '摸底,语文,PDF版', 2100, 0, '/uploads/papers/demo.pdf', 1),
 ('2024年成都七中高二联考物理压轴卷', '物理', '高二', '2024', 'JOINT', '联考,名校,物理,解析', 1560, 1, '/uploads/papers/demo.pdf', 1);
+
+-- ---------------------------------------------------------
+-- 数据修正与同步 (Merged from update_students.sql)
+-- ---------------------------------------------------------
+-- 将李四和王五的学校、年级、班级信息修改为与张三（STU001）一致
+-- 张三信息：学校 SCH001 (第一中学), 班级 CLS001 (初一 1班)
+
+-- 更新 students 表
+UPDATE students 
+SET school_id = 'SCH001', 
+    class_id = 'CLS001', 
+    school = '第一中学', 
+    grade = '初一', 
+    class_name = '1班' 
+WHERE student_no IN ('20230002', '20230003');
+
+-- 更新 exam_results 表（冗余数据同步）
+UPDATE exam_results 
+SET school = '第一中学', 
+    grade = '初一', 
+    class_name = '1班' 
+WHERE student_no IN ('20230002', '20230003');
 
 SET FOREIGN_KEY_CHECKS = 1;

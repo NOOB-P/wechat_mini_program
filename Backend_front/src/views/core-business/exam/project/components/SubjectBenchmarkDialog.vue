@@ -41,6 +41,35 @@
 
           <div class="setting-section">
             <div class="section-title">小题满分设置:</div>
+            <div class="batch-setting-panel">
+              <div class="batch-setting-fields">
+                <el-input-number
+                  v-model="batchForm.startNo"
+                  :min="1"
+                  :precision="0"
+                  placeholder="起始题号"
+                />
+                <span class="batch-separator">至</span>
+                <el-input-number
+                  v-model="batchForm.endNo"
+                  :min="1"
+                  :precision="0"
+                  placeholder="结束题号"
+                />
+                <span class="batch-separator">每题</span>
+                <el-input-number
+                  v-model="batchForm.score"
+                  :min="0"
+                  :precision="1"
+                  placeholder="分值"
+                />
+              </div>
+              <div class="batch-setting-actions">
+                <el-button type="primary" plain @click="applyBatchScore">批量应用</el-button>
+                <el-button @click="clearQuestionScores">清空小题</el-button>
+              </div>
+              <div class="batch-setting-tip">适合连续多道题同分的场景，会自动补齐缺少的小题。</div>
+            </div>
             <div class="question-list">
               <div v-for="(q, index) in currentConfig.questions" :key="index" class="question-item">
                 <span class="question-no">{{ index + 1 }}</span>
@@ -51,12 +80,7 @@
                   class="question-score-input"
                   placeholder="分值"
                 />
-                <el-button
-                  type="danger"
-                  link
-                  :icon="Delete"
-                  @click="removeQuestion(index)"
-                />
+                <el-button type="danger" link :icon="Delete" @click="removeQuestion(index)" />
               </div>
               <div class="add-question" @click="addQuestion">
                 <el-icon><Plus /></el-icon>
@@ -83,6 +107,7 @@
 <script setup lang="ts">
   import { ref, watch, reactive } from 'vue'
   import { Plus, Delete } from '@element-plus/icons-vue'
+  import { ElMessage } from 'element-plus'
 
   interface QuestionConfig {
     score: number
@@ -101,11 +126,16 @@
 
   const emit = defineEmits<{
     'update:modelValue': [value: boolean]
-    'confirm': [benchmarks: Record<string, SubjectConfig>]
+    confirm: [benchmarks: Record<string, SubjectConfig>]
   }>()
 
   const activeSubject = ref('')
   const benchmarks = reactive<Record<string, SubjectConfig>>({})
+  const batchForm = reactive({
+    startNo: 1,
+    endNo: 5,
+    score: 0
+  })
 
   // 初始化 benchmarks 数据
   watch(
@@ -113,10 +143,10 @@
     (val) => {
       if (val) {
         // 重置数据
-        Object.keys(benchmarks).forEach(key => delete benchmarks[key])
-        
+        Object.keys(benchmarks).forEach((key) => delete benchmarks[key])
+
         // 填充初始数据或默认数据
-        props.subjects.forEach(s => {
+        props.subjects.forEach((s) => {
           if (props.initialBenchmarks && props.initialBenchmarks[s]) {
             benchmarks[s] = JSON.parse(JSON.stringify(props.initialBenchmarks[s]))
           } else {
@@ -139,6 +169,8 @@
   watch(activeSubject, (newSubject) => {
     if (newSubject && benchmarks[newSubject]) {
       currentConfig.value = benchmarks[newSubject]
+      batchForm.startNo = 1
+      batchForm.endNo = Math.max(benchmarks[newSubject].questions.length || 0, 5)
     }
   })
 
@@ -148,10 +180,45 @@
     }
   }
 
+  function ensureQuestionLength(length: number) {
+    if (!activeSubject.value) return
+    while (benchmarks[activeSubject.value].questions.length < length) {
+      benchmarks[activeSubject.value].questions.push({ score: 0 })
+    }
+  }
+
   function removeQuestion(index: number) {
     if (activeSubject.value) {
       benchmarks[activeSubject.value].questions.splice(index, 1)
     }
+  }
+
+  function applyBatchScore() {
+    if (!activeSubject.value) {
+      return
+    }
+
+    const startNo = Number(batchForm.startNo || 0)
+    const endNo = Number(batchForm.endNo || 0)
+    if (startNo <= 0 || endNo <= 0) {
+      ElMessage.warning('请输入有效的题号区间')
+      return
+    }
+
+    const rangeStart = Math.min(startNo, endNo)
+    const rangeEnd = Math.max(startNo, endNo)
+    ensureQuestionLength(rangeEnd)
+
+    for (let index = rangeStart - 1; index < rangeEnd; index += 1) {
+      benchmarks[activeSubject.value].questions[index].score = Number(batchForm.score || 0)
+    }
+  }
+
+  function clearQuestionScores() {
+    if (!activeSubject.value) {
+      return
+    }
+    benchmarks[activeSubject.value].questions = []
   }
 
   function handleClose() {
@@ -240,6 +307,38 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+  }
+
+  .batch-setting-panel {
+    margin-bottom: 18px;
+    padding: 16px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+  }
+
+  .batch-setting-fields {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .batch-separator {
+    font-size: 13px;
+    color: #64748b;
+  }
+
+  .batch-setting-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .batch-setting-tip {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #64748b;
   }
 
   .question-item {

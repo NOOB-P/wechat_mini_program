@@ -6,7 +6,6 @@
       <wd-cell-group border>
         <wd-cell title="手机号" :value="userInfo.phone" is-link @click="showChangePhonePopup = true" />
         <wd-cell title="修改密码" is-link @click="showChangePasswordPopup = true" />
-        <wd-cell title="账户注销" is-link @click="handleCancelAccount" />
       </wd-cell-group>
     </view>
 
@@ -289,20 +288,6 @@ const handleChangePassword = async () => {
   } catch (error) {
     console.error('修改密码失败:', error)
   }
-}
-
-// 账户注销
-const handleCancelAccount = () => {
-  uni.showModal({
-    title: '账户注销',
-    content: '注销后账户信息将无法找回，确定要注销吗？',
-    confirmColor: '#fa4350',
-    success: (res) => {
-      if (res.confirm) {
-        toast.show('暂不支持在线注销，请联系客服')
-      }
-    }
-  })
 }
 
 // 跳转至绑定页面
