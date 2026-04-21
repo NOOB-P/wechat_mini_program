@@ -1340,7 +1340,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     private String normalizeStoredPaperPreviewUrl(String url) {
         if (!StringUtils.hasText(url)) return url;
-        url = ossStorageService.convertToCdnUrl(url);
+        url = ossStorageService.toCdnUrl(url);
         if (!isPdfFile(url)) return url;
         if (!ossStorageService.isOssUrl(url)) return url;
 

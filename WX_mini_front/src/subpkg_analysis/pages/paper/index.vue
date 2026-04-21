@@ -22,7 +22,7 @@
       <view class="section">
         <wd-tabs v-model="currentTab">
           <wd-tab title="我的答卷" name="original">
-            <view class="image-list">
+            <view class="image-list" v-if="paperData.myPaperImages && paperData.myPaperImages.length > 0">
               <image 
                 v-for="(img, index) in paperData.myPaperImages" 
                 :key="'orig_'+index" 
@@ -32,9 +32,13 @@
                 @click="previewImage(paperData.myPaperImages, index)"
               />
             </view>
+            <view class="empty-images" v-else>
+              <wd-icon name="image-error" size="48px" color="#ccc" />
+              <text class="empty-text">暂无我的答卷图片</text>
+            </view>
           </wd-tab>
           <wd-tab title="考试题目" name="electronic">
-            <view class="image-list">
+            <view class="image-list" v-if="paperData.examPaperImages && paperData.examPaperImages.length > 0">
               <image 
                 v-for="(img, index) in paperData.examPaperImages" 
                 :key="'elec_'+index" 
@@ -43,6 +47,10 @@
                 class="paper-img"
                 @click="previewImage(paperData.examPaperImages, index)"
               />
+            </view>
+            <view class="empty-images" v-else>
+              <wd-icon name="image-error" size="48px" color="#ccc" />
+              <text class="empty-text">暂无考试题目图片</text>
             </view>
           </wd-tab>
         </wd-tabs>
@@ -63,27 +71,27 @@
             <view class="ans-detail">
               <view class="ans-row">
                 <text class="label">我的得分</text>
-                <text class="val wrong-text">{{ ans.myScore }} 分</text>
+                <text class="val wrong-text">{{ formatScore(ans.myScore) }} 分</text>
               </view>
               <view class="ans-row">
                 <text class="label">小题最高分</text>
-                <text class="val correct-text">{{ ans.highestScore }} 分</text>
+                <text class="val correct-text">{{ formatScore(ans.highestScore) }} 分</text>
               </view>
               <view class="ans-row">
                 <text class="label">班级小题均分</text>
-                <text class="val">{{ ans.classAvgScore }} 分</text>
+                <text class="val">{{ formatScore(ans.classAvgScore) }} 分</text>
               </view>
               <view class="ans-row">
                 <text class="label">全校小题均分</text>
-                <text class="val">{{ ans.schoolAvgScore }} 分</text>
+                <text class="val">{{ formatScore(ans.schoolAvgScore) }} 分</text>
               </view>
               <view class="ans-row">
                 <text class="label">年级小题均分</text>
-                <text class="val">{{ ans.gradeAvgScore }} 分</text>
+                <text class="val">{{ formatScore(ans.gradeAvgScore) }} 分</text>
               </view>
               <view class="ans-row">
                 <text class="label">项目小题均分</text>
-                <text class="val">{{ ans.projectAvgScore }} 分</text>
+                <text class="val">{{ formatScore(ans.projectAvgScore) }} 分</text>
               </view>
             </view>
           </view>
@@ -117,10 +125,16 @@ const loadData = async () => {
       subject: routeParams.value.subject
     })
     if (res.code === 200) {
+      const myPaperImages = ((res.data?.myPaperImages || res.data?.originalPaperImages || []) as string[])
+        .map(resolveAssetUrl)
+        .filter(Boolean)
+      const examPaperImages = ((res.data?.examPaperImages || res.data?.electronicPaperImages || []) as string[])
+        .map(resolveAssetUrl)
+        .filter(Boolean)
       paperData.value = {
         ...res.data,
-        myPaperImages: (res.data?.myPaperImages || res.data?.originalPaperImages || []).map(resolveAssetUrl),
-        examPaperImages: (res.data?.examPaperImages || res.data?.electronicPaperImages || []).map(resolveAssetUrl),
+        myPaperImages,
+        examPaperImages,
         questionScores: res.data?.questionScores || res.data?.answers || [],
         downloadUrl: resolveAssetUrl(res.data?.downloadUrl)
       }
@@ -144,10 +158,25 @@ const resolveAssetUrl = (url?: string) => {
   if (/^(https?:)?\/\//.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
     return url
   }
+  const staticBaseUrl = String(__VITE_STATIC_BASEURL__ || '')
+  if (url.startsWith('/uploads/') && staticBaseUrl) {
+    const cdnRoot = staticBaseUrl.replace(/\/static\/?$/i, '')
+    if (cdnRoot) {
+      return `${cdnRoot}${url}`
+    }
+  }
   const baseUrl = String(import.meta.env.VITE_SERVER_BASEURL || '')
   if (!baseUrl) return url
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
   return url.startsWith('/') ? `${normalizedBase}${url}` : `${normalizedBase}/${url}`
+}
+
+const formatScore = (value: unknown) => {
+  const num = Number(value)
+  if (Number.isFinite(num)) {
+    return num % 1 === 0 ? String(num) : num.toFixed(1)
+  }
+  return '0'
 }
 
 const previewImage = (urls: string[], current: number) => {
@@ -266,6 +295,23 @@ const downloadPaper = () => {
     width: 100%;
     border-radius: 12rpx;
     box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.1);
+  }
+}
+
+.empty-images {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 0;
+  background: #f9f9f9;
+  border-radius: 12rpx;
+  margin-top: 20rpx;
+  
+  .empty-text {
+    font-size: 28rpx;
+    color: #999;
+    margin-top: 20rpx;
   }
 }
 

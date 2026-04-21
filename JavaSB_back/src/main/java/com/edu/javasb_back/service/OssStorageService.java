@@ -43,9 +43,6 @@ public class OssStorageService {
     @Value("${aliyun.oss.cdn-base-url}")
     private String cdnBaseUrl;
 
-    @Value("${aliyun.oss.endpoint}")
-    private String endpoint;
-
     public String upload(MultipartFile file, String objectKey) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("上传文件不能为空");
@@ -153,6 +150,10 @@ public class OssStorageService {
     public String toCdnUrl(String url) {
         if (!StringUtils.hasText(url)) {
             return url;
+        }
+        String trimmedUrl = url.trim();
+        if (trimmedUrl.startsWith("/uploads/")) {
+            return normalizedBaseUrl() + trimmedUrl.replaceFirst("^/+", "");
         }
         String objectKey = extractObjectKey(url);
         if (StringUtils.hasText(objectKey)) {

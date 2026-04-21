@@ -702,6 +702,11 @@ public class ScoreServiceImpl implements ScoreService {
             String semesterKey = "未知学期";
             if (name.contains("第一学期") || name.contains("第二学期")) {
                 semesterKey = name.substring(0, name.indexOf("学期") + 2);
+            } else if (name.contains("春季学期") || name.contains("秋季学期")) {
+                int index = name.contains("春季学期") ? name.indexOf("春季学期") + 4 : name.indexOf("秋季学期") + 4;
+                semesterKey = name.substring(0, index);
+            } else if (name.matches("^\\d{4}年.*")) {
+                semesterKey = name.substring(0, 5) + "学年";
             } else {
                 semesterKey = exam.getExamDate().getYear() + "学年";
             }
@@ -996,9 +1001,23 @@ public class ScoreServiceImpl implements ScoreService {
     private String deriveSemesterLabel(ExamProject project) {
         String name = project.getName();
         if (!StringUtils.hasText(name)) return projectTime(project).getYear() + "学年";
+        
+        // 1. 如果名称中包含特定学期标识，截取到学期
         if (name.contains("第一学期") || name.contains("第二学期")) {
             return name.substring(0, name.indexOf("学期") + 2);
         }
+        
+        // 2. 如果包含“春季学期”或“秋季学期”，截取到该处
+        if (name.contains("春季学期") || name.contains("秋季学期")) {
+            int index = name.contains("春季学期") ? name.indexOf("春季学期") + 4 : name.indexOf("秋季学期") + 4;
+            return name.substring(0, index);
+        }
+        
+        // 3. 如果名称以年份开头，如 "2024年..."，截取年份
+        if (name.matches("^\\d{4}年.*")) {
+            return name.substring(0, 5) + "学年";
+        }
+        
         return projectTime(project).getYear() + "学年";
     }
 
