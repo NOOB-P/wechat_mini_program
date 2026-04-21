@@ -21,53 +21,69 @@
       <!-- 试卷图片展示区 (Tab切换原卷/电子版) -->
       <view class="section">
         <wd-tabs v-model="currentTab">
-          <wd-tab title="原卷查看" name="original">
+          <wd-tab title="我的答卷" name="original">
             <view class="image-list">
               <image 
-                v-for="(img, index) in paperData.originalPaperImages" 
+                v-for="(img, index) in paperData.myPaperImages" 
                 :key="'orig_'+index" 
                 :src="img" 
                 mode="widthFix" 
                 class="paper-img"
-                @click="previewImage(paperData.originalPaperImages, index)"
+                @click="previewImage(paperData.myPaperImages, index)"
               />
             </view>
           </wd-tab>
-          <wd-tab title="电子版解析" name="electronic">
+          <wd-tab title="考试题目" name="electronic">
             <view class="image-list">
               <image 
-                v-for="(img, index) in paperData.electronicPaperImages" 
+                v-for="(img, index) in paperData.examPaperImages" 
                 :key="'elec_'+index" 
                 :src="img" 
                 mode="widthFix" 
                 class="paper-img"
-                @click="previewImage(paperData.electronicPaperImages, index)"
+                @click="previewImage(paperData.examPaperImages, index)"
               />
             </view>
           </wd-tab>
         </wd-tabs>
       </view>
 
-      <!-- 具体答题详情 -->
+      <!-- 小题得分 -->
       <view class="section">
-        <view class="section-title">答题详情</view>
+        <view class="section-title">小题得分</view>
         <view class="answer-list">
-          <view class="answer-item" v-for="(ans, index) in paperData.answers" :key="index">
+          <view class="answer-item" v-for="(ans, index) in paperData.questionScores" :key="index">
             <view class="ans-header">
               <text class="q-no">第 {{ ans.questionNo }} 题</text>
               <text class="q-type">({{ ans.type }})</text>
-              <text class="status" :class="ans.isRight ? 'right' : 'wrong'">
-                {{ ans.isRight ? '正确' : '错误' }}
+              <text class="status" :class="ans.isBest ? 'right' : 'wrong'">
+                {{ ans.isBest ? '最佳' : '待提升' }}
               </text>
             </view>
             <view class="ans-detail">
               <view class="ans-row">
-                <text class="label">你的答案：</text>
-                <text class="val" :class="!ans.isRight ? 'wrong-text' : ''">{{ ans.studentAnswer }}</text>
+                <text class="label">我的得分</text>
+                <text class="val wrong-text">{{ ans.myScore }} 分</text>
               </view>
               <view class="ans-row">
-                <text class="label">正确答案：</text>
-                <text class="val correct-text">{{ ans.correctAnswer }}</text>
+                <text class="label">小题最高分</text>
+                <text class="val correct-text">{{ ans.highestScore }} 分</text>
+              </view>
+              <view class="ans-row">
+                <text class="label">班级小题均分</text>
+                <text class="val">{{ ans.classAvgScore }} 分</text>
+              </view>
+              <view class="ans-row">
+                <text class="label">全校小题均分</text>
+                <text class="val">{{ ans.schoolAvgScore }} 分</text>
+              </view>
+              <view class="ans-row">
+                <text class="label">年级小题均分</text>
+                <text class="val">{{ ans.gradeAvgScore }} 分</text>
+              </view>
+              <view class="ans-row">
+                <text class="label">项目小题均分</text>
+                <text class="val">{{ ans.projectAvgScore }} 分</text>
               </view>
             </view>
           </view>
@@ -80,20 +96,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { getPaperDetailApi } from '@/subpkg_analysis/api/paper'
 
 const toast = useToast()
 const paperData = ref<any>(null)
 const currentTab = ref('original')
+const routeParams = ref({
+  examId: '',
+  subject: ''
+})
 
 const loadData = async () => {
   try {
     toast.loading('加载中...')
-    const res = await getPaperDetailApi()
+    const res = await getPaperDetailApi({
+      examId: routeParams.value.examId,
+      subject: routeParams.value.subject
+    })
     if (res.code === 200) {
-      paperData.value = res.data
+      paperData.value = {
+        ...res.data,
+        myPaperImages: (res.data?.myPaperImages || res.data?.originalPaperImages || []).map(resolveAssetUrl),
+        examPaperImages: (res.data?.examPaperImages || res.data?.electronicPaperImages || []).map(resolveAssetUrl),
+        questionScores: res.data?.questionScores || res.data?.answers || [],
+        downloadUrl: resolveAssetUrl(res.data?.downloadUrl)
+      }
       toast.close()
     } else {
       toast.error(res.msg || '获取试卷失败')
@@ -103,9 +133,22 @@ const loadData = async () => {
   }
 }
 
-onMounted(() => {
+onLoad((query: Record<string, string>) => {
+  routeParams.value.examId = decodeURIComponent(query.examId || query.exam || '')
+  routeParams.value.subject = decodeURIComponent(query.subject || '')
   loadData()
 })
+
+const resolveAssetUrl = (url?: string) => {
+  if (!url) return ''
+  if (/^(https?:)?\/\//.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url
+  }
+  const baseUrl = String(import.meta.env.VITE_SERVER_BASEURL || '')
+  if (!baseUrl) return url
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+  return url.startsWith('/') ? `${normalizedBase}${url}` : `${normalizedBase}/${url}`
+}
 
 const previewImage = (urls: string[], current: number) => {
   uni.previewImage({
@@ -276,7 +319,7 @@ const downloadPaper = () => {
           flex: 1;
           color: #333;
           
-          &.wrong-text { color: #f44336; }
+          &.wrong-text { color: #f44336; font-weight: bold; }
           &.correct-text { color: #00c853; font-weight: bold; }
         }
       }

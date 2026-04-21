@@ -1,5 +1,10 @@
 package com.edu.javasb_back.service.impl;
 
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -23,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.edu.javasb_back.model.entity.Exam;
 import com.edu.javasb_back.model.entity.ExamClass;
 import com.edu.javasb_back.model.entity.ExamProject;
@@ -42,6 +48,8 @@ import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.service.ScoreService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import javax.imageio.ImageIO;
 
 @Service
 public class ScoreServiceImpl implements ScoreService {
@@ -72,6 +80,9 @@ public class ScoreServiceImpl implements ScoreService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private GlobalConfigProperties globalConfigProperties;
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final Map<String, Double> DEFAULT_FULL_SCORES = new LinkedHashMap<>();
@@ -396,6 +407,46 @@ public class ScoreServiceImpl implements ScoreService {
         return Result.success(data);
     }
 
+    @Override
+    public Result<Map<String, Object>> getPaperDetail(Long uid, String examId, String subject) {
+        Optional<SysStudent> studentOpt = getBoundStudent(uid);
+        if (studentOpt.isEmpty()) return Result.error("未绑定学生账号");
+
+        SysStudent student = studentOpt.get();
+        List<ProjectSnapshot> snapshots = buildProjectSnapshots(student);
+        ProjectSnapshot snapshot = resolveSnapshot(snapshots, examId);
+        if (snapshot == null) return Result.error("暂无试卷详情数据");
+
+        String targetSubject = resolveSubject(snapshot.classSubjects(), subject);
+        ExamSubject classSubject = findClassSubject(snapshot.classSubjects(), targetSubject);
+        if (classSubject == null) return Result.error("未找到对应学科试卷");
+
+        Optional<ExamStudentScore> studentScoreOpt = examStudentScoreRepository.findBySubjectIdAndStudentNo(classSubject.getId(), student.getStudentNo());
+        if (studentScoreOpt.isEmpty() || !isScoreEntered(studentScoreOpt.get())) {
+            return Result.error("暂无该学科试卷成绩数据");
+        }
+
+        ExamStudentScore studentScore = studentScoreOpt.get();
+        List<Map<String, Object>> answers = buildPaperAnswers(snapshot, classSubject, studentScore);
+        double fullScore = resolveFullScore(snapshot.benchmarks(), targetSubject);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("examId", snapshot.project().getId());
+        data.put("examName", snapshot.project().getName() + " - " + targetSubject);
+        data.put("subject", targetSubject);
+        data.put("examDate", formatProjectDate(snapshot.project()));
+        data.put("score", roundScore(studentScore.getTotalScore()));
+        data.put("fullScore", roundScore(fullScore));
+        data.put("teacherComment", buildTeacherComment(targetSubject, answers));
+        data.put("myPaperImages", collectPaperImages(studentScore.getAnswerSheetUrl()));
+        data.put("examPaperImages", collectPaperImages(
+                StringUtils.hasText(classSubject.getPaperUrl()) ? classSubject.getPaperUrl() : classSubject.getAnswerUrl()
+        ));
+        data.put("questionScores", answers);
+        data.put("downloadUrl", StringUtils.hasText(classSubject.getPaperUrl()) ? classSubject.getPaperUrl() : studentScore.getAnswerSheetUrl());
+        return Result.success(data);
+    }
+
     private ProjectAggregate buildFastProjectAggregate(ProjectSnapshot snapshot, SysStudent student, List<ExamSubject> classSubjects) {
         // 获取该考试项目下所有科目的成绩，用于计算排名
         List<String> allSubjectIds = snapshot.projectSubjectsByName().values().stream()
@@ -550,6 +601,7 @@ public class ScoreServiceImpl implements ScoreService {
         data.put("totalLevel", calcLevel(totalScore, totalFullScore <= 0 ? 100D : totalFullScore));
         data.put("subjects", subjects);
         data.put("history", buildHistoryOnly(student, pickTrendSnapshots(snapshots, examId)));
+        data.put("wrongQuestions", buildWrongQuestionRows(snapshot, student, null));
         return data;
     }
 
@@ -679,6 +731,7 @@ public class ScoreServiceImpl implements ScoreService {
                 subjectItem("数学", Math.round(er.getTotalScore() * 0.9), 150, "A+"),
                 subjectItem("英语", Math.round(er.getTotalScore() * 0.7), 150, "B")
         ));
+        data.put("wrongQuestions", Collections.emptyList());
         return Result.success(data);
     }
 
@@ -974,4 +1027,410 @@ public class ScoreServiceImpl implements ScoreService {
         item.put("level", level);
         return item;
     }
+
+    private List<Map<String, Object>> buildWrongQuestionRows(ProjectSnapshot snapshot, SysStudent student, String onlySubject) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        Map<String, Object> paperLayouts = parseJsonMap(snapshot.project().getPaperLayouts());
+        for (ExamSubject classSubject : snapshot.classSubjects()) {
+            String subjectName = classSubject.getSubjectName();
+            if (StringUtils.hasText(onlySubject) && !equalsText(subjectName, onlySubject)) {
+                continue;
+            }
+            Optional<ExamStudentScore> studentScoreOpt = examStudentScoreRepository.findBySubjectIdAndStudentNo(classSubject.getId(), student.getStudentNo());
+            if (studentScoreOpt.isEmpty() || !isScoreEntered(studentScoreOpt.get())) {
+                continue;
+            }
+
+            ExamStudentScore studentScore = studentScoreOpt.get();
+            List<Double> personalScores = parseQuestionScores(studentScore.getQuestionScores());
+            if (personalScores.isEmpty()) {
+                continue;
+            }
+
+            List<ExamStudentScore> projectScores = findProjectSubjectScores(snapshot, subjectName);
+            List<Double> bestScores = resolveBestQuestionScores(projectScores);
+            List<Map<String, Object>> regions = resolveSubjectRegions(paperLayouts, subjectName, "original");
+            int questionCount = Math.min(personalScores.size(), bestScores.size());
+            for (int index = 0; index < questionCount; index++) {
+                double bestScore = bestScores.get(index);
+                double personal = personalScores.get(index);
+                if (bestScore <= 0 || personal >= bestScore) {
+                    continue;
+                }
+
+                Map<String, Object> region = index < regions.size() ? regions.get(index) : Collections.emptyMap();
+                String regionQuestionText = stringValue(region.get("questionText"));
+                String regionQuestionNo = stringValue(region.get("questionNo"));
+                String regionQuestionType = stringValue(region.get("questionType"));
+                String regionKnowledgePoint = stringValue(region.get("knowledgePoint"));
+                double mastery = bestScore <= 0 ? 0D : (personal / bestScore) * 100D;
+
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("id", snapshot.project().getId() + "_" + subjectName + "_" + (index + 1));
+                row.put("subject", subjectName);
+                row.put("time", formatProjectDate(snapshot.project()));
+                row.put("source", snapshot.project().getName());
+                row.put("questionNo", normalizeQuestionNo(regionQuestionNo, index + 1));
+                row.put("question", StringUtils.hasText(regionQuestionText) ? regionQuestionText : "第" + (index + 1) + "题");
+                row.put("tags", buildWrongQuestionTags(regionKnowledgePoint, regionQuestionType));
+                row.put("difficulty", buildDifficultyLabel(mastery));
+                row.put("mastery", (int) Math.max(0, Math.min(100, Math.round(mastery))));
+                row.put("myScore", roundScore(personal));
+                row.put("highestScore", roundScore(bestScore));
+                row.put("wrongReason", buildWrongReason(personal, bestScore));
+                row.put("explanation", buildWrongExplanation(subjectName, index + 1, personal, bestScore));
+                row.put("paperUrl", studentScore.getAnswerSheetUrl());
+                row.put("paperRegion", buildPaperRegion(region, studentScore.getAnswerSheetUrl()));
+                row.put("sliceImageUrl", createQuestionSliceUrl(
+                        studentScore.getAnswerSheetUrl(),
+                        region,
+                        snapshot.project().getId(),
+                        subjectName,
+                        "wrong",
+                        student.getStudentNo() + "_" + normalizeQuestionNo(regionQuestionNo, index + 1)
+                ));
+                rows.add(row);
+            }
+        }
+        return rows;
+    }
+
+    private List<Map<String, Object>> buildPaperAnswers(ProjectSnapshot snapshot, ExamSubject classSubject, ExamStudentScore studentScore) {
+        List<Double> personalScores = parseQuestionScores(studentScore.getQuestionScores());
+        Map<String, Object> paperLayouts = parseJsonMap(snapshot.project().getPaperLayouts());
+        List<Map<String, Object>> regions = resolveSubjectRegions(paperLayouts, classSubject.getSubjectName(), "original");
+        List<QuestionScoreContext> scoreContexts = buildQuestionScoreContexts(snapshot, classSubject.getSubjectName());
+
+        List<Map<String, Object>> answers = new ArrayList<>();
+        int count = Math.max(personalScores.size(), Math.max(regions.size(), resolveQuestionCount(scoreContexts)));
+        for (int index = 0; index < count; index++) {
+            double personal = index < personalScores.size() ? personalScores.get(index) : 0D;
+            Map<String, Object> region = index < regions.size() ? regions.get(index) : Collections.emptyMap();
+            String questionNo = stringValue(region.get("questionNo"));
+            String questionType = stringValue(region.get("questionType"));
+            QuestionScoreMetrics metrics = buildQuestionScoreMetrics(scoreContexts, snapshot.examClass(), index);
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("questionNo", normalizeQuestionNo(questionNo, index + 1));
+            row.put("type", StringUtils.hasText(questionType) ? questionType : "题目");
+            row.put("questionText", stringValue(region.get("questionText")));
+            row.put("myScore", roundScore(personal));
+            row.put("highestScore", roundScore(metrics.highestScore()));
+            row.put("classAvgScore", roundScore(metrics.classAvgScore()));
+            row.put("schoolAvgScore", roundScore(metrics.schoolAvgScore()));
+            row.put("gradeAvgScore", roundScore(metrics.gradeAvgScore()));
+            row.put("projectAvgScore", roundScore(metrics.projectAvgScore()));
+            row.put("isBest", metrics.highestScore() > 0 && personal >= metrics.highestScore());
+            row.put("paperRegion", buildPaperRegion(region, studentScore.getAnswerSheetUrl()));
+            answers.add(row);
+        }
+        return answers;
+    }
+
+    private List<String> collectPaperImages(String url) {
+        if (!StringUtils.hasText(url)) {
+            return Collections.emptyList();
+        }
+        return List.of(url.trim());
+    }
+
+    private String buildTeacherComment(String subjectName, List<Map<String, Object>> answers) {
+        long wrongCount = answers.stream()
+                .filter(item -> !Boolean.TRUE.equals(item.get("isBest")))
+                .count();
+        if (wrongCount <= 0) {
+            return subjectName + "本次表现稳定，当前题目掌握情况较好，继续保持。";
+        }
+        return subjectName + "本次共有 " + wrongCount + " 道题与同题最高分有差距，建议优先回看失分题对应步骤与计算细节。";
+    }
+
+    private List<String> buildWrongQuestionTags(String knowledgePoint, String questionType) {
+        List<String> tags = new ArrayList<>();
+        if (StringUtils.hasText(knowledgePoint)) {
+            tags.add(knowledgePoint.trim());
+        }
+        if (StringUtils.hasText(questionType)) {
+            tags.add(questionType.trim());
+        }
+        if (tags.isEmpty()) {
+            tags.add("错题回顾");
+        }
+        return tags;
+    }
+
+    private String buildDifficultyLabel(double mastery) {
+        if (mastery >= 80D) return "简单";
+        if (mastery >= 50D) return "中等";
+        return "困难";
+    }
+
+    private String buildWrongReason(double personal, double bestScore) {
+        double gap = bestScore - personal;
+        if (gap >= 8D) {
+            return "与同题最高分差距较大，建议先补齐核心步骤。";
+        }
+        if (gap >= 3D) {
+            return "本题存在关键得分点遗漏，可重点复盘解题过程。";
+        }
+        return "本题与最高分接近，建议检查细节和计算准确性。";
+    }
+
+    private String buildWrongExplanation(String subjectName, int questionIndex, double personal, double bestScore) {
+        return subjectName + "第" + questionIndex + "题当前得分为 " + roundScore(personal)
+                + " 分，同题最高分为 " + roundScore(bestScore)
+                + " 分，建议结合原卷定位失分步骤后再做一次同类题巩固。";
+    }
+
+    private Map<String, Object> buildPaperRegion(Map<String, Object> region, String paperUrl) {
+        if (region == null || region.isEmpty() || !StringUtils.hasText(paperUrl)) {
+            return Collections.emptyMap();
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("imageUrl", paperUrl);
+        payload.put("x", numberValue(region.get("x")));
+        payload.put("y", numberValue(region.get("y")));
+        payload.put("width", numberValue(region.get("width")));
+        payload.put("height", numberValue(region.get("height")));
+        payload.put("questionNo", stringValue(region.get("questionNo")));
+        return payload;
+    }
+
+    private List<Map<String, Object>> resolveSubjectRegions(Map<String, Object> paperLayouts, String subjectName, String type) {
+        if (paperLayouts.isEmpty() || !StringUtils.hasText(subjectName) || !StringUtils.hasText(type)) {
+            return Collections.emptyList();
+        }
+        Object subjectNode = paperLayouts.get(subjectName);
+        if (!(subjectNode instanceof Map<?, ?> subjectMap)) {
+            return Collections.emptyList();
+        }
+        Object regionNode = subjectMap.get(type);
+        if (!(regionNode instanceof Collection<?> collection)) {
+            return Collections.emptyList();
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Object item : collection) {
+            if (item instanceof Map<?, ?> map) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                map.forEach((key, value) -> row.put(String.valueOf(key), value));
+                rows.add(row);
+            }
+        }
+        return rows;
+    }
+
+    private List<QuestionScoreContext> buildQuestionScoreContexts(ProjectSnapshot snapshot, String subjectName) {
+        List<ExamSubject> projectSubjects = snapshot.projectSubjectsByName().getOrDefault(subjectName, Collections.emptyList());
+        if (projectSubjects.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<String, String> subjectClassMap = projectSubjects.stream()
+                .collect(Collectors.toMap(ExamSubject::getId, ExamSubject::getClassId, (a, b) -> a, LinkedHashMap::new));
+        Map<String, ExamClass> classMap = examClassRepository.findByProjectId(snapshot.project().getId()).stream()
+                .collect(Collectors.toMap(ExamClass::getId, item -> item, (a, b) -> a, LinkedHashMap::new));
+        List<String> subjectIds = projectSubjects.stream().map(ExamSubject::getId).toList();
+        return examStudentScoreRepository.findBySubjectIdIn(subjectIds).stream()
+                .filter(this::isScoreEntered)
+                .map(score -> {
+                    String classId = subjectClassMap.get(score.getSubjectId());
+                    ExamClass examClass = classMap.get(classId);
+                    return new QuestionScoreContext(
+                            classId == null ? "" : classId,
+                            examClass == null ? "" : stringValue(examClass.getSchoolId()),
+                            examClass == null ? "" : stringValue(examClass.getGrade()),
+                            parseQuestionScores(score.getQuestionScores())
+                    );
+                })
+                .toList();
+    }
+
+    private int resolveQuestionCount(List<QuestionScoreContext> contexts) {
+        return contexts.stream()
+                .mapToInt(item -> item.questionScores() == null ? 0 : item.questionScores().size())
+                .max()
+                .orElse(0);
+    }
+
+    private QuestionScoreMetrics buildQuestionScoreMetrics(
+            List<QuestionScoreContext> contexts,
+            ExamClass currentClass,
+            int questionIndex) {
+        List<Double> projectScores = collectQuestionScores(contexts, questionIndex, null, null, null);
+        List<Double> classScores = collectQuestionScores(contexts, questionIndex, stringValue(currentClass.getId()), null, null);
+        List<Double> schoolScores = collectQuestionScores(contexts, questionIndex, null, stringValue(currentClass.getSchoolId()), null);
+        List<Double> gradeScores = collectQuestionScores(contexts, questionIndex, null, null, stringValue(currentClass.getGrade()));
+        double highestScore = projectScores.stream().mapToDouble(Double::doubleValue).max().orElse(0D);
+        return new QuestionScoreMetrics(
+                highestScore,
+                average(classScores),
+                average(schoolScores),
+                average(gradeScores),
+                average(projectScores)
+        );
+    }
+
+    private List<Double> collectQuestionScores(
+            List<QuestionScoreContext> contexts,
+            int questionIndex,
+            String classId,
+            String schoolId,
+            String grade) {
+        return contexts.stream()
+                .filter(item -> !StringUtils.hasText(classId) || classId.equals(item.classId()))
+                .filter(item -> !StringUtils.hasText(schoolId) || schoolId.equals(item.schoolId()))
+                .filter(item -> !StringUtils.hasText(grade) || grade.equals(item.grade()))
+                .filter(item -> item.questionScores() != null && item.questionScores().size() > questionIndex)
+                .map(item -> item.questionScores().get(questionIndex))
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private String createQuestionSliceUrl(
+            String sourceUrl,
+            Map<String, Object> region,
+            String projectId,
+            String subjectName,
+            String category,
+            String uniqueKey) {
+        if (!StringUtils.hasText(sourceUrl) || region == null || region.isEmpty()) {
+            return "";
+        }
+        try {
+            Path sourcePath = resolvePaperPath(sourceUrl);
+            if (sourcePath == null || !Files.exists(sourcePath)) {
+                return "";
+            }
+            BufferedImage image = ImageIO.read(sourcePath.toFile());
+            if (image == null) {
+                return "";
+            }
+
+            double xRatio = clampRatio(numberValue(region.get("x")));
+            double yRatio = clampRatio(numberValue(region.get("y")));
+            double widthRatio = clampRatio(numberValue(region.get("width")));
+            double heightRatio = clampRatio(numberValue(region.get("height")));
+            int x = Math.min((int) Math.floor(xRatio * image.getWidth()), Math.max(image.getWidth() - 1, 0));
+            int y = Math.min((int) Math.floor(yRatio * image.getHeight()), Math.max(image.getHeight() - 1, 0));
+            int width = Math.max((int) Math.ceil(widthRatio * image.getWidth()), 1);
+            int height = Math.max((int) Math.ceil(heightRatio * image.getHeight()), 1);
+            width = Math.min(width, image.getWidth() - x);
+            height = Math.min(height, image.getHeight() - y);
+            if (width <= 0 || height <= 0) {
+                return "";
+            }
+
+            Path outputDir = Paths.get(globalConfigProperties.getPaperDir())
+                    .resolve("exam-projects")
+                    .resolve(safePathSegment(projectId))
+                    .resolve(safePathSegment(subjectName))
+                    .resolve("slices");
+            Files.createDirectories(outputDir);
+
+            String questionNo = normalizeQuestionNo(stringValue(region.get("questionNo")), 1);
+            String hash = Integer.toHexString((sourceUrl + "|" + xRatio + "|" + yRatio + "|" + widthRatio + "|" + heightRatio).hashCode());
+            String fileName = safePathSegment(category) + "_" + safePathSegment(uniqueKey) + "_q" + questionNo + "_" + hash + ".png";
+            Path outputPath = outputDir.resolve(fileName);
+            if (!Files.exists(outputPath)) {
+                BufferedImage cropped = image.getSubimage(x, y, width, height);
+                ImageIO.write(cropped, "png", outputPath.toFile());
+            }
+            return "/uploads/papers/exam-projects/"
+                    + safePathSegment(projectId) + "/"
+                    + safePathSegment(subjectName) + "/slices/"
+                    + fileName;
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private Path resolvePaperPath(String url) {
+        if (!StringUtils.hasText(url) || !url.startsWith("/uploads/papers/")) {
+            return null;
+        }
+        Path paperRoot = Paths.get(globalConfigProperties.getPaperDir()).toAbsolutePath().normalize();
+        Path resolvedPath = paperRoot.resolve(url.substring("/uploads/papers/".length())).normalize();
+        if (!resolvedPath.startsWith(paperRoot)) {
+            return null;
+        }
+        return resolvedPath;
+    }
+
+    private String safePathSegment(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "unknown";
+        }
+        return value.trim().replaceAll("[\\\\/:*?\"<>|\\s]+", "_");
+    }
+
+    private double clampRatio(double value) {
+        if (Double.isNaN(value)) {
+            return 0D;
+        }
+        return Math.max(0D, Math.min(1D, value));
+    }
+
+    private List<Double> resolveBestQuestionScores(List<ExamStudentScore> scores) {
+        List<Double> bestScores = new ArrayList<>();
+        for (ExamStudentScore score : scores) {
+            List<Double> values = parseQuestionScores(score.getQuestionScores());
+            for (int index = 0; index < values.size(); index++) {
+                double current = values.get(index) == null ? 0D : values.get(index);
+                if (index >= bestScores.size()) {
+                    bestScores.add(current);
+                } else if (current > bestScores.get(index)) {
+                    bestScores.set(index, current);
+                }
+            }
+        }
+        return bestScores;
+    }
+
+    private Map<String, Object> parseJsonMap(String json) {
+        if (!StringUtils.hasText(json)) {
+            return Collections.emptyMap();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception ignored) {
+            return Collections.emptyMap();
+        }
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
+    }
+
+    private double numberValue(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value != null && StringUtils.hasText(String.valueOf(value))) {
+            try {
+                return Double.parseDouble(String.valueOf(value));
+            } catch (Exception ignored) {
+                return 0D;
+            }
+        }
+        return 0D;
+    }
+
+    private String normalizeQuestionNo(String raw, int fallback) {
+        if (!StringUtils.hasText(raw)) {
+            return String.valueOf(fallback);
+        }
+        String normalized = raw.replaceAll("[^0-9]", "");
+        return StringUtils.hasText(normalized) ? normalized : String.valueOf(fallback);
+    }
+
+    private record QuestionScoreContext(
+            String classId,
+            String schoolId,
+            String grade,
+            List<Double> questionScores) {}
+
+    private record QuestionScoreMetrics(
+            double highestScore,
+            double classAvgScore,
+            double schoolAvgScore,
+            double gradeAvgScore,
+            double projectAvgScore) {}
 }

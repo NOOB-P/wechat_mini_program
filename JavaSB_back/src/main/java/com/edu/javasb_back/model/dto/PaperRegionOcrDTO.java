@@ -1,12 +1,15 @@
 package com.edu.javasb_back.model.dto;
 
-public class PaperOcrAutoCutDTO {
+public class PaperRegionOcrDTO {
 
     private String projectId;
     private String subjectName;
     private String type;
     private String imageType;
-    private Integer pageIndex;
+    private Double x;
+    private Double y;
+    private Double width;
+    private Double height;
 
     public String getProjectId() {
         return projectId;
@@ -40,11 +43,35 @@ public class PaperOcrAutoCutDTO {
         this.imageType = imageType;
     }
 
-    public Integer getPageIndex() {
-        return pageIndex;
+    public Double getX() {
+        return x;
     }
 
-    public void setPageIndex(Integer pageIndex) {
-        this.pageIndex = pageIndex;
+    public void setX(Double x) {
+        this.x = x;
+    }
+
+    public Double getY() {
+        return y;
+    }
+
+    public void setY(Double y) {
+        this.y = y;
+    }
+
+    public Double getWidth() {
+        return width;
+    }
+
+    public void setWidth(Double width) {
+        this.width = width;
+    }
+
+    public Double getHeight() {
+        return height;
+    }
+
+    public void setHeight(Double height) {
+        this.height = height;
     }
 }

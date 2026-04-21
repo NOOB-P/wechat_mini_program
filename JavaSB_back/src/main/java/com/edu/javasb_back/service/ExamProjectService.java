@@ -4,6 +4,7 @@ import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
 import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import com.edu.javasb_back.model.dto.PaperOcrAutoCutDTO;
+import com.edu.javasb_back.model.dto.PaperRegionOcrDTO;
 import java.util.Map;
 
 public interface ExamProjectService {
@@ -55,6 +56,16 @@ public interface ExamProjectService {
      * OCR 自动切割试卷题目区域
      */
     Result<Map<String, Object>> autoCutPaperLayoutByOcr(PaperOcrAutoCutDTO dto);
+
+    /**
+     * OCR 识别单页试卷并映射回长图坐标
+     */
+    Result<Map<String, Object>> ocrPaperLayoutPage(PaperOcrAutoCutDTO dto);
+
+    /**
+     * OCR 识别单个题框文本
+     */
+    Result<Map<String, Object>> ocrPaperRegion(PaperRegionOcrDTO dto);
 
     /**
      * 保存单个学生成绩

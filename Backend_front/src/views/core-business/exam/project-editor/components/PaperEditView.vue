@@ -44,7 +44,7 @@
                 <el-button
                   size="small"
                   :type="regionEditorRef?.tool === 'pan' ? 'primary' : 'default'"
-                  :disabled="!canUseEditor"
+                  :disabled="!canUseEditor || ocrLoading"
                   @click="handleToolboxCommand('panMode')"
                 >
                   移动试卷
@@ -52,7 +52,7 @@
                 <el-button
                   size="small"
                   :type="regionEditorRef?.tool === 'draw' ? 'primary' : 'default'"
-                  :disabled="!canUseEditor"
+                  :disabled="!canUseEditor || ocrLoading"
                   @click="handleToolboxCommand('drawMode')"
                 >
                   创建选框
@@ -60,7 +60,7 @@
                 <el-button
                   size="small"
                   :type="regionEditorRef?.tool === 'adjust' ? 'primary' : 'default'"
-                  :disabled="!canUseEditor"
+                  :disabled="!canUseEditor || ocrLoading"
                   @click="handleToolboxCommand('adjustMode')"
                 >
                   编辑选框
@@ -73,7 +73,7 @@
                 :content="regionEditorRef?.currentHintText || '请先上传图片格式试卷后开始编辑'"
                 placement="bottom"
               >
-                <el-button size="small" class="tool-btn" :disabled="!canUseEditor">
+                <el-button size="small" class="tool-btn" :disabled="!canUseEditor || ocrLoading">
                   <el-icon><InfoFilled /></el-icon> 提示
                 </el-button>
               </el-tooltip>
@@ -83,10 +83,10 @@
                 type="primary"
                 plain
                 :loading="ocrLoading"
-                :disabled="!canUseEditor"
+                :disabled="!canUseEditor || ocrLoading"
                 @click="handleAutoCut"
               >
-                AI自动切割
+                AI识别
               </el-button>
 
               <div class="zoom-indicator" v-if="regionEditorRef?.scale">
@@ -99,16 +99,17 @@
                 action="#"
                 :auto-upload="false"
                 :show-file-list="false"
+                :disabled="ocrLoading"
                 accept=".pdf,.png,.jpg,.jpeg"
                 :on-change="(file: any) => handleFileUpload(activeTab, file)"
               >
-                <el-button size="small">重新上传</el-button>
+                <el-button size="small" :disabled="ocrLoading">重新上传</el-button>
               </el-upload>
 
               <el-button
                 size="small"
                 type="primary"
-                :disabled="!canUseEditor"
+                :disabled="!canUseEditor || ocrLoading"
                 @click="handleSaveRegions"
               >
                 保存
@@ -127,11 +128,29 @@
               :regions="getRegions(activeTab)"
               :subject-name="subjectName"
               :hide-toolbar="true"
+              initial-tool="pan"
+              :interaction-locked="ocrLoading"
+              :region-ocr-loading="questionOcrLoading"
               @update:regions="(regions) => handleRegionsChange(activeTab, regions)"
               @save="(regions) => savePaperRegions(activeTab, regions)"
+              @ocr-region="handleRegionOcr"
             >
             </PaperRegionEditor>
-            <div v-else class="pdf-preview-wrapper">
+            <div v-if="ocrLoading && !isPdf(getFileUrl(activeTab))" class="editor-lock-mask">
+              <div class="ocr-progress-panel">
+                <div class="ocr-progress-title">{{ ocrProgress.title }}</div>
+                <div class="ocr-progress-detail">{{ ocrProgress.detail }}</div>
+                <el-progress
+                  :percentage="ocrProgress.percentage"
+                  :stroke-width="16"
+                  :show-text="false"
+                  striped
+                  striped-flow
+                />
+                <div class="ocr-progress-percent">{{ ocrProgress.percentage }}%</div>
+              </div>
+            </div>
+            <div v-else-if="isPdf(getFileUrl(activeTab))" class="pdf-preview-wrapper">
               <div class="preview-toolbar">
                 <div class="preview-toolbar-left">
                   <span class="pdf-mode-tag">PDF 预览模式</span>
@@ -321,12 +340,15 @@
   import PaperRegionEditor from './PaperRegionEditor.vue'
   import {
     fetchAutoCutPaperLayout,
+    fetchOcrPaperLayoutPage,
+    fetchOcrPaperQuestion,
     fetchSavePaperLayout,
     fetchProjectScoreList,
     fetchUploadStudentAnswerSheet,
     fetchPaperConfig,
     fetchUploadPublicPaper,
     normalizePaperRegions,
+    type PaperMergeInfo,
     type PaperRegionItem
   } from '@/api/core-business/exam/project-editor'
 
@@ -345,7 +367,9 @@
   const selectedStudent = ref<any>(null)
   const loading = ref(false)
   const ocrLoading = ref(false)
+  const questionOcrLoading = ref(false)
   const regionEditorRef = ref<any>(null)
+  const latestAutoCutRegionCount = ref(0)
   const PAPER_RESULT_CONFIRM_INTERVAL = 2000
   const PAPER_RESULT_CONFIRM_ATTEMPTS = 15
 
@@ -358,8 +382,16 @@
   const paperConfig = ref({
     templateUrl: null as string | null,
     originalUrl: null as string | null,
+    templateMergeInfo: emptyMergeInfo(),
+    originalMergeInfo: emptyMergeInfo(),
     templateRegions: [] as PaperRegionItem[],
     originalRegions: [] as PaperRegionItem[]
+  })
+
+  const ocrProgress = ref({
+    title: 'AI识别中',
+    detail: '系统正在准备识别任务...',
+    percentage: 0
   })
 
   const showIntegratedToolbar = computed(() => activeTab.value !== 'student')
@@ -372,14 +404,28 @@
   type PaperConfigState = {
     templateUrl: string | null
     originalUrl: string | null
+    templateMergeInfo: PaperMergeInfo
+    originalMergeInfo: PaperMergeInfo
     templateRegions: PaperRegionItem[]
     originalRegions: PaperRegionItem[]
+  }
+
+  function emptyMergeInfo(): PaperMergeInfo {
+    return {
+      sourceType: '',
+      imageWidth: 0,
+      imageHeight: 0,
+      pageCount: 0,
+      pages: []
+    }
   }
 
   function syncPaperConfig(config: PaperConfigState) {
     paperConfig.value = {
       templateUrl: config.templateUrl || null,
       originalUrl: config.originalUrl || null,
+      templateMergeInfo: config.templateMergeInfo || emptyMergeInfo(),
+      originalMergeInfo: config.originalMergeInfo || emptyMergeInfo(),
       templateRegions: normalizePaperRegions(config.templateRegions),
       originalRegions: normalizePaperRegions(config.originalRegions)
     }
@@ -429,26 +475,73 @@
     regionEditorRef.value?.save()
   }
 
+  function getMergeInfo(tab: PaperTab) {
+    return tab === 'template' ? paperConfig.value.templateMergeInfo : paperConfig.value.originalMergeInfo
+  }
+
+  function updateOcrProgress(title: string, detail: string, percentage: number) {
+    ocrProgress.value = {
+      title,
+      detail,
+      percentage: Math.max(0, Math.min(100, Math.round(percentage)))
+    }
+  }
+
+  function resetOcrProgress() {
+    updateOcrProgress('AI识别中', '系统正在准备识别任务...', 0)
+  }
+
+  async function runPagedAutoCut(type: PaperTab, mergeInfo: PaperMergeInfo) {
+    const totalPages = Math.max(mergeInfo.pageCount || mergeInfo.pages?.length || 0, 1)
+    updateOcrProgress('分页中', `正在还原 PDF 分页信息，共 ${totalPages} 页...`, 8)
+    await wait(300)
+
+    const mergedRegions: PaperRegionItem[] = []
+    for (let pageIndex = 1; pageIndex <= totalPages; pageIndex++) {
+      updateOcrProgress(
+        'AI识别中',
+        `正在识别第 ${pageIndex}/${totalPages} 页，并同步到合成长图...`,
+        12 + (pageIndex - 1) * (78 / totalPages)
+      )
+      const res = await fetchOcrPaperLayoutPage({
+        projectId: props.projectId,
+        subjectName: props.subjectName,
+        type,
+        pageIndex
+      })
+      mergedRegions.push(...res.regions)
+      latestAutoCutRegionCount.value = mergedRegions.length
+      updateOcrProgress(
+        'AI识别中',
+        `第 ${pageIndex}/${totalPages} 页识别完成`,
+        12 + pageIndex * (78 / totalPages)
+      )
+    }
+    return normalizePaperRegions(
+      mergedRegions.map((region, index) => ({
+        ...region,
+        sortOrder: index + 1
+      }))
+    )
+  }
+
   async function handleAutoCut() {
     if (!canUseEditor.value) {
-      ElMessage.warning('请先上传图片格式试卷后再执行 AI 自动切割')
+      ElMessage.warning('请先上传图片格式试卷后再执行 AI识别')
       return
     }
 
     const currentType = activeTab.value as PaperTab
     const currentRegions = getRegions(currentType)
     const previousSignature = getRegionSignature(currentRegions)
+    latestAutoCutRegionCount.value = currentRegions.length
     if (currentRegions.length > 0) {
       try {
-        await ElMessageBox.confirm(
-          'AI 自动切割会覆盖当前试卷已有的框选结果，是否继续？',
-          '覆盖确认',
-          {
-            type: 'warning',
-            confirmButtonText: '继续切割',
-            cancelButtonText: '取消'
-          }
-        )
+        await ElMessageBox.confirm('AI识别会覆盖当前试卷已有的框选结果，是否继续？', '覆盖确认', {
+          type: 'warning',
+          confirmButtonText: '继续识别',
+          cancelButtonText: '取消'
+        })
       } catch {
         return
       }
@@ -456,35 +549,55 @@
 
     ocrLoading.value = true
     try {
-      const res = await fetchAutoCutPaperLayout({
+      const mergeInfo = getMergeInfo(currentType)
+      let recognizedRegions: PaperRegionItem[] = []
+      if ((mergeInfo?.pageCount || 0) > 1) {
+        recognizedRegions = await runPagedAutoCut(currentType, mergeInfo)
+      } else {
+        updateOcrProgress('AI识别中', '正在识别当前试卷...', 35)
+        const res = await fetchAutoCutPaperLayout({
+          projectId: props.projectId,
+          subjectName: props.subjectName,
+          type: currentType
+        })
+        recognizedRegions = res.regions
+      }
+      handleRegionsChange(currentType, recognizedRegions)
+      await fetchSavePaperLayout({
         projectId: props.projectId,
         subjectName: props.subjectName,
-        type: currentType
+        type: currentType,
+        regions: recognizedRegions
       })
-      handleRegionsChange(currentType, res.regions)
       await refreshConfigSilently()
       regionEditorRef.value?.handleToolboxCommand('adjustMode')
-      ElMessage.success(`AI 自动切割完成，已识别 ${res.recognizedCount} 个题目区域`)
+      updateOcrProgress('AI识别完成', `已识别 ${recognizedRegions.length} 个题目区域`, 100)
+      ElMessage.success(`AI识别完成，已识别 ${recognizedRegions.length} 个题目区域`)
       emit('saved')
     } catch (e: any) {
       console.error(e)
       if (shouldConfirmPaperResult(e)) {
-        ElMessage.info('AI 切割响应较慢，正在确认后台切割结果...')
-        const confirmedConfig = await confirmAutoCutResult(currentType, previousSignature)
+        ElMessage.info('AI识别响应较慢，正在确认后台识别结果...')
+        const confirmedConfig = await confirmAutoCutResult(
+          currentType,
+          previousSignature,
+          latestAutoCutRegionCount.value
+        )
         if (confirmedConfig) {
           const confirmedRegions = getPaperRegionsByType(confirmedConfig, currentType)
           handleRegionsChange(currentType, confirmedRegions)
           regionEditorRef.value?.handleToolboxCommand('adjustMode')
-          ElMessage.success(`AI 自动切割已完成，已识别 ${confirmedRegions.length} 个题目区域`)
+          ElMessage.success(`AI识别已完成，已识别 ${confirmedRegions.length} 个题目区域`)
           emit('saved')
           return
         }
-        ElMessage.error('AI 自动切割请求超时，暂未确认最终结果，请稍后刷新查看')
+        ElMessage.error('AI识别请求超时，暂未确认最终结果，请稍后刷新查看')
         return
       }
-      ElMessage.error(getErrorMessage(e, 'AI 自动切割失败'))
+      ElMessage.error(getErrorMessage(e, 'AI识别失败'))
     } finally {
       ocrLoading.value = false
+      resetOcrProgress()
     }
   }
 
@@ -521,6 +634,8 @@
       return syncPaperConfig({
         templateUrl: res.templateUrl || null,
         originalUrl: res.originalUrl || null,
+        templateMergeInfo: res.templateMergeInfo || emptyMergeInfo(),
+        originalMergeInfo: res.originalMergeInfo || emptyMergeInfo(),
         templateRegions: res.templateRegions,
         originalRegions: res.originalRegions
       })
@@ -559,14 +674,21 @@
     return null
   }
 
-  async function confirmAutoCutResult(type: PaperTab, previousSignature: string) {
+  async function confirmAutoCutResult(
+    type: PaperTab,
+    previousSignature: string,
+    minimumRegionCount = 0
+  ) {
     return confirmPaperState((config) => {
       const regions = getPaperRegionsByType(config, type)
       if (!regions.length) {
         return false
       }
+      if (minimumRegionCount > 0 && regions.length < minimumRegionCount) {
+        return false
+      }
       const currentSignature = getRegionSignature(regions)
-      return !previousSignature || currentSignature !== previousSignature
+      return (!previousSignature || currentSignature !== previousSignature) && regions.length >= minimumRegionCount
     })
   }
 
@@ -777,6 +899,36 @@
     }
   }
 
+  async function handleRegionOcr(region: PaperRegionItem) {
+    if (questionOcrLoading.value) {
+      return
+    }
+    const currentType = activeTab.value as PaperTab
+    questionOcrLoading.value = true
+    try {
+      const res = await fetchOcrPaperQuestion({
+        projectId: props.projectId,
+        subjectName: props.subjectName,
+        type: currentType,
+        x: region.x,
+        y: region.y,
+        width: region.width,
+        height: region.height
+      })
+      regionEditorRef.value?.applyOcrRegionMeta({
+        questionText: res.questionText,
+        questionType: res.questionType,
+        score: res.score
+      })
+      ElMessage.success('题目 OCR 内容已回填')
+    } catch (e: any) {
+      console.error(e)
+      ElMessage.error(getErrorMessage(e, '题目识别失败'))
+    } finally {
+      questionOcrLoading.value = false
+    }
+  }
+
   function handleBack() {
     emit('back')
   }
@@ -948,6 +1100,7 @@
 
     .image-content {
       flex: 1;
+      position: relative;
       width: 100%;
       overflow: hidden;
       border: 1px solid #e4e7ed;
@@ -1027,6 +1180,47 @@
         flex: 1;
         min-height: 0;
         border: none;
+      }
+
+      .editor-lock-mask {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: inherit;
+        background: rgba(255, 255, 255, 0.72);
+        backdrop-filter: blur(2px);
+        z-index: 10;
+      }
+
+      .ocr-progress-panel {
+        width: min(420px, calc(100% - 48px));
+        padding: 24px 24px 20px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(59, 130, 246, 0.18);
+        box-shadow: 0 18px 48px rgba(37, 99, 235, 0.12);
+        text-align: center;
+      }
+
+      .ocr-progress-title {
+        color: #1d4ed8;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .ocr-progress-detail {
+        margin: 10px 0 18px;
+        color: #475569;
+        font-size: 14px;
+      }
+
+      .ocr-progress-percent {
+        margin-top: 12px;
+        color: #2563eb;
+        font-size: 22px;
+        font-weight: 700;
       }
     }
   }

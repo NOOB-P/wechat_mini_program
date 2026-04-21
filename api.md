@@ -196,6 +196,8 @@
 | --- | --- | --- |
 | templateUrl | string/null | 样板答题卡图片地址 |
 | originalUrl | string/null | 原卷图片地址 |
+| templateMergeInfo | object | 样板答题卡分页拼接信息 |
+| originalMergeInfo | object | 原卷分页拼接信息 |
 | templateRegions | array | 样板答题卡框选区域 |
 | originalRegions | array | 原卷框选区域 |
 
@@ -250,7 +252,7 @@
 
 - 说明：
 
-- 后端会读取当前项目学科下已上传的样板答题卡或原卷图片，调用阿里云 `RecognizeEduPaperCut` 试卷切题接口
+- 后端优先调用阿里云 `RecognizeEduPaperStructed` 精细版结构化识别，若未识别出题目结构则回退到 `RecognizeEduPaperCut`
 - 成功后会直接覆盖保存当前 `type` 对应的框选结果
 - `imageType` 可选，未传时走后端全局配置，默认 `scan`
 
@@ -266,8 +268,64 @@
 | ocrSubject | string | 实际传给 OCR 的学科编码 |
 | imageType | string | 实际识别图片类型 |
 | cutType | string | OCR 切割类型 |
+| pageCount | number | 当前试卷识别页数 |
+| pageResults | array | 分页识别结果明细 |
 | recognizedCount | number | 成功识别的题目区域数量 |
 | regions | array | 标准化后的框选区域 |
+
+## 9.4 OCR 识别试卷分页
+
+- 方法：`POST`
+- 地址：`/api/system/exam-project/papers/layout/ocr-page`
+- 请求体：
+
+```json
+{
+  "projectId": "EP202604180001",
+  "subjectName": "数学",
+  "type": "original",
+  "pageIndex": 1
+}
+```
+
+- `data` 返回字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| pageIndex | number | 当前识别页码 |
+| pageCount | number | 试卷总页数 |
+| paperUrl | string | 合成长图地址 |
+| requestId | string | OCR 请求ID |
+| recognizedCount | number | 当前页识别题目数量 |
+| pageInfo | object | 当前页在合成长图中的坐标信息 |
+| regions | array | 已映射回长图坐标的题目区域 |
+
+## 9.5 OCR 识别单个题框文本
+
+- 方法：`POST`
+- 地址：`/api/system/exam-project/papers/layout/ocr-question`
+- 请求体：
+
+```json
+{
+  "projectId": "EP202604180001",
+  "subjectName": "数学",
+  "type": "original",
+  "x": 0.12,
+  "y": 0.08,
+  "width": 0.32,
+  "height": 0.11
+}
+```
+
+- `data` 返回字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| requestId | string | OCR 请求ID |
+| questionText | string | 识别出的题目文本 |
+| questionType | string | 识别出的题型 |
+| score | number/null | 识别出的题目分值 |
 
 ## 10. 获取分析项目列表
 

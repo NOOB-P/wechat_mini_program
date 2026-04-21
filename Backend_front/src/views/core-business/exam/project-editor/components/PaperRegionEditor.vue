@@ -1,5 +1,8 @@
 <template>
-  <div class="paper-region-editor" :class="{ readonly, 'no-toolbar': hideToolbar }">
+  <div
+    class="paper-region-editor"
+    :class="{ readonly, 'no-toolbar': hideToolbar, 'is-locked': interactionLocked }"
+  >
     <div v-if="!hideToolbar" class="editor-toolbar">
       <div class="toolbar-left">
         <el-tooltip :content="currentHintText" placement="bottom-start">
@@ -62,7 +65,7 @@
     <div
       ref="viewportRef"
       class="canvas-viewport"
-      :class="[`tool-${tool}`, { readonly }]"
+      :class="[`tool-${tool}`, { readonly, locked: interactionLocked }]"
       @mousedown="handleStageMouseDown"
       @contextmenu.prevent="handleViewportContextMenu"
       @wheel.prevent="handleWheelZoom"
@@ -97,23 +100,6 @@
             @contextmenu.stop.prevent="handleRegionContextMenu(region, $event)"
           >
             <span class="region-label">{{ regionLabel(region) }}</span>
-            <div
-              v-if="showRegionActions(region)"
-              class="region-actions"
-              @mousedown.stop
-              @click.stop
-            >
-              <button type="button" class="region-action-btn" @click="openRegionDialog(region)">
-                属性
-              </button>
-              <button
-                type="button"
-                class="region-action-btn danger"
-                @click="deleteRegion(region.id)"
-              >
-                删除
-              </button>
-            </div>
             <template v-if="selectedRegionId === region.id && !readonly && tool === 'adjust'">
               <span
                 v-for="direction in resizeDirections"
@@ -136,6 +122,9 @@
         ref="contextMenuRef"
         class="region-context-menu"
         :style="regionContextMenuStyle"
+        @mousedown.stop
+        @click.stop
+        @contextmenu.stop.prevent
       >
         <button type="button" class="context-menu-item" @click="handleContextMenuCommand('edit')">
           修改属性
@@ -155,53 +144,95 @@
     <el-dialog
       v-model="regionDialogVisible"
       title="题目属性设置"
-      width="520px"
+      width="1000px"
       append-to-body
       destroy-on-close
+      align-center
+      class="property-dialog"
     >
-      <el-form label-position="top" class="region-form">
-        <el-form-item label="题号">
-          <el-input v-model="regionForm.questionNo" placeholder="如：第1题 / 1 / 一(1)" />
-        </el-form-item>
-        <el-form-item label="题型">
-          <el-select v-model="regionForm.questionType" placeholder="请选择题型" style="width: 100%">
-            <el-option label="选择题" value="选择题" />
-            <el-option label="填空题" value="填空题" />
-            <el-option label="判断题" value="判断题" />
-            <el-option label="简答题" value="简答题" />
-            <el-option label="解答题" value="解答题" />
-            <el-option label="作文题" value="作文题" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="知识点">
-          <el-input
-            v-model="regionForm.knowledgePoint"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入该题对应知识点，可填写多个"
-          />
-        </el-form-item>
-        <el-form-item label="分值">
-          <el-input-number
-            v-model="regionForm.score"
-            :min="0"
-            :precision="1"
-            style="width: 180px"
-          />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input
-            v-model="regionForm.remark"
-            type="textarea"
-            :rows="3"
-            placeholder="可补充题目说明、切割备注等"
-          />
-        </el-form-item>
-      </el-form>
+      <div class="split-layout">
+        <!-- 左侧：基本属性 -->
+        <div class="layout-left">
+          <el-form label-position="top" class="region-form">
+            <el-form-item label="题号">
+              <el-input v-model="regionForm.questionNo" placeholder="如：第1题 / 1 / 一(1)" />
+            </el-form-item>
+            <el-form-item label="题型">
+              <el-select
+                v-model="regionForm.questionType"
+                placeholder="请选择题型"
+                style="width: 100%"
+              >
+                <el-option label="选择题" value="选择题" />
+                <el-option label="填空题" value="填空题" />
+                <el-option label="判断题" value="判断题" />
+                <el-option label="简答题" value="简答题" />
+                <el-option label="解答题" value="解答题" />
+                <el-option label="作文题" value="作文题" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="知识点">
+              <el-input
+                v-model="regionForm.knowledgePoint"
+                type="textarea"
+                :rows="4"
+                placeholder="请输入该题对应知识点，可填写多个"
+              />
+            </el-form-item>
+            <el-form-item label="分值">
+              <el-input-number
+                v-model="regionForm.score"
+                :min="0"
+                :precision="1"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-form>
+        </div>
+
+        <!-- 右侧：题目内容与预览 -->
+        <div class="layout-right">
+          <div class="content-section">
+            <div class="section-header">
+              <span class="section-title">题目编辑</span>
+              <span class="section-tips">这里是题目识别后的源文本</span>
+              <el-button
+                v-if="!readonly"
+                size="small"
+                type="primary"
+                plain
+                class="section-ocr-btn"
+                :loading="regionOcrLoading"
+                @click="handleRegionOcr"
+              >
+                AI识别题目
+              </el-button>
+            </div>
+            <el-input
+              v-model="regionForm.questionText"
+              type="textarea"
+              :rows="8"
+              placeholder="请输入题目内容，AI识别到的题目也会自动带入这里"
+              class="question-editor"
+            />
+          </div>
+          <div class="content-section">
+            <div class="section-header">
+              <span class="section-title">题目展示</span>
+              <span class="section-tips">这里是可以显示 latex, md 的</span>
+            </div>
+            <div class="preview-container">
+              <ArtMarkdownRender :content="regionForm.questionText" />
+            </div>
+          </div>
+        </div>
+      </div>
 
       <template #footer>
-        <el-button @click="regionDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveRegionMeta">确定</el-button>
+        <div class="dialog-footer">
+          <el-button @click="regionDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="saveRegionMeta">确定保存</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -213,6 +244,7 @@
   import { ElMessage } from 'element-plus'
   import { normalizeQuestionNo } from '@/utils/exam-utils'
   import type { PaperRegionItem } from '@/api/core-business/exam/project-editor'
+  import ArtMarkdownRender from '@/components/core/others/art-markdown-render/index.vue'
 
   type RegionTool = 'draw' | 'adjust' | 'pan' | 'select'
   type InteractionMode = 'draw' | 'pan' | 'move' | 'resize' | null
@@ -243,6 +275,8 @@
       imageUrl: string
       regions?: PaperRegionItem[]
       readonly?: boolean
+      interactionLocked?: boolean
+      regionOcrLoading?: boolean
       subjectName?: string
       showSave?: boolean
       hideToolbar?: boolean
@@ -251,6 +285,8 @@
     {
       regions: () => [],
       readonly: false,
+      interactionLocked: false,
+      regionOcrLoading: false,
       subjectName: '',
       showSave: true,
       hideToolbar: false
@@ -260,6 +296,7 @@
   const emit = defineEmits<{
     'update:regions': [value: PaperRegionItem[]]
     save: [value: PaperRegionItem[]]
+    'ocr-region': [value: PaperRegionItem]
   }>()
 
   const viewportRef = ref<HTMLElement>()
@@ -280,8 +317,8 @@
     questionNo: '',
     questionType: '',
     knowledgePoint: '',
-    score: null as number | null,
-    remark: ''
+    questionText: '',
+    score: null as number | null
   })
 
   const interaction = reactive({
@@ -338,7 +375,7 @@
       return '当前为只读预览，可通过移动和缩放查看框选结果，也可在工具箱里放大、缩小和平移试卷。'
     }
     if (tool.value === 'draw') {
-      return '按住鼠标拖拽即可创建框选区域，松开后会保留选框，右键或悬停可继续操作。'
+      return '按住鼠标拖拽即可创建框选区域，松开后会保留选框，右键可继续操作。'
     }
     if (tool.value === 'adjust') {
       return '选中框选后可直接拖动位置，拖拽四角圆点即可调整大小，也可右键管理当前选框。'
@@ -346,7 +383,7 @@
     if (tool.value === 'pan') {
       return '按住鼠标即可拖动试卷，也支持鼠标滚轮缩放，方便查看试卷细节。'
     }
-    return '点击已有框选可选中区域，右键或悬停后可修改属性、删除选框。'
+    return '点击已有框选可选中区域，右键后可修改属性、删除选框。'
   })
   const regionContextMenuStyle = computed(() => ({
     left: `${regionContextMenu.x}px`,
@@ -364,6 +401,7 @@
     scale: computed(() => view.scale),
     handleToolboxCommand,
     save: () => emit('save', cloneRegions(localRegions.value)),
+    applyOcrRegionMeta,
     selectedRegion,
     currentHintText,
     currentToolText
@@ -388,6 +426,19 @@
       }
     },
     { immediate: true }
+  )
+
+  watch(
+    () => props.interactionLocked,
+    (locked) => {
+      if (!locked) return
+      interaction.mode = null
+      interaction.regionId = ''
+      interaction.moved = false
+      interaction.resizeDirection = ''
+      draftRegion.value = null
+      closeRegionContextMenu()
+    }
   )
 
   watch(
@@ -425,8 +476,8 @@
       questionNo: normalizeQuestionNo(item.questionNo, item.sortOrder ?? index + 1),
       questionType: item.questionType || '',
       knowledgePoint: item.knowledgePoint || '',
+      questionText: item.questionText || '',
       score: item.score ?? null,
-      remark: item.remark || '',
       sortOrder: item.sortOrder ?? index + 1,
       x: clampUnit(item.x),
       y: clampUnit(item.y),
@@ -446,7 +497,7 @@
     if (initialTool && ['draw', 'adjust', 'pan', 'select'].includes(initialTool)) {
       return initialTool
     }
-    return 'draw'
+    return 'pan'
   }
 
   function clampUnit(value: number | null | undefined) {
@@ -617,7 +668,7 @@
   }
 
   function handleWheelZoom(event: WheelEvent) {
-    if (!imageLoaded.value || !viewportRef.value) return
+    if (!imageLoaded.value || !viewportRef.value || props.interactionLocked) return
     const rect = viewportRef.value.getBoundingClientRect()
     const anchor = {
       x: event.clientX - rect.left,
@@ -628,6 +679,8 @@
   }
 
   function handleToolboxCommand(command: ToolboxCommand) {
+    if (props.interactionLocked) return
+
     if (command === 'addRegion' || command === 'drawMode') {
       if (props.readonly) return
       closeRegionContextMenu()
@@ -724,7 +777,7 @@
   }
 
   function handleStageMouseDown(event: MouseEvent) {
-    if (!imageLoaded.value || !viewportRef.value) return
+    if (!imageLoaded.value || !viewportRef.value || props.interactionLocked) return
     closeRegionContextMenu()
     if (event.button !== 0) return
 
@@ -761,8 +814,8 @@
       questionNo: '',
       questionType: '',
       knowledgePoint: '',
+      questionText: '',
       score: null,
-      remark: '',
       sortOrder: localRegions.value.length + 1,
       x: point.x,
       y: point.y,
@@ -773,6 +826,7 @@
   }
 
   function handleRegionMouseDown(region: PaperRegionItem, event: MouseEvent) {
+    if (props.interactionLocked) return
     closeRegionContextMenu()
     selectedRegionId.value = region.id
     if (event.button !== 0) return
@@ -802,7 +856,7 @@
     direction: ResizeDirection,
     event: MouseEvent
   ) {
-    if (props.readonly || tool.value !== 'adjust') return
+    if (props.interactionLocked || props.readonly || tool.value !== 'adjust') return
     closeRegionContextMenu()
     if (event.button !== 0) return
     const point = getRelativePoint(event)
@@ -840,15 +894,8 @@
     }
   }
 
-  function showRegionActions(region: PaperRegionItem) {
-    return (
-      !props.readonly &&
-      (hoveredRegionId.value === region.id || selectedRegionId.value === region.id)
-    )
-  }
-
   function handleRegionContextMenu(region: PaperRegionItem, event: MouseEvent) {
-    if (props.readonly || !viewportRef.value) return
+    if (props.interactionLocked || props.readonly || !viewportRef.value) return
     selectedRegionId.value = region.id
     hoveredRegionId.value = region.id
     const rect = viewportRef.value.getBoundingClientRect()
@@ -861,6 +908,7 @@
   }
 
   function handleViewportContextMenu() {
+    if (props.interactionLocked) return
     closeRegionContextMenu()
   }
 
@@ -872,10 +920,7 @@
   function handleWindowMouseDown(event: MouseEvent) {
     if (!regionContextMenu.visible) return
     const target = event.target as Node | null
-    if (
-      target &&
-      (contextMenuRef.value?.contains(target) || viewportRef.value?.contains(target))
-    ) {
+    if (target && contextMenuRef.value?.contains(target)) {
       return
     }
     closeRegionContextMenu()
@@ -894,7 +939,7 @@
   }
 
   function handleWindowMouseMove(event: MouseEvent) {
-    if (!interaction.mode) return
+    if (!interaction.mode || props.interactionLocked) return
 
     if (interaction.mode === 'pan') {
       interaction.moved = true
@@ -1003,8 +1048,8 @@
     regionForm.questionNo = region.questionNo || ''
     regionForm.questionType = region.questionType || ''
     regionForm.knowledgePoint = region.knowledgePoint || ''
+    regionForm.questionText = region.questionText || ''
     regionForm.score = region.score ?? null
-    regionForm.remark = region.remark || ''
     regionDialogVisible.value = true
   }
 
@@ -1023,10 +1068,45 @@
     target.questionNo = normalizeQuestionNo(regionForm.questionNo.trim(), target.sortOrder)
     target.questionType = regionForm.questionType.trim()
     target.knowledgePoint = regionForm.knowledgePoint.trim()
+    target.questionText = regionForm.questionText.trim()
     target.score = regionForm.score ?? null
-    target.remark = regionForm.remark.trim()
     emitRegions()
     regionDialogVisible.value = false
+  }
+
+  function handleRegionOcr() {
+    const target = localRegions.value.find((item) => item.id === editingRegionId.value)
+    if (!target) {
+      ElMessage.warning('当前未找到可识别的题框')
+      return
+    }
+    emit('ocr-region', { ...target })
+  }
+
+  function applyOcrRegionMeta(payload: {
+    questionText?: string
+    questionType?: string
+    score?: number | null
+  }) {
+    const target = localRegions.value.find((item) => item.id === editingRegionId.value)
+    if (!target) {
+      return
+    }
+    if (payload.questionText && payload.questionText.trim()) {
+      const nextText = payload.questionText.trim()
+      regionForm.questionText = nextText
+      target.questionText = nextText
+    }
+    if (payload.questionType && payload.questionType.trim()) {
+      const nextType = payload.questionType.trim()
+      regionForm.questionType = nextType
+      target.questionType = nextType
+    }
+    if (payload.score !== undefined && payload.score !== null) {
+      regionForm.score = payload.score
+      target.score = payload.score
+    }
+    emitRegions()
   }
 
   function deleteRegion(regionId: string) {
@@ -1228,6 +1308,10 @@
     &.readonly {
       cursor: default;
     }
+
+    &.locked {
+      cursor: not-allowed;
+    }
   }
 
   .image-stage {
@@ -1347,43 +1431,6 @@
     border-radius: 999px;
   }
 
-  .region-actions {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    z-index: 2;
-  }
-
-  .region-action-btn {
-    min-width: 42px;
-    height: 24px;
-    border: none;
-    border-radius: 999px;
-    padding: 0 8px;
-    background: rgba(255, 255, 255, 0.92);
-    color: #1d4ed8;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 24px;
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.14);
-    cursor: pointer;
-
-    &:hover {
-      background: #dbeafe;
-    }
-
-    &.danger {
-      color: #dc2626;
-    }
-
-    &.danger:hover {
-      background: #fee2e2;
-    }
-  }
-
   .resize-handle {
     position: absolute;
     width: 12px;
@@ -1432,6 +1479,155 @@
   .region-form {
     :deep(.el-form-item) {
       margin-bottom: 16px;
+
+      .el-form-item__label {
+        font-weight: 600;
+        color: #475569;
+        padding-bottom: 8px;
+      }
+    }
+  }
+
+  .property-dialog {
+    :deep(.el-dialog) {
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    :deep(.el-dialog__header) {
+      margin-right: 0;
+      padding: 24px 24px 12px;
+      border-bottom: 1px solid #f1f5f9;
+
+      .el-dialog__title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #1e293b;
+      }
+    }
+
+    :deep(.el-dialog__body) {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    :deep(.el-dialog__footer) {
+      padding: 16px 24px 24px;
+      border-top: 1px solid #f1f5f9;
+    }
+  }
+
+  .split-layout {
+    display: flex;
+    height: 560px;
+    background: #fff;
+  }
+
+  .layout-left {
+    width: 360px;
+    padding: 24px;
+    border-right: 1px solid #f1f5f9;
+    background: #fbfcfe;
+    overflow-y: auto;
+  }
+
+  .layout-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    gap: 20px;
+    background: #fff;
+    min-width: 0;
+  }
+
+  .content-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .section-ocr-btn {
+    margin-left: auto;
+  }
+
+  .section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #334155;
+  }
+
+  .section-tips {
+    font-size: 12px;
+    color: #94a3b8;
+  }
+
+  .question-editor {
+    flex: 1;
+    :deep(.el-textarea__inner) {
+      height: 100% !important;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      font-family: inherit;
+      padding: 12px;
+      transition: all 0.2s;
+
+      &:focus {
+        background: #fff;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+    }
+  }
+
+  .preview-container {
+    flex: 1;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .preview-content {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #1e293b;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+
+    .el-button {
+      border-radius: 10px;
+      padding: 10px 24px;
+      font-weight: 600;
+
+      &--primary {
+        background: #3b82f6;
+        border: none;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+
+        &:hover {
+          background: #2563eb;
+          transform: translateY(-1px);
+        }
+      }
     }
   }
 

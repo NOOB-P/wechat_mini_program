@@ -166,7 +166,14 @@
                 </view>
                 
                 <view class="w-body">
-                  <view class="w-question">{{ item.question }}</view>
+                  <view class="w-question">第{{ item.questionNo }}题</view>
+                  <image
+                    v-if="item.sliceImageUrl"
+                    class="paper-slice-image"
+                    :src="resolveAssetUrl(item.sliceImageUrl)"
+                    mode="widthFix"
+                    @click="previewSliceImage(item.sliceImageUrl)"
+                  />
                   <view class="w-tags">
                     <text class="tag" v-for="(tag, idx) in item.tags" :key="idx">{{ tag }}</text>
                     <text class="difficulty" :class="getDifficultyClass(item.difficulty)">{{ item.difficulty }}</text>
@@ -174,20 +181,12 @@
                   
                   <view class="w-analysis-box">
                     <view class="ans-row">
-                      <text class="label">你的回答</text>
-                      <text class="val wrong">{{ item.studentAnswer }}</text>
+                      <text class="label">我的得分</text>
+                      <text class="val wrong">{{ item.myScore }} 分</text>
                     </view>
                     <view class="ans-row">
-                      <text class="label">正确答案</text>
-                      <text class="val correct">{{ item.correctAnswer }}</text>
-                    </view>
-                    <view class="ans-row reason" v-if="item.wrongReason">
-                      <text class="label">错误原因</text>
-                      <text class="val">{{ item.wrongReason }}</text>
-                    </view>
-                    <view class="ans-row explanation">
-                      <text class="label">名师解析</text>
-                      <text class="val">{{ item.explanation }}</text>
+                      <text class="label">小题最高分</text>
+                      <text class="val correct">{{ item.highestScore }} 分</text>
                     </view>
                   </view>
                   
@@ -297,7 +296,7 @@ import { ref, computed, watch } from 'vue'
 import { onShow, onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { getStudentScoresApi, getSemesterListApi, getAiExamReportApi } from '@/subpkg_analysis/api/score'
-import { getVipWrongBookApi, submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
+import { submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
 import { getUserInfoApi } from '@/api/mine'
 import AiReportPanel from '@/subpkg_analysis/components/AiReportPanel.vue'
 
@@ -448,9 +447,29 @@ const onPickerConfirm = (e: any) => {
 }
 
 const goToPaperDetail = (subjectInfo: any) => {
-  // 点击各科成绩，携带科目和当前考试参数，跳转到试卷报告页
+  const examId = scoreData.value?.examId || pickerValue.value[1] || ''
   uni.navigateTo({
-    url: `/subpkg_analysis/pages/paper/index?subject=${subjectInfo.name}&exam=${currentDisplayLabel.value}`
+    url: `/subpkg_analysis/pages/paper/index?subject=${encodeURIComponent(subjectInfo.name || '')}&examId=${encodeURIComponent(examId)}`
+  })
+}
+
+const resolveAssetUrl = (url?: string) => {
+  if (!url) return ''
+  if (/^(https?:)?\/\//.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url
+  }
+  const baseUrl = String(import.meta.env.VITE_SERVER_BASEURL || '')
+  if (!baseUrl) return url
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+  return url.startsWith('/') ? `${normalizedBase}${url}` : `${normalizedBase}/${url}`
+}
+
+const previewSliceImage = (url?: string) => {
+  const imageUrl = resolveAssetUrl(url)
+  if (!imageUrl) return
+  uni.previewImage({
+    urls: [imageUrl],
+    current: imageUrl
   })
 }
 
@@ -535,9 +554,8 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
 
     const p1 = getStudentScoresApi({ semester: semesterVal, examId: examIdVal })
     const p2 = Promise.resolve({ code: 200, data: null })
-    const p3 = isVIPUser.value ? getVipWrongBookApi({}) : Promise.resolve({ code: 200, data: [] })
 
-    const [res, anaRes, wrongRes] = await Promise.all([p1, p2, p3])
+    const [res, anaRes] = await Promise.all([p1, p2])
     
     if (res.code === 200) {
       scoreData.value = res.data
@@ -557,9 +575,7 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
       }
     }
 
-    if (wrongRes.code === 200) {
-      wrongBookData.value = wrongRes.data
-    }
+    wrongBookData.value = isVIPUser.value ? (res.data?.wrongQuestions || []) : []
 
     uni.hideLoading()
     tryLoadAiReport()
@@ -1231,6 +1247,15 @@ watch(
       line-height: 1.6;
       margin-bottom: 20rpx;
       font-weight: 500;
+    }
+
+    .paper-slice-image {
+      width: 100%;
+      margin-bottom: 20rpx;
+      border-radius: 16rpx;
+      background: #f6f8fb;
+      box-shadow: inset 0 0 0 1rpx rgba(67, 100, 247, 0.08);
+      overflow: hidden;
     }
 
     .w-tags {

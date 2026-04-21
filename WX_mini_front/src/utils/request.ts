@@ -5,7 +5,7 @@ import { getMockData } from '@/mock/index'
 const Notify = useNotify()
 
 // 是否开启 mock (通常只在开发环境下开启)
-const USE_MOCK = import.meta.env.DEV
+const USE_MOCK = String(import.meta.env.VITE_USE_MOCK || 'false').toLowerCase() === 'true'
 
 // 请求拦截
 const requestInterceptor = (options: requestOptions) => {

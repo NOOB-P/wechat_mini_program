@@ -5,6 +5,7 @@ import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
 import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import com.edu.javasb_back.model.dto.PaperOcrAutoCutDTO;
+import com.edu.javasb_back.model.dto.PaperRegionOcrDTO;
 import com.edu.javasb_back.model.entity.ExamClass;
 import com.edu.javasb_back.model.entity.ExamProject;
 import com.edu.javasb_back.model.entity.ExamStudentScore;
@@ -756,6 +757,12 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         project.setSelectedClassIds(json(prepared.selectedClassIds()));
         project.setSubjectNames(json(prepared.subjects()));
         project.setSubjectBenchmarks(jsonMap(prepared.benchmarks()));
+        if (!StringUtils.hasText(project.getPaperLayouts())) {
+            project.setPaperLayouts("{}");
+        }
+        if (!StringUtils.hasText(project.getPaperMergeInfo())) {
+            project.setPaperMergeInfo("{}");
+        }
         project.setSchoolCount(prepared.coveredSchoolIds().size());
         project.setClassCount(prepared.classes().size());
         project.setStudentCount(prepared.classes().stream().mapToInt(c -> prepared.studentCountMap().getOrDefault(c.getClassid(), 0)).sum());
@@ -1143,7 +1150,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 originalFilename,
                 "/uploads/papers/exam-projects/" + safePathSegment(projectId) + "/" +
                         safePathSegment(subjectName) + "/"
-        );
+        ).url();
     }
 
     private boolean isZipFile(String fileName) {
@@ -1256,17 +1263,19 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         return index >= 0 ? entryPath.substring(index + 1) : entryPath;
     }
 
-    private String storePaperAsset(InputStream inputStream, Path baseDir, String storedNamePrefix, String originalFilename, String urlPrefix) throws Exception {
+    private StoredPaperAsset storePaperAsset(InputStream inputStream, Path baseDir, String storedNamePrefix, String originalFilename, String urlPrefix) throws Exception {
         byte[] fileBytes = inputStream.readAllBytes();
         String extension = getFileExtension(originalFilename).toLowerCase();
         String storedName = storedNamePrefix + extension;
         if (".pdf".equals(extension)) {
             storedName = storedNamePrefix + ".png";
-            renderPdfAsLongImage(fileBytes, baseDir.resolve(storedName));
+            Map<String, Object> mergeInfo = renderPdfAsLongImage(fileBytes, baseDir.resolve(storedName));
+            return new StoredPaperAsset(urlPrefix + storedName, mergeInfo);
         } else {
-            Files.copy(new ByteArrayInputStream(fileBytes), baseDir.resolve(storedName), StandardCopyOption.REPLACE_EXISTING);
+            Path storedPath = baseDir.resolve(storedName);
+            Files.copy(new ByteArrayInputStream(fileBytes), storedPath, StandardCopyOption.REPLACE_EXISTING);
+            return new StoredPaperAsset(urlPrefix + storedName, buildSingleImageMergeInfo(storedPath));
         }
-        return urlPrefix + storedName;
     }
 
     private String getFileExtension(String fileName) {
@@ -1292,8 +1301,10 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         }
     }
 
-    private void renderPdfAsLongImage(byte[] pdfBytes, Path targetPath) throws Exception {
-        Files.createDirectories(targetPath.getParent());
+    private Map<String, Object> renderPdfAsLongImage(byte[] pdfBytes, Path targetPath) throws Exception {
+        if (targetPath != null) {
+            Files.createDirectories(targetPath.getParent());
+        }
         try (PDDocument document = PDDocument.load(pdfBytes)) {
             if (document.getNumberOfPages() <= 0) {
                 throw new IllegalArgumentException("PDF 文件没有可渲染的页面");
@@ -1301,6 +1312,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
             PDFRenderer renderer = new PDFRenderer(document);
             List<BufferedImage> pageImages = new ArrayList<>();
+            List<Map<String, Object>> pages = new ArrayList<>();
             int totalHeight = 0;
             int maxWidth = 0;
             for (int i = 0; i < document.getNumberOfPages(); i++) {
@@ -1319,15 +1331,28 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 graphics.fillRect(0, 0, maxWidth, totalHeight);
 
                 int currentY = 0;
-                for (BufferedImage pageImage : pageImages) {
+                for (int i = 0; i < pageImages.size(); i++) {
+                    BufferedImage pageImage = pageImages.get(i);
                     int offsetX = Math.max((maxWidth - pageImage.getWidth()) / 2, 0);
                     graphics.drawImage(pageImage, offsetX, currentY, null);
+                    pages.add(buildPageMergeInfo(
+                            i + 1,
+                            offsetX,
+                            currentY,
+                            pageImage.getWidth(),
+                            pageImage.getHeight(),
+                            maxWidth,
+                            totalHeight
+                    ));
                     currentY += pageImage.getHeight();
                 }
             } finally {
                 graphics.dispose();
             }
-            ImageIO.write(combinedImage, "png", targetPath.toFile());
+            if (targetPath != null) {
+                ImageIO.write(combinedImage, "png", targetPath.toFile());
+            }
+            return buildPaperMergeInfo("pdf", maxWidth, totalHeight, pages);
         }
     }
 
@@ -1449,19 +1474,16 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         }
 
         try {
-            // Store file
-            String storedUrl = storePublicPaperFile(file.getInputStream(), projectId, subjectName, type, originalFilename);
-
-            // Update all subjects in this project with this name
-            List<ExamClass> examClasses = examClassRepository.findByProjectIdOrderBySchoolAscGradeAscClassNameAsc(projectId);
-            if (examClasses.isEmpty()) return Result.error("项目中无班级数据");
-            
-            List<String> examClassIds = examClasses.stream().map(ExamClass::getId).toList();
-            List<ExamSubject> subjects = examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(examClassIds).stream()
-                    .filter(s -> subjectName.equals(s.getSubjectName()))
-                    .toList();
-
+            List<ExamSubject> subjects = findProjectSubjectsByName(projectId, subjectName);
             if (subjects.isEmpty()) return Result.error("项目中无学科数据: " + subjectName);
+
+            Set<String> oldUrls = subjects.stream()
+                    .map(subject -> "template".equals(type) ? subject.getAnswerUrl() : subject.getPaperUrl())
+                    .filter(StringUtils::hasText)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+
+            StoredPaperAsset storedAsset = storePublicPaperFile(file.getInputStream(), projectId, subjectName, type, originalFilename);
+            String storedUrl = storedAsset.url();
 
             for (ExamSubject subject : subjects) {
                 if ("template".equals(type)) {
@@ -1471,6 +1493,15 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 }
             }
             examSubjectRepository.saveAllAndFlush(subjects);
+
+            ExamProject project = examProjectRepository.findById(projectId).orElse(null);
+            if (project != null) {
+                clearPaperLayout(project, subjectName, type);
+                savePaperMergeInfo(project, subjectName, type, storedAsset.mergeInfo());
+                examProjectRepository.saveAndFlush(project);
+            }
+
+            oldUrls.forEach(this::deletePaperAssetByUrl);
 
             return Result.success("上传成功", storedUrl);
         } catch (Exception e) {
@@ -1491,31 +1522,56 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 .toList();
 
         Map<String, Object> config = new HashMap<>();
+        config.put("templateUrl", null);
+        config.put("originalUrl", null);
+        config.put("templateMergeInfo", Collections.emptyMap());
+        config.put("originalMergeInfo", Collections.emptyMap());
         if (!subjectRows.isEmpty()) {
             ExamSubject subject = subjectRows.get(0);
-            String templateUrl = normalizeStoredPaperPreviewUrl(subject.getAnswerUrl());
-            String originalUrl = normalizeStoredPaperPreviewUrl(subject.getPaperUrl());
-            boolean changed = false;
-            if (!java.util.Objects.equals(templateUrl, subject.getAnswerUrl())) {
-                for (ExamSubject item : subjectRows) {
-                    item.setAnswerUrl(templateUrl);
+            try {
+                PaperAssetContext templateContext = resolveOptionalPaperAssetContext(
+                        project,
+                        subjectName,
+                        "template",
+                        subject.getAnswerUrl(),
+                        true
+                );
+                PaperAssetContext originalContext = resolveOptionalPaperAssetContext(
+                        project,
+                        subjectName,
+                        "original",
+                        subject.getPaperUrl(),
+                        true
+                );
+                String templateUrl = templateContext == null ? null : templateContext.previewUrl();
+                String originalUrl = originalContext == null ? null : originalContext.previewUrl();
+                boolean changed = false;
+                if (!java.util.Objects.equals(templateUrl, subject.getAnswerUrl())) {
+                    for (ExamSubject item : subjectRows) {
+                        item.setAnswerUrl(templateUrl);
+                    }
+                    changed = true;
                 }
-                changed = true;
-            }
-            if (!java.util.Objects.equals(originalUrl, subject.getPaperUrl())) {
-                for (ExamSubject item : subjectRows) {
-                    item.setPaperUrl(originalUrl);
+                if (!java.util.Objects.equals(originalUrl, subject.getPaperUrl())) {
+                    for (ExamSubject item : subjectRows) {
+                        item.setPaperUrl(originalUrl);
+                    }
+                    changed = true;
                 }
-                changed = true;
+                if (changed) {
+                    examSubjectRepository.saveAllAndFlush(subjectRows);
+                }
+                config.put("templateUrl", templateUrl);
+                config.put("originalUrl", originalUrl);
+                config.put("templateMergeInfo", templateContext == null ? Collections.emptyMap() : templateContext.mergeInfo());
+                config.put("originalMergeInfo", originalContext == null ? Collections.emptyMap() : originalContext.mergeInfo());
+                if ((templateContext != null && templateContext.mergeInfoChanged())
+                        || (originalContext != null && originalContext.mergeInfoChanged())) {
+                    examProjectRepository.saveAndFlush(project);
+                }
+            } catch (Exception ex) {
+                return Result.error("获取试卷配置失败: " + ex.getMessage());
             }
-            if (changed) {
-                examSubjectRepository.saveAllAndFlush(subjectRows);
-            }
-            config.put("templateUrl", templateUrl);
-            config.put("originalUrl", originalUrl);
-        } else {
-            config.put("templateUrl", null);
-            config.put("originalUrl", null);
         }
         Map<String, Object> paperLayouts = map(project.getPaperLayouts());
         Map<String, Object> subjectLayout = nestedMap(paperLayouts.get(subjectName));
@@ -1562,23 +1618,20 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         }
 
         ExamSubject subject = subjectRows.get(0);
-        String paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
-        String normalizedPaperUrl = normalizeStoredPaperPreviewUrl(paperUrl);
-        if (!StringUtils.hasText(normalizedPaperUrl)) {
-            return Result.error("当前试卷未上传，无法执行 AI 自动切割");
-        }
-
-        Path paperPath = resolvePaperPath(normalizedPaperUrl);
-        if (paperPath == null || !Files.exists(paperPath)) {
-            return Result.error("试卷文件不存在，请重新上传后再试");
-        }
-
         try {
-            AliyunPaperOcrService.SegmentResult ocrResult =
-                    aliyunPaperOcrService.segmentPaper(paperPath, dto.getSubjectName(), dto.getImageType());
-            List<Map<String, Object>> regions = regionList(ocrResult.getRegions());
+            String paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
+            PaperAssetContext paperContext = resolvePaperAssetContext(project, dto.getSubjectName(), dto.getType(), paperUrl, true);
+            OcrExecutionResult ocrExecutionResult = runPaperOcrByPages(
+                    paperContext.paperPath(),
+                    paperContext.previewUrl(),
+                    paperContext.mergeInfo(),
+                    dto.getSubjectName(),
+                    dto.getImageType(),
+                    resolveOcrCutType(dto.getType())
+            );
+            List<Map<String, Object>> regions = regionList(ocrExecutionResult.regions());
             if (regions.isEmpty()) {
-                return Result.error("OCR 未识别出可切割的题目区域");
+                return Result.error("AI识别未识别出可切割的题目区域");
             }
 
             Map<String, Object> paperLayouts = new LinkedHashMap<>(map(project.getPaperLayouts()));
@@ -1592,18 +1645,132 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             data.put("projectId", dto.getProjectId());
             data.put("subjectName", dto.getSubjectName());
             data.put("type", dto.getType());
-            data.put("paperUrl", normalizedPaperUrl);
-            data.put("requestId", ocrResult.getRequestId());
-            data.put("ocrSubject", ocrResult.getOcrSubject());
-            data.put("imageType", ocrResult.getImageType());
-            data.put("cutType", ocrResult.getCutType());
+            data.put("paperUrl", paperContext.previewUrl());
+            data.put("requestId", ocrExecutionResult.requestId());
+            data.put("ocrSubject", ocrExecutionResult.ocrSubject());
+            data.put("imageType", ocrExecutionResult.imageType());
+            data.put("cutType", ocrExecutionResult.cutType());
+            data.put("pageCount", ocrExecutionResult.pageCount());
+            data.put("pageResults", ocrExecutionResult.pageResults());
             data.put("recognizedCount", regions.size());
             data.put("regions", regions);
-            return Result.success("AI 自动切割完成", data);
+            return Result.success("AI识别完成", data);
         } catch (IllegalArgumentException ex) {
             return Result.error(ex.getMessage());
         } catch (Exception ex) {
-            return Result.error("AI 自动切割失败: " + ex.getMessage());
+            return Result.error("AI识别失败: " + ex.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public Result<Map<String, Object>> ocrPaperLayoutPage(PaperOcrAutoCutDTO dto) {
+        if (dto == null || !StringUtils.hasText(dto.getProjectId())) return Result.error("项目ID不能为空");
+        if (!StringUtils.hasText(dto.getSubjectName())) return Result.error("学科名称不能为空");
+        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType())) {
+            return Result.error("布局类型错误，仅支持 template 或 original");
+        }
+        if (dto.getPageIndex() == null || dto.getPageIndex() <= 0) {
+            return Result.error("页码不能为空");
+        }
+
+        ExamProject project = examProjectRepository.findById(dto.getProjectId()).orElse(null);
+        if (project == null) return Result.error("项目不存在");
+
+        List<ExamSubject> subjectRows = findProjectSubjectsByName(dto.getProjectId(), dto.getSubjectName());
+        if (subjectRows.isEmpty()) {
+            return Result.error("项目中无学科数据: " + dto.getSubjectName());
+        }
+
+        ExamSubject subject = subjectRows.get(0);
+        String paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
+        try {
+            PaperAssetContext paperContext = resolvePaperAssetContext(project, dto.getSubjectName(), dto.getType(), paperUrl, true);
+            Map<String, Object> pageResult = runSinglePaperOcrPage(
+                    paperContext.paperPath(),
+                    paperContext.previewUrl(),
+                    paperContext.mergeInfo(),
+                    dto.getPageIndex(),
+                    dto.getSubjectName(),
+                    dto.getImageType(),
+                    resolveOcrCutType(dto.getType())
+            );
+            mergePagedLayoutResult(
+                    project,
+                    dto.getSubjectName(),
+                    dto.getType(),
+                    dto.getPageIndex(),
+                    paperContext.mergeInfo(),
+                    nestedMap(pageResult.get("pageInfo")),
+                    mapList(pageResult.get("regions"))
+            );
+            if (paperContext.mergeInfoChanged()) {
+                examProjectRepository.saveAndFlush(project);
+            } else {
+                examProjectRepository.saveAndFlush(project);
+            }
+            return Result.success("分页识别完成", pageResult);
+        } catch (IllegalArgumentException ex) {
+            return Result.error(ex.getMessage());
+        } catch (Exception ex) {
+            return Result.error("分页识别失败: " + ex.getMessage());
+        }
+    }
+
+    @Override
+    public Result<Map<String, Object>> ocrPaperRegion(PaperRegionOcrDTO dto) {
+        if (dto == null || !StringUtils.hasText(dto.getProjectId())) return Result.error("项目ID不能为空");
+        if (!StringUtils.hasText(dto.getSubjectName())) return Result.error("学科名称不能为空");
+        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType())) {
+            return Result.error("布局类型错误，仅支持 template 或 original");
+        }
+        if (dto.getWidth() == null || dto.getWidth() <= 0 || dto.getHeight() == null || dto.getHeight() <= 0) {
+            return Result.error("题框坐标无效");
+        }
+
+        ExamProject project = examProjectRepository.findById(dto.getProjectId()).orElse(null);
+        if (project == null) return Result.error("项目不存在");
+
+        List<ExamSubject> subjectRows = findProjectSubjectsByName(dto.getProjectId(), dto.getSubjectName());
+        if (subjectRows.isEmpty()) {
+            return Result.error("项目中无学科数据: " + dto.getSubjectName());
+        }
+
+        ExamSubject subject = subjectRows.get(0);
+        String paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
+        Path tempPath = null;
+        try {
+            PaperAssetContext paperContext = resolvePaperAssetContext(project, dto.getSubjectName(), dto.getType(), paperUrl, true);
+            tempPath = cropRegionToTempImage(
+                    paperContext.paperPath(),
+                    clampRatio(dto.getX()),
+                    clampRatio(dto.getY()),
+                    clampRatio(dto.getWidth()),
+                    clampRatio(dto.getHeight())
+            );
+            AliyunPaperOcrService.QuestionOcrResult ocrResult = aliyunPaperOcrService.recognizeQuestion(tempPath);
+            String questionText = str(ocrResult.getQuestionText()).trim();
+            if (!StringUtils.hasText(questionText)) {
+                return Result.error("AI未识别到题目文本");
+            }
+            if (paperContext.mergeInfoChanged()) {
+                examProjectRepository.saveAndFlush(project);
+            }
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("projectId", dto.getProjectId());
+            data.put("subjectName", dto.getSubjectName());
+            data.put("type", dto.getType());
+            data.put("requestId", ocrResult.getRequestId());
+            data.put("questionText", questionText);
+            data.put("questionType", str(ocrResult.getQuestionType()).trim());
+            data.put("score", ocrResult.getScore());
+            return Result.success("题目识别完成", data);
+        } catch (IllegalArgumentException ex) {
+            return Result.error(ex.getMessage());
+        } catch (Exception ex) {
+            return Result.error("题目识别失败: " + ex.getMessage());
+        } finally {
+            deleteTempFile(tempPath);
         }
     }
 
@@ -1618,7 +1785,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 .toList();
     }
 
-    private String storePublicPaperFile(InputStream inputStream, String projectId, String subjectName, String type, String originalFilename) throws Exception {
+    private StoredPaperAsset storePublicPaperFile(InputStream inputStream, String projectId, String subjectName, String type, String originalFilename) throws Exception {
         Path baseDir = Paths.get(globalConfigProperties.getPaperDir())
                 .resolve("exam-projects")
                 .resolve(safePathSegment(projectId))
@@ -1635,6 +1802,464 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 "/uploads/papers/exam-projects/" + safePathSegment(projectId) + "/" +
                         safePathSegment(subjectName) + "/public/"
         );
+    }
+
+    private PaperAssetContext resolvePaperAssetContext(
+            ExamProject project,
+            String subjectName,
+            String type,
+            String storedPaperUrl,
+            boolean persistIfMissing) throws Exception {
+        String previewUrl = normalizeStoredPaperPreviewUrl(storedPaperUrl);
+        if (!StringUtils.hasText(previewUrl)) {
+            throw new IllegalArgumentException("当前试卷未上传，无法执行 AI识别");
+        }
+
+        Path previewPath = resolvePaperPath(previewUrl);
+        if (previewPath == null || !Files.exists(previewPath)) {
+            throw new IllegalArgumentException("试卷文件不存在，请重新上传后再试");
+        }
+
+        Map<String, Object> mergeInfo = resolveStoredPaperMergeInfo(project, subjectName, type);
+        boolean mergeInfoChanged = false;
+        if (!hasValidPaperMergeInfo(mergeInfo)) {
+            mergeInfo = derivePaperMergeInfo(storedPaperUrl, previewPath);
+            if (persistIfMissing && hasValidPaperMergeInfo(mergeInfo)) {
+                savePaperMergeInfo(project, subjectName, type, mergeInfo);
+                mergeInfoChanged = true;
+            }
+        }
+
+        return new PaperAssetContext(previewUrl, previewPath, mergeInfo, mergeInfoChanged);
+    }
+
+    private PaperAssetContext resolveOptionalPaperAssetContext(
+            ExamProject project,
+            String subjectName,
+            String type,
+            String storedPaperUrl,
+            boolean persistIfMissing) throws Exception {
+        if (!StringUtils.hasText(storedPaperUrl)) {
+            return null;
+        }
+        try {
+            return resolvePaperAssetContext(project, subjectName, type, storedPaperUrl, persistIfMissing);
+        } catch (IllegalArgumentException ex) {
+            if (isMissingPaperAssetMessage(ex.getMessage())) {
+                return null;
+            }
+            throw ex;
+        }
+    }
+
+    private Map<String, Object> resolveStoredPaperMergeInfo(ExamProject project, String subjectName, String type) {
+        if (project == null || !StringUtils.hasText(subjectName) || !StringUtils.hasText(type)) {
+            return Collections.emptyMap();
+        }
+        Map<String, Object> mergeInfoRoot = map(project.getPaperMergeInfo());
+        Map<String, Object> subjectMergeInfo = nestedMap(mergeInfoRoot.get(subjectName));
+        return nestedMap(subjectMergeInfo.get(type));
+    }
+
+    private Map<String, Object> derivePaperMergeInfo(String storedPaperUrl, Path previewPath) throws Exception {
+        if (isPdfFile(storedPaperUrl)) {
+            Path pdfPath = resolvePaperPath(storedPaperUrl);
+            if (pdfPath != null && Files.exists(pdfPath)) {
+                return renderPdfAsLongImage(Files.readAllBytes(pdfPath), null);
+            }
+        }
+        return buildSingleImageMergeInfo(previewPath);
+    }
+
+    private Map<String, Object> buildSingleImageMergeInfo(Path imagePath) throws Exception {
+        BufferedImage image = readImage(imagePath);
+        int width = image.getWidth();
+        int height = image.getHeight();
+        return buildPaperMergeInfo(
+                "image",
+                width,
+                height,
+                List.of(buildPageMergeInfo(1, 0, 0, width, height, width, height))
+        );
+    }
+
+    private Map<String, Object> buildPaperMergeInfo(String sourceType, int imageWidth, int imageHeight, List<Map<String, Object>> pages) {
+        Map<String, Object> mergeInfo = new LinkedHashMap<>();
+        mergeInfo.put("sourceType", sourceType);
+        mergeInfo.put("imageWidth", imageWidth);
+        mergeInfo.put("imageHeight", imageHeight);
+        mergeInfo.put("pageCount", pages == null ? 0 : pages.size());
+        mergeInfo.put("pages", pages == null ? Collections.emptyList() : pages);
+        return mergeInfo;
+    }
+
+    private Map<String, Object> buildPageMergeInfo(
+            int pageIndex,
+            int offsetX,
+            int offsetY,
+            int width,
+            int height,
+            int imageWidth,
+            int imageHeight) {
+        Map<String, Object> page = new LinkedHashMap<>();
+        page.put("pageIndex", pageIndex);
+        page.put("offsetX", offsetX);
+        page.put("offsetY", offsetY);
+        page.put("width", width);
+        page.put("height", height);
+        page.put("xRatio", imageWidth <= 0 ? 0D : clampRatio(offsetX * 1D / imageWidth));
+        page.put("yRatio", imageHeight <= 0 ? 0D : clampRatio(offsetY * 1D / imageHeight));
+        page.put("widthRatio", imageWidth <= 0 ? 1D : clampRatio(width * 1D / imageWidth));
+        page.put("heightRatio", imageHeight <= 0 ? 1D : clampRatio(height * 1D / imageHeight));
+        return page;
+    }
+
+    private boolean hasValidPaperMergeInfo(Map<String, Object> mergeInfo) {
+        if (mergeInfo == null || mergeInfo.isEmpty()) {
+            return false;
+        }
+        int imageWidth = asInt(mergeInfo.get("imageWidth"), 0);
+        int imageHeight = asInt(mergeInfo.get("imageHeight"), 0);
+        List<Map<String, Object>> pages = mapList(mergeInfo.get("pages"));
+        return imageWidth > 0 && imageHeight > 0 && !pages.isEmpty();
+    }
+
+    private boolean isMissingPaperAssetMessage(String message) {
+        if (!StringUtils.hasText(message)) {
+            return false;
+        }
+        return message.contains("当前试卷未上传") || message.contains("试卷文件不存在");
+    }
+
+    private void savePaperMergeInfo(ExamProject project, String subjectName, String type, Map<String, Object> mergeInfo) {
+        if (project == null || !StringUtils.hasText(subjectName) || !StringUtils.hasText(type)) {
+            return;
+        }
+        Map<String, Object> mergeInfoRoot = new LinkedHashMap<>(map(project.getPaperMergeInfo()));
+        Map<String, Object> subjectMergeInfo = new LinkedHashMap<>(nestedMap(mergeInfoRoot.get(subjectName)));
+        subjectMergeInfo.put(type, mergeInfo == null ? Collections.emptyMap() : mergeInfo);
+        mergeInfoRoot.put(subjectName, subjectMergeInfo);
+        project.setPaperMergeInfo(jsonMap(mergeInfoRoot));
+    }
+
+    private void mergePagedLayoutResult(
+            ExamProject project,
+            String subjectName,
+            String type,
+            Integer pageIndex,
+            Map<String, Object> mergeInfo,
+            Map<String, Object> pageInfo,
+            List<Map<String, Object>> pageRegions) {
+        if (project == null || !StringUtils.hasText(subjectName) || !StringUtils.hasText(type)) {
+            return;
+        }
+        if (pageRegions == null || pageRegions.isEmpty()) {
+            return;
+        }
+
+        Map<String, Object> paperLayouts = new LinkedHashMap<>(map(project.getPaperLayouts()));
+        Map<String, Object> subjectLayout = new LinkedHashMap<>(nestedMap(paperLayouts.get(subjectName)));
+        List<Map<String, Object>> existingRegions = new ArrayList<>(mapList(subjectLayout.get(type)));
+        List<Map<String, Object>> mergedRegions = new ArrayList<>();
+
+        if (pageIndex != null && pageIndex <= 1) {
+            existingRegions.clear();
+        }
+
+        for (Map<String, Object> region : existingRegions) {
+            if (!isRegionInPage(region, pageInfo)) {
+                mergedRegions.add(new LinkedHashMap<>(region));
+            }
+        }
+        for (Map<String, Object> region : pageRegions) {
+            mergedRegions.add(new LinkedHashMap<>(region));
+        }
+
+        mergedRegions.sort(Comparator
+                .comparingDouble((Map<String, Object> item) -> clampRatio(item.get("y")))
+                .thenComparingDouble(item -> clampRatio(item.get("x"))));
+        subjectLayout.put(type, normalizeOcrRegions(mergedRegions));
+        paperLayouts.put(subjectName, subjectLayout);
+        project.setPaperLayouts(jsonMap(paperLayouts));
+        if (hasValidPaperMergeInfo(mergeInfo)) {
+            savePaperMergeInfo(project, subjectName, type, mergeInfo);
+        }
+    }
+
+    private boolean isRegionInPage(Map<String, Object> region, Map<String, Object> pageInfo) {
+        if (region == null || region.isEmpty() || pageInfo == null || pageInfo.isEmpty()) {
+            return false;
+        }
+        double pageX = clampRatio(pageInfo.get("xRatio"));
+        double pageY = clampRatio(pageInfo.get("yRatio"));
+        double pageWidth = clampRatio(pageInfo.get("widthRatio"));
+        double pageHeight = clampRatio(pageInfo.get("heightRatio"));
+        double centerX = clampRatio(clampRatio(region.get("x")) + clampRatio(region.get("width")) / 2D);
+        double centerY = clampRatio(clampRatio(region.get("y")) + clampRatio(region.get("height")) / 2D);
+        return centerX >= pageX
+                && centerX <= pageX + pageWidth
+                && centerY >= pageY
+                && centerY <= pageY + pageHeight;
+    }
+
+    private OcrExecutionResult runPaperOcrByPages(
+            Path paperPath,
+            String previewUrl,
+            Map<String, Object> mergeInfo,
+            String subjectName,
+            String imageType,
+            String cutType) throws Exception {
+        List<Map<String, Object>> pages = mapList(mergeInfo.get("pages"));
+        int pageCount = pages.isEmpty() ? 1 : pages.size();
+        if (pageCount <= 1) {
+            AliyunPaperOcrService.SegmentResult ocrResult = aliyunPaperOcrService.segmentPaper(
+                    paperPath,
+                    subjectName,
+                    imageType,
+                    cutType
+            );
+            List<Map<String, Object>> regions = normalizeOcrRegions(regionList(ocrResult.getRegions()));
+            Map<String, Object> pageResult = new LinkedHashMap<>();
+            pageResult.put("pageIndex", 1);
+            pageResult.put("pageCount", 1);
+            pageResult.put("paperUrl", previewUrl);
+            pageResult.put("requestId", ocrResult.getRequestId());
+            pageResult.put("ocrSubject", ocrResult.getOcrSubject());
+            pageResult.put("imageType", ocrResult.getImageType());
+            pageResult.put("cutType", ocrResult.getCutType());
+            pageResult.put("recognizedCount", regions.size());
+            pageResult.put("regions", regions);
+            return new OcrExecutionResult(
+                    ocrResult.getRequestId(),
+                    ocrResult.getOcrSubject(),
+                    ocrResult.getImageType(),
+                    ocrResult.getCutType(),
+                    1,
+                    regions,
+                    List.of(pageResult)
+            );
+        }
+
+        List<Map<String, Object>> pageResults = new ArrayList<>();
+        List<Map<String, Object>> mergedRegions = new ArrayList<>();
+        String requestId = "";
+        String ocrSubject = "";
+        String resolvedImageType = "";
+        String resolvedCutType = cutType;
+        for (int pageIndex = 1; pageIndex <= pageCount; pageIndex++) {
+            Map<String, Object> pageResult = runSinglePaperOcrPage(
+                    paperPath,
+                    previewUrl,
+                    mergeInfo,
+                    pageIndex,
+                    subjectName,
+                    imageType,
+                    cutType
+            );
+            pageResults.add(pageResult);
+            mergedRegions.addAll(mapList(pageResult.get("regions")));
+            if (!StringUtils.hasText(requestId)) requestId = asString(pageResult.get("requestId"));
+            if (!StringUtils.hasText(ocrSubject)) ocrSubject = asString(pageResult.get("ocrSubject"));
+            if (!StringUtils.hasText(resolvedImageType)) resolvedImageType = asString(pageResult.get("imageType"));
+            if (!StringUtils.hasText(resolvedCutType)) resolvedCutType = asString(pageResult.get("cutType"));
+        }
+        return new OcrExecutionResult(
+                requestId,
+                ocrSubject,
+                resolvedImageType,
+                resolvedCutType,
+                pageCount,
+                normalizeOcrRegions(mergedRegions),
+                pageResults
+        );
+    }
+
+    private Map<String, Object> runSinglePaperOcrPage(
+            Path paperPath,
+            String previewUrl,
+            Map<String, Object> mergeInfo,
+            int pageIndex,
+            String subjectName,
+            String imageType,
+            String cutType) throws Exception {
+        List<Map<String, Object>> pages = mapList(mergeInfo.get("pages"));
+        int pageCount = pages.isEmpty() ? 1 : pages.size();
+        if (pageIndex > pageCount) {
+            throw new IllegalArgumentException("页码超出范围，当前共有 " + pageCount + " 页");
+        }
+        if (pageCount <= 1) {
+            AliyunPaperOcrService.SegmentResult ocrResult = aliyunPaperOcrService.segmentPaper(
+                    paperPath,
+                    subjectName,
+                    imageType,
+                    cutType
+            );
+            List<Map<String, Object>> regions = normalizeOcrRegions(regionList(ocrResult.getRegions()));
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("pageIndex", 1);
+            result.put("pageCount", 1);
+            result.put("paperUrl", previewUrl);
+            result.put("requestId", ocrResult.getRequestId());
+            result.put("ocrSubject", ocrResult.getOcrSubject());
+            result.put("imageType", ocrResult.getImageType());
+            result.put("cutType", ocrResult.getCutType());
+            result.put("recognizedCount", regions.size());
+            result.put("regions", regions);
+            return result;
+        }
+
+        Map<String, Object> pageInfo = pages.get(pageIndex - 1);
+        Path tempPath = null;
+        try {
+            tempPath = cropPageToTempImage(paperPath, pageInfo);
+            AliyunPaperOcrService.SegmentResult ocrResult = aliyunPaperOcrService.segmentPaper(
+                    tempPath,
+                    subjectName,
+                    imageType,
+                    cutType
+            );
+            List<Map<String, Object>> regions = normalizeOcrRegions(
+                    mapPageRegionsToCombined(regionList(ocrResult.getRegions()), mergeInfo, pageInfo)
+            );
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("pageIndex", pageIndex);
+            result.put("pageCount", pageCount);
+            result.put("paperUrl", previewUrl);
+            result.put("requestId", ocrResult.getRequestId());
+            result.put("ocrSubject", ocrResult.getOcrSubject());
+            result.put("imageType", ocrResult.getImageType());
+            result.put("cutType", ocrResult.getCutType());
+            result.put("recognizedCount", regions.size());
+            result.put("pageInfo", pageInfo);
+            result.put("regions", regions);
+            return result;
+        } finally {
+            deleteTempFile(tempPath);
+        }
+    }
+
+    private List<Map<String, Object>> mapPageRegionsToCombined(
+            List<Map<String, Object>> pageRegions,
+            Map<String, Object> mergeInfo,
+            Map<String, Object> pageInfo) {
+        double imageWidth = Math.max(asDouble(mergeInfo.get("imageWidth"), 0D), 1D);
+        double imageHeight = Math.max(asDouble(mergeInfo.get("imageHeight"), 0D), 1D);
+        double offsetX = Math.max(asDouble(pageInfo.get("offsetX"), 0D), 0D);
+        double offsetY = Math.max(asDouble(pageInfo.get("offsetY"), 0D), 0D);
+        double pageWidth = Math.max(asDouble(pageInfo.get("width"), 0D), 1D);
+        double pageHeight = Math.max(asDouble(pageInfo.get("height"), 0D), 1D);
+
+        List<Map<String, Object>> mapped = new ArrayList<>();
+        for (Map<String, Object> item : pageRegions) {
+            Map<String, Object> row = new LinkedHashMap<>(item);
+            double x = clampRatio(item.get("x"));
+            double y = clampRatio(item.get("y"));
+            double width = clampRatio(item.get("width"));
+            double height = clampRatio(item.get("height"));
+            row.put("x", clampRatio((offsetX + x * pageWidth) / imageWidth));
+            row.put("y", clampRatio((offsetY + y * pageHeight) / imageHeight));
+            row.put("width", clampRatio((width * pageWidth) / imageWidth));
+            row.put("height", clampRatio((height * pageHeight) / imageHeight));
+            mapped.add(row);
+        }
+        return mapped;
+    }
+
+    private List<Map<String, Object>> normalizeOcrRegions(List<Map<String, Object>> regions) {
+        List<Map<String, Object>> normalized = new ArrayList<>();
+        int index = 1;
+        for (Map<String, Object> region : regions) {
+            Map<String, Object> row = new LinkedHashMap<>(region);
+            row.put("sortOrder", index);
+            row.put("questionNo", normalizeQuestionNo(asString(row.get("questionNo")), index));
+            normalized.add(row);
+            index++;
+        }
+        return normalized;
+    }
+
+    private Path cropPageToTempImage(Path paperPath, Map<String, Object> pageInfo) throws Exception {
+        BufferedImage image = readImage(paperPath);
+        int x = Math.max(asInt(pageInfo.get("offsetX"), 0), 0);
+        int y = Math.max(asInt(pageInfo.get("offsetY"), 0), 0);
+        int width = Math.max(asInt(pageInfo.get("width"), image.getWidth()), 1);
+        int height = Math.max(asInt(pageInfo.get("height"), image.getHeight()), 1);
+        if (x >= image.getWidth() || y >= image.getHeight()) {
+            throw new IllegalArgumentException("分页坐标超出试卷范围");
+        }
+        width = Math.min(width, image.getWidth() - x);
+        height = Math.min(height, image.getHeight() - y);
+        BufferedImage cropped = image.getSubimage(x, y, width, height);
+        return writeBufferedImageToTemp(cropped, "paper-page");
+    }
+
+    private Path cropRegionToTempImage(Path paperPath, double xRatio, double yRatio, double widthRatio, double heightRatio) throws Exception {
+        BufferedImage image = readImage(paperPath);
+        int x = Math.min((int) Math.floor(xRatio * image.getWidth()), Math.max(image.getWidth() - 1, 0));
+        int y = Math.min((int) Math.floor(yRatio * image.getHeight()), Math.max(image.getHeight() - 1, 0));
+        int width = Math.max((int) Math.ceil(widthRatio * image.getWidth()), 1);
+        int height = Math.max((int) Math.ceil(heightRatio * image.getHeight()), 1);
+        width = Math.min(width, image.getWidth() - x);
+        height = Math.min(height, image.getHeight() - y);
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("题框坐标超出试卷范围");
+        }
+        BufferedImage cropped = image.getSubimage(x, y, width, height);
+        return writeBufferedImageToTemp(cropped, "paper-question");
+    }
+
+    private BufferedImage readImage(Path imagePath) throws Exception {
+        BufferedImage image = ImageIO.read(imagePath.toFile());
+        if (image == null) {
+            throw new IllegalArgumentException("试卷图片读取失败");
+        }
+        return image;
+    }
+
+    private Path writeBufferedImageToTemp(BufferedImage image, String prefix) throws Exception {
+        Path tempPath = Files.createTempFile(prefix + "_", ".png");
+        ImageIO.write(image, "png", tempPath.toFile());
+        return tempPath;
+    }
+
+    private void deleteTempFile(Path tempPath) {
+        if (tempPath == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(tempPath);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void clearPaperLayout(ExamProject project, String subjectName, String type) {
+        if (project == null || !StringUtils.hasText(subjectName) || !StringUtils.hasText(type)) {
+            return;
+        }
+        Map<String, Object> paperLayouts = new LinkedHashMap<>(map(project.getPaperLayouts()));
+        Map<String, Object> subjectLayout = new LinkedHashMap<>(nestedMap(paperLayouts.get(subjectName)));
+        subjectLayout.put(type, Collections.emptyList());
+        paperLayouts.put(subjectName, subjectLayout);
+        project.setPaperLayouts(jsonMap(paperLayouts));
+    }
+
+    private void deletePaperAssetByUrl(String url) {
+        Path filePath = resolvePaperPath(url);
+        if (filePath == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(filePath);
+            if (filePath.getFileName().toString().endsWith("_preview.png")) {
+                String pdfName = filePath.getFileName().toString().replace("_preview.png", ".pdf");
+                Files.deleteIfExists(filePath.getParent().resolve(pdfName));
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String resolveOcrCutType(String type) {
+        return "template".equals(type) ? "answer" : "question";
     }
 
     private String json(List<String> values) {
@@ -1665,6 +2290,22 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     }
 
     @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> mapList(Object value) {
+        if (!(value instanceof Collection<?> collection)) {
+            return Collections.emptyList();
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Object item : collection) {
+            if (item instanceof Map<?, ?> mapValue) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                mapValue.forEach((key, val) -> row.put(String.valueOf(key), val));
+                rows.add(row);
+            }
+        }
+        return rows;
+    }
+
+    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> regionList(Object value) {
         if (!(value instanceof Collection<?> collection)) return Collections.emptyList();
         List<Map<String, Object>> rows = new ArrayList<>();
@@ -1677,8 +2318,8 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             row.put("questionNo", normalizeQuestionNo(asString(mapValue.get("questionNo")), index));
             row.put("questionType", str(asString(mapValue.get("questionType"))));
             row.put("knowledgePoint", str(asString(mapValue.get("knowledgePoint"))));
+            row.put("questionText", normalizeQuestionText(mapValue.get("questionText"), mapValue.get("remark")));
             row.put("score", nullableRounded(mapValue.get("score")));
-            row.put("remark", str(asString(mapValue.get("remark"))));
             row.put("sortOrder", mapValue.get("sortOrder") instanceof Number number ? number.intValue() : index);
             row.put("x", clampRatio(mapValue.get("x")));
             row.put("y", clampRatio(mapValue.get("y")));
@@ -1703,8 +2344,8 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             row.put("questionNo", normalizeQuestionNo(item.getQuestionNo(), sortOrder));
             row.put("questionType", str(item.getQuestionType()).trim());
             row.put("knowledgePoint", str(item.getKnowledgePoint()).trim());
+            row.put("questionText", normalizeQuestionText(item.getQuestionText(), null));
             row.put("score", item.getScore() == null ? null : round(item.getScore()));
-            row.put("remark", str(item.getRemark()).trim());
             row.put("sortOrder", sortOrder);
             row.put("x", clampRatio(item.getX()));
             row.put("y", clampRatio(item.getY()));
@@ -1740,6 +2381,13 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     private double round(double value) { return Math.round(value * 100D) / 100D; }
     private String str(String value) { return value == null ? "" : value; }
     private String asString(Object value) { return value == null ? "" : String.valueOf(value); }
+    private String normalizeQuestionText(Object questionText, Object legacyRemark) {
+        String resolved = asString(questionText).trim();
+        if (StringUtils.hasText(resolved)) {
+            return resolved;
+        }
+        return asString(legacyRemark).trim();
+    }
     private String normalizeQuestionNo(String value, int fallbackIndex) {
         String raw = str(value).trim();
         if (!StringUtils.hasText(raw)) {
@@ -1829,6 +2477,34 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         }
         ratio = Math.max(0D, Math.min(ratio, 1D));
         return Math.round(ratio * 1000000D) / 1000000D;
+    }
+
+    private int asInt(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value != null && StringUtils.hasText(String.valueOf(value))) {
+            try {
+                return Integer.parseInt(String.valueOf(value));
+            } catch (Exception ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private double asDouble(Object value, double fallback) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value != null && StringUtils.hasText(String.valueOf(value))) {
+            try {
+                return Double.parseDouble(String.valueOf(value));
+            } catch (Exception ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
     }
 
     private String getCellValue(Cell cell) {
@@ -2089,4 +2765,23 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             String entryPath,
             String fileName,
             byte[] content) {}
+
+    private record StoredPaperAsset(
+            String url,
+            Map<String, Object> mergeInfo) {}
+
+    private record PaperAssetContext(
+            String previewUrl,
+            Path paperPath,
+            Map<String, Object> mergeInfo,
+            boolean mergeInfoChanged) {}
+
+    private record OcrExecutionResult(
+            String requestId,
+            String ocrSubject,
+            String imageType,
+            String cutType,
+            int pageCount,
+            List<Map<String, Object>> regions,
+            List<Map<String, Object>> pageResults) {}
 }

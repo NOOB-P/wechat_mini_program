@@ -26,8 +26,8 @@ public class PaperLayoutSaveDTO {
         private String questionNo;
         private String questionType;
         private String knowledgePoint;
+        private String questionText;
         private Double score;
-        private String remark;
         private Integer sortOrder;
         private Double x;
         private Double y;
@@ -46,11 +46,11 @@ public class PaperLayoutSaveDTO {
         public String getKnowledgePoint() { return knowledgePoint; }
         public void setKnowledgePoint(String knowledgePoint) { this.knowledgePoint = knowledgePoint; }
 
+        public String getQuestionText() { return questionText; }
+        public void setQuestionText(String questionText) { this.questionText = questionText; }
+
         public Double getScore() { return score; }
         public void setScore(Double score) { this.score = score; }
-
-        public String getRemark() { return remark; }
-        public void setRemark(String remark) { this.remark = remark; }
 
         public Integer getSortOrder() { return sortOrder; }
         public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
