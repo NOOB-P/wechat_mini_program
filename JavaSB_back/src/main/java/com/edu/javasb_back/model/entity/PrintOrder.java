@@ -1,12 +1,18 @@
 package com.edu.javasb_back.model.entity;
 
-import jakarta.persistence.*;
-import lombok.Data;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Data;
 
 /**
  * 打印订单表
@@ -21,6 +27,9 @@ public class PrintOrder {
 
     @Column(name = "order_no", unique = true, nullable = false, length = 50)
     private String orderNo;
+
+    @jakarta.persistence.Transient
+    private Long userUid;
 
     @Column(name = "user_name", nullable = false, length = 50)
     private String userName;
@@ -59,6 +68,8 @@ public class PrintOrder {
     public void setId(Long id) { this.id = id; }
     public String getOrderNo() { return orderNo; }
     public void setOrderNo(String orderNo) { this.orderNo = orderNo; }
+    public Long getUserUid() { return userUid; }
+    public void setUserUid(Long userUid) { this.userUid = userUid; }
     public String getUserName() { return userName; }
     public void setUserName(String userName) { this.userName = userName; }
     public String getUserPhone() { return userPhone; }

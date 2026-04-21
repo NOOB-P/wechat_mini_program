@@ -138,7 +138,7 @@ import { getUserInfoApi } from '@/api/mine'
 import { openEnterpriseCustomerServiceChat } from '@/utils/customer-service'
 import { useToast } from 'wot-design-uni'
 
-const staticBaseUrl = __VITE_SERVER_BASEURL__ + '/static'
+const staticBaseUrl = __VITE_STATIC_BASEURL__
 const courses = ref<any[]>([])
 const searchKeyword = ref('')
 const isSVIPUser = ref(false)

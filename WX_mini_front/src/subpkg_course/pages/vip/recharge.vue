@@ -250,9 +250,6 @@ const handlePay = async () => {
 
   submitting.value = true
   try {
-    toast.loading('正在准备支付...')
-    await ensureWechatPayBound()
-
     const createRes = await createVipOrderApi({
       packageType: currentConfig.value.title,
       tierCode: currentConfig.value.tierCode,
@@ -262,19 +259,23 @@ const handlePay = async () => {
       pricingId: selectedPlan.id
     })
 
-    const payRes = await createVipPayParamsWithRetry(createRes.data.orderNo)
-    await requestWechatPay(payRes.data?.payParams || {})
-    await refreshUserInfoAfterPay()
-
-    toast.success('开通成功')
-    redirectAfterSuccess()
-  } catch (error: any) {
-    if (error?.code === 'PAY_CANCEL') {
-      toast.show('已取消支付')
-      return
+    if (createRes.code === 200) {
+      const orderData = {
+        ...createRes.data,
+        type: 'VIP',
+        title: `${currentConfig.value.title} - ${selectedPlan.duration}`,
+        price: selectedPlan.price
+      }
+      const orderDataStr = encodeURIComponent(JSON.stringify(orderData))
+      uni.navigateTo({
+        url: `/subpkg_course/pages/course/pay?order=${orderDataStr}`
+      })
+    } else {
+      toast.error(createRes.msg || '下单失败')
     }
-    console.error('pay vip failed', error)
-    toast.error(error?.msg || error?.message || '支付失败，请稍后重试')
+  } catch (error: any) {
+    console.error('create vip order failed', error)
+    toast.error(error?.msg || error?.message || '下单失败，请稍后重试')
   } finally {
     submitting.value = false
   }

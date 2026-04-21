@@ -13,3 +13,10 @@ export const getMyPrintOrdersApi = () => {
 export const getPurchasedCoursesApi = () => {
   return request({ url: '/api/app/course/purchased', method: 'GET' })
 }
+
+/**
+ * 获取我的 VIP 充值记录
+ */
+export const getMyVipOrdersApi = () => {
+  return request({ url: '/api/app/vip/orders', method: 'GET' })
+}

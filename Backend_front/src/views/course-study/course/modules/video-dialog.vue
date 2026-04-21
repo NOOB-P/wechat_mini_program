@@ -47,7 +47,7 @@ import { ref, watch, computed } from 'vue'
 import type { FormInstance, UploadRequestOptions } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { VideoPlay } from '@element-plus/icons-vue'
-import { directUploadCourseVideo } from '@/api/course-study/course'
+import { uploadCourseVideo } from '@/api/course-study/course'
 
 const props = defineProps({
   visible: Boolean,
@@ -126,9 +126,8 @@ const beforeUpload = (file: File) => {
 const handleVideoUploadRequest = async (options: UploadRequestOptions) => {
   try {
     const file = options.file as File
-    const videoUrl = await directUploadCourseVideo(file, (percent) => {
-      options.onProgress?.({ percent } as any)
-    })
+    const videoUrl = await uploadCourseVideo(file)
+    options.onProgress?.({ percent: 100 } as any)
     form.value.videoUrl = videoUrl
     ElMessage.success('视频上传成功')
     options.onSuccess?.({ url: videoUrl } as any)

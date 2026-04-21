@@ -1,5 +1,6 @@
 package com.edu.javasb_back.service.impl;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -7,21 +8,18 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.Course;
-import com.edu.javasb_back.repository.CourseInteractionRepository;
-import com.edu.javasb_back.repository.CourseRepository;
-import com.edu.javasb_back.service.CourseService;
-import com.edu.javasb_back.service.CourseOrderService;
-
 import com.edu.javasb_back.model.entity.CourseEpisode;
 import com.edu.javasb_back.model.entity.CourseVideo;
 import com.edu.javasb_back.repository.CourseEpisodeRepository;
+import com.edu.javasb_back.repository.CourseInteractionRepository;
+import com.edu.javasb_back.repository.CourseRepository;
 import com.edu.javasb_back.repository.CourseVideoRepository;
-import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
+import com.edu.javasb_back.service.CourseOrderService;
+import com.edu.javasb_back.service.CourseService;
 
 @Service
 public class CourseServiceImpl implements CourseService {
@@ -77,13 +75,35 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
-    public Result<List<Course>> getFamilyEduList() {
-        return Result.success(courseRepository.findFamilyEduListSql());
+    public Result<List<Course>> getFamilyEduList(Long uid, String keyword, String filter) {
+        String normalizedKeyword = normalizeKeyword(keyword);
+        if ("purchased".equals(filter)) {
+            if (uid == null) return Result.error(401, "请先登录");
+            return Result.success(courseRepository.findPurchasedCoursesByTypeSql(uid, "family", normalizedKeyword));
+        }
+        Boolean isFree = null;
+        if ("free".equals(filter)) isFree = true;
+        else if ("paid".equals(filter)) isFree = false;
+        
+        return Result.success(courseRepository.findFamilyEduListSql(normalizedKeyword, isFree));
     }
 
     @Override
-    public Result<List<Course>> getStudentTalkList() {
-        return Result.success(courseRepository.findStudentTalkListSql());
+    public Result<List<Course>> getStudentTalkList(Long uid, String keyword, String filter) {
+        String normalizedKeyword = normalizeKeyword(keyword);
+        if ("purchased".equals(filter)) {
+            if (uid == null) return Result.error(401, "请先登录");
+            return Result.success(courseRepository.findPurchasedCoursesByTypeSql(uid, "talk", normalizedKeyword));
+        }
+        Boolean isFree = null;
+        if ("free".equals(filter)) isFree = true;
+        else if ("paid".equals(filter)) isFree = false;
+        
+        return Result.success(courseRepository.findStudentTalkListSql(normalizedKeyword, isFree));
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return keyword == null || keyword.trim().isEmpty() ? null : keyword.trim();
     }
 
     @Override

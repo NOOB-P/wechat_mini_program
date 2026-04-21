@@ -23,6 +23,7 @@ export default ({ command, mode }) => {
   const {
     VITE_APP_PORT,
     VITE_SERVER_BASEURL,
+    VITE_STATIC_BASEURL,
     VITE_DELETE_CONSOLE,
     VITE_SHOW_SOURCEMAP,
     VITE_APP_PROXY,
@@ -61,6 +62,7 @@ export default ({ command, mode }) => {
       __UNI_PLATFORM__: JSON.stringify(UNI_PLATFORM),
       __VITE_APP_PROXY__: JSON.stringify(VITE_APP_PROXY),
       __VITE_SERVER_BASEURL__: JSON.stringify(VITE_SERVER_BASEURL),
+      __VITE_STATIC_BASEURL__: JSON.stringify(VITE_STATIC_BASEURL),
       __VITE_SERVER_TIMEOUT__:  JSON.stringify(VITE_SERVER_TIMEOUT)
     },
     resolve: {

@@ -63,31 +63,6 @@ public class GlobalConfigProperties {
     private String uploadTempDir = System.getProperty("java.io.tmpdir") + "/edu-upload-temp/";
 
     /**
-     * 阿里云 OSS Endpoint
-     */
-    private String ossEndpoint = "oss-cn-hangzhou.aliyuncs.com";
-
-    /**
-     * 阿里云 OSS Bucket
-     */
-    private String ossBucket = "back-resources";
-
-    /**
-     * 阿里云 OSS AccessKey ID
-     */
-    private String ossAccessKeyId;
-
-    /**
-     * 阿里云 OSS AccessKey Secret
-     */
-    private String ossAccessKeySecret;
-
-    /**
-     * OSS 公网访问根地址
-     */
-    private String ossPublicBaseUrl = "https://back-resources.oss-cn-hangzhou.aliyuncs.com/";
-
-    /**
      * 通义千问 API Key
      */
     private String qwenApiKey;
@@ -150,16 +125,6 @@ public class GlobalConfigProperties {
     public void setCourseVideoDir(String courseVideoDir) { this.courseVideoDir = courseVideoDir; }
     public String getUploadTempDir() { return uploadTempDir; }
     public void setUploadTempDir(String uploadTempDir) { this.uploadTempDir = uploadTempDir; }
-    public String getOssEndpoint() { return ossEndpoint; }
-    public void setOssEndpoint(String ossEndpoint) { this.ossEndpoint = ossEndpoint; }
-    public String getOssBucket() { return ossBucket; }
-    public void setOssBucket(String ossBucket) { this.ossBucket = ossBucket; }
-    public String getOssAccessKeyId() { return ossAccessKeyId; }
-    public void setOssAccessKeyId(String ossAccessKeyId) { this.ossAccessKeyId = ossAccessKeyId; }
-    public String getOssAccessKeySecret() { return ossAccessKeySecret; }
-    public void setOssAccessKeySecret(String ossAccessKeySecret) { this.ossAccessKeySecret = ossAccessKeySecret; }
-    public String getOssPublicBaseUrl() { return ossPublicBaseUrl; }
-    public void setOssPublicBaseUrl(String ossPublicBaseUrl) { this.ossPublicBaseUrl = ossPublicBaseUrl; }
     public String getQwenApiKey() { return qwenApiKey; }
     public void setQwenApiKey(String qwenApiKey) { this.qwenApiKey = qwenApiKey; }
     public String getQwenChatUrl() { return qwenChatUrl; }

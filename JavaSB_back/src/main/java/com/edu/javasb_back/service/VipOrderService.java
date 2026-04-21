@@ -28,6 +28,11 @@ public interface VipOrderService {
     Result<String> paySuccessCallback(String orderNo);
 
     /**
+     * 获取当前用户的 VIP 订单列表（小程序端，包含倒计时逻辑）
+     */
+    Result<List<VipOrder>> getMyVipOrders(Long userUid);
+
+    /**
      * 后台分页查询 VIP 订单
      */
     Result<Map<String, Object>> getVipOrderList(int current, int size, String keyword, String sourceType, Integer paymentStatus, String startDate, String endDate);

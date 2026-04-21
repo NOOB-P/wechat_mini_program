@@ -86,6 +86,12 @@ export default defineUniPages({
           },
         },
         {
+          path: 'pages/paper-list',
+          style: {
+            navigationBarTitleText: '试卷列表',
+          },
+        },
+        {
           path: 'pages/student-talk',
           style: {
             navigationBarTitleText: '学霸说',
@@ -112,8 +118,8 @@ export default defineUniPages({
           path: 'pages/course/detail',
           style: {
             navigationBarTitleText: '课程详情',
-            navigationBarBackgroundColor: '#000000',
-            navigationBarTextStyle: 'white',
+            navigationBarBackgroundColor: '#FFFFFF',
+            navigationBarTextStyle: 'black',
           },
         },
         {

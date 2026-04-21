@@ -1,13 +1,13 @@
 package com.edu.javasb_back.service;
 
 import com.aliyun.oss.OSS;
-import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.HttpMethod;
 import com.aliyun.oss.model.GeneratePresignedUrlRequest;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.OSSObject;
 import com.edu.javasb_back.config.GlobalConfigProperties;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,21 +15,27 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 @Service
 public class OssStorageService {
 
     @Autowired
     private GlobalConfigProperties globalConfigProperties;
+
+    @Autowired
+    private OSS ossClient;
+
+    @Value("${aliyun.oss.bucket}")
+    private String bucket;
+
+    @Value("${aliyun.oss.cdn-base-url}")
+    private String cdnBaseUrl;
 
     public String upload(MultipartFile file, String objectKey) throws IOException {
         if (file == null || file.isEmpty()) {
@@ -47,7 +53,7 @@ public class OssStorageService {
 
     public String upload(InputStream inputStream, long contentLength, String objectKey, String contentType) throws IOException {
         String normalizedKey = normalizeObjectKey(objectKey);
-        withClient(client -> {
+        execute(client -> {
             ObjectMetadata metadata = new ObjectMetadata();
             if (contentLength >= 0) {
                 metadata.setContentLength(contentLength);
@@ -55,7 +61,7 @@ public class OssStorageService {
             if (StringUtils.hasText(contentType)) {
                 metadata.setContentType(contentType);
             }
-            client.putObject(resolveBucket(), normalizedKey, inputStream, metadata);
+            client.putObject(bucket, normalizedKey, inputStream, metadata);
             return null;
         });
         return buildUrl(normalizedKey);
@@ -72,8 +78,8 @@ public class OssStorageService {
         if (!StringUtils.hasText(objectKey)) {
             throw new IllegalArgumentException("当前 URL 不是可识别的 OSS 地址");
         }
-        return withClient(client -> {
-            try (OSSObject object = client.getObject(resolveBucket(), objectKey);
+        return execute(client -> {
+            try (OSSObject object = client.getObject(bucket, objectKey);
                  InputStream inputStream = object.getObjectContent()) {
                 return inputStream.readAllBytes();
             }
@@ -93,8 +99,8 @@ public class OssStorageService {
     public DirectUploadToken createPutUploadToken(String objectKey, String contentType, long expireMillis) throws IOException {
         String normalizedKey = normalizeObjectKey(objectKey);
         long ttl = Math.max(expireMillis, 60_000L);
-        return withClient(client -> {
-            GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(resolveBucket(), normalizedKey, HttpMethod.PUT);
+        return execute(client -> {
+            GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucket, normalizedKey, HttpMethod.PUT);
             request.setExpiration(new Date(System.currentTimeMillis() + ttl));
             if (StringUtils.hasText(contentType)) {
                 request.setContentType(contentType);
@@ -112,15 +118,12 @@ public class OssStorageService {
         if (!StringUtils.hasText(url)) {
             return null;
         }
-        String normalizedBaseUrl = normalizedBaseUrl();
-        if (!StringUtils.hasText(normalizedBaseUrl)) {
-            return null;
-        }
         String trimmedUrl = url.trim();
-        if (!trimmedUrl.startsWith(normalizedBaseUrl)) {
+        String baseUrl = normalizedBaseUrl();
+        if (!StringUtils.hasText(baseUrl) || !trimmedUrl.startsWith(baseUrl)) {
             return null;
         }
-        String rawObjectKey = trimmedUrl.substring(normalizedBaseUrl.length()).trim();
+        String rawObjectKey = trimmedUrl.substring(baseUrl.length()).trim();
         if (!StringUtils.hasText(rawObjectKey)) {
             return null;
         }
@@ -140,12 +143,7 @@ public class OssStorageService {
     }
 
     private String normalizedBaseUrl() {
-        String baseUrl = globalConfigProperties.getOssPublicBaseUrl();
-        if (!StringUtils.hasText(baseUrl)) {
-            String bucket = resolveBucket();
-            String endpoint = resolveEndpoint();
-            baseUrl = "https://" + bucket + "." + endpoint + "/";
-        }
+        String baseUrl = cdnBaseUrl;
         if (!StringUtils.hasText(baseUrl)) {
             return "";
         }
@@ -172,109 +170,20 @@ public class OssStorageService {
         return url.substring(index);
     }
 
-    private OSS createClient() {
-        validateConfig();
-        String endpoint = resolveEndpoint();
-        if (!endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
-            endpoint = "https://" + endpoint;
-        }
-        return new OSSClientBuilder().build(
-                endpoint,
-                resolveAccessKeyId(),
-                resolveAccessKeySecret()
-        );
-    }
-
     private void validateConfig() {
-        List<String> missing = new ArrayList<>();
-        if (!StringUtils.hasText(resolveEndpoint())) {
-            missing.add("endpoint");
-        }
-        if (!StringUtils.hasText(resolveBucket())) {
-            missing.add("bucket");
-        }
-        if (!StringUtils.hasText(resolveAccessKeyId())) {
-            missing.add("accessKeyId");
-        }
-        if (!StringUtils.hasText(resolveAccessKeySecret())) {
-            missing.add("accessKeySecret");
-        }
-        if (!StringUtils.hasText(normalizedBaseUrl())) {
-            missing.add("publicBaseUrl");
-        }
-        if (!missing.isEmpty()) {
-            throw new IllegalStateException("OSS 配置不完整，请检查: " + String.join(", ", missing));
+        if (!StringUtils.hasText(bucket) || !StringUtils.hasText(normalizedBaseUrl())) {
+            throw new IllegalStateException("OSS 配置不完整，请检查 aliyun.oss.bucket 和 aliyun.oss.cdn-base-url");
         }
     }
 
-    private String resolveEndpoint() {
-        if (StringUtils.hasText(globalConfigProperties.getOssEndpoint())) {
-            return globalConfigProperties.getOssEndpoint().trim()
-                    .replace("https://", "")
-                    .replace("http://", "")
-                    .replaceAll("/+$", "");
-        }
-        String host = extractHostFromBaseUrl();
-        if (!StringUtils.hasText(host)) {
-            return null;
-        }
-        int dotIndex = host.indexOf('.');
-        return dotIndex > 0 && dotIndex < host.length() - 1 ? host.substring(dotIndex + 1) : null;
-    }
-
-    private String resolveBucket() {
-        if (StringUtils.hasText(globalConfigProperties.getOssBucket())) {
-            return globalConfigProperties.getOssBucket().trim();
-        }
-        String host = extractHostFromBaseUrl();
-        if (!StringUtils.hasText(host)) {
-            return null;
-        }
-        int dotIndex = host.indexOf('.');
-        return dotIndex > 0 ? host.substring(0, dotIndex) : null;
-    }
-
-    private String resolveAccessKeyId() {
-        if (StringUtils.hasText(globalConfigProperties.getOssAccessKeyId())) {
-            return globalConfigProperties.getOssAccessKeyId().trim();
-        }
-        return StringUtils.hasText(globalConfigProperties.getAliyunOcrAccessKeyId())
-                ? globalConfigProperties.getAliyunOcrAccessKeyId().trim()
-                : null;
-    }
-
-    private String resolveAccessKeySecret() {
-        if (StringUtils.hasText(globalConfigProperties.getOssAccessKeySecret())) {
-            return globalConfigProperties.getOssAccessKeySecret().trim();
-        }
-        return StringUtils.hasText(globalConfigProperties.getAliyunOcrAccessKeySecret())
-                ? globalConfigProperties.getAliyunOcrAccessKeySecret().trim()
-                : null;
-    }
-
-    private String extractHostFromBaseUrl() {
-        String baseUrl = globalConfigProperties.getOssPublicBaseUrl();
-        if (!StringUtils.hasText(baseUrl)) {
-            return null;
-        }
+    private <T> T execute(OssCallback<T> callback) throws IOException {
+        validateConfig();
         try {
-            URI uri = URI.create(baseUrl.trim());
-            return uri.getHost();
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private <T> T withClient(OssCallback<T> callback) throws IOException {
-        OSS client = createClient();
-        try {
-            return callback.execute(client);
+            return callback.execute(ossClient);
         } catch (IOException e) {
             throw e;
         } catch (Exception e) {
             throw new IOException("OSS 操作失败: " + e.getMessage(), e);
-        } finally {
-            client.shutdown();
         }
     }
 

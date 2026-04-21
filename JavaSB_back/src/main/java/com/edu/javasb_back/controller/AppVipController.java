@@ -118,6 +118,16 @@ public class AppVipController {
         return vipService.submitPrintOrder(userUid, orderData);
     }
 
+    @LogOperation("Get current user VIP orders")
+    @GetMapping("/orders")
+    public Result<List<VipOrder>> getMyVipOrders() {
+        Long userUid = getCurrentUid();
+        if (userUid == null) {
+            return Result.error(401, "请先登录");
+        }
+        return vipOrderService.getMyVipOrders(userUid);
+    }
+
     @LogOperation("Mock VIP pay callback")
     @PostMapping("/order/callback")
     public Result<String> paySuccessCallback(@RequestBody Map<String, String> data) {

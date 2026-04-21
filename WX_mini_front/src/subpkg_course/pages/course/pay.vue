@@ -4,9 +4,12 @@
 
     <view class="order-info-card">
       <view class="course-brief">
-        <image :src="course.cover" mode="aspectFill" class="cover" />
+        <image v-if="order.type !== 'VIP'" :src="course.cover" mode="aspectFill" class="cover" />
+        <view v-else class="vip-icon-box">
+          <wd-icon :name="order.tierCode === 'SVIP' ? 'diamond' : 'sketch'" size="32px" color="#fff" />
+        </view>
         <view class="info">
-          <text class="title">{{ course.title }}</text>
+          <text class="title">{{ order.type === 'VIP' ? order.title : course.title }}</text>
           <text class="price">￥{{ order.price }}</text>
         </view>
       </view>
@@ -46,6 +49,8 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { createCoursePayApi, getCourseDetailApi } from '@/api/course'
+import { createVipPayApi } from '@/api/vip'
+import { getUserInfoApi } from '@/api/mine'
 import { ensureWechatPayBound, requestWechatPay } from '@/utils/wechat-pay'
 
 const toast = useToast()
@@ -59,7 +64,9 @@ onLoad((options: any) => {
     return
   }
   order.value = JSON.parse(decodeURIComponent(options.order))
-  loadCourseDetail(order.value.courseId)
+  if (order.value.type !== 'VIP') {
+    loadCourseDetail(order.value.courseId)
+  }
 })
 
 const loadCourseDetail = async (id: string) => {
@@ -74,14 +81,28 @@ const loadCourseDetail = async (id: string) => {
 }
 
 const fetchPayParams = async () => {
+  const isVip = order.value.type === 'VIP'
+  const payApi = isVip ? createVipPayApi : createCoursePayApi
+  
   try {
-    return await createCoursePayApi(order.value.orderNo)
+    return await payApi(order.value.orderNo)
   } catch (error: any) {
     if (error?.code === 40101) {
       await ensureWechatPayBound()
-      return createCoursePayApi(order.value.orderNo)
+      return payApi(order.value.orderNo)
     }
     throw error
+  }
+}
+
+const refreshUserInfo = async () => {
+  try {
+    const res = await getUserInfoApi()
+    if (res.code === 200) {
+      uni.setStorageSync('userInfo', res.data)
+    }
+  } catch (error) {
+    console.error('refresh user info failed', error)
   }
 }
 
@@ -93,15 +114,24 @@ const handlePay = async () => {
 
   loading.value = true
   try {
-    toast.loading('正在准备支付...')
+    // 移除系统 Loading，微信支付自带加载
     await ensureWechatPayBound()
     const payRes = await fetchPayParams()
     await requestWechatPay(payRes.data?.payParams || {})
+    
+    if (order.value.type === 'VIP') {
+      await refreshUserInfo()
+    }
+
     toast.success('支付成功')
     setTimeout(() => {
-      uni.redirectTo({
-        url: '/subpkg_mine/pages/mine/order-list?tab=course'
-      })
+      if (order.value.type === 'VIP') {
+        uni.switchTab({ url: '/pages/home/index' })
+      } else {
+        uni.redirectTo({
+          url: '/subpkg_mine/pages/mine/order-list?tab=course'
+        })
+      }
     }, 1200)
   } catch (error: any) {
     if (error?.code === 'PAY_CANCEL') {
@@ -144,9 +174,21 @@ const formatTime = (time?: string) => {
 }
 
 .cover {
-  width: 160rpx;
-  height: 120rpx;
+  width: 140rpx;
+  height: 140rpx;
   border-radius: 12rpx;
+  margin-right: 24rpx;
+}
+
+.vip-icon-box {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 12rpx;
+  margin-right: 24rpx;
+  background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .info {

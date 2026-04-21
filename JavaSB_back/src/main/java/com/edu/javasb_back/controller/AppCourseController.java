@@ -74,9 +74,11 @@ public class AppCourseController {
 
     @LogOperation("获取家庭教育列表")
     @GetMapping("/resource/family-edu/list")
-    public Result<List<Course>> getFamilyEduList() {
-        Result<List<Course>> result = courseService.getFamilyEduList();
+    public Result<List<Course>> getFamilyEduList(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String filter) {
         Long uid = getCurrentUid();
+        Result<List<Course>> result = courseService.getFamilyEduList(uid, keyword, filter);
         if (uid != null && result.getData() != null) {
             result.getData().forEach(course -> course.setIsPurchased(orderService.isCoursePurchased(uid, course.getId())));
         }
@@ -85,9 +87,11 @@ public class AppCourseController {
 
     @LogOperation("获取学霸说列表")
     @GetMapping("/resource/student-talk/list")
-    public Result<List<Course>> getStudentTalkList() {
-        Result<List<Course>> result = courseService.getStudentTalkList();
+    public Result<List<Course>> getStudentTalkList(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String filter) {
         Long uid = getCurrentUid();
+        Result<List<Course>> result = courseService.getStudentTalkList(uid, keyword, filter);
         if (uid != null && result.getData() != null) {
             result.getData().forEach(course -> course.setIsPurchased(orderService.isCoursePurchased(uid, course.getId())));
         }

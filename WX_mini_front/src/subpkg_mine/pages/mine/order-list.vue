@@ -19,20 +19,28 @@
 
     <view class="content">
       <!-- 已购课程列表 -->
-      <view v-if="currentTab === 'course'" class="course-list animate-fade-in">
+      <view v-if="currentTab === 'course'" class="order-section animate-fade-in">
         <view v-if="courses.length > 0">
-          <view v-for="item in courses" :key="item.id" class="course-card" @click="goToCourseDetail(item.id)">
+          <view v-for="item in courses" :key="item.id + (item.orderNo || '')" class="course-card" @click="handleCourseClick(item)">
             <view class="card-inner">
               <image :src="item.cover || 'https://img.yzcdn.cn/vant/cat.jpeg'" mode="aspectFill" class="course-img" />
               <view class="course-info">
                 <view class="top-info">
-                  <text class="course-name">{{ item.title }}</text>
-                  <view class="course-tag">{{ getTypeName(item.type) }}</view>
+                  <view class="title-row">
+                    <text class="course-name">{{ item.title }}</text>
+                    <view class="course-tag">{{ getTypeName(item.type) }}</view>
+                  </view>
+                  <view v-if="item.paymentStatus === 0" class="countdown-row">
+                    <wd-icon name="time" size="12px" color="#f44336" />
+                    <text class="countdown-text">支付倒计时: {{ item.countdownText || '计算中...' }}</text>
+                  </view>
                 </view>
                 <view class="bottom-info">
-                  <text class="price-tag">已支付</text>
-                  <view class="action-link">
-                    <text>立即学习</text>
+                  <text class="price-tag" :class="{ 'pending': item.paymentStatus === 0 }">
+                    {{ item.paymentStatus === 0 ? '待支付' : '已支付' }}
+                  </text>
+                  <view class="action-link" :class="{ 'pay-btn': item.paymentStatus === 0 }">
+                    <text>{{ item.paymentStatus === 0 ? '去支付' : '立即学习' }}</text>
                     <wd-icon name="arrow-right" size="14px" />
                   </view>
                 </view>
@@ -40,52 +48,84 @@
             </view>
           </view>
         </view>
-        <view class="empty-state" v-else>
-          <wd-icon name="info-circle" size="64px" color="#e0e5ed" />
+        <view v-else class="empty-state">
+          <image src="https://img.yzcdn.cn/vant/empty-image-default.png" mode="aspectFit" class="empty-img" />
           <text class="empty-text">暂无已购课程数据哦~</text>
         </view>
       </view>
 
-      <!-- 打印记录列表 -->
-      <view v-if="currentTab === 'print'" class="print-list animate-fade-in">
-        <view v-if="printOrders.length > 0">
-          <view v-for="item in printOrders" :key="item.id" class="print-card">
-            <view class="print-header">
-              <view class="order-id-box">
-                <wd-icon name="order" size="16px" color="#999" />
-                <text class="order-no">{{ item.orderNo }}</text>
+      <!-- 会员充值列表 -->
+      <view v-if="currentTab === 'vip'" class="order-section animate-fade-in">
+        <view v-if="vipOrders.length > 0">
+          <view v-for="item in vipOrders" :key="item.orderNo" class="course-card" @click="handleVipClick(item)">
+            <view class="card-inner">
+              <view class="vip-icon-box">
+                <wd-icon name="vip" size="32px" color="#f1c40f" />
               </view>
-              <text class="order-status" :class="'status-' + item.orderStatus">{{ getPrintStatusText(item.orderStatus) }}</text>
-            </view>
-            <view class="print-body">
-              <view class="doc-info">
-                <view class="doc-icon">
-                  <wd-icon name="file" size="20px" color="#fff" />
+              <view class="course-info">
+                <view class="top-info">
+                  <view class="title-row">
+                    <text class="course-name">会员充值 - {{ item.packageType }}</text>
+                    <view class="course-tag vip">{{ item.period }}</view>
+                  </view>
+                  <view v-if="item.paymentStatus === 0" class="countdown-row">
+                    <wd-icon name="time" size="12px" color="#f44336" />
+                    <text class="countdown-text">支付倒计时: {{ item.countdownText || '计算中...' }}</text>
+                  </view>
                 </view>
-                <text class="doc-name">{{ item.documentName }}</text>
-              </view>
-              <view class="print-details">
-                <view class="detail-row">
-                  <text class="label">打印类型</text>
-                  <text class="value">{{ item.printType }} ({{ item.pages }}页)</text>
-                </view>
-                <view class="detail-row">
-                  <text class="label">配送方式</text>
-                  <text class="value">{{ item.deliveryMethod }}</text>
-                </view>
-              </view>
-              <view class="print-footer">
-                <text class="order-time">{{ formatTime(item.createTime) }}</text>
-                <view class="total-price">
-                  <text class="currency">￥</text>
-                  <text class="price-num">{{ item.totalPrice.toFixed(2) }}</text>
+                <view class="bottom-info">
+                  <text class="price-tag" :class="{ 'pending': item.paymentStatus === 0 }">
+                    {{ item.paymentStatus === 0 ? '待支付' : '已支付' }}
+                  </text>
+                  <view class="action-link" :class="{ 'pay-btn': item.paymentStatus === 0 }">
+                    <text>{{ item.paymentStatus === 0 ? '去支付' : '详情' }}</text>
+                    <wd-icon name="arrow-right" size="14px" />
+                  </view>
                 </view>
               </view>
             </view>
           </view>
         </view>
-        <view class="empty-state" v-else>
-          <wd-icon name="info-circle" size="64px" color="#e0e5ed" />
+        <view v-else class="empty-state">
+          <image src="https://img.yzcdn.cn/vant/empty-image-default.png" mode="aspectFit" class="empty-img" />
+          <text class="empty-text">暂无会员充值记录哦~</text>
+        </view>
+      </view>
+
+      <!-- 打印记录列表 -->
+      <view v-if="currentTab === 'print'" class="order-section animate-fade-in">
+        <view v-if="printOrders.length > 0">
+          <view v-for="item in printOrders" :key="item.orderNo" class="course-card" @click="handlePrintClick(item)">
+            <view class="card-inner">
+              <view class="print-icon-box">
+                <wd-icon name="print" size="32px" color="#1a5f8e" />
+              </view>
+              <view class="course-info">
+                <view class="top-info">
+                  <view class="title-row">
+                    <text class="course-name">{{ item.documentName }}</text>
+                    <view class="course-tag print">{{ item.pages }}页</view>
+                  </view>
+                  <view v-if="item.orderStatus === 1" class="countdown-row">
+                    <wd-icon name="time" size="12px" color="#f44336" />
+                    <text class="countdown-text">支付倒计时: {{ item.countdownText || '计算中...' }}</text>
+                  </view>
+                </view>
+                <view class="bottom-info">
+                  <text class="price-tag" :class="{ 'pending': item.orderStatus === 1 }">
+                    {{ getPrintStatusText(item.orderStatus) }}
+                  </text>
+                  <view class="action-link" :class="{ 'pay-btn': item.orderStatus === 1 }">
+                    <text>{{ item.orderStatus === 1 ? '去支付' : '详情' }}</text>
+                    <wd-icon name="arrow-right" size="14px" />
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+        <view v-else class="empty-state">
+          <image src="https://img.yzcdn.cn/vant/empty-image-default.png" mode="aspectFit" class="empty-img" />
           <text class="empty-text">还没有打印过试卷呢~</text>
         </view>
       </view>
@@ -94,20 +134,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import { getPurchasedCoursesApi, getMyPrintOrdersApi } from '@/api/order'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import { getPurchasedCoursesApi, getMyPrintOrdersApi, getMyVipOrdersApi } from '@/api/order'
 import { useToast } from 'wot-design-uni'
 
 const toast = useToast()
 const currentTab = ref('course')
 const tabs = [
   { label: '已购课程', value: 'course' },
+  { label: '会员充值', value: 'vip' },
   { label: '打印记录', value: 'print' }
 ]
 
 const courses = ref<any[]>([])
+const vipOrders = ref<any[]>([])
 const printOrders = ref<any[]>([])
+let timer: any = null
 
 const handleTabChange = (value: string) => {
   currentTab.value = value
@@ -134,13 +177,81 @@ const getPrintStatusText = (status: number) => {
   }
 }
 
+const startCountdown = () => {
+  stopCountdown()
+  timer = setInterval(() => {
+    const now = new Date().getTime()
+    let hasActiveCountdown = false
+
+    // 处理课程订单
+    courses.value = courses.value.map(item => {
+      if (item.paymentStatus === 0 && item.orderCreateTime) {
+        const createTime = new Date(item.orderCreateTime.replace('T', ' ')).getTime()
+        const expireTime = createTime + 10 * 60 * 1000
+        const remaining = expireTime - now
+        if (remaining <= 0) return null
+        const minutes = Math.floor(remaining / 1000 / 60)
+        const seconds = Math.floor((remaining / 1000) % 60)
+        item.countdownText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`
+        hasActiveCountdown = true
+      }
+      return item
+    }).filter(item => item !== null)
+
+    // 处理 VIP 订单
+    vipOrders.value = vipOrders.value.map(item => {
+      if (item.paymentStatus === 0 && item.createTime) {
+        const createTime = new Date(item.createTime.replace('T', ' ')).getTime()
+        const expireTime = createTime + 10 * 60 * 1000
+        const remaining = expireTime - now
+        if (remaining <= 0) return null
+        const minutes = Math.floor(remaining / 1000 / 60)
+        const seconds = Math.floor((remaining / 1000) % 60)
+        item.countdownText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`
+        hasActiveCountdown = true
+      }
+      return item
+    }).filter(item => item !== null)
+
+    // 处理打印订单
+    printOrders.value = printOrders.value.map(item => {
+      if (item.orderStatus === 1 && item.createTime) {
+        const createTime = new Date(item.createTime.replace('T', ' ')).getTime()
+        const expireTime = createTime + 10 * 60 * 1000
+        const remaining = expireTime - now
+        if (remaining <= 0) return null
+        const minutes = Math.floor(remaining / 1000 / 60)
+        const seconds = Math.floor((remaining / 1000) % 60)
+        item.countdownText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`
+        hasActiveCountdown = true
+      }
+      return item
+    }).filter(item => item !== null)
+
+    if (!hasActiveCountdown) {
+      // 如果没有正在进行的倒计时，但不一定停止，因为后续可能会加载新数据
+    }
+  }, 1000)
+}
+
+const stopCountdown = () => {
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+}
+
 const loadData = async () => {
   try {
-    toast.loading('加载中...')
     if (currentTab.value === 'course') {
       const res = await getPurchasedCoursesApi()
       if (res.code === 200) {
         courses.value = res.data
+      }
+    } else if (currentTab.value === 'vip') {
+      const res = await getMyVipOrdersApi()
+      if (res.code === 200) {
+        vipOrders.value = res.data
       }
     } else {
       const res = await getMyPrintOrdersApi()
@@ -148,16 +259,61 @@ const loadData = async () => {
         printOrders.value = res.data
       }
     }
-    toast.close()
+    startCountdown()
   } catch (e) {
-    toast.error('加载失败')
+    console.error('加载失败', e)
   }
 }
 
-const goToCourseDetail = (id: string) => {
-  uni.navigateTo({
-    url: `/subpkg_course/pages/course/detail?id=${id}`
-  })
+const handleVipClick = (item: any) => {
+  if (item.paymentStatus === 0) {
+    const orderData = encodeURIComponent(JSON.stringify({
+      orderNo: item.orderNo,
+      price: item.price,
+      title: `会员充值 - ${item.packageType}`,
+      packageType: item.packageType,
+      period: item.period,
+      createTime: item.createTime
+    }))
+    uni.navigateTo({
+      url: `/subpkg_course/pages/course/pay?order=${orderData}&type=vip`
+    })
+  }
+}
+
+const handlePrintClick = (item: any) => {
+  if (item.orderStatus === 1) {
+    const orderData = encodeURIComponent(JSON.stringify({
+      orderNo: item.orderNo,
+      price: item.totalPrice,
+      title: `试卷打印 - ${item.documentName}`,
+      createTime: item.createTime
+    }))
+    uni.navigateTo({
+      url: `/subpkg_course/pages/course/pay?order=${orderData}&type=print`
+    })
+  }
+}
+
+const handleCourseClick = (item: any) => {
+  if (item.paymentStatus === 0) {
+    // 如果是待支付，跳转到支付页面
+    const orderData = encodeURIComponent(JSON.stringify({
+      orderNo: item.orderNo,
+      price: item.price,
+      courseId: item.id,
+      title: item.title,
+      createTime: item.orderCreateTime
+    }))
+    uni.navigateTo({
+      url: `/subpkg_course/pages/course/pay?order=${orderData}`
+    })
+  } else {
+    // 已支付，跳转到详情页
+    uni.navigateTo({
+      url: `/subpkg_course/pages/course/detail?id=${item.id}`
+    })
+  }
 }
 
 const formatTime = (time: string) => {
@@ -177,8 +333,12 @@ onLoad((options: any) => {
   })
 })
 
-onMounted(() => {
+onShow(() => {
   loadData()
+})
+
+onUnmounted(() => {
+  stopCountdown()
 })
 </script>
 
@@ -255,12 +415,25 @@ onMounted(() => {
     gap: 24rpx;
   }
 
-  .course-img {
-    width: 200rpx;
-    height: 140rpx;
+  .course-img, .vip-icon-box, .print-icon-box {
+    width: 160rpx;
+    height: 160rpx;
     border-radius: 16rpx;
     flex-shrink: 0;
-    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  }
+
+  .vip-icon-box {
+    background: #fff9db;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .print-icon-box {
+    background: #eef5ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .course-info {
@@ -268,9 +441,16 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    min-width: 0;
+    padding: 4rpx 0;
 
     .top-info {
+      .title-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 8rpx;
+      }
+
       .course-name {
         font-size: 30rpx;
         font-weight: 600;
@@ -280,7 +460,8 @@ onMounted(() => {
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 1;
         overflow: hidden;
-        margin-bottom: 12rpx;
+        flex: 1;
+        margin-right: 12rpx;
       }
 
       .course-tag {
@@ -291,6 +472,20 @@ onMounted(() => {
         padding: 4rpx 16rpx;
         border-radius: 8rpx;
         font-weight: 500;
+        flex-shrink: 0;
+      }
+
+      .countdown-row {
+        display: flex;
+        align-items: center;
+        gap: 8rpx;
+        margin-top: 4rpx;
+
+        .countdown-text {
+          font-size: 22rpx;
+          color: #f44336;
+          font-weight: 500;
+        }
       }
     }
 
@@ -303,6 +498,10 @@ onMounted(() => {
         font-size: 24rpx;
         color: #4caf50;
         font-weight: 500;
+
+        &.pending {
+          color: #ff9800;
+        }
       }
 
       .action-link {
@@ -311,6 +510,14 @@ onMounted(() => {
         font-size: 24rpx;
         color: #1a5f8e;
         font-weight: 600;
+
+        &.pay-btn {
+          color: #fff;
+          background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+          padding: 8rpx 24rpx;
+          border-radius: 100rpx;
+          box-shadow: 0 4rpx 12rpx rgba(255, 154, 158, 0.3);
+        }
         
         text {
           margin-right: 4rpx;

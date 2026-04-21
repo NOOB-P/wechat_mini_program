@@ -146,7 +146,7 @@ import '@wangeditor/editor/dist/css/style.css'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/modules/user'
-import { directUploadCourseVideo } from '@/api/course-study/course'
+import { uploadCourseVideo } from '@/api/course-study/course'
 
 const props = defineProps({
   visible: Boolean,
@@ -266,9 +266,8 @@ const beforeVideoUpload = (file: File) => {
 const handleVideoUploadRequest = async (options: UploadRequestOptions) => {
   try {
     const file = options.file as File
-    const videoUrl = await directUploadCourseVideo(file, (percent) => {
-      options.onProgress?.({ percent } as any)
-    })
+    const videoUrl = await uploadCourseVideo(file)
+    options.onProgress?.({ percent: 100 } as any)
     form.value.videoUrl = videoUrl
     formRef.value?.validateField('videoUrl')
     ElMessage.success('视频上传成功')

@@ -1,7 +1,6 @@
 package com.edu.javasb_back.service.impl;
 
 import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
 import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import com.edu.javasb_back.model.dto.PaperOcrAutoCutDTO;
@@ -107,7 +106,6 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     @Autowired private SysClassRepository sysClassRepository;
     @Autowired private SysStudentRepository sysStudentRepository;
     @Autowired private ObjectMapper objectMapper;
-    @Autowired private GlobalConfigProperties globalConfigProperties;
     @Autowired private AliyunPaperOcrService aliyunPaperOcrService;
     @Autowired private OssStorageService ossStorageService;
 
@@ -425,6 +423,18 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         }
         if (studentNoMap.isEmpty() && studentNameMap.isEmpty()) return Result.error("该项目中暂无考试学生数据");
 
+        // 获取学科满分配置
+        ExamProject project = examProjectRepository.findById(projectId).orElse(null);
+        Double fullScore = null;
+        if (project != null) {
+            Map<String, Object> benchmarks = map(project.getSubjectBenchmarks());
+            Map<String, Object> benchmark = nestedMap(benchmarks.get(subjectName));
+            Object totalScoreObj = benchmark.get("totalScore");
+            if (totalScoreObj instanceof Number num) {
+                fullScore = num.doubleValue();
+            }
+        }
+
         List<String> logs = new ArrayList<>();
         List<Map<String, Object>> nameConflicts = new ArrayList<>();
         List<ExamStudentScore> scoresToSave = new ArrayList<>();
@@ -517,6 +527,13 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 }
 
                 if (rowHasError) {
+                    errorCount++;
+                    continue;
+                }
+
+                // 校验总分是否超过学科满分
+                if (fullScore != null && total > fullScore + 0.01) {
+                    logs.add("第" + (rowIndex + 1) + "行: 总分 (" + total + ") 超过学科满分 (" + fullScore + ")");
                     errorCount++;
                     continue;
                 }
@@ -1289,19 +1306,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 return url;
             }
         }
-        Path pdfPath = resolvePaperPath(url);
-        if (pdfPath == null || !Files.exists(pdfPath)) return url;
-
-        String previewFileName = replaceFileExtension(pdfPath.getFileName().toString(), "_preview.png");
-        Path previewPath = pdfPath.getParent().resolve(previewFileName);
-        try {
-            if (!Files.exists(previewPath)) {
-                renderPdfAsLongImage(Files.readAllBytes(pdfPath), previewPath);
-            }
-            return toPaperUrl(previewPath);
-        } catch (Exception ignored) {
-            return url;
-        }
+        return url;
     }
 
     private void renderPdfAsLongImage(byte[] pdfBytes, Path targetPath) throws Exception {
@@ -1358,21 +1363,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 return null;
             }
         }
-        if (!StringUtils.hasText(url) || !url.startsWith("/uploads/papers/")) return null;
-        Path paperRoot = Paths.get(globalConfigProperties.getPaperDir()).toAbsolutePath().normalize();
-        Path resolvedPath = paperRoot.resolve(url.substring("/uploads/papers/".length())).normalize();
-        if (!resolvedPath.startsWith(paperRoot)) return null;
-        return resolvedPath;
-    }
-
-    private String toPaperUrl(Path path) {
-        Path paperRoot = Paths.get(globalConfigProperties.getPaperDir()).toAbsolutePath().normalize();
-        Path normalizedPath = path.toAbsolutePath().normalize();
-        if (!normalizedPath.startsWith(paperRoot)) {
-            throw new IllegalArgumentException("文件路径超出试卷目录范围");
-        }
-        String relativePath = paperRoot.relativize(normalizedPath).toString().replace('\\', '/');
-        return "/uploads/papers/" + relativePath;
+        return null;
     }
 
     private boolean isPdfFile(String fileName) {
@@ -1453,6 +1444,21 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), subject, student);
         
         double total = questionScores.stream().mapToDouble(v -> v == null ? 0D : v).sum();
+        
+        // 校验是否超过学科满分
+        ExamProject project = examProjectRepository.findById(projectId).orElse(null);
+        if (project != null) {
+            Map<String, Object> benchmarks = map(project.getSubjectBenchmarks());
+            Map<String, Object> benchmark = nestedMap(benchmarks.get(subjectName));
+            Object totalScoreObj = benchmark.get("totalScore");
+            if (totalScoreObj instanceof Number fullScoreNum) {
+                double fullScore = fullScoreNum.doubleValue();
+                if (total > fullScore + 0.01) { // 允许极小误差
+                    return Result.error("保存失败：总分 (" + total + ") 超过学科满分 (" + fullScore + ")");
+                }
+            }
+        }
+
         score.setTotalScore(total);
         score.setScoreEntered(Boolean.TRUE);
         try {

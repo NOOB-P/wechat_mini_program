@@ -4,11 +4,40 @@
     <!-- 顶部背景渐变 -->
     <view class="header-bg"></view>
 
-    <view class="sticky-header">
-      <view class="page-title">家庭教育</view>
-      <view class="page-desc">科学育儿，与孩子共同成长</view>
+    <!-- 固定头部区域 -->
+    <view class="fixed-header">
+      <view class="title-section">
+        <view class="page-title">家庭教育</view>
+        <view class="page-desc">科学育儿，与孩子共同成长</view>
+      </view>
+
+      <!-- 搜索和筛选区域 -->
+      <view class="search-filter-section">
+        <view class="search-box">
+          <wd-search
+            v-model="searchKeyword"
+            placeholder="搜索课程名称或内容"
+            hide-cancel
+            @search="handleSearch"
+            @clear="handleSearch"
+            custom-class="custom-search"
+          />
+        </view>
+        <view class="filter-tabs">
+          <view 
+            v-for="tab in filterTabs" 
+            :key="tab.value"
+            class="filter-tab-item"
+            :class="{ active: currentFilter === tab.value }"
+            @click="handleFilterChange(tab.value)"
+          >
+            {{ tab.label }}
+          </view>
+        </view>
+      </view>
     </view>
 
+    <!-- 列表区域 -->
     <scroll-view scroll-y class="list-scroll-view animate-fade-in">
       <view class="list-content" v-if="list.length > 0">
         <view 
@@ -79,9 +108,21 @@ import { useToast } from 'wot-design-uni'
 const list = ref<any[]>([])
 const toast = useToast()
 
+const searchKeyword = ref('')
+const currentFilter = ref('all')
+const filterTabs = [
+  { label: '全部课程', value: 'all' },
+  { label: '免费内容', value: 'free' },
+  { label: '付费精品', value: 'paid' },
+  { label: '已购课程', value: 'purchased' }
+]
+
 const loadData = async () => {
   try {
-    const res = await getFamilyEduListApi()
+    const res = await getFamilyEduListApi({
+      keyword: searchKeyword.value,
+      filter: currentFilter.value
+    })
     if (res.code === 200) {
       // 修正：处理图片路径
       const formattedList = res.data.map((item: any) => {
@@ -100,7 +141,6 @@ const loadData = async () => {
 const handleAction = async (item: any) => {
   if (item.price > 0 && !item.isPurchased) {
     try {
-      toast.loading('正在下单...')
       const res = await buyCourseApi(item.id)
       if (res.code === 200) {
         const orderData = encodeURIComponent(JSON.stringify(res.data))
@@ -112,12 +152,19 @@ const handleAction = async (item: any) => {
       }
     } catch (e) {
       toast.error('网络错误')
-    } finally {
-      toast.close()
     }
   } else {
     handleItemClick(item)
   }
+}
+
+const handleSearch = () => {
+  loadData()
+}
+
+const handleFilterChange = (val: string) => {
+  currentFilter.value = val
+  loadData()
 }
 
 const handleItemClick = (item: any) => {
@@ -137,9 +184,12 @@ onMounted(() => loadData())
 
 <style lang="scss" scoped>
 .list-container {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background-color: #f8f9fa;
   position: relative;
+  overflow: hidden;
 }
 
 .header-bg {
@@ -147,18 +197,20 @@ onMounted(() => loadData())
   top: 0;
   left: 0;
   right: 0;
-  height: 360rpx;
-  background: linear-gradient(135deg, #eef5ff 0%, #f7f8fa 100%);
+  height: 480rpx;
+  background: linear-gradient(180deg, #f0f7ff 0%, #ffffff 100%);
   z-index: 0;
 }
 
-.sticky-header {
-  position: sticky;
-  top: 0;
+.fixed-header {
+  position: relative;
   z-index: 10;
-  padding: 40rpx 40rpx 30rpx;
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(10px);
+  background: transparent;
+  padding-bottom: 20rpx;
+}
+
+.title-section {
+  padding: 40rpx 40rpx 20rpx;
   
   .page-title {
     font-size: 36rpx;
@@ -173,8 +225,55 @@ onMounted(() => loadData())
   }
 }
 
+.search-filter-section {
+  padding: 0 32rpx;
+  
+  .search-box {
+    margin-bottom: 24rpx;
+    
+    :deep(.custom-search) {
+      padding: 0;
+      background: transparent;
+      .wd-search__field {
+        background: #fff;
+        border-radius: 40rpx;
+        box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+      }
+    }
+  }
+  
+  .filter-tabs {
+    display: flex;
+    gap: 16rpx;
+    overflow-x: auto;
+    padding-bottom: 10rpx;
+    
+    &::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .filter-tab-item {
+      flex-shrink: 0;
+      padding: 12rpx 32rpx;
+      background: #f5f5f5;
+      border-radius: 30rpx;
+      font-size: 24rpx;
+      color: #666;
+      transition: all 0.3s;
+      
+      &.active {
+        background: #4facfe;
+        color: #fff;
+        font-weight: bold;
+        box-shadow: 0 4rpx 12rpx rgba(79, 172, 254, 0.3);
+      }
+    }
+  }
+}
+
 .list-scroll-view {
-  height: calc(100vh - 160rpx);
+  flex: 1;
+  height: 0;
   position: relative;
   z-index: 1;
 }

@@ -112,48 +112,13 @@ export function uploadCourseCover(file: File) {
   })
 }
 
-export function fetchCourseVideoUploadSignature(fileName: string, contentType: string) {
-  return request.post<{
-    signedUrl: string
-    publicUrl: string
-    objectKey: string
-    expireAt: number
-  }>({
-    url: '/api/system/course/upload-video-signature',
-    data: { fileName, contentType }
-  })
-}
-
-export function directUploadCourseVideo(file: File, onProgress?: (percent: number) => void) {
-  return fetchCourseVideoUploadSignature(file.name, file.type || 'video/mp4').then((token) => {
-    return new Promise<string>((resolve, reject) => {
-      const xhr = new XMLHttpRequest()
-      xhr.open('PUT', token.signedUrl, true)
-
-      if (file.type) {
-        xhr.setRequestHeader('Content-Type', file.type)
-      }
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          onProgress?.(Math.round((event.loaded / event.total) * 100))
-        }
-      }
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          onProgress?.(100)
-          resolve(token.publicUrl)
-          return
-        }
-        reject(new Error(`视频直传 OSS 失败(${xhr.status})`))
-      }
-
-      xhr.onerror = () => {
-        reject(new Error('视频直传 OSS 失败，请检查网络或 OSS CORS 配置'))
-      }
-
-      xhr.send(file)
-    })
+export function uploadCourseVideo(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post<string>({
+    url: '/api/system/course/upload-video',
+    data: formData,
+    timeout: 10 * 60 * 1000,
+    headers: { 'Content-Type': 'multipart/form-data' }
   })
 }

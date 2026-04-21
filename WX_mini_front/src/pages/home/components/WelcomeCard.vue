@@ -17,7 +17,7 @@ defineProps<{
         <text class="welcome-title">欢迎回来</text>
         <text class="welcome-desc">开启今日专注计划。</text>
       </view>
-      <view class="logo-box">LOGO</view>
+      <image class="logo-img" :src="staticBaseUrl + '/tabbar/logo.png'" mode="aspectFit" />
     </view>
   </view>
 </template>
@@ -95,18 +95,10 @@ defineProps<{
       }
     }
 
-    .logo-box {
+    .logo-img {
       width: 90rpx;
       height: 90rpx;
-      background: linear-gradient(135deg, #7ab0ff, #4d8df5);
-      color: #fff;
-      font-size: 22rpx;
-      display: flex;
-      justify-content: center;
-      align-items: center;
       border-radius: 20rpx;
-      font-weight: 900;
-      box-shadow: 0 4rpx 10rpx rgba(0, 122, 255, 0.2);
       margin-top: 4rpx;
     }
   }

@@ -70,6 +70,15 @@ public class Course {
     private Integer progress = 0;
 
     @Transient
+    private Integer paymentStatus; // 0-待支付, 1-已支付, -1-已过期
+
+    @Transient
+    private String orderNo;
+
+    @Transient
+    private LocalDateTime orderCreateTime;
+
+    @Transient
     private List<CourseEpisode> episodeList;
 
     @Column(name = "create_time", updatable = false)

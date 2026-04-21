@@ -198,7 +198,7 @@ onHide(() => {
 
     <view class="menu-content">
       <view class="menu-card">
-        <wd-cell-group border>
+        <wd-cell-group border="false">
           <wd-cell
             v-for="(item, index) in menuGroup1"
             :key="index"
@@ -214,7 +214,7 @@ onHide(() => {
       </view>
 
       <view class="menu-card">
-        <wd-cell-group border>
+        <wd-cell-group border="false">
           <wd-cell
             v-for="(item, index) in menuGroup2"
             :key="index"
@@ -379,14 +379,36 @@ onHide(() => {
     overflow: hidden;
     margin-bottom: 30rpx;
     box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.02);
+    border: 1rpx solid rgba(0, 0, 0, 0.04); // 微弱边框增强质感
 
     .menu-icon {
-      margin-right: 20rpx;
+      margin-right: 24rpx;
       color: #1a5f8e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40rpx; // 固定图标容器宽度
     }
 
     :deep(.wd-cell) {
-      padding: 30rpx 24rpx;
+      padding: 32rpx 30rpx; // 稍微增大点击区域
+      background-color: #fff;
+      transition: all 0.2s;
+      
+      &::after {
+        left: 94rpx !important; // 边框对齐文字开始位置，更美观
+        right: 0 !important;
+      }
+    }
+
+    :deep(.wd-cell__title) {
+      font-size: 28rpx;
+      color: #333;
+      font-weight: 500;
+    }
+
+    :deep(.wd-cell--hover) {
+      background-color: #f5f7fa !important; // 统一点击背景色
     }
   }
 }
