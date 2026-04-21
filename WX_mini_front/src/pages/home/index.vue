@@ -31,7 +31,7 @@ const recommendCourses = ref<any[]>([])
 const isSVIPUser = ref(false)
 const userInfo = ref<any>({})
 
-const staticBaseUrl = __VITE_SERVER_BASEURL__ + '/static'
+const staticBaseUrl = __VITE_STATIC_BASEURL__
 const systemInfo = uni.getSystemInfoSync()
 const statusBarHeight = ref(systemInfo.statusBarHeight || 44)
 

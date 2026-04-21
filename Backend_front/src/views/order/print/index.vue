@@ -30,6 +30,7 @@
             <el-option label="待配送" :value="3" />
             <el-option label="已完成" :value="4" />
             <el-option label="已取消" :value="0" />
+            <el-option label="已过期" :value="-1" />
           </el-select>
         </el-form-item>
         <el-form-item label="下单日期" prop="dateRange">
@@ -231,7 +232,8 @@
       case 4:
         return 'success' // 已完成
       case 0:
-        return 'danger' // 已取消
+      case -1:
+        return 'danger' // 已取消/已过期
       default:
         return 'info'
     }
@@ -249,6 +251,8 @@
         return '已完成'
       case 0:
         return '已取消'
+      case -1:
+        return '已过期'
       default:
         return '未知'
     }

@@ -61,7 +61,7 @@
 
       <view class="bottom-bar">
         <view class="price-info">
-          <text class="label">总计:</text>
+          <text class="label">合计:</text>
           <text class="symbol">￥</text>
           <text class="num">{{ currentPlans[selectedPlanIndex]?.price || 0 }}</text>
         </view>
@@ -93,9 +93,15 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { createVipOrderApi, createVipPayApi, getVipRechargeConfigApi } from '@/api/vip'
+
 import { getUserInfoApi } from '@/api/mine'
-import { ensureWechatPayBound, requestWechatPay } from '@/utils/wechat-pay'
+import {
+  confirmVipVirtualPayApi,
+  createVipOrderApi,
+  createVipPayApi,
+  getVipRechargeConfigApi
+} from '@/api/vip'
+import { requestWechatPaymentByType } from '@/utils/wechat-pay'
 
 const toast = useToast()
 const isLoaded = ref(false)
@@ -130,7 +136,9 @@ onLoad((options) => {
 const currentConfig = computed(() => vipConfigs.value.find(config => config.tierCode === currentTab.value))
 
 const currentPrivileges = computed(() => {
-  if (!currentConfig.value?.benefits) return []
+  if (!currentConfig.value?.benefits) {
+    return []
+  }
   try {
     const benefits = typeof currentConfig.value.benefits === 'string'
       ? JSON.parse(currentConfig.value.benefits)
@@ -142,7 +150,9 @@ const currentPrivileges = computed(() => {
 })
 
 const currentPlans = computed(() => {
-  if (!Array.isArray(currentConfig.value?.pricings)) return []
+  if (!Array.isArray(currentConfig.value?.pricings)) {
+    return []
+  }
   return currentConfig.value.pricings.map((item: any) => ({
     id: item.id,
     duration: item.pkgName,
@@ -159,9 +169,13 @@ watch(currentTab, () => {
 
 const getStatusText = () => {
   const userInfo = uni.getStorageSync('userInfo')
-  if (userInfo?.isSvip === 1) return '您当前是 SVIP 用户'
-  if (userInfo?.isVip === 1) return '您当前是 VIP 用户'
-  return '未开通会员'
+  if (userInfo?.isSvip === 1) {
+    return '您当前是 SVIP 用户'
+  }
+  if (userInfo?.isVip === 1) {
+    return '您当前是 VIP 用户'
+  }
+  return '暂未开通会员'
 }
 
 const redirectToSchoolStatus = (configData: any) => {
@@ -230,15 +244,19 @@ const refreshUserInfoAfterPay = async () => {
   }
 }
 
-const createVipPayParamsWithRetry = async (orderNo: string) => {
-  try {
-    return await createVipPayApi(orderNo)
-  } catch (error: any) {
-    if (error?.code === 40101) {
-      await ensureWechatPayBound()
-      return createVipPayApi(orderNo)
+const confirmVipVirtualPayWithRetry = async (orderNo: string, security: Record<string, any>) => {
+  for (let index = 0; index < 3; index += 1) {
+    try {
+      return await confirmVipVirtualPayApi(orderNo, security)
+    } catch (error) {
+      if (index === 2) {
+        throw {
+          code: 'PAY_CONFIRM_FAILED',
+          msg: '支付已完成，但会员状态同步失败，请稍后刷新页面'
+        }
+      }
+      await wait(800)
     }
-    throw error
   }
 }
 
@@ -251,7 +269,6 @@ const handlePay = async () => {
   submitting.value = true
   try {
     toast.loading('正在准备支付...')
-    await ensureWechatPayBound()
 
     const createRes = await createVipOrderApi({
       packageType: currentConfig.value.title,
@@ -262,15 +279,33 @@ const handlePay = async () => {
       pricingId: selectedPlan.id
     })
 
-    const payRes = await createVipPayParamsWithRetry(createRes.data.orderNo)
-    await requestWechatPay(payRes.data?.payParams || {})
-    await refreshUserInfoAfterPay()
+    const payRes = await createVipPayApi(createRes.data.orderNo)
+    
+    // 调用统一支付调度器 (由后端返回的 paymentType 决定走哪条路径)
+    await requestWechatPaymentByType(payRes.data?.paymentType, payRes.data?.payParams || {})
 
+    if (payRes.data?.paymentType === 'VIRTUAL') {
+      try {
+        // 虚拟支付：尝试前端确认，如果失败则提示用户正在处理（后端回调作为最终保障）
+        await confirmVipVirtualPayWithRetry(createRes.data.orderNo, payRes.data?.security || {})
+      } catch (confirmError) {
+        console.warn('Virtual pay confirm failed, relying on backend notify', confirmError)
+        toast.show('支付已提交，会员状态更新中...')
+        // 稍等片刻后刷新
+        await wait(2000)
+      }
+    }
+
+    await refreshUserInfoAfterPay()
     toast.success('开通成功')
     redirectAfterSuccess()
   } catch (error: any) {
     if (error?.code === 'PAY_CANCEL') {
       toast.show('已取消支付')
+      return
+    }
+    if (error?.code === 'PAY_CONFIRM_FAILED') {
+      toast.error(error.msg)
       return
     }
     console.error('pay vip failed', error)

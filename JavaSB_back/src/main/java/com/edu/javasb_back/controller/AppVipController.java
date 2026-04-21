@@ -32,7 +32,9 @@ public class AppVipController {
 
     private Long getCurrentUid() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
             return null;
         }
         try {
@@ -52,7 +54,7 @@ public class AppVipController {
         return vipOrderService.createVipOrder(userUid, orderData);
     }
 
-    @LogOperation("App create VIP wechat pay params")
+    @LogOperation("App create VIP pay params")
     @PostMapping("/order/pay")
     public Result<Map<String, Object>> createVipPayParams(@RequestBody Map<String, Object> data) {
         Long userUid = getCurrentUid();
@@ -60,6 +62,18 @@ public class AppVipController {
             return Result.error(401, "请先登录");
         }
         return vipOrderService.createWechatPayParams(userUid, data == null ? null : (String) data.get("orderNo"));
+    }
+
+    @SuppressWarnings("unchecked")
+    @LogOperation("App confirm VIP virtual pay")
+    @PostMapping("/order/pay/confirm")
+    public Result<String> confirmVipVirtualPay(@RequestBody Map<String, Object> data) {
+        Long userUid = getCurrentUid();
+        if (userUid == null) {
+            return Result.error(401, "请先登录");
+        }
+        Map<String, Object> security = data == null ? null : (Map<String, Object>) data.get("security");
+        return vipOrderService.confirmVirtualPayment(userUid, data == null ? null : (String) data.get("orderNo"), security);
     }
 
     @LogOperation("App open school VIP")
@@ -116,6 +130,16 @@ public class AppVipController {
             return Result.error(401, "请先登录");
         }
         return vipService.submitPrintOrder(userUid, orderData);
+    }
+
+    @LogOperation("Get current user VIP orders")
+    @GetMapping("/orders")
+    public Result<List<VipOrder>> getMyVipOrders() {
+        Long userUid = getCurrentUid();
+        if (userUid == null) {
+            return Result.error(401, "请先登录");
+        }
+        return vipOrderService.getMyVipOrders(userUid);
     }
 
     @LogOperation("Mock VIP pay callback")

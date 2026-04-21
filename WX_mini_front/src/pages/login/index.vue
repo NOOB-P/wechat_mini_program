@@ -2,7 +2,7 @@
   <view class="login-container">
     <view class="header">
       <view class="logo-box">
-        <image class="logo-img" src="/static/tabbar/logo.png" mode="aspectFit" />
+        <image class="logo-img" :src="staticBaseUrl + '/tabbar/logo.png'" mode="aspectFit" />
       </view>
     </view>
 
@@ -44,7 +44,7 @@
           </view>
         </wd-tab>
       </wd-tabs>
-
+      <!-- 暂时注释，后续再开启，请不要随意将其注释去除 -->
       <!-- <view v-if="loginType === 'phone'" class="wechat-phone-login">
         <button class="wx-phone-login-btn" open-type="getPhoneNumber" @getphonenumber="handleWechatPhoneLogin">
           <wd-icon name="wechat" size="24px" color="#fff" />
@@ -241,6 +241,7 @@ import {
   thirdPartyLoginApi
 } from '@/api/login'
 
+const staticBaseUrl = __VITE_STATIC_BASEURL__
 const toast = useToast()
 
 const loginType = ref('phone')

@@ -1,11 +1,19 @@
 import request from '@/utils/request'
 
-export const getStudentTalkListApi = () => {
-  return request({ url: '/api/app/resource/student-talk/list', method: 'GET' })
+export const getStudentTalkListApi = (params?: any) => {
+  return request({ 
+    url: '/api/app/resource/student-talk/list', 
+    method: 'GET',
+    data: params 
+  })
 }
 
-export const getFamilyEduListApi = () => {
-  return request({ url: '/api/app/resource/family-edu/list', method: 'GET' })
+export const getFamilyEduListApi = (params?: any) => {
+  return request({ 
+    url: '/api/app/resource/family-edu/list', 
+    method: 'GET',
+    data: params 
+  })
 }
 
 /**

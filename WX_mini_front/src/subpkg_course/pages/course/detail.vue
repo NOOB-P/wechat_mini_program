@@ -108,10 +108,10 @@
           <wd-icon :name="isCollected ? 'star-on' : 'star'" size="22px" :color="isCollected ? '#f6d365' : '#666'" />
           <text>收藏</text>
         </view>
-        <view class="icon-item">
+        <button class="icon-item share-btn" open-type="share">
           <wd-icon name="share" size="22px" color="#666" />
           <text>分享</text>
-        </view>
+        </button>
       </view>
       <wd-button type="primary" custom-class="study-btn" @click="handleAction">
         {{ (courseInfo.price > 0 && !isPurchased) ? '立即购买' : '立即学习' }}
@@ -122,7 +122,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { getCourseDetailApi, collectCourseApi, recordLearningApi, buyCourseApi } from '@/api/course'
 
@@ -302,6 +302,24 @@ const startLearning = async () => {
     console.error('记录学习失败:', e)
   }
 }
+
+// 分享给朋友
+onShareAppMessage(() => {
+  return {
+    title: courseInfo.value.title || '优质好课分享',
+    path: `/subpkg_course/pages/course/detail?id=${courseInfo.value.id}`,
+    imageUrl: courseInfo.value.cover
+  }
+})
+
+// 分享到朋友圈
+onShareTimeline(() => {
+  return {
+    title: courseInfo.value.title || '优质好课分享',
+    query: `id=${courseInfo.value.id}`,
+    imageUrl: courseInfo.value.cover
+  }
+})
 </script>
 
 <style lang="scss" scoped>
@@ -520,6 +538,17 @@ const startLearning = async () => {
       text {
         font-size: 22rpx;
         color: #666;
+      }
+    }
+
+    .share-btn {
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      border: none;
+      outline: none;
+      &::after {
+        border: none;
       }
     }
   }

@@ -4,9 +4,12 @@
 
     <view class="order-info-card">
       <view class="course-brief">
-        <image :src="course.cover" mode="aspectFill" class="cover" />
+        <image v-if="order.type !== 'VIP'" :src="course.cover" mode="aspectFill" class="cover" />
+        <view v-else class="vip-icon-box">
+          <wd-icon :name="order.tierCode === 'SVIP' ? 'diamond' : 'sketch'" size="32px" color="#fff" />
+        </view>
         <view class="info">
-          <text class="title">{{ course.title }}</text>
+          <text class="title">{{ order.type === 'VIP' ? order.title : course.title }}</text>
           <text class="price">￥{{ order.price }}</text>
         </view>
       </view>
@@ -33,7 +36,7 @@
 
     <view class="bottom-bar">
       <view class="total">
-        <text>合计：</text>
+        <text>合计： </text>
         <text class="amount">￥{{ order.price }}</text>
       </view>
       <wd-button type="primary" block :loading="loading" @click="handlePay">立即支付</wd-button>
@@ -45,8 +48,10 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { createCoursePayApi, getCourseDetailApi } from '@/api/course'
-import { ensureWechatPayBound, requestWechatPay } from '@/utils/wechat-pay'
+import { createCoursePayApi, getCourseDetailApi, confirmCourseVirtualPayApi } from '@/api/course'
+import { createVipPayApi } from '@/api/vip'
+import { getUserInfoApi } from '@/api/mine'
+import { ensureWechatPayBound, requestWechatPaymentByType } from '@/utils/wechat-pay'
 
 const toast = useToast()
 const loading = ref(false)
@@ -59,7 +64,9 @@ onLoad((options: any) => {
     return
   }
   order.value = JSON.parse(decodeURIComponent(options.order))
-  loadCourseDetail(order.value.courseId)
+  if (order.value.type !== 'VIP') {
+    loadCourseDetail(order.value.courseId)
+  }
 })
 
 const loadCourseDetail = async (id: string) => {
@@ -73,15 +80,50 @@ const loadCourseDetail = async (id: string) => {
   }
 }
 
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+const confirmCourseVirtualPayWithRetry = async (orderNo: string, security: Record<string, any>) => {
+  for (let index = 0; index < 3; index += 1) {
+    try {
+      const res = await confirmCourseVirtualPayApi(orderNo, security)
+      if (res.code === 200) {
+        return res
+      }
+    } catch (error) {
+      if (index === 2) {
+        throw {
+          code: 'PAY_CONFIRM_FAILED',
+          msg: '支付已完成，但订单状态同步失败，请稍后刷新订单列表'
+        }
+      }
+      await wait(800)
+    }
+  }
+}
+
 const fetchPayParams = async () => {
+  const isVip = order.value.type === 'VIP'
+  const payApi = isVip ? createVipPayApi : createCoursePayApi
+
   try {
-    return await createCoursePayApi(order.value.orderNo)
+    return await payApi(order.value.orderNo)
   } catch (error: any) {
     if (error?.code === 40101) {
       await ensureWechatPayBound()
-      return createCoursePayApi(order.value.orderNo)
+      return payApi(order.value.orderNo)
     }
     throw error
+  }
+}
+
+const refreshUserInfo = async () => {
+  try {
+    const res = await getUserInfoApi()
+    if (res.code === 200) {
+      uni.setStorageSync('userInfo', res.data)
+    }
+  } catch (error) {
+    console.error('refresh user info failed', error)
   }
 }
 
@@ -96,16 +138,42 @@ const handlePay = async () => {
     toast.loading('正在准备支付...')
     await ensureWechatPayBound()
     const payRes = await fetchPayParams()
-    await requestWechatPay(payRes.data?.payParams || {})
+    const paymentType = payRes.data?.paymentType
+    const payParams = payRes.data?.payParams || {}
+
+    await requestWechatPaymentByType(paymentType, payParams)
+
+    if (paymentType === 'VIRTUAL') {
+      try {
+        await confirmCourseVirtualPayWithRetry(order.value.orderNo, payRes.data?.security || {})
+      } catch (confirmError) {
+        console.warn('Course pay confirm failed, relying on backend notify', confirmError)
+        toast.show('支付成功，正在解锁课程...')
+        await wait(2000)
+      }
+    }
+
+    if (order.value.type === 'VIP') {
+      await refreshUserInfo()
+    }
+
     toast.success('支付成功')
     setTimeout(() => {
-      uni.redirectTo({
-        url: '/subpkg_mine/pages/mine/order-list?tab=course'
-      })
+      if (order.value.type === 'VIP') {
+        uni.switchTab({ url: '/pages/home/index' })
+      } else {
+        uni.redirectTo({
+          url: '/subpkg_mine/pages/mine/order-list?tab=course'
+        })
+      }
     }, 1200)
   } catch (error: any) {
     if (error?.code === 'PAY_CANCEL') {
       toast.show('已取消支付')
+      return
+    }
+    if (error?.code === 'PAY_CONFIRM_FAILED') {
+      toast.error(error.msg)
       return
     }
     toast.error(error?.msg || error?.message || '支付失败，请稍后重试')
@@ -115,7 +183,9 @@ const handlePay = async () => {
 }
 
 const formatTime = (time?: string) => {
-  if (!time) return ''
+  if (!time) {
+    return ''
+  }
   return time.replace('T', ' ').slice(0, 19)
 }
 </script>
@@ -144,9 +214,21 @@ const formatTime = (time?: string) => {
 }
 
 .cover {
-  width: 160rpx;
-  height: 120rpx;
+  width: 140rpx;
+  height: 140rpx;
   border-radius: 12rpx;
+  margin-right: 24rpx;
+}
+
+.vip-icon-box {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 12rpx;
+  margin-right: 24rpx;
+  background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .info {

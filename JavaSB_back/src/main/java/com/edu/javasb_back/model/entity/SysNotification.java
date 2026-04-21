@@ -1,8 +1,14 @@
 package com.edu.javasb_back.model.entity;
 
-import jakarta.persistence.*;
-import lombok.Data;
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Data;
 
 @Data
 @Entity
@@ -16,6 +22,9 @@ public class SysNotification {
     private String content;
     private String category;
     private String level;
+    
+    @jakarta.persistence.Transient
+    private String publisher;
     
     @Column(name = "target_type")
     private Integer targetType; // 0-全部用户, 1-指定用户
@@ -49,6 +58,8 @@ public class SysNotification {
     public void setCategory(String category) { this.category = category; }
     public String getLevel() { return level; }
     public void setLevel(String level) { this.level = level; }
+    public String getPublisher() { return publisher; }
+    public void setPublisher(String publisher) { this.publisher = publisher; }
     public Integer getTargetType() { return targetType; }
     public void setTargetType(Integer targetType) { this.targetType = targetType; }
     public Long getTargetUid() { return targetUid; }

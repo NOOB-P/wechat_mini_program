@@ -209,7 +209,11 @@
           </el-table-column>
           <el-table-column prop="studentName" label="姓名" width="120" />
           <el-table-column label="总分" width="90" align="center">
-            <template #default="{ row }">{{ formatScore(row.totalScore) }}</template>
+            <template #default="{ row }">
+              <span :class="{ 'text-danger font-bold': isOverFullScore(row.totalScore) }">
+                {{ formatScore(row.totalScore) }}
+              </span>
+            </template>
           </el-table-column>
           <el-table-column label="小题分" min-width="260">
             <template #default="{ row }">
@@ -266,6 +270,7 @@
       :project-id="projectId"
       :subject-name="subjectName"
       :student="currentStudent"
+      :full-score="currentSubjectBenchmark?.totalScore"
       @saved="loadData"
     />
   </div>
@@ -294,13 +299,19 @@
     ScoreImportConflictItem,
     ScoreImportResult
   } from '@/api/core-business/exam/project-editor'
-  import { fetchProjectOptions } from '@/api/core-business/exam/project'
+  import { fetchProjectOptions, fetchProjectDetail } from '@/api/core-business/exam/project'
 
   const route = useRoute()
   const router = useRouter()
   const loading = ref(false)
   const projectId = computed(() => String(route.query.projectId || ''))
   const subjectName = computed(() => String(route.query.subjectName || ''))
+  const projectDetail = ref<any>(null)
+
+  const currentSubjectBenchmark = computed(() => {
+    if (!projectDetail.value || !subjectName.value) return null
+    return projectDetail.value.benchmarks?.[subjectName.value] || null
+  })
 
   const page = ref(1)
   const pageSize = ref(10)
@@ -566,6 +577,11 @@
     return Number.isInteger(numericValue) ? String(numericValue) : numericValue.toFixed(2)
   }
 
+  function isOverFullScore(score: number) {
+    const full = currentSubjectBenchmark.value?.totalScore
+    return full != null && score > full
+  }
+
   function formatCandidateLabel(item: ScoreImportConflictCandidate) {
     return `${item.studentNo} / ${item.studentName} / ${formatCandidateMeta(item)}`
   }
@@ -632,9 +648,15 @@
     })
   }
 
-  onMounted(() => {
-    loadOptions()
-    loadData()
+  onMounted(async () => {
+    if (projectId.value) {
+      try {
+        projectDetail.value = await fetchProjectDetail(projectId.value)
+      } catch (error) {
+        console.error('加载项目详情失败', error)
+      }
+    }
+    await Promise.all([loadOptions(), loadData()])
   })
 </script>
 

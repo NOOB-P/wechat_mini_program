@@ -12,8 +12,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
   '/auth/bind-student/sendCode': (data) => {
     return {
       code: 200,
-      msg: '验证码已发送 (Mock)',
-      data: '123456'
+      msg: '验证码已发送 (Mock)'
     };
   },
   '/auth/bind-student/confirm': (data) => {
@@ -65,8 +64,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
   '/login/sendCode': (data) => {
     return {
       code: 200,
-      msg: '验证码已发送 (Mock)',
-      data: '114514'
+      msg: '验证码已发送 (Mock)'
     };
   },
   '/login/password': (data) => {

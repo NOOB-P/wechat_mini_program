@@ -28,6 +28,7 @@ import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.repository.VipConfigRepository;
+import com.edu.javasb_back.service.SysNotificationService;
 import com.edu.javasb_back.service.VipService;
 import java.time.LocalDateTime;
 @Service
@@ -54,6 +55,9 @@ public class VipServiceImpl implements VipService {
 
     @Autowired
     private VipConfigRepository vipConfigRepository;
+
+    @Autowired
+    private SysNotificationService notificationService;
 
     /**
      * 内部校验 VIP 状态逻辑
@@ -359,6 +363,7 @@ public class VipServiceImpl implements VipService {
         // 3. 创建订单实体
         PrintOrder order = new PrintOrder();
         order.setOrderNo("POD" + System.currentTimeMillis() + (int)(Math.random() * 900 + 100));
+        order.setUserUid(uid);
         order.setUserName(userName != null ? userName : "微信用户");
         order.setUserPhone(userPhone != null ? userPhone : "");
         order.setDocumentName(documentName);
@@ -370,6 +375,16 @@ public class VipServiceImpl implements VipService {
 
         // 4. 保存入库
         printOrderRepository.save(order);
+
+        // 发送通知给家长
+        com.edu.javasb_back.model.entity.SysNotification notification = new com.edu.javasb_back.model.entity.SysNotification();
+        notification.setTitle("打印订单待支付提醒");
+        notification.setContent("您的孩子发起了试卷打印申请（" + order.getDocumentName() + "），共 " + order.getPages() + " 页，请在10分钟内完成支付。");
+        notification.setPublisher("系统通知");
+        notification.setTargetUid(uid);
+        notification.setIsPublished(1);
+        notification.setCreateTime(LocalDateTime.now());
+        notificationService.saveNotification(notification);
 
         return Result.success("订单已提交，请前往支付", null);
     }

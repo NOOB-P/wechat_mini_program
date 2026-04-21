@@ -10,8 +10,8 @@ public interface CourseService {
     Result<List<Course>> getGeneralCourseList();
     Result<Course> getCourseDetail(Long uid, String courseId);
     Result<List<Course>> getSyncCourseList(String subject, String grade);
-    Result<List<Course>> getFamilyEduList();
-    Result<List<Course>> getStudentTalkList();
+    Result<List<Course>> getFamilyEduList(Long uid, String keyword, String filter);
+    Result<List<Course>> getStudentTalkList(Long uid, String keyword, String filter);
     Result<Map<String, List<Map<String, Object>>>> getSyncCourseOptions();
     
     // 用户交互
