@@ -15,6 +15,7 @@ interface NavigateToOptions {
        "/pages/resource/index" |
        "/subpkg_resource/pages/family-edu" |
        "/subpkg_resource/pages/paper" |
+       "/subpkg_resource/pages/paper-list" |
        "/subpkg_resource/pages/student-talk" |
        "/subpkg_resource/pages/sync-course" |
        "/subpkg_course/pages/course/index" |

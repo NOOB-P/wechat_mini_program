@@ -51,17 +51,6 @@
           />
         </view>
       </view>
-
-      <view class="form-item readonly">
-        <view class="item-label">
-          <wd-icon name="mobile" size="18px" color="#666" class="label-icon" />
-          <text>手机号</text>
-        </view>
-        <view class="item-content">
-          <text class="phone-text">{{ profileForm.phone }}</text>
-          <text class="tip-text">不可修改</text>
-        </view>
-      </view>
     </view>
 
     <!-- 底部操作按钮 -->
@@ -85,8 +74,7 @@ const profileForm = reactive({
   nickname: '',
   avatar: '',
   avatarPreview: '',
-  email: '',
-  phone: ''
+  email: ''
 })
 
 const updateAvatarPreview = (value: string, bustCache = false) => {
@@ -102,7 +90,6 @@ const fetchProfile = async () => {
       profileForm.avatar = getAvatarPath(res.data.avatar)
       updateAvatarPreview(profileForm.avatar)
       profileForm.email = res.data.email
-      profileForm.phone = res.data.phone
     }
   } catch (error) {
     console.error('获取个人资料失败:', error)
@@ -313,19 +300,19 @@ const handleSave = async () => {
   padding: 0 20rpx;
   
   :deep(.wd-button) {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+    background: #4d80f0 !important;
     border: none !important;
     border-radius: 100rpx !important;
     font-weight: bold;
     font-size: 32rpx;
     height: 96rpx !important;
     line-height: 96rpx !important;
-    box-shadow: 0 12rpx 24rpx rgba(79, 172, 254, 0.3);
+    box-shadow: 0 10rpx 20rpx rgba(77, 128, 240, 0.2) !important;
     transition: all 0.3s;
 
     &:active {
       transform: translateY(2rpx);
-      box-shadow: 0 6rpx 12rpx rgba(79, 172, 254, 0.2);
+      box-shadow: 0 5rpx 10rpx rgba(77, 128, 240, 0.1) !important;
     }
   }
 }

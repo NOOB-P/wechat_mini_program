@@ -37,16 +37,23 @@ public class PaperServiceImpl implements PaperService {
         Specification<ExamPaper> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (keyword != null && !keyword.trim().isEmpty()) {
-                predicates.add(criteriaBuilder.like(root.get("title"), "%" + keyword + "%"));
+                String k = "%" + keyword.trim() + "%";
+                predicates.add(criteriaBuilder.or(
+                    criteriaBuilder.like(root.get("title"), k),
+                    criteriaBuilder.like(root.get("subject"), k),
+                    criteriaBuilder.like(root.get("grade"), k),
+                    criteriaBuilder.like(root.get("year"), k),
+                    criteriaBuilder.like(root.get("tags"), k)
+                ));
             }
             if (subject != null && !subject.trim().isEmpty()) {
-                predicates.add(criteriaBuilder.equal(root.get("subject"), subject));
+                predicates.add(criteriaBuilder.equal(root.get("subject"), subject.trim()));
             }
             if (grade != null && !grade.trim().isEmpty()) {
-                predicates.add(criteriaBuilder.equal(root.get("grade"), grade));
+                predicates.add(criteriaBuilder.equal(root.get("grade"), grade.trim()));
             }
             if (type != null && !type.trim().isEmpty()) {
-                predicates.add(criteriaBuilder.equal(root.get("type"), type));
+                predicates.add(criteriaBuilder.equal(root.get("type"), type.trim()));
             }
             if (isRecommend != null) {
                 predicates.add(criteriaBuilder.equal(root.get("isRecommend"), isRecommend));

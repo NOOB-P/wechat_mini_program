@@ -27,7 +27,12 @@
           <text class="section-title">科目分类</text>
         </view>
         <view class="subject-grid">
-          <view class="sub-card" v-for="sub in subjects" :key="sub.name" @click="selectSubject(sub.name)">
+          <view 
+            class="sub-card" 
+            v-for="sub in subjects" 
+            :key="sub.name" 
+            @click="selectSubject(sub.name)"
+          >
             <view class="sub-icon-box" :style="{ background: sub.color + '12' }">
               <wd-icon :name="sub.icon" size="22px" :color="sub.color" />
             </view>
@@ -40,11 +45,13 @@
       <view class="section-block">
         <view class="section-header">
           <text class="section-title">专题专辑</text>
-          <view class="header-more">全部 <wd-icon name="arrow-right" size="12px" /></view>
         </view>
         
         <view class="special-flex">
-          <view class="featured-card" @click="handleSpecial('FAMOUS')">
+          <view 
+            class="featured-card" 
+            @click="handleSpecial('FAMOUS')"
+          >
             <view class="f-content">
               <text class="f-tag">HOT</text>
               <text class="f-title">名校真题</text>
@@ -55,11 +62,17 @@
           </view>
           
           <view class="side-column">
-            <view class="mini-card blue" @click="handleSpecial('MONTHLY')">
+            <view 
+              class="mini-card blue" 
+              @click="handleSpecial('MONTHLY')"
+            >
               <text class="m-title">月考专栏</text>
               <text class="m-desc">阶段提升 查漏补缺</text>
             </view>
-            <view class="mini-card purple" @click="handleSpecial('JOINT')">
+            <view 
+              class="mini-card purple" 
+              @click="handleSpecial('JOINT')"
+            >
               <text class="m-title">联考专辑</text>
               <text class="m-desc">掌握趋势 提前备考</text>
             </view>
@@ -73,22 +86,22 @@
           <view 
             class="tab-pill" 
             :class="{ active: currentTab === 'all' }" 
-            @click="currentTab = 'all'"
+            @click="handleTabChange('all')"
           >全部试卷</view>
           <view 
             class="tab-pill" 
             :class="{ active: currentTab === 'recommend' }" 
-            @click="currentTab = 'recommend'"
+            @click="handleTabChange('recommend')"
           >编辑精选</view>
         </view>
         
         <view class="paper-list">
           <view 
-            class="paper-item-card" 
-            v-for="(item, index) in filteredList" 
-            :key="item.id" 
-            @click="handleItemClick(item)"
-          >
+          class="paper-item-card" 
+          v-for="item in filteredList" 
+          :key="item.id" 
+          @click="handleItemClick(item)"
+        >
             <view class="p-left">
               <view class="p-icon-bg">
                 <wd-icon name="file-word" size="24px" color="#1a5f8e" />
@@ -131,10 +144,11 @@ const subjects = ref<any[]>([])
 const currentTab = ref('all')
 
 const filteredList = computed(() => {
+  let result = list.value
   if (currentTab.value === 'recommend') {
-    return list.value.filter(item => item.isRecommend)
+    result = result.filter(item => item.isRecommend)
   }
-  return list.value
+  return result
 })
 
 const formatTags = (tags: any) => {
@@ -144,10 +158,11 @@ const formatTags = (tags: any) => {
   return tags || []
 }
 
-const loadData = async (type?: string) => {
+const loadData = async () => {
   try {
-    const params: any = { keyword: keyword.value }
-    if (type) params.type = type
+    const params: any = { 
+      keyword: keyword.value
+    }
     const res = await getPaperListApi(params)
     if (res.code === 200) {
       list.value = res.data
@@ -169,12 +184,19 @@ const loadSubjects = async () => {
 }
 
 const selectSubject = (name: string) => {
-  keyword.value = name
-  loadData()
+  uni.navigateTo({
+    url: `/subpkg_resource/pages/paper-list?subject=${name}`
+  })
 }
 
 const handleSpecial = (type: string) => {
-  loadData(type)
+  uni.navigateTo({
+    url: `/subpkg_resource/pages/paper-list?type=${type}`
+  })
+}
+
+const handleTabChange = (tab: string) => {
+  currentTab.value = tab
 }
 
 const handleItemClick = async (item: any) => {
@@ -343,19 +365,30 @@ onMounted(() => {
 }
 
 .sub-card {
-  background: #fff;
-  border-radius: 24rpx;
-  padding: 24rpx 10rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16rpx;
+  gap: 12rpx;
+  padding: 20rpx 0;
+  background: #fff;
+  border-radius: 20rpx;
   transition: all 0.3s;
-  border: 1rpx solid #f0f3f5;
+  border: 2rpx solid transparent;
   
   &:active {
     transform: scale(0.95);
     background: #fafbfc;
+  }
+
+  &.active {
+    background: #eefaf6;
+    border-color: #4facfe;
+    box-shadow: 0 4rpx 12rpx rgba(79, 172, 254, 0.15);
+    
+    .sub-label {
+      color: #1a5f8e;
+      font-weight: bold;
+    }
   }
 
   .sub-icon-box {
@@ -388,6 +421,13 @@ onMounted(() => {
   position: relative;
   overflow: hidden;
   box-shadow: 0 8rpx 20rpx rgba(255, 152, 0, 0.05);
+  border: 4rpx solid transparent;
+  transition: all 0.3s;
+
+  &.active {
+    border-color: #ff6b6b;
+    box-shadow: 0 8rpx 24rpx rgba(255, 107, 107, 0.2);
+  }
 
   .f-content {
     padding: 32rpx;
@@ -457,9 +497,22 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  border: 4rpx solid transparent;
+  transition: all 0.3s;
+
+  &.active {
+    border-color: currentColor;
+    box-shadow: 0 6rpx 16rpx rgba(0, 0, 0, 0.1);
+  }
   
-  &.blue { background: linear-gradient(135deg, #f0f7ff 0%, #e1f0ff 100%); }
-  &.purple { background: linear-gradient(135deg, #f8f0ff 0%, #f0e1ff 100%); }
+  &.blue { 
+    background: linear-gradient(135deg, #f0f7ff 0%, #e1f0ff 100%);
+    color: #4facfe;
+  }
+  &.purple { 
+    background: linear-gradient(135deg, #f8f0ff 0%, #f0e1ff 100%);
+    color: #9b51e0;
+  }
 
   .m-title {
     font-size: 28rpx;

@@ -111,3 +111,14 @@ export function uploadCourseCover(file: File) {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
+
+export function uploadCourseVideo(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post<string>({
+    url: '/api/system/course/upload-video',
+    data: formData,
+    timeout: 10 * 60 * 1000,
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}

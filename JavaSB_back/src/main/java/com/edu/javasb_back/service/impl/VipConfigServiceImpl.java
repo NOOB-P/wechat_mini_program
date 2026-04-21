@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.Set;
 
 @Service
+@Transactional(readOnly = true)
 public class VipConfigServiceImpl implements VipConfigService {
 
     @Autowired
@@ -83,6 +84,7 @@ public class VipConfigServiceImpl implements VipConfigService {
     }
 
     @Override
+    @Transactional
     public Result<VipPricing> updatePricing(VipPricing pricing) {
         VipPricing exist = vipPricingRepository.findById(pricing.getId()).orElse(null);
         if (exist == null) {
@@ -96,6 +98,7 @@ public class VipConfigServiceImpl implements VipConfigService {
     }
 
     @Override
+    @Transactional
     public Result<Void> toggleStatus(Map<String, Object> params) {
         Integer id = (Integer) params.get("id");
         Integer isEnabled = (Integer) params.get("isEnabled");

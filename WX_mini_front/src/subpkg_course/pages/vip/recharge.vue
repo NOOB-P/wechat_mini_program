@@ -13,7 +13,7 @@
         </view>
       </view>
 
-      <view class="type-switch" v-if="vipConfigs.length > 0">
+      <view v-if="vipConfigs.length > 0" class="type-switch">
         <view
           v-for="config in vipConfigs"
           :key="config.id"
@@ -29,16 +29,16 @@
         </view>
       </view>
 
-      <view class="privilege-section" v-if="currentPrivileges.length > 0">
+      <view v-if="currentPrivileges.length > 0" class="privilege-section">
         <view class="section-title">专属特权</view>
         <view class="privilege-tags">
-          <view class="tag-item" v-for="(item, index) in currentPrivileges" :key="index">
+          <view v-for="(item, index) in currentPrivileges" :key="index" class="tag-item">
             {{ item }}
           </view>
         </view>
       </view>
 
-      <view class="plan-section" v-if="currentPlans.length > 0">
+      <view v-if="currentPlans.length > 0" class="plan-section">
         <view class="section-title">选择套餐</view>
         <view class="plan-grid">
           <view
@@ -48,7 +48,7 @@
             :class="{ active: selectedPlanIndex === index }"
             @click="selectedPlanIndex = index"
           >
-            <view class="tag" v-if="plan.tag">{{ plan.tag }}</view>
+            <view v-if="plan.tag" class="tag">{{ plan.tag }}</view>
             <view class="plan-duration">{{ plan.duration }}</view>
             <view class="plan-price">
               <text class="symbol">￥</text>
@@ -65,7 +65,13 @@
           <text class="symbol">￥</text>
           <text class="num">{{ currentPlans[selectedPlanIndex]?.price || 0 }}</text>
         </view>
-        <wd-button type="primary" custom-class="pay-btn" :class="currentTab === 'SVIP' ? 'svip-btn' : ''" @click="handlePay">
+        <wd-button
+          type="primary"
+          custom-class="pay-btn"
+          :class="currentTab === 'SVIP' ? 'svip-btn' : ''"
+          :loading="submitting"
+          @click="handlePay"
+        >
           立即开通
         </wd-button>
       </view>
@@ -87,11 +93,13 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { createVipOrderApi, getVipRechargeConfigApi, simulatePayCallbackApi } from '@/api/vip'
+import { createVipOrderApi, createVipPayApi, getVipRechargeConfigApi } from '@/api/vip'
 import { getUserInfoApi } from '@/api/mine'
+import { ensureWechatPayBound, requestWechatPay } from '@/utils/wechat-pay'
 
 const toast = useToast()
 const isLoaded = ref(false)
+const submitting = ref(false)
 const currentTab = ref('VIP')
 const selectedPlanIndex = ref(0)
 const vipConfigs = ref<any[]>([])
@@ -102,17 +110,10 @@ const redirecting = ref(false)
 const redirectAfterSuccess = () => {
   setTimeout(() => {
     if (redirectSource.value === 'score') {
-      uni.navigateBack({
-        delta: 1,
-        success: () => {
-          // 返回后会自动触发 onShow，重新获取 VIP 状态并刷新数据
-        }
-      })
-    } else {
-      uni.switchTab({
-        url: '/pages/home/index'
-      })
+      uni.navigateBack({ delta: 1 })
+      return
     }
+    uni.switchTab({ url: '/pages/home/index' })
   }, 1200)
 }
 
@@ -126,16 +127,7 @@ onLoad((options) => {
   }
 })
 
-const currentConfig = computed(() => {
-  return vipConfigs.value.find(config => config.tierCode === currentTab.value)
-})
-
-const getStatusText = () => {
-  const userInfo = uni.getStorageSync('userInfo')
-  if (userInfo?.isSvip === 1) return '您当前是 SVIP 用户'
-  if (userInfo?.isVip === 1) return '您当前是 VIP 用户'
-  return '未开通会员'
-}
+const currentConfig = computed(() => vipConfigs.value.find(config => config.tierCode === currentTab.value))
 
 const currentPrivileges = computed(() => {
   if (!currentConfig.value?.benefits) return []
@@ -164,6 +156,13 @@ const currentPlans = computed(() => {
 watch(currentTab, () => {
   selectedPlanIndex.value = 0
 })
+
+const getStatusText = () => {
+  const userInfo = uni.getStorageSync('userInfo')
+  if (userInfo?.isSvip === 1) return '您当前是 SVIP 用户'
+  if (userInfo?.isVip === 1) return '您当前是 VIP 用户'
+  return '未开通会员'
+}
 
 const redirectToSchoolStatus = (configData: any) => {
   redirecting.value = true
@@ -194,11 +193,10 @@ const fetchConfigs = async () => {
       const matchedConfig = vipConfigs.value.find(item => item.tierCode === urlType.value)
       if (matchedConfig) {
         currentTab.value = matchedConfig.tierCode
+      } else if (urlType.value) {
+        redirectToSchoolStatus(configData)
+        return
       } else {
-        if (urlType.value) {
-          redirectToSchoolStatus(configData)
-          return
-        }
         currentTab.value = vipConfigs.value[0].tierCode
       }
     }
@@ -215,13 +213,44 @@ onMounted(() => {
   fetchConfigs()
 })
 
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+const refreshUserInfoAfterPay = async () => {
+  for (let index = 0; index < 3; index += 1) {
+    try {
+      const res = await getUserInfoApi()
+      if (res.code === 200) {
+        uni.setStorageSync('userInfo', res.data)
+        return
+      }
+    } catch (error) {
+      console.error('refresh user info failed', error)
+    }
+    await wait(800)
+  }
+}
+
+const createVipPayParamsWithRetry = async (orderNo: string) => {
+  try {
+    return await createVipPayApi(orderNo)
+  } catch (error: any) {
+    if (error?.code === 40101) {
+      await ensureWechatPayBound()
+      return createVipPayApi(orderNo)
+    }
+    throw error
+  }
+}
+
 const handlePay = async () => {
   const selectedPlan = currentPlans.value[selectedPlanIndex.value]
-  if (!selectedPlan || !currentConfig.value) return
+  if (!selectedPlan || !currentConfig.value || submitting.value) {
+    return
+  }
 
-  toast.loading('正在创建订单...')
+  submitting.value = true
   try {
-    const res = await createVipOrderApi({
+    const createRes = await createVipOrderApi({
       packageType: currentConfig.value.title,
       tierCode: currentConfig.value.tierCode,
       period: selectedPlan.duration,
@@ -230,32 +259,25 @@ const handlePay = async () => {
       pricingId: selectedPlan.id
     })
 
-    if (res.code !== 200) {
-      toast.error(res.msg || '创建订单失败')
-      return
+    if (createRes.code === 200) {
+      const orderData = {
+        ...createRes.data,
+        type: 'VIP',
+        title: `${currentConfig.value.title} - ${selectedPlan.duration}`,
+        price: selectedPlan.price
+      }
+      const orderDataStr = encodeURIComponent(JSON.stringify(orderData))
+      uni.navigateTo({
+        url: `/subpkg_course/pages/course/pay?order=${orderDataStr}`
+      })
+    } else {
+      toast.error(createRes.msg || '下单失败')
     }
-
-    const orderNo = res.data.orderNo
-    toast.loading('正在调起支付...')
-
-    setTimeout(async () => {
-      const payRes = await simulatePayCallbackApi(orderNo)
-      if (payRes.code !== 200) {
-        toast.error(payRes.msg || '支付处理失败')
-        return
-      }
-
-      const userRes = await getUserInfoApi()
-      if (userRes.code === 200) {
-        uni.setStorageSync('userInfo', userRes.data)
-      }
-
-      toast.success('开通成功')
-      redirectAfterSuccess()
-    }, 1500)
-  } catch (error) {
-    console.error('pay vip failed', error)
-    toast.error('网络错误，请稍后重试')
+  } catch (error: any) {
+    console.error('create vip order failed', error)
+    toast.error(error?.msg || error?.message || '下单失败，请稍后重试')
+  } finally {
+    submitting.value = false
   }
 }
 </script>
@@ -272,37 +294,37 @@ const handlePay = async () => {
   padding: 40rpx;
   color: #fff;
   transition: background 0.3s ease;
+}
 
-  &.vip-bg {
-    background: linear-gradient(135deg, #1a5f8e 0%, #00897b 100%);
-  }
+.vip-bg {
+  background: linear-gradient(135deg, #1a5f8e 0%, #00897b 100%);
+}
 
-  &.svip-bg {
-    background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%);
-  }
+.svip-bg {
+  background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%);
+}
 
-  .user-info {
-    display: flex;
-    align-items: center;
-    gap: 30rpx;
-    margin-top: 20rpx;
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 30rpx;
+  margin-top: 20rpx;
+}
 
-    .info-text {
-      display: flex;
-      flex-direction: column;
-      gap: 10rpx;
+.info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
 
-      .name {
-        font-size: 36rpx;
-        font-weight: bold;
-      }
+.name {
+  font-size: 36rpx;
+  font-weight: bold;
+}
 
-      .status {
-        font-size: 24rpx;
-        opacity: 0.8;
-      }
-    }
-  }
+.status {
+  font-size: 24rpx;
+  opacity: 0.8;
 }
 
 .type-switch {
@@ -314,33 +336,33 @@ const handlePay = async () => {
   border-radius: 16rpx;
   background: #fff;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+}
 
-  .switch-item {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10rpx;
-    padding: 30rpx 0;
-    font-size: 30rpx;
-    font-weight: bold;
-    color: #666;
-    transition: all 0.3s;
+.switch-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  padding: 30rpx 0;
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #666;
+  transition: all 0.3s;
+}
 
-    .icon {
-      font-size: 36rpx;
-    }
+.icon {
+  font-size: 36rpx;
+}
 
-    &.active {
-      color: #1a5f8e;
-      background: rgba(26, 95, 142, 0.05);
+.active {
+  color: #1a5f8e;
+  background: rgba(26, 95, 142, 0.05);
+}
 
-      &.svip-active {
-        color: #f6d365;
-        background: rgba(246, 211, 101, 0.1);
-      }
-    }
-  }
+.svip-active {
+  color: #f6d365;
+  background: rgba(246, 211, 101, 0.1);
 }
 
 .section-title {
@@ -355,117 +377,133 @@ const handlePay = async () => {
 .privilege-section,
 .plan-section {
   margin-top: 20rpx;
-  background: #fff;
   padding: 40rpx;
+  background: #fff;
 }
 
 .privilege-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 20rpx;
+}
 
-  .tag-item {
-    background: #f0f4f8;
-    color: #1a5f8e;
-    font-size: 24rpx;
-    padding: 12rpx 24rpx;
-    border-radius: 32rpx;
-    border: 1px solid #e1e8f0;
-    transition: all 0.3s;
-
-    &:active {
-      background: #e1e8f0;
-    }
-  }
+.tag-item {
+  padding: 12rpx 24rpx;
+  border: 1px solid #e1e8f0;
+  border-radius: 32rpx;
+  background: #f0f4f8;
+  color: #1a5f8e;
+  font-size: 24rpx;
 }
 
 .plan-grid {
   display: flex;
   justify-content: space-between;
   gap: 20rpx;
+}
 
-  .plan-item {
-    flex: 1;
-    border: 2rpx solid #eee;
-    border-radius: 16rpx;
-    padding: 40rpx 20rpx;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    position: relative;
-    transition: all 0.3s;
+.plan-item {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 20rpx;
+  border: 2rpx solid #eee;
+  border-radius: 16rpx;
+  transition: all 0.3s;
+}
 
-    .tag {
-      position: absolute;
-      top: -16rpx;
-      left: -2rpx;
-      background: #ff5252;
-      color: #fff;
-      font-size: 20rpx;
-      padding: 4rpx 12rpx;
-      border-radius: 16rpx 0 16rpx 0;
-    }
+.tag {
+  position: absolute;
+  top: -16rpx;
+  left: -2rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 16rpx 0 16rpx 0;
+  background: #ff5252;
+  color: #fff;
+  font-size: 20rpx;
+}
 
-    .plan-duration {
-      font-size: 28rpx;
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 20rpx;
-    }
+.plan-duration {
+  margin-bottom: 20rpx;
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
+}
 
-    .plan-price {
-      color: #f44336;
-      margin-bottom: 10rpx;
-      .symbol { font-size: 24rpx; }
-      .num { font-size: 48rpx; font-weight: bold; }
-    }
+.plan-price {
+  margin-bottom: 10rpx;
+  color: #f44336;
+}
 
-    .plan-origin {
-      font-size: 24rpx;
-      color: #999;
-      text-decoration: line-through;
-    }
+.symbol {
+  font-size: 24rpx;
+}
 
-    &.active {
-      background: rgba(246, 211, 101, 0.1);
-      border-color: #f6d365;
-      .plan-duration { color: #8a6d3b; }
-    }
-  }
+.num {
+  font-size: 48rpx;
+  font-weight: bold;
+}
+
+.plan-origin {
+  font-size: 24rpx;
+  color: #999;
+  text-decoration: line-through;
+}
+
+.plan-item.active {
+  border-color: #f6d365;
+  background: rgba(246, 211, 101, 0.1);
+}
+
+.plan-item.active .plan-duration {
+  color: #8a6d3b;
 }
 
 .bottom-bar {
   position: fixed;
   bottom: 0;
   left: 0;
+  z-index: 100;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   width: 100%;
   height: 120rpx;
+  padding: 0 40rpx;
   background: #fff;
   box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 40rpx;
-  box-sizing: border-box;
-  z-index: 100;
+}
 
-  .price-info {
-    .label { font-size: 28rpx; color: #333; margin-right: 10rpx; }
-    .symbol { font-size: 24rpx; color: #f44336; }
-    .num { font-size: 48rpx; color: #f44336; font-weight: bold; }
-  }
+.label {
+  margin-right: 10rpx;
+  font-size: 28rpx;
+  color: #333;
+}
 
-  .pay-btn {
-    width: 240rpx !important;
-    border-radius: 40rpx !important;
-    background: linear-gradient(135deg, #1a5f8e 0%, #00897b 100%) !important;
-    border: none !important;
+.price-info .symbol {
+  font-size: 24rpx;
+  color: #f44336;
+}
 
-    &.svip-btn {
-      background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%) !important;
-      color: #f6d365 !important;
-    }
-  }
+.price-info .num {
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #f44336;
+}
+
+.pay-btn {
+  width: 240rpx !important;
+  border: none !important;
+  border-radius: 40rpx !important;
+  background: linear-gradient(135deg, #1a5f8e 0%, #00897b 100%) !important;
+}
+
+.svip-btn {
+  background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%) !important;
+  color: #f6d365 !important;
 }
 
 .loading-box,

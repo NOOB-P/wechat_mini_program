@@ -2,7 +2,7 @@
   <view class="about-container">
     <!-- 顶部 Logo 区域 -->
     <view class="logo-section">
-      <image class="logo" src="/static/tabbar/logo.png" mode="aspectFit" />
+      <image class="logo" :src="staticBaseUrl + '/tabbar/logo.png'" mode="aspectFit" />
       <text class="app-name">优题慧</text>
       <text class="version">v1.0.0</text>
     </view>
@@ -46,6 +46,7 @@
 <script setup lang="ts">
 import { useToast } from 'wot-design-uni'
 
+const staticBaseUrl = __VITE_STATIC_BASEURL__
 const toast = useToast()
 
 const copyText = (text: string) => {

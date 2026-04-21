@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ import java.util.Optional;
  * 打印订单服务实现类
  */
 @Service
+@Transactional(readOnly = true)
 public class PrintOrderServiceImpl implements PrintOrderService {
 
     @Autowired
@@ -50,6 +52,16 @@ public class PrintOrderServiceImpl implements PrintOrderService {
                 pageable
         );
         
+        LocalDateTime now = LocalDateTime.now();
+        page.getContent().forEach(order -> {
+            // 动态处理过期状态：待支付(1) 且 超过10分钟
+            if (order.getOrderStatus() != null && order.getOrderStatus() == 1) {
+                if (order.getCreateTime() != null && order.getCreateTime().plusMinutes(10).isBefore(now)) {
+                    order.setOrderStatus(-1); // -1 表示已过期
+                }
+            }
+        });
+
         Map<String, Object> resultData = new HashMap<>();
         resultData.put("records", page.getContent());
         resultData.put("total", page.getTotalElements());
@@ -62,7 +74,17 @@ public class PrintOrderServiceImpl implements PrintOrderService {
     @Override
     public Result<PrintOrder> findById(Long id) {
         Optional<PrintOrder> order = printOrderRepository.findById(id);
-        return order.map(Result::success).orElseGet(() -> Result.error("订单不存在"));
+        if (order.isPresent()) {
+            PrintOrder o = order.get();
+            // 详情页也需要动态处理状态
+            if (o.getOrderStatus() != null && o.getOrderStatus() == 1) {
+                if (o.getCreateTime() != null && o.getCreateTime().plusMinutes(10).isBefore(LocalDateTime.now())) {
+                    o.setOrderStatus(-1);
+                }
+            }
+            return Result.success(o);
+        }
+        return Result.error("订单不存在");
     }
 
     @Override
@@ -84,7 +106,7 @@ public class PrintOrderServiceImpl implements PrintOrderService {
 
     @Override
     public List<PrintOrder> getPrintOrderExportList(String orderNo, String userName, Integer orderStatus, String startDate, String endDate) {
-        return printOrderRepository.findByParams(
+        List<PrintOrder> list = printOrderRepository.findByParams(
                 normalizeKeyword(orderNo),
                 normalizeKeyword(userName),
                 orderStatus,
@@ -92,27 +114,51 @@ public class PrintOrderServiceImpl implements PrintOrderService {
                 parseEndDateTime(endDate),
                 Sort.by(Sort.Direction.DESC, "createTime")
         );
+        
+        LocalDateTime now = LocalDateTime.now();
+        list.forEach(order -> {
+            // 动态处理过期状态：待支付(1) 且 超过10分钟
+            if (order.getOrderStatus() != null && order.getOrderStatus() == 1) {
+                if (order.getCreateTime() != null && order.getCreateTime().plusMinutes(10).isBefore(now)) {
+                    order.setOrderStatus(-1); // -1 表示已过期
+                }
+            }
+        });
+        return list;
     }
 
     @Override
     public Result<List<PrintOrder>> getMyPrintOrders(Long uid) {
-        if (uid == null) {
-            return Result.error("用户未登录");
-        }
+        String phone = sysAccountRepository.findById(uid)
+                .map(com.edu.javasb_back.model.entity.SysAccount::getPhone)
+                .orElse(null);
         
-        Optional<com.edu.javasb_back.model.entity.SysAccount> accountOptional = sysAccountRepository.findById(uid);
-        if (accountOptional.isEmpty()) {
-            return Result.error("用户不存在");
-        }
-        
-        String phone = accountOptional.get().getPhone();
-        if (phone == null || phone.isEmpty()) {
+        if (phone == null) {
             return Result.success(List.of());
         }
-        
-        // 假设目前是通过手机号匹配订单
-        List<PrintOrder> orders = printOrderRepository.findByParams(null, phone, null, null, null, Sort.by(Sort.Direction.DESC, "createTime"));
-        return Result.success(orders);
+
+        List<PrintOrder> orders = printOrderRepository.findByUserPhoneOrderByCreateTimeDesc(phone);
+        if (orders.isEmpty()) {
+            return Result.success(List.of());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        List<PrintOrder> validOrders = new ArrayList<>();
+
+        for (PrintOrder order : orders) {
+            // 已支付订单（待打印、待配送、已完成）
+            if (order.getOrderStatus() != null && (order.getOrderStatus() >= 2)) {
+                validOrders.add(order);
+            } 
+            // 待支付订单（orderStatus = 1），需检查是否在10分钟内
+            else if (order.getOrderStatus() != null && order.getOrderStatus() == 1) {
+                if (order.getCreateTime() != null && order.getCreateTime().plusMinutes(10).isAfter(now)) {
+                    validOrders.add(order);
+                }
+            }
+        }
+
+        return Result.success(validOrders);
     }
 
     private String normalizeKeyword(String keyword) {

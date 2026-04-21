@@ -31,14 +31,29 @@ public interface CourseRepository extends JpaRepository<Course, String> {
     /**
      * 使用 SQL 原生语句查询家庭教育列表
      */
-    @Query(value = "SELECT * FROM courses WHERE type = 'family' AND status = 1 ORDER BY create_time DESC", nativeQuery = true)
-    List<Course> findFamilyEduListSql();
+    @Query(value = "SELECT * FROM courses WHERE type = 'family' AND status = 1 " +
+                   "AND (:keyword IS NULL OR title LIKE CONCAT('%', :keyword, '%') OR content LIKE CONCAT('%', :keyword, '%')) " +
+                   "AND (:isFree IS NULL OR (price = 0) = :isFree) " +
+                   "ORDER BY create_time DESC", nativeQuery = true)
+    List<Course> findFamilyEduListSql(@Param("keyword") String keyword, @Param("isFree") Boolean isFree);
 
     /**
      * 使用 SQL 原生语句查询所有学霸说列表
      */
-    @Query(value = "SELECT * FROM courses WHERE type = 'talk' AND status = 1 ORDER BY create_time DESC", nativeQuery = true)
-    List<Course> findStudentTalkListSql();
+    @Query(value = "SELECT * FROM courses WHERE type = 'talk' AND status = 1 " +
+                   "AND (:keyword IS NULL OR title LIKE CONCAT('%', :keyword, '%') OR content LIKE CONCAT('%', :keyword, '%')) " +
+                   "AND (:isFree IS NULL OR (price = 0) = :isFree) " +
+                   "ORDER BY create_time DESC", nativeQuery = true)
+    List<Course> findStudentTalkListSql(@Param("keyword") String keyword, @Param("isFree") Boolean isFree);
+
+    /**
+     * 查询已购买的特定类型的课程
+     */
+    @Query(value = "SELECT c.* FROM courses c JOIN course_orders co ON c.id = co.course_id " +
+                   "WHERE c.type = :type AND c.status = 1 AND co.user_uid = :uid AND co.payment_status = 1 " +
+                   "AND (:keyword IS NULL OR c.title LIKE CONCAT('%', :keyword, '%') OR c.content LIKE CONCAT('%', :keyword, '%')) " +
+                   "ORDER BY co.update_time DESC", nativeQuery = true)
+    List<Course> findPurchasedCoursesByTypeSql(@Param("uid") Long uid, @Param("type") String type, @Param("keyword") String keyword);
 
     /**
      * 详情查询

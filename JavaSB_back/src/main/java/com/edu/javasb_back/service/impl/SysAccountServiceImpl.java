@@ -1,5 +1,32 @@
 package com.edu.javasb_back.service.impl;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.exception.ExcelAnalysisException;
 import com.edu.javasb_back.common.Result;
@@ -10,7 +37,6 @@ import com.edu.javasb_back.model.dto.AccountUpdateDTO;
 import com.edu.javasb_back.model.dto.ParentImportDTO;
 import com.edu.javasb_back.model.entity.StudentParentBinding;
 import com.edu.javasb_back.model.entity.SysAccount;
-import com.edu.javasb_back.model.entity.SysClass;
 import com.edu.javasb_back.model.entity.SysRole;
 import com.edu.javasb_back.model.entity.SysSchool;
 import com.edu.javasb_back.model.entity.SysStudent;
@@ -25,33 +51,6 @@ import com.edu.javasb_back.service.RolePermissionService;
 import com.edu.javasb_back.service.SysAccountService;
 import com.edu.javasb_back.utils.JwtUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.client.RestTemplate;
-
-import java.time.LocalDateTime;
-import java.util.*;
 
 @Service
 public class SysAccountServiceImpl implements SysAccountService {
@@ -335,6 +334,48 @@ public class SysAccountServiceImpl implements SysAccountService {
 
         smsCodeMap.remove(phone);
         return generateLoginResult(loginAccount);
+    }
+
+    @Override
+    @Transactional
+    public Result<Map<String, Object>> bindWechat(Long uid, String code) {
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
+        if (!StringUtils.hasText(code)) {
+            return Result.error("微信登录凭证不能为空");
+        }
+
+        Optional<SysAccount> accountOptional = accountRepository.findById(uid);
+        if (accountOptional.isEmpty()) {
+            return Result.error("用户不存在");
+        }
+
+        try {
+            String openid = extractWechatOpenid(code);
+            SysAccount account = accountOptional.get();
+
+            Optional<SysAccount> existAccountOptional = accountRepository.findByWxid(openid);
+            if (existAccountOptional.isPresent() && !existAccountOptional.get().getUid().equals(uid)) {
+                return Result.error(409, "该微信账号已绑定其他用户");
+            }
+
+            if (StringUtils.hasText(account.getWxid()) && !openid.equals(account.getWxid())) {
+                return Result.error(409, "当前账号已绑定其他微信账号");
+            }
+
+            account.setWxid(openid);
+            accountRepository.save(account);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("openid", openid);
+            return Result.success("微信绑定成功", result);
+        } catch (IllegalStateException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("微信绑定异常: " + e.getMessage());
+        }
     }
 
     @Override

@@ -45,11 +45,25 @@ import com.edu.javasb_back.repository.ExamStudentScoreRepository;
 import com.edu.javasb_back.repository.ExamSubjectRepository;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
+import com.edu.javasb_back.service.OssStorageService;
 import com.edu.javasb_back.service.ScoreService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.imageio.ImageIO;
+
+record QuestionScoreContext(
+        String classId,
+        String schoolId,
+        String grade,
+        List<Double> questionScores) {}
+
+record QuestionScoreMetrics(
+        double highestScore,
+        double classAvgScore,
+        double schoolAvgScore,
+        double gradeAvgScore,
+        double projectAvgScore) {}
 
 @Service
 public class ScoreServiceImpl implements ScoreService {
@@ -83,6 +97,9 @@ public class ScoreServiceImpl implements ScoreService {
 
     @Autowired
     private GlobalConfigProperties globalConfigProperties;
+
+    @Autowired
+    private OssStorageService ossStorageService;
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final Map<String, Double> DEFAULT_FULL_SCORES = new LinkedHashMap<>();
@@ -438,12 +455,12 @@ public class ScoreServiceImpl implements ScoreService {
         data.put("score", roundScore(studentScore.getTotalScore()));
         data.put("fullScore", roundScore(fullScore));
         data.put("teacherComment", buildTeacherComment(targetSubject, answers));
-        data.put("myPaperImages", collectPaperImages(studentScore.getAnswerSheetUrl()));
+        data.put("myPaperImages", collectPaperImages(ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl())));
         data.put("examPaperImages", collectPaperImages(
-                StringUtils.hasText(classSubject.getPaperUrl()) ? classSubject.getPaperUrl() : classSubject.getAnswerUrl()
+                ossStorageService.toCdnUrl(StringUtils.hasText(classSubject.getPaperUrl()) ? classSubject.getPaperUrl() : classSubject.getAnswerUrl())
         ));
         data.put("questionScores", answers);
-        data.put("downloadUrl", StringUtils.hasText(classSubject.getPaperUrl()) ? classSubject.getPaperUrl() : studentScore.getAnswerSheetUrl());
+        data.put("downloadUrl", ossStorageService.toCdnUrl(StringUtils.hasText(classSubject.getPaperUrl()) ? classSubject.getPaperUrl() : studentScore.getAnswerSheetUrl()));
         return Result.success(data);
     }
 
@@ -1079,8 +1096,8 @@ public class ScoreServiceImpl implements ScoreService {
                 row.put("highestScore", roundScore(bestScore));
                 row.put("wrongReason", buildWrongReason(personal, bestScore));
                 row.put("explanation", buildWrongExplanation(subjectName, index + 1, personal, bestScore));
-                row.put("paperUrl", studentScore.getAnswerSheetUrl());
-                row.put("paperRegion", buildPaperRegion(region, studentScore.getAnswerSheetUrl()));
+                row.put("paperUrl", ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl()));
+                row.put("paperRegion", buildPaperRegion(region, ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl())));
                 row.put("sliceImageUrl", createQuestionSliceUrl(
                         studentScore.getAnswerSheetUrl(),
                         region,
@@ -1121,7 +1138,7 @@ public class ScoreServiceImpl implements ScoreService {
             row.put("gradeAvgScore", roundScore(metrics.gradeAvgScore()));
             row.put("projectAvgScore", roundScore(metrics.projectAvgScore()));
             row.put("isBest", metrics.highestScore() > 0 && personal >= metrics.highestScore());
-            row.put("paperRegion", buildPaperRegion(region, studentScore.getAnswerSheetUrl()));
+            row.put("paperRegion", buildPaperRegion(region, ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl())));
             answers.add(row);
         }
         return answers;
@@ -1294,12 +1311,13 @@ public class ScoreServiceImpl implements ScoreService {
         if (!StringUtils.hasText(sourceUrl) || region == null || region.isEmpty()) {
             return "";
         }
+        Path tempPath = null;
         try {
-            Path sourcePath = resolvePaperPath(sourceUrl);
-            if (sourcePath == null || !Files.exists(sourcePath)) {
+            tempPath = resolvePaperPath(sourceUrl);
+            if (tempPath == null || !Files.exists(tempPath)) {
                 return "";
             }
-            BufferedImage image = ImageIO.read(sourcePath.toFile());
+            BufferedImage image = ImageIO.read(tempPath.toFile());
             if (image == null) {
                 return "";
             }
@@ -1318,40 +1336,45 @@ public class ScoreServiceImpl implements ScoreService {
                 return "";
             }
 
-            Path outputDir = Paths.get(globalConfigProperties.getPaperDir())
-                    .resolve("exam-projects")
-                    .resolve(safePathSegment(projectId))
-                    .resolve(safePathSegment(subjectName))
-                    .resolve("slices");
-            Files.createDirectories(outputDir);
-
             String questionNo = normalizeQuestionNo(stringValue(region.get("questionNo")), 1);
             String hash = Integer.toHexString((sourceUrl + "|" + xRatio + "|" + yRatio + "|" + widthRatio + "|" + heightRatio).hashCode());
             String fileName = safePathSegment(category) + "_" + safePathSegment(uniqueKey) + "_q" + questionNo + "_" + hash + ".png";
-            Path outputPath = outputDir.resolve(fileName);
-            if (!Files.exists(outputPath)) {
-                BufferedImage cropped = image.getSubimage(x, y, width, height);
-                ImageIO.write(cropped, "png", outputPath.toFile());
-            }
-            return "/uploads/papers/exam-projects/"
+            
+            String objectKey = "papers/exam-projects/"
                     + safePathSegment(projectId) + "/"
                     + safePathSegment(subjectName) + "/slices/"
                     + fileName;
+
+            BufferedImage cropped = image.getSubimage(x, y, width, height);
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            ImageIO.write(cropped, "png", baos);
+            return ossStorageService.uploadBytes(baos.toByteArray(), objectKey, "image/png");
         } catch (Exception ignored) {
             return "";
+        } finally {
+            if (tempPath != null && ossStorageService.isOssUrl(sourceUrl)) {
+                try { Files.deleteIfExists(tempPath); } catch (Exception ignored) {}
+            }
         }
     }
 
     private Path resolvePaperPath(String url) {
-        if (!StringUtils.hasText(url) || !url.startsWith("/uploads/papers/")) {
-            return null;
+        if (!StringUtils.hasText(url)) return null;
+        if (ossStorageService.isOssUrl(url)) {
+            try {
+                return ossStorageService.downloadToTempFile(url);
+            } catch (Exception e) {
+                return null;
+            }
         }
-        Path paperRoot = Paths.get(globalConfigProperties.getPaperDir()).toAbsolutePath().normalize();
-        Path resolvedPath = paperRoot.resolve(url.substring("/uploads/papers/".length())).normalize();
-        if (!resolvedPath.startsWith(paperRoot)) {
-            return null;
+        if (url.startsWith("/uploads/papers/")) {
+            Path paperRoot = Paths.get(globalConfigProperties.getPaperDir()).toAbsolutePath().normalize();
+            Path resolvedPath = paperRoot.resolve(url.substring("/uploads/papers/".length())).normalize();
+            if (resolvedPath.startsWith(paperRoot)) {
+                return resolvedPath;
+            }
         }
-        return resolvedPath;
+        return null;
     }
 
     private String safePathSegment(String value) {
@@ -1420,17 +1443,4 @@ public class ScoreServiceImpl implements ScoreService {
         String normalized = raw.replaceAll("[^0-9]", "");
         return StringUtils.hasText(normalized) ? normalized : String.valueOf(fallback);
     }
-
-    private record QuestionScoreContext(
-            String classId,
-            String schoolId,
-            String grade,
-            List<Double> questionScores) {}
-
-    private record QuestionScoreMetrics(
-            double highestScore,
-            double classAvgScore,
-            double schoolAvgScore,
-            double gradeAvgScore,
-            double projectAvgScore) {}
 }

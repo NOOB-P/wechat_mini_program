@@ -18,6 +18,11 @@ public interface CourseOrderService {
     void paySuccess(String orderNo);
 
     /**
+     * 生成课程订单微信支付参数
+     */
+    com.edu.javasb_back.common.Result<java.util.Map<String, Object>> createWechatPayParams(Long userUid, String orderNo);
+
+    /**
      * 检查用户是否已购买某课程
      */
     boolean isCoursePurchased(Long userUid, String courseId);

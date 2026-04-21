@@ -1,5 +1,6 @@
 package com.edu.javasb_back.service.impl;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -7,23 +8,21 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.Course;
-import com.edu.javasb_back.repository.CourseInteractionRepository;
-import com.edu.javasb_back.repository.CourseRepository;
-import com.edu.javasb_back.service.CourseService;
-import com.edu.javasb_back.service.CourseOrderService;
-
 import com.edu.javasb_back.model.entity.CourseEpisode;
 import com.edu.javasb_back.model.entity.CourseVideo;
 import com.edu.javasb_back.repository.CourseEpisodeRepository;
+import com.edu.javasb_back.repository.CourseInteractionRepository;
+import com.edu.javasb_back.repository.CourseRepository;
 import com.edu.javasb_back.repository.CourseVideoRepository;
-import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
+import com.edu.javasb_back.service.CourseOrderService;
+import com.edu.javasb_back.service.CourseService;
 
 @Service
+@Transactional(readOnly = true)
 public class CourseServiceImpl implements CourseService {
 
     @Autowired
@@ -47,6 +46,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public Result<Course> getCourseDetail(Long uid, String courseId) {
         Optional<Course> courseOpt = courseRepository.findByIdSql(courseId);
         if (courseOpt.isPresent()) {
@@ -77,13 +77,35 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
-    public Result<List<Course>> getFamilyEduList() {
-        return Result.success(courseRepository.findFamilyEduListSql());
+    public Result<List<Course>> getFamilyEduList(Long uid, String keyword, String filter) {
+        String normalizedKeyword = normalizeKeyword(keyword);
+        if ("purchased".equals(filter)) {
+            if (uid == null) return Result.error(401, "请先登录");
+            return Result.success(courseRepository.findPurchasedCoursesByTypeSql(uid, "family", normalizedKeyword));
+        }
+        Boolean isFree = null;
+        if ("free".equals(filter)) isFree = true;
+        else if ("paid".equals(filter)) isFree = false;
+        
+        return Result.success(courseRepository.findFamilyEduListSql(normalizedKeyword, isFree));
     }
 
     @Override
-    public Result<List<Course>> getStudentTalkList() {
-        return Result.success(courseRepository.findStudentTalkListSql());
+    public Result<List<Course>> getStudentTalkList(Long uid, String keyword, String filter) {
+        String normalizedKeyword = normalizeKeyword(keyword);
+        if ("purchased".equals(filter)) {
+            if (uid == null) return Result.error(401, "请先登录");
+            return Result.success(courseRepository.findPurchasedCoursesByTypeSql(uid, "talk", normalizedKeyword));
+        }
+        Boolean isFree = null;
+        if ("free".equals(filter)) isFree = true;
+        else if ("paid".equals(filter)) isFree = false;
+        
+        return Result.success(courseRepository.findStudentTalkListSql(normalizedKeyword, isFree));
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return keyword == null || keyword.trim().isEmpty() ? null : keyword.trim();
     }
 
     @Override
@@ -95,6 +117,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public Result<Void> collectCourse(Long uid, String courseId, boolean isCollect) {
         if (isCollect) {
             interactionRepository.addCollectionSql(uid, courseId);
@@ -105,6 +128,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public Result<Void> recordLearning(Long uid, String courseId, Integer progress) {
         interactionRepository.recordStudyRecordSql(uid, courseId, progress);
         return Result.success("学习记录已更新", null);
@@ -131,6 +155,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public Result<Void> addCourse(Course course) {
         if (course.getId() == null || course.getId().isEmpty()) {
             course.setId("CRS" + System.currentTimeMillis());
@@ -140,6 +165,7 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public Result<Void> updateCourse(Course course) {
         if (course.getId() == null || !courseRepository.existsById(course.getId())) {
             return Result.error("课程不存在");
@@ -149,12 +175,14 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    @Transactional
     public Result<Void> deleteCourse(String id) {
         courseRepository.deleteById(id);
         return Result.success("删除成功", null);
     }
 
     @Override
+    @Transactional
     public Result<Void> changeStatus(String id, Integer status) {
         Optional<Course> courseOpt = courseRepository.findById(id);
         if (courseOpt.isPresent()) {

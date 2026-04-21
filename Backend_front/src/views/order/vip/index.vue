@@ -31,6 +31,7 @@
             <el-option :label="text.pending" :value="0" />
             <el-option :label="text.paid" :value="1" />
             <el-option :label="text.refunded" :value="2" />
+            <el-option :label="text.expired" :value="-1" />
           </el-select>
         </el-form-item>
         <el-form-item :label="text.dateRange" prop="dateRange">
@@ -212,6 +213,7 @@
     pending: '待支付',
     paid: '已支付',
     refunded: '已退款',
+    expired: '已过期',
     onlinePurchase: '在线购买',
     schoolGift: '校讯通赠送',
     loadFailed: '获取 VIP 订单列表失败',
@@ -325,6 +327,7 @@
       case 1:
         return 'success'
       case 2:
+      case -1:
         return 'danger'
       default:
         return 'info'
@@ -337,6 +340,8 @@
         return text.paid
       case 2:
         return text.refunded
+      case -1:
+        return text.expired
       default:
         return text.pending
     }

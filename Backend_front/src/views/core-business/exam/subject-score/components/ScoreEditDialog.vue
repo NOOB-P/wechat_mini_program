@@ -44,9 +44,15 @@
         </div>
       </div>
 
-      <div class="total-summary">
-        <span class="label">总分:</span>
-        <span class="value">{{ totalScore }}</span>
+      <div class="total-summary" :class="{ 'is-over': isOverScore }">
+        <div class="total-left">
+          <span class="label">总分:</span>
+          <span class="value">{{ totalScore }}</span>
+        </div>
+        <div v-if="isOverScore" class="over-hint">
+          <el-icon><Warning /></el-icon>
+          已超过学科满分 ({{ fullScore }}分)
+        </div>
       </div>
     </div>
 
@@ -61,8 +67,8 @@
 
 <script setup lang="ts">
   import { ref, watch, computed } from 'vue'
-  import { Plus, Delete } from '@element-plus/icons-vue'
-  import { ElMessage } from 'element-plus'
+  import { Plus, Delete, Warning } from '@element-plus/icons-vue'
+  import { ElMessage, ElMessageBox } from 'element-plus'
   import { fetchSaveStudentScore } from '@/api/core-business/exam/project-editor'
 
   const props = defineProps<{
@@ -70,6 +76,7 @@
     projectId: string
     subjectName: string
     student: any | null
+    fullScore?: number
   }>()
 
   const emit = defineEmits<{
@@ -100,8 +107,16 @@
     }
   )
 
+  const totalScoreValue = computed(() => {
+    return questionScores.value.reduce((sum, s) => sum + (s || 0), 0)
+  })
+
   const totalScore = computed(() => {
-    return questionScores.value.reduce((sum, s) => sum + (s || 0), 0).toFixed(1)
+    return totalScoreValue.value.toFixed(1)
+  })
+
+  const isOverScore = computed(() => {
+    return props.fullScore != null && totalScoreValue.value > props.fullScore
   })
 
   function addQuestion() {
@@ -118,6 +133,22 @@
 
   async function handleSave() {
     if (!props.student) return
+
+    if (isOverScore.value) {
+      try {
+        await ElMessageBox.confirm(
+          `当前总分 (${totalScore.value}) 已超过学科满分 (${props.fullScore})，是否确认保存？`,
+          '成绩超限提醒',
+          {
+            confirmButtonText: '继续保存',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+      } catch {
+        return
+      }
+    }
 
     saving.value = true
     try {
@@ -218,9 +249,34 @@
     background: #f8fafc;
     border-radius: 8px;
     display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    transition: all 0.3s;
+
+    &.is-over {
+      background: #fff1f0;
+      border: 1px solid #ffccc7;
+
+      .value {
+        color: #f5222d;
+      }
+    }
+
+    .total-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .over-hint {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      color: #f5222d;
+      animation: shake 0.5s ease-in-out;
+    }
 
     .label {
       font-size: 16px;
@@ -232,7 +288,14 @@
       font-size: 24px;
       font-weight: 700;
       color: #409eff;
+      transition: color 0.3s;
     }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
   }
 
   .dialog-footer {

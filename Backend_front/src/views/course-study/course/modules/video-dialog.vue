@@ -18,10 +18,8 @@
       <el-form-item label="视频文件" prop="videoUrl">
         <el-upload
           class="video-uploader"
-          action="/api/system/course/upload-video"
-          :headers="uploadHeaders"
           :show-file-list="false"
-          :on-success="handleUploadSuccess"
+          :http-request="handleVideoUploadRequest"
           :before-upload="beforeUpload"
           v-loading="uploading"
         >
@@ -46,10 +44,10 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import type { FormInstance } from 'element-plus'
+import type { FormInstance, UploadRequestOptions } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { VideoPlay } from '@element-plus/icons-vue'
-import { useUserStore } from '@/store/modules/user'
+import { uploadCourseVideo } from '@/api/course-study/course'
 
 const props = defineProps({
   visible: Boolean,
@@ -64,11 +62,6 @@ const dialogVisible = computed({
   get: () => props.visible,
   set: (val) => emit('update:visible', val)
 })
-
-const userStore = useUserStore()
-const uploadHeaders = computed(() => ({
-  Authorization: `Bearer ${userStore.accessToken}`
-}))
 
 const formRef = ref<FormInstance>()
 const uploading = ref(false)
@@ -120,16 +113,6 @@ const handleClosed = () => {
   resetForm()
 }
 
-const handleUploadSuccess = (res: any) => {
-  uploading.value = false
-  if (res.code === 200) {
-    form.value.videoUrl = res.data
-    ElMessage.success('视频上传成功')
-  } else {
-    ElMessage.error(res.msg || '上传失败')
-  }
-}
-
 const beforeUpload = (file: File) => {
   const isMp4 = file.type === 'video/mp4'
   if (!isMp4) {
@@ -138,6 +121,22 @@ const beforeUpload = (file: File) => {
   }
   uploading.value = true
   return true
+}
+
+const handleVideoUploadRequest = async (options: UploadRequestOptions) => {
+  try {
+    const file = options.file as File
+    const videoUrl = await uploadCourseVideo(file)
+    options.onProgress?.({ percent: 100 } as any)
+    form.value.videoUrl = videoUrl
+    ElMessage.success('视频上传成功')
+    options.onSuccess?.({ url: videoUrl } as any)
+  } catch (error: any) {
+    ElMessage.error(error.message || '上传失败')
+    options.onError?.(error)
+  } finally {
+    uploading.value = false
+  }
 }
 
 const handleSubmit = async () => {

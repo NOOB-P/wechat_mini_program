@@ -67,9 +67,15 @@ public class AdminCourseOrderController {
         return ExcelExportUtils.buildExcelResponse("课程订单", "课程订单.xlsx", headers, rows);
     }
 
-    private String resolvePaymentStatus(Object paymentStatus) {
-        int status = paymentStatus instanceof Number ? ((Number) paymentStatus).intValue() : 0;
-        return status == 1 ? "已支付" : "待支付";
+    private String resolvePaymentStatus(Object status) {
+        if (status == null) return "未知";
+        int s = status instanceof Number ? ((Number) status).intValue() : 0;
+        return switch (s) {
+            case 1 -> "已支付";
+            case 0 -> "待支付";
+            case -1 -> "待支付（已过期）";
+            default -> "未知";
+        };
     }
 
     private String formatAmount(Object amount) {

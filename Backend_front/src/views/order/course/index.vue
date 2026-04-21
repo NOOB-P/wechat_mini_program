@@ -27,6 +27,7 @@
           >
             <el-option label="待支付" :value="0" />
             <el-option label="已支付" :value="1" />
+            <el-option label="已过期" :value="-1" />
           </el-select>
         </el-form-item>
         <el-form-item label="下单日期" prop="dateRange">
@@ -219,12 +220,14 @@
     }
   }
 
-  const getStatusTag = (status: number): 'success' | 'info' => {
+  const getStatusTag = (status: number): 'success' | 'info' | 'danger' => {
     switch (status) {
       case 1:
         return 'success'
       case 0:
         return 'info'
+      case -1:
+        return 'danger'
       default:
         return 'info'
     }
@@ -236,6 +239,8 @@
         return '已支付'
       case 0:
         return '待支付'
+      case -1:
+        return '已过期'
       default:
         return '未知'
     }

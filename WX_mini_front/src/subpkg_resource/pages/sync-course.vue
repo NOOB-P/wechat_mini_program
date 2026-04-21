@@ -1,5 +1,6 @@
 <template>
   <view class="sync-container">
+    <wd-toast id="wd-toast" />
     <!-- 极简清爽头部 -->
     <view class="header-wrap">
       <view class="grade-pill-box">
@@ -58,7 +59,20 @@
                 <wd-icon name="video" size="14px" color="#999" />
                 <text>共 {{ item.episodes }} 节课</text>
               </view>
-              <view class="learn-btn">开始学习</view>
+              <view class="action-section">
+                <view class="price-box-bottom" v-if="item.isPurchased">
+                  <text class="price-val">已购买</text>
+                </view>
+                <view class="price-box-bottom" v-else-if="item.price > 0">
+                  <text class="price-val">￥{{ item.price }}</text>
+                </view>
+                <view class="price-box-bottom free" v-else>
+                  <text class="price-val">免费</text>
+                </view>
+                <view class="action-btn" @click.stop="handleAction(item)">
+                  <text>{{ (item.price > 0 && !item.isPurchased) ? '立即购买' : '开始学习' }}</text>
+                </view>
+              </view>
             </view>
           </view>
         </view>
@@ -80,26 +94,52 @@
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getSyncCourseListApi, getSyncCourseOptionsApi } from '@/subpkg_resource/api/resource'
+import { buyCourseApi } from '@/api/course'
+import { useToast } from 'wot-design-uni'
 
 const grades = ref<string[]>([])
+const standardGradeOrder = [
+  '一年级', '二年级', '三年级', '四年级', '五年级', '六年级',
+  '初一', '初二', '初三',
+  '高一', '高二', '高三'
+]
 const gradeIndex = ref(0)
 
 const subjects = ref<string[]>([])
+const allSubjects = ['语文', '数学', '英语', '物理', '化学', '生物', '历史', '政治', '地理']
 const currentSubject = ref('')
 
 const list = ref<any[]>([])
+const toast = useToast()
+
+// 根据年级获取可用科目
+const getSubjectsByGrade = (grade: string) => {
+  if (!grade) return []
+  // 如果是小学（包含“一年级”到“六年级”或者“小学”字样）
+  if (grade.includes('一') || grade.includes('二') || grade.includes('三') || grade.includes('四') || grade.includes('五') || grade.includes('六') || grade.includes('小学')) {
+    // 排除掉一年级到六年级以外的情况，比如初一也带“一”
+    if (!grade.includes('初') && !grade.includes('高')) {
+      return ['语文', '数学', '英语']
+    }
+  }
+  // 其他（初中、高中）返回全科目
+  return allSubjects
+}
 
 const loadOptions = async () => {
   try {
-    const res = await getSyncCourseOptionsApi()
-    if (res.code === 200) {
-      grades.value = res.data.grades.map((item: any) => item.label) || []
-      subjects.value = res.data.subjects.map((item: any) => item.label) || []
-      
-      if (grades.value.length > 0) gradeIndex.value = 0
-      if (subjects.value.length > 0) currentSubject.value = subjects.value[0]
-      loadData()
+    // 直接使用标准年级列表，确保所有年级都能展示
+    grades.value = [...standardGradeOrder]
+    
+    if (grades.value.length > 0) {
+      gradeIndex.value = 0
+      // 初始化当前年级的科目
+      subjects.value = getSubjectsByGrade(grades.value[gradeIndex.value])
+      if (subjects.value.length > 0) {
+        currentSubject.value = subjects.value[0]
+      }
     }
+    loadData()
   } catch (e) {
     console.error(e)
   }
@@ -126,8 +166,34 @@ const loadData = async () => {
   }
 }
 
+const handleAction = async (item: any) => {
+  if (item.price > 0 && !item.isPurchased) {
+    try {
+      const res = await buyCourseApi(item.id)
+      if (res.code === 200) {
+        const orderData = encodeURIComponent(JSON.stringify(res.data))
+        uni.navigateTo({
+          url: `/subpkg_course/pages/course/pay?order=${orderData}`
+        })
+      } else {
+        toast.error(res.msg || '下单失败')
+      }
+    } catch (e) {
+      toast.error('网络错误')
+    }
+  } else {
+    handleItemClick(item)
+  }
+}
+
 const onGradeChange = (e: any) => {
   gradeIndex.value = e.detail.value
+  // 根据新选中的年级更新科目列表
+  subjects.value = getSubjectsByGrade(grades.value[gradeIndex.value])
+  // 如果当前科目不在新的科目列表中，默认选中第一个
+  if (!subjects.value.includes(currentSubject.value)) {
+    currentSubject.value = subjects.value[0] || ''
+  }
   loadData()
 }
 
@@ -139,7 +205,7 @@ const onSubjectChange = (item: any) => {
   }
 }
 
-const goToDetail = (item: any) => {
+const handleItemClick = (item: any) => {
   uni.navigateTo({
     url: `/subpkg_course/pages/course/detail?id=${item.id}`
   })
@@ -310,14 +376,45 @@ onMounted(() => loadOptions())
     font-size: 22rpx;
     color: #999;
   }
+
+  .action-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4rpx;
+  }
+
+  .price-box-bottom {
+    margin-right: 12rpx;
+    margin-bottom: 2rpx;
+    .price-val {
+      font-size: 24rpx;
+      font-weight: bold;
+      color: #ff6b6b;
+    }
+    &.free {
+      .price-val {
+        color: #52c41a;
+      }
+    }
+  }
   
-  .learn-btn {
-    color: #1a5f8e;
-    font-size: 24rpx;
-    font-weight: 600;
-    padding: 8rpx 24rpx;
+  .action-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    padding: 10rpx 32rpx;
     border-radius: 30rpx;
-    background: #f0f6ff;
+    box-shadow: 0 6rpx 16rpx rgba(79, 172, 254, 0.24);
+    
+    text {
+      color: #fff;
+      font-size: 22rpx;
+      font-weight: bold;
+    }
+    
+    &:active {
+      transform: scale(0.96);
+      opacity: 0.9;
+    }
   }
 }
 

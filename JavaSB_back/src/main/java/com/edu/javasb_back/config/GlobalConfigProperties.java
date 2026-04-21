@@ -58,6 +58,11 @@ public class GlobalConfigProperties {
     private String courseVideoDir = "src/main/resources/uploads/course/video/";
 
     /**
+     * 上传/预览/OCR 临时文件目录
+     */
+    private String uploadTempDir = System.getProperty("java.io.tmpdir") + "/edu-upload-temp/";
+
+    /**
      * 通义千问 API Key
      */
     private String qwenApiKey;
@@ -128,6 +133,8 @@ public class GlobalConfigProperties {
 
     public String getCourseVideoDir() { return courseVideoDir; }
     public void setCourseVideoDir(String courseVideoDir) { this.courseVideoDir = courseVideoDir; }
+    public String getUploadTempDir() { return uploadTempDir; }
+    public void setUploadTempDir(String uploadTempDir) { this.uploadTempDir = uploadTempDir; }
     public String getQwenApiKey() { return qwenApiKey; }
     public void setQwenApiKey(String qwenApiKey) { this.qwenApiKey = qwenApiKey; }
     public String getQwenChatUrl() { return qwenChatUrl; }

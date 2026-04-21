@@ -80,6 +80,14 @@ export const bindThirdPartyPhone = (data: {
   })
 }
 
+export const bindWechatOpenidApi = (code: string) => {
+  return request({
+    url: '/api/app/auth/wechat/bind',
+    method: 'POST',
+    data: { code }
+  })
+}
+
 export const logout = () => {
   return request({
     url: '/api/auth/logout',

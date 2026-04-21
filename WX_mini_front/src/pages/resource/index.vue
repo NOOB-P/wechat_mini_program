@@ -138,7 +138,7 @@ import { getUserInfoApi } from '@/api/mine'
 import { openEnterpriseCustomerServiceChat } from '@/utils/customer-service'
 import { useToast } from 'wot-design-uni'
 
-const staticBaseUrl = __VITE_SERVER_BASEURL__ + '/static'
+const staticBaseUrl = __VITE_STATIC_BASEURL__
 const courses = ref<any[]>([])
 const searchKeyword = ref('')
 const isSVIPUser = ref(false)
@@ -285,14 +285,13 @@ onMounted(() => {
 }
 
 .grid-wrap {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 24rpx;
 }
 
 .grid-item {
-  width: calc(50% - 12rpx);
+  width: 100%;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);
   border-radius: 32rpx;
@@ -302,6 +301,7 @@ onMounted(() => {
   box-sizing: border-box;
   box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.04);
   transition: all 0.3s;
+  height: 160rpx; // 显式设置高度，确保对齐
   
   &:active {
     transform: scale(0.96);
@@ -382,12 +382,12 @@ onMounted(() => {
   }
 
   .recommend-grid {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 16rpx;
     
     .recommend-item {
-      flex: 1;
+      width: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;

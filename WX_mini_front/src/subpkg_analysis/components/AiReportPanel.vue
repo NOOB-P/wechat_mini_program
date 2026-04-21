@@ -2,7 +2,7 @@
   <view class="ai-report-panel">
     <view v-if="!hasAccess" class="svip-lock">
       <view class="lock-icon-wrapper">
-        <image class="lock-img" src="/static/images/svip-lock.png" mode="aspectFit" />
+        <image class="lock-img" :src="staticBaseUrl + '/images/svip-lock.png'" mode="aspectFit" />
       </view>
       <view class="lock-text">此专区为 SVIP 专属功能</view>
       <wd-button custom-class="upgrade-btn" @click="$emit('upgrade')">立即升级 SVIP</wd-button>
@@ -95,6 +95,7 @@
 </template>
 
 <script setup lang="ts">
+const staticBaseUrl = __VITE_STATIC_BASEURL__
 defineProps<{
   loading: boolean
   hasAccess: boolean

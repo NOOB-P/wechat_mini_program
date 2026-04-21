@@ -1,11 +1,40 @@
 <template>
   <view class="list-container">
+    <wd-toast id="wd-toast" />
     <!-- 顶部背景渐变 -->
     <view class="header-bg"></view>
 
-    <view class="sticky-header">
-      <view class="page-title">学霸经验分享</view>
-      <view class="page-desc">听学霸讲述高效学习的秘诀</view>
+    <!-- 固定头部区域 -->
+    <view class="fixed-header">
+      <view class="title-section">
+        <view class="page-title">学霸经验分享</view>
+        <view class="page-desc">听学霸讲述高效学习的秘诀</view>
+      </view>
+
+      <!-- 搜索和筛选区域 -->
+      <view class="search-filter-section">
+        <view class="search-box">
+          <wd-search
+            v-model="searchKeyword"
+            placeholder="搜索课程名称或内容"
+            hide-cancel
+            @search="handleSearch"
+            @clear="handleSearch"
+            custom-class="custom-search"
+          />
+        </view>
+        <view class="filter-tabs">
+          <view 
+            v-for="tab in filterTabs" 
+            :key="tab.value"
+            class="filter-tab-item"
+            :class="{ active: currentFilter === tab.value }"
+            @click="handleFilterChange(tab.value)"
+          >
+            {{ tab.label }}
+          </view>
+        </view>
+      </view>
     </view>
 
     <scroll-view scroll-y class="list-scroll-view animate-fade-in">
@@ -41,10 +70,19 @@
                 <text class="dot">·</text>
                 <text class="lesson-count">{{ item.episodes || 1 }}节课</text>
               </view>
-              <view class="price-box">
-                <text class="price-val" :class="{ free: item.price <= 0 }">
-                  {{ item.price > 0 ? '￥' + item.price : '免费' }}
-                </text>
+              <view class="action-section">
+                <view class="price-box-bottom" v-if="item.isPurchased">
+                  <text class="price-val">已购买</text>
+                </view>
+                <view class="price-box-bottom" v-else-if="item.price > 0">
+                  <text class="price-val">￥{{ item.price }}</text>
+                </view>
+                <view class="price-box-bottom free" v-else>
+                  <text class="price-val">免费</text>
+                </view>
+                <view class="action-btn" @click.stop="handleAction(item)">
+                  <text>{{ (item.price > 0 && !item.isPurchased) ? '立即购买' : '开始学习' }}</text>
+                </view>
               </view>
             </view>
           </view>
@@ -63,12 +101,27 @@
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getStudentTalkListApi } from '@/subpkg_resource/api/resource'
+import { buyCourseApi } from '@/api/course'
+import { useToast } from 'wot-design-uni'
 
 const list = ref<any[]>([])
+const toast = useToast()
+
+const searchKeyword = ref('')
+const currentFilter = ref('all')
+const filterTabs = [
+  { label: '全部课程', value: 'all' },
+  { label: '免费内容', value: 'free' },
+  { label: '付费精品', value: 'paid' },
+  { label: '已购课程', value: 'purchased' }
+]
 
 const loadData = async () => {
   try {
-    const res = await getStudentTalkListApi()
+    const res = await getStudentTalkListApi({
+      keyword: searchKeyword.value,
+      filter: currentFilter.value
+    })
     if (res.code === 200) {
       // 修正：处理图片路径
       const formattedList = res.data.map((item: any) => {
@@ -84,7 +137,36 @@ const loadData = async () => {
   }
 }
 
-const goToDetail = (item: any) => {
+const handleAction = async (item: any) => {
+  if (item.price > 0 && !item.isPurchased) {
+    try {
+      const res = await buyCourseApi(item.id)
+      if (res.code === 200) {
+        const orderData = encodeURIComponent(JSON.stringify(res.data))
+        uni.navigateTo({
+          url: `/subpkg_course/pages/course/pay?order=${orderData}`
+        })
+      } else {
+        toast.error(res.msg || '下单失败')
+      }
+    } catch (e) {
+      toast.error('网络错误')
+    }
+  } else {
+    handleItemClick(item)
+  }
+}
+
+const handleSearch = () => {
+  loadData()
+}
+
+const handleFilterChange = (val: string) => {
+  currentFilter.value = val
+  loadData()
+}
+
+const handleItemClick = (item: any) => {
   uni.navigateTo({
     url: `/subpkg_course/pages/course/detail?id=${item.id}`
   })
@@ -101,9 +183,12 @@ onMounted(() => loadData())
 
 <style lang="scss" scoped>
 .list-container {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background-color: #f8f9fa;
   position: relative;
+  overflow: hidden;
 }
 
 .header-bg {
@@ -111,18 +196,20 @@ onMounted(() => loadData())
   top: 0;
   left: 0;
   right: 0;
-  height: 360rpx;
-  background: linear-gradient(135deg, #fff5f5 0%, #fff0f0 100%);
+  height: 480rpx;
+  background: linear-gradient(180deg, #fff1f1 0%, #ffffff 100%);
   z-index: 0;
 }
 
-.sticky-header {
-  position: sticky;
-  top: 0;
+.fixed-header {
+  position: relative;
   z-index: 10;
-  padding: 40rpx 40rpx 30rpx;
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(10px);
+  background: transparent;
+  padding-bottom: 20rpx;
+}
+
+.title-section {
+  padding: 40rpx 40rpx 20rpx;
   
   .page-title {
     font-size: 36rpx;
@@ -137,8 +224,55 @@ onMounted(() => loadData())
   }
 }
 
+.search-filter-section {
+  padding: 0 32rpx;
+  
+  .search-box {
+    margin-bottom: 24rpx;
+    
+    :deep(.custom-search) {
+      padding: 0;
+      background: transparent;
+      .wd-search__field {
+        background: #fff;
+        border-radius: 40rpx;
+        box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+      }
+    }
+  }
+  
+  .filter-tabs {
+    display: flex;
+    gap: 16rpx;
+    overflow-x: auto;
+    padding-bottom: 10rpx;
+    
+    &::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .filter-tab-item {
+      flex-shrink: 0;
+      padding: 12rpx 32rpx;
+      background: #f5f5f5;
+      border-radius: 30rpx;
+      font-size: 24rpx;
+      color: #666;
+      transition: all 0.3s;
+      
+      &.active {
+        background: #4facfe;
+        color: #fff;
+        font-weight: bold;
+        box-shadow: 0 4rpx 12rpx rgba(79, 172, 254, 0.3);
+      }
+    }
+  }
+}
+
 .list-scroll-view {
-  height: calc(100vh - 160rpx);
+  flex: 1;
+  height: 0;
   position: relative;
   z-index: 1;
 }
@@ -214,6 +348,7 @@ onMounted(() => loadData())
   display: flex;
   align-items: center;
   gap: 8rpx;
+  margin-top: 8rpx;
   
   .author-name {
     font-size: 24rpx;
@@ -225,7 +360,8 @@ onMounted(() => loadData())
 .bottom-info {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
+  margin-top: auto;
   
   .stats-box {
     display: flex;
@@ -237,16 +373,44 @@ onMounted(() => loadData())
       margin: 0 8rpx;
     }
   }
-  
-  .price-box {
+
+  .action-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4rpx;
+  }
+
+  .price-box-bottom {
+    margin-right: 12rpx;
+    margin-bottom: 2rpx;
     .price-val {
-      font-size: 32rpx;
+      font-size: 26rpx;
       font-weight: bold;
       color: #ff6b6b;
-      
-      &.free {
+    }
+    &.free {
+      .price-val {
         color: #52c41a;
       }
+    }
+  }
+  
+  .action-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    padding: 12rpx 36rpx;
+    border-radius: 40rpx;
+    box-shadow: 0 6rpx 16rpx rgba(79, 172, 254, 0.24);
+    
+    text {
+      color: #fff;
+      font-size: 26rpx;
+      font-weight: bold;
+    }
+    
+    &:active {
+      transform: scale(0.96);
+      opacity: 0.9;
     }
   }
 }

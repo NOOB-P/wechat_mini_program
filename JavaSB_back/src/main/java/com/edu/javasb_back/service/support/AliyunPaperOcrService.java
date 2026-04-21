@@ -53,20 +53,22 @@ public class AliyunPaperOcrService {
         String resolvedCutType = resolveCutType(cutType);
 
         try {
-            Client client = createClient();
-            StructedCallResult structedCallResult = callPaperStructed(client, paperPath, resolvedSubject);
-            List<Map<String, Object>> regions = parseStructuredRegions(structedCallResult.data());
-            if (regions.isEmpty()) {
-                regions = callPaperCut(client, paperPath, resolvedSubject, resolvedImageType, resolvedCutType);
-            }
+            return executeWithRetry(() -> {
+                Client client = createClient();
+                StructedCallResult structedCallResult = callPaperStructed(client, paperPath, resolvedSubject);
+                List<Map<String, Object>> regions = parseStructuredRegions(structedCallResult.data());
+                if (regions.isEmpty()) {
+                    regions = callPaperCut(client, paperPath, resolvedSubject, resolvedImageType, resolvedCutType);
+                }
 
-            SegmentResult result = new SegmentResult();
-            result.setRequestId(structedCallResult.requestId());
-            result.setOcrSubject(resolvedSubject);
-            result.setImageType(resolvedImageType);
-            result.setCutType(resolvedCutType);
-            result.setRegions(regions);
-            return result;
+                SegmentResult result = new SegmentResult();
+                result.setRequestId(structedCallResult.requestId());
+                result.setOcrSubject(resolvedSubject);
+                result.setImageType(resolvedImageType);
+                result.setCutType(resolvedCutType);
+                result.setRegions(regions);
+                return result;
+            });
         } catch (IllegalArgumentException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -83,42 +85,75 @@ public class AliyunPaperOcrService {
             throw new IllegalArgumentException("阿里云 OCR AccessKey 未配置，请先在后端全局配置中设置");
         }
 
-        try (InputStream inputStream = Files.newInputStream(questionPath)) {
-            Client client = createClient();
-            RecognizeEduQuestionOcrRequest request = new RecognizeEduQuestionOcrRequest();
-            request.setBody(inputStream);
-            request.setNeedRotate(Boolean.TRUE);
+        try {
+            return executeWithRetry(() -> {
+                try (InputStream inputStream = Files.newInputStream(questionPath)) {
+                    Client client = createClient();
+                    RecognizeEduQuestionOcrRequest request = new RecognizeEduQuestionOcrRequest();
+                    request.setBody(inputStream);
+                    request.setNeedRotate(Boolean.TRUE);
 
-            RecognizeEduQuestionOcrResponse response = client.recognizeEduQuestionOcr(request);
-            if (response == null || response.getBody() == null) {
-                throw new IllegalStateException("阿里云题目 OCR 未返回有效结果");
-            }
+                    RecognizeEduQuestionOcrResponse response = client.recognizeEduQuestionOcr(request);
+                    if (response == null || response.getBody() == null) {
+                        throw new IllegalStateException("阿里云题目 OCR 未返回有效结果");
+                    }
 
-            String code = response.getBody().getCode();
-            if (StringUtils.hasText(code) && !"200".equals(code)) {
-                String message = StringUtils.hasText(response.getBody().getMessage())
-                        ? response.getBody().getMessage()
-                        : "阿里云题目 OCR 识别失败";
-                throw new IllegalStateException(message);
-            }
+                    String code = response.getBody().getCode();
+                    if (StringUtils.hasText(code) && !"200".equals(code)) {
+                        String message = StringUtils.hasText(response.getBody().getMessage())
+                                ? response.getBody().getMessage()
+                                : "阿里云题目 OCR 识别失败";
+                        throw new IllegalStateException(message);
+                    }
 
-            String data = response.getBody().getData();
-            if (!StringUtils.hasText(data)) {
-                throw new IllegalStateException("阿里云题目 OCR 未返回识别内容");
-            }
+                    String data = response.getBody().getData();
+                    if (!StringUtils.hasText(data)) {
+                        throw new IllegalStateException("阿里云题目 OCR 未返回识别内容");
+                    }
 
-            String questionText = parseQuestionContent(data);
-            QuestionOcrResult result = new QuestionOcrResult();
-            result.setRequestId(response.getBody().getRequestId());
-            result.setQuestionText(questionText);
-            result.setQuestionType(resolveQuestionType("", -1, questionText));
-            result.setScore(resolveScore(questionText));
-            return result;
+                    String questionText = parseQuestionContent(data);
+                    QuestionOcrResult result = new QuestionOcrResult();
+                    result.setRequestId(response.getBody().getRequestId());
+                    result.setQuestionText(questionText);
+                    result.setQuestionType(resolveQuestionType("", -1, questionText));
+                    result.setScore(resolveScore(questionText));
+                    return result;
+                }
+            });
         } catch (IllegalArgumentException ex) {
             throw ex;
         } catch (Exception ex) {
             throw new IllegalStateException("阿里云题目 OCR 调用失败: " + ex.getMessage(), ex);
         }
+    }
+
+    private <T> T executeWithRetry(OcrCallable<T> callable) throws Exception {
+        int maxRetries = 3;
+        int retryCount = 0;
+        Exception lastException = null;
+
+        while (retryCount < maxRetries) {
+            try {
+                return callable.call();
+            } catch (Exception e) {
+                retryCount++;
+                lastException = e;
+                if (retryCount >= maxRetries) {
+                    break;
+                }
+                try {
+                    Thread.sleep(2000); // OCR retries might need longer delay
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+        throw lastException;
+    }
+
+    @FunctionalInterface
+    private interface OcrCallable<T> {
+        T call() throws Exception;
     }
 
     private Client createClient() throws Exception {

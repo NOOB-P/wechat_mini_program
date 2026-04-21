@@ -1,14 +1,15 @@
 package com.edu.javasb_back.service.impl;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.model.entity.SysAccount;
-import com.edu.javasb_back.model.entity.VipPricing;
-import com.edu.javasb_back.model.entity.VipOrder;
+import com.edu.javasb_back.model.entity.*;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.VipPricingRepository;
 import com.edu.javasb_back.repository.VipOrderRepository;
+import com.edu.javasb_back.service.SysNotificationService;
 import com.edu.javasb_back.service.VipOrderService;
+import com.edu.javasb_back.service.WechatPayService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +32,7 @@ import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
+@Transactional(readOnly = true)
 public class VipOrderServiceImpl implements VipOrderService {
 
     private static final String SOURCE_ONLINE_PURCHASE = "ONLINE_PURCHASE";
@@ -53,17 +56,23 @@ public class VipOrderServiceImpl implements VipOrderService {
     @Autowired
     private VipPricingRepository vipPricingRepository;
 
+    @Autowired
+    private WechatPayService wechatPayService;
+
+    @Autowired
+    private SysNotificationService notificationService;
+
     @Override
     @Transactional
     public Result<VipOrder> createVipOrder(Long userUid, Map<String, Object> orderData) {
         Optional<SysAccount> accountOptional = sysAccountRepository.findById(userUid);
         if (accountOptional.isEmpty()) {
-            return Result.error("\u7528\u6237\u4e0d\u5b58\u5728");
+            return Result.error("用户不存在");
         }
 
         BigDecimal price = parsePrice(orderData.get("price"));
         if (price == null) {
-            return Result.error("\u8ba2\u5355\u91d1\u989d\u4e0d\u80fd\u4e3a\u7a7a");
+            return Result.error("订单金额不能为空");
         }
 
         SysAccount account = accountOptional.get();
@@ -78,7 +87,7 @@ public class VipOrderServiceImpl implements VipOrderService {
         String title = asString(orderData.get("packageType"));
         int months = resolveDurationMonths(orderData);
         if (months <= 0) {
-            return Result.error(400, "\u4f1a\u5458\u5957\u9910\u65f6\u957f\u65e0\u6548\uff0c\u8bf7\u68c0\u67e5\u4ef7\u683c\u914d\u7f6e");
+            return Result.error(400, "会员套餐时长无效，请检查价格配置");
         }
         order.setPackageType(StringUtils.hasText(tierCode) ? tierCode : title);
         order.setPeriod(formatMonthPeriod(months));
@@ -88,7 +97,91 @@ public class VipOrderServiceImpl implements VipOrderService {
         order.setSourceType(SOURCE_ONLINE_PURCHASE);
 
         VipOrder savedOrder = vipOrderRepository.save(order);
+
+        // 发送通知给家长
+        SysNotification notification = new SysNotification();
+        notification.setTitle("会员充值待支付提醒");
+        notification.setContent("您的孩子发起了会员充值申请（" + order.getPackageType() + " " + order.getPeriod() + "），请在10分钟内完成支付。");
+        notification.setPublisher("系统通知");
+        notification.setTargetUid(userUid);
+        notification.setIsPublished(1);
+        notification.setCreateTime(LocalDateTime.now());
+        notificationService.saveNotification(notification);
+
         return Result.success(savedOrder);
+    }
+
+    @Override
+    public Result<List<VipOrder>> getMyVipOrders(Long userUid) {
+        List<VipOrder> orders = vipOrderRepository.findByUserUidOrderByCreateTimeDesc(userUid);
+        if (orders.isEmpty()) {
+            return Result.success(List.of());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        List<VipOrder> validOrders = new ArrayList<>();
+
+        for (VipOrder order : orders) {
+            // 已支付订单
+            if (order.getPaymentStatus() != null && order.getPaymentStatus() == 1) {
+                validOrders.add(order);
+            } 
+            // 待支付订单，需检查是否在10分钟内
+            else if (order.getPaymentStatus() != null && order.getPaymentStatus() == 0) {
+                if (order.getCreateTime() != null && order.getCreateTime().plusMinutes(10).isAfter(now)) {
+                    validOrders.add(order);
+                }
+            }
+        }
+
+        return Result.success(validOrders);
+    }
+
+    @Override
+    public Result<Map<String, Object>> createWechatPayParams(Long userUid, String orderNo) {
+        if (!StringUtils.hasText(orderNo)) {
+            return Result.error("订单号不能为空");
+        }
+
+        Optional<VipOrder> orderOptional = vipOrderRepository.findByOrderNoAndUserUid(orderNo, userUid);
+        if (orderOptional.isEmpty()) {
+            return Result.error("订单不存在");
+        }
+
+        VipOrder order = orderOptional.get();
+        if (order.getPaymentStatus() != null && order.getPaymentStatus() == 1) {
+            return Result.error(400, "订单已支付");
+        }
+
+        Optional<SysAccount> accountOptional = sysAccountRepository.findById(userUid);
+        if (accountOptional.isEmpty()) {
+            return Result.error("用户不存在");
+        }
+
+        SysAccount account = accountOptional.get();
+        if (!StringUtils.hasText(account.getWxid())) {
+            return Result.error(40101, "请先绑定微信后再发起支付");
+        }
+
+        try {
+            Map<String, Object> payParams = wechatPayService.createJsapiPayParams(
+                    order.getOrderNo(),
+                    "会员开通-" + order.getPackageType(),
+                    order.getPrice(),
+                    account.getWxid(),
+                    "VIP");
+            Map<String, Object> result = new HashMap<>();
+            result.put("orderNo", order.getOrderNo());
+            result.put("payParams", payParams);
+            result.put("packageType", order.getPackageType());
+            result.put("period", order.getPeriod());
+            return Result.success("获取支付参数成功", result);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("获取支付参数失败: " + e.getMessage());
+        }
     }
 
     @Override
@@ -181,9 +274,16 @@ public class VipOrderServiceImpl implements VipOrderService {
                 pageable
         );
 
+        LocalDateTime now = LocalDateTime.now();
         page.getContent().forEach(order -> {
             if (!StringUtils.hasText(order.getSourceType())) {
                 order.setSourceType(SOURCE_ONLINE_PURCHASE);
+            }
+            // 动态处理过期状态：待支付(0) 且 超过10分钟
+            if (order.getPaymentStatus() != null && order.getPaymentStatus() == 0) {
+                if (order.getCreateTime() != null && order.getCreateTime().plusMinutes(10).isBefore(now)) {
+                    order.setPaymentStatus(-1); // -1 表示已过期
+                }
             }
         });
 
@@ -207,9 +307,16 @@ public class VipOrderServiceImpl implements VipOrderService {
                 Sort.by(Sort.Direction.DESC, "createTime")
         );
 
+        LocalDateTime now = LocalDateTime.now();
         orders.forEach(order -> {
             if (!StringUtils.hasText(order.getSourceType())) {
                 order.setSourceType(SOURCE_ONLINE_PURCHASE);
+            }
+            // 动态处理过期状态：待支付(0) 且 超过10分钟
+            if (order.getPaymentStatus() != null && order.getPaymentStatus() == 0) {
+                if (order.getCreateTime() != null && order.getCreateTime().plusMinutes(10).isBefore(now)) {
+                    order.setPaymentStatus(-1); // -1 表示已过期
+                }
             }
         });
         return orders;

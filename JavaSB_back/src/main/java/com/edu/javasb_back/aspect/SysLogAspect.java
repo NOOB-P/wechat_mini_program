@@ -5,6 +5,7 @@ import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.SysLog;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysLogRepository;
+import com.edu.javasb_back.utils.AddressUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -72,9 +73,12 @@ public class SysLogAspect {
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         if (attributes != null) {
             HttpServletRequest request = attributes.getRequest();
-            sysLog.setIp(getIpAddr(request));
+            String ip = getIpAddr(request);
+            sysLog.setIp(ip);
             sysLog.setMethod(request.getMethod());
             sysLog.setUrl(request.getRequestURI());
+            // 根据 IP 获取地址
+            sysLog.setLocation(AddressUtils.getRealAddressByIP(ip));
         }
 
         sysLog.setStatus(status);
@@ -103,9 +107,6 @@ public class SysLogAspect {
             sysLog.setUserName("系统记录");
             sysLog.setNickName("未登录/游客");
         }
-
-        // 设置一个默认地址
-        sysLog.setLocation("未知");
 
         // 保存到数据库
         sysLogRepository.save(sysLog);

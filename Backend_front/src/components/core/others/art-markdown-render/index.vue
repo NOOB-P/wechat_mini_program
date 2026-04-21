@@ -59,7 +59,7 @@
     // 1. 启发式识别并为未包裹的 LaTeX 加上 $$ 定界符 (针对 OCR 识别结果)
     // 改进：更全面地捕捉包含 \ 指令及其前后关联的数学字符（数字、字母、空格、运算符）
     // 优先级：先匹配包含 \ 的复杂结构，再匹配上下标结构
-    const mathRegex = /(([a-zA-Z0-9_\(\)]*\s*[\=<>]{1,2}\s*)?(\\left\s*[\\\\\(\{\[\.].*?\\right\s*[\\\\\)\}\]\.](\s*[\^\_]\s*\{[^\}]*\})?|\\left\s*[\\\\\(\{\[\.].*?[\)\}\]]|\\(frac|sqrt|sum|int|alpha|beta|gamma|delta|theta|pi|phi|omega|infty|pm|times|div|neq|leq|geq|approx|in|subset|cup|cap|forall|exists|partial|nabla)\b([\s]*[a-zA-Z0-9]|\s*\{[^\}]*\})*|[\w\d\(\)]+\s*[\^\_]\s*\{[^\}]*\}|f\s*\\left\s*\([\s\S]*?\\right\s*\)|f\s*\\left\s*\(.*?\))[^\u4e00-\u9fa5]*(?=[,，。]|\s{2,}|[\u4e00-\u9fa5]|$)/g;
+    const mathRegex = /(([a-zA-Z0-9_\(\)]*\s*[\=<>]{1,2}\s*)?(\\left\s*[\\\\\(\{\[\.].*?\\right\s*[\\\\\)\}\]\.](\s*[\^\_]\s*\{[^\}]*\})?|\\left\s*[\\\\\(\{\[\.].*?[\)\}\]]|\\(frac|sqrt|sum|int|alpha|beta|gamma|delta|theta|pi|phi|omega|infty|pm|times|div|neq|leq|geq|approx|in|subset|cup|cap|forall|exists|partial|nabla)\b([\s]*[a-zA-Z0-9]|\s*\{[^\}]*\})*|[\w\d\(\)]+\s*[\^\_]\s*\{[^\}]*\}|f\s*\\left\s*\([\s\S]*?\\right\s*\)|f\s*\\left\s*\(.*?\)))[^\u4e00-\u9fa5]*(?=[,，。]|\s{2,}|[\u4e00-\u9fa5]|$)/g;
 
     content = content.replace(mathRegex, (match) => {
       // 避免重复处理已有定界符的内容

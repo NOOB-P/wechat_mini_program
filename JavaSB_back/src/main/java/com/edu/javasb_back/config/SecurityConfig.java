@@ -65,6 +65,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/app/mine/**").permitAll() // 放行小程序个人中心相关接口
                 .requestMatchers("/api/app/order/print/**").permitAll() // 放行小程序打印订单接口
                 .requestMatchers("/api/customer/**").permitAll() // 客服相关接口
+                .requestMatchers("/api/pay/wechat/**").permitAll() // 微信支付回调
                 .requestMatchers("/error").permitAll() // 错误页面
                 .requestMatchers("/uploads/**").permitAll() // 放行上传的动态图片
                 .requestMatchers("/static/**").permitAll() // 放行固定静态资源
