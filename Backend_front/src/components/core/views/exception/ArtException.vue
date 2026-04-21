@@ -4,7 +4,7 @@
       <ThemeSvg :src="data.imgUrl" size="100%" class="!w-100" />
       <div class="ml-15 w-75 max-md:mx-auto max-md:mt-10 max-md:w-full max-md:text-center">
         <p class="text-xl leading-7 text-g-600 max-md:text-lg">{{ data.desc }}</p>
-        <div class="mt-5 flex items-center">
+        <div class="mt-5 flex items-center relative z-10">
           <ElButton type="primary" size="large" @click="backHome" v-ripple>{{
             data.btnText
           }}</ElButton>
@@ -21,6 +21,7 @@
   import { useRouter } from 'vue-router'
   import { useCommon } from '@/hooks/core/useCommon'
   import { useUserStore } from '@/store/modules/user'
+  import { getRouteInitFailed } from '@/router/guards/beforeEach'
 
   const router = useRouter()
   const userStore = useUserStore()
@@ -46,20 +47,25 @@
   const { homePath } = useCommon()
 
   const backHome = () => {
-    const targetHomePath = homePath.value || '/'
-
-    if (!userStore.isLogin) {
-      router.push({
-        name: 'Login',
-        query: { redirect: targetHomePath }
-      })
+    // 如果路由初始化失败，跳转回登录页
+    if (getRouteInitFailed()) {
+      router.replace('/auth/login')
       return
     }
 
-    router.push(targetHomePath)
+    // 优先跳转到 homePath，如果不存在则跳转到根路径（由 staticRoutes 处理重定向）
+    const targetHomePath = homePath.value || '/'
+
+    if (!userStore.isLogin) {
+      router.replace('/auth/login')
+      return
+    }
+
+    router.replace(targetHomePath)
   }
 
   const refreshPage = () => {
+    // 执行真正的页面刷新
     window.location.reload()
   }
 </script>
