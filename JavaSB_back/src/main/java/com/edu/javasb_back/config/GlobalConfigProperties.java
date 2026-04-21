@@ -117,6 +117,36 @@ public class GlobalConfigProperties {
      */
     private Boolean aliyunOcrOutputOriCoord = Boolean.FALSE;
 
+    /**
+     * 阿里云短信 AccessKey ID
+     */
+    private String aliyunSmsAccessKeyId;
+
+    /**
+     * 阿里云短信 AccessKey Secret
+     */
+    private String aliyunSmsAccessKeySecret;
+
+    /**
+     * 阿里云短信 Endpoint
+     */
+    private String aliyunSmsEndpoint = "dysmsapi.aliyuncs.com";
+
+    /**
+     * 阿里云短信签名
+     */
+    private String aliyunSmsSignName;
+
+    /**
+     * 阿里云短信模板编号
+     */
+    private String aliyunSmsTemplateCode;
+
+    /**
+     * 短信验证码有效期（分钟）
+     */
+    private Long aliyunSmsCodeExpirationMinutes = 5L;
+
     // 手动添加 Getter 和 Setter 方法，以防 Lombok 失效
     public String getCourseCoverDir() { return courseCoverDir; }
     public void setCourseCoverDir(String courseCoverDir) { this.courseCoverDir = courseCoverDir; }
@@ -147,6 +177,18 @@ public class GlobalConfigProperties {
     public void setAliyunOcrCutType(String aliyunOcrCutType) { this.aliyunOcrCutType = aliyunOcrCutType; }
     public Boolean getAliyunOcrOutputOriCoord() { return aliyunOcrOutputOriCoord; }
     public void setAliyunOcrOutputOriCoord(Boolean aliyunOcrOutputOriCoord) { this.aliyunOcrOutputOriCoord = aliyunOcrOutputOriCoord; }
+    public String getAliyunSmsAccessKeyId() { return aliyunSmsAccessKeyId; }
+    public void setAliyunSmsAccessKeyId(String aliyunSmsAccessKeyId) { this.aliyunSmsAccessKeyId = aliyunSmsAccessKeyId; }
+    public String getAliyunSmsAccessKeySecret() { return aliyunSmsAccessKeySecret; }
+    public void setAliyunSmsAccessKeySecret(String aliyunSmsAccessKeySecret) { this.aliyunSmsAccessKeySecret = aliyunSmsAccessKeySecret; }
+    public String getAliyunSmsEndpoint() { return aliyunSmsEndpoint; }
+    public void setAliyunSmsEndpoint(String aliyunSmsEndpoint) { this.aliyunSmsEndpoint = aliyunSmsEndpoint; }
+    public String getAliyunSmsSignName() { return aliyunSmsSignName; }
+    public void setAliyunSmsSignName(String aliyunSmsSignName) { this.aliyunSmsSignName = aliyunSmsSignName; }
+    public String getAliyunSmsTemplateCode() { return aliyunSmsTemplateCode; }
+    public void setAliyunSmsTemplateCode(String aliyunSmsTemplateCode) { this.aliyunSmsTemplateCode = aliyunSmsTemplateCode; }
+    public Long getAliyunSmsCodeExpirationMinutes() { return aliyunSmsCodeExpirationMinutes; }
+    public void setAliyunSmsCodeExpirationMinutes(Long aliyunSmsCodeExpirationMinutes) { this.aliyunSmsCodeExpirationMinutes = aliyunSmsCodeExpirationMinutes; }
     public String getPaperDir() { return paperDir; }
     public void setPaperDir(String paperDir) { this.paperDir = paperDir; }
 

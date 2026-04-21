@@ -59,8 +59,7 @@ const sendCode = async () => {
   
   try {
     const res = await sendSmsCode(phone.value)
-    // 后端会返回随机生成的验证码，这里通过 toast 提示一下方便测试
-    toast.success(`验证码已发送: ${res.data}`)
+    toast.success('验证码已发送')
     countdown.value = 60
     timer = setInterval(() => {
       countdown.value--

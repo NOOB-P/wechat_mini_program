@@ -1,7 +1,7 @@
 import api from '@/utils/http'
 import { normalizeQuestionNo } from '@/utils/exam-utils'
 
-const PAPER_UPLOAD_TIMEOUT = 120000
+const PAPER_UPLOAD_TIMEOUT = 10 * 60 * 1000
 const PAPER_OCR_TIMEOUT = 180000
 
 export interface ProjectStudentItem {

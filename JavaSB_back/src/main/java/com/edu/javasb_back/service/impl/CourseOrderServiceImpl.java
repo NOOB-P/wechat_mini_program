@@ -1,6 +1,5 @@
 package com.edu.javasb_back.service.impl;
 
-import com.baomidou.dynamic.datasource.annotation.DS;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -19,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.config.WechatPayProperties;
 import com.edu.javasb_back.config.datasource.DataSourceName;
 import com.edu.javasb_back.model.entity.Course;
 import com.edu.javasb_back.model.entity.CourseOrder;
@@ -27,7 +28,6 @@ import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.SysNotification;
 import com.edu.javasb_back.repository.CourseOrderRepository;
 import com.edu.javasb_back.repository.CourseRepository;
-import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.service.CourseOrderService;
 import com.edu.javasb_back.service.SysNotificationService;
 import com.edu.javasb_back.service.WechatPayService;
@@ -36,7 +36,8 @@ import com.edu.javasb_back.service.WechatPayService;
 @Transactional(readOnly = true)
 public class CourseOrderServiceImpl implements CourseOrderService {
 
-    private static final String WECHAT_PAYMENT_METHOD = "微信支付";
+    private static final String WECHAT_PAYMENT_METHOD = "微信虚拟支付";
+    private static final String PAYMENT_TYPE_VIRTUAL = "VIRTUAL";
 
     @Autowired
     private CourseOrderRepository orderRepository;
@@ -45,10 +46,10 @@ public class CourseOrderServiceImpl implements CourseOrderService {
     private CourseRepository courseRepository;
 
     @Autowired
-    private SysAccountRepository sysAccountRepository;
+    private WechatPayService wechatPayService;
 
     @Autowired
-    private WechatPayService wechatPayService;
+    private WechatPayProperties wechatPayProperties;
 
     @Autowired
     private SysNotificationService notificationService;
@@ -128,31 +129,23 @@ public class CourseOrderServiceImpl implements CourseOrderService {
             return Result.error(400, "订单已支付");
         }
 
-        Optional<SysAccount> accountOptional = sysAccountRepository.findById(userUid);
-        if (accountOptional.isEmpty()) {
-            return Result.error("用户不存在");
-        }
-
-        SysAccount account = accountOptional.get();
-        if (!StringUtils.hasText(account.getWxid())) {
-            return Result.error(40101, "请先绑定微信后再发起支付");
-        }
-
         Course course = courseRepository.findById(order.getCourseId()).orElse(null);
         if (course == null) {
             return Result.error("课程不存在");
         }
 
         try {
-            Map<String, Object> payParams = wechatPayService.createJsapiPayParams(
+            Map<String, Object> payPackage = wechatPayService.createVirtualPaymentParams(
                     order.getOrderNo(),
-                    "课程购买-" + course.getTitle(),
+                    buildCourseGoodsId(order),
                     order.getPrice(),
-                    account.getWxid(),
-                    "COURSE");
+                    userUid);
             Map<String, Object> result = new HashMap<>();
             result.put("orderNo", order.getOrderNo());
-            result.put("payParams", payParams);
+            result.put("paymentType", PAYMENT_TYPE_VIRTUAL);
+            result.put("payParams", payPackage.get("payParams"));
+            result.put("security", payPackage.get("security"));
+            result.put("courseTitle", course.getTitle());
             return Result.success("获取支付参数成功", result);
         } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.error(e.getMessage());
@@ -160,6 +153,39 @@ public class CourseOrderServiceImpl implements CourseOrderService {
             e.printStackTrace();
             return Result.error("获取支付参数失败: " + e.getMessage());
         }
+    }
+
+    @Override
+    @Transactional
+    public Result<String> confirmVirtualPayment(Long userUid, String orderNo, Map<String, Object> securityData) {
+        if (!StringUtils.hasText(orderNo)) {
+            return Result.error("订单号不能为空");
+        }
+
+        Optional<CourseOrder> orderOptional = orderRepository.findByOrderNoAndUserUid(orderNo, userUid);
+        if (orderOptional.isEmpty()) {
+            return Result.error("订单不存在");
+        }
+
+        CourseOrder order = orderOptional.get();
+        if (order.getPaymentStatus() != null && order.getPaymentStatus() == 1) {
+            return Result.success("支付已处理");
+        }
+
+        boolean valid = wechatPayService.verifyVirtualPaymentSecurity(
+                orderNo,
+                buildCourseGoodsId(order),
+                order.getPrice(),
+                userUid,
+                asString(securityData == null ? null : securityData.get("timestamp")),
+                asString(securityData == null ? null : securityData.get("nonceStr")),
+                asString(securityData == null ? null : securityData.get("signature")));
+        if (!valid) {
+            return Result.error(400, "虚拟支付校验失败");
+        }
+
+        paySuccess(orderNo);
+        return Result.success("支付处理成功", null);
     }
 
     @Override
@@ -225,7 +251,8 @@ public class CourseOrderServiceImpl implements CourseOrderService {
     }
 
     @Override
-    public Result<Map<String, Object>> getCourseOrderList(int current, int size, String orderNo, String userName, Integer paymentStatus, String startDate, String endDate) {
+    public Result<Map<String, Object>> getCourseOrderList(int current, int size, String orderNo, String userName,
+                                                          Integer paymentStatus, String startDate, String endDate) {
         Page<Map<String, Object>> page = orderRepository.findCourseOrdersWithDetails(
                 normalizeKeyword(orderNo),
                 normalizeKeyword(userName),
@@ -304,20 +331,39 @@ public class CourseOrderServiceImpl implements CourseOrderService {
     }
 
     private String normalizeKeyword(String keyword) {
-        return keyword == null || keyword.trim().isEmpty() ? null : keyword.trim();
+        return !StringUtils.hasText(keyword) ? null : keyword.trim();
     }
 
     private LocalDateTime parseStartDateTime(String value) {
-        if (value == null || value.trim().isEmpty()) {
+        if (!StringUtils.hasText(value)) {
             return null;
         }
         return LocalDate.parse(value.trim()).atStartOfDay();
     }
 
     private LocalDateTime parseEndDateTime(String value) {
-        if (value == null || value.trim().isEmpty()) {
+        if (!StringUtils.hasText(value)) {
             return null;
         }
         return LocalDate.parse(value.trim()).atTime(LocalTime.MAX);
+    }
+
+    private String buildCourseGoodsId(CourseOrder order) {
+        String prefix = wechatPayProperties.getVirtualPayment().getCourseGoodsPrefix();
+        return normalizeGoodsSegment(prefix) + "-" + normalizeGoodsSegment(order.getCourseId());
+    }
+
+    private String normalizeGoodsSegment(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "default";
+        }
+        String normalized = value.trim().replaceAll("[^0-9A-Za-z\\-]+", "-");
+        normalized = normalized.replaceAll("-{2,}", "-");
+        normalized = normalized.replaceAll("^-|-$", "");
+        return normalized.toLowerCase();
+    }
+
+    private String asString(Object value) {
+        return value == null ? "" : value.toString();
     }
 }

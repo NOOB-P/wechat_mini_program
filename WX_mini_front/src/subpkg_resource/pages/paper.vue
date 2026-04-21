@@ -13,8 +13,8 @@
           v-model="keyword" 
           placeholder="搜索试卷、学校或年份" 
           hide-cancel 
-          @search="loadData" 
-          @clear="loadData" 
+          @search="handleSearch" 
+          @clear="keyword = ''" 
           custom-style="background: transparent;"
         />
       </view>
@@ -160,10 +160,8 @@ const formatTags = (tags: any) => {
 
 const loadData = async () => {
   try {
-    const params: any = { 
-      keyword: keyword.value
-    }
-    const res = await getPaperListApi(params)
+    // 首页列表不带关键词过滤，显示全部或精选
+    const res = await getPaperListApi({})
     if (res.code === 200) {
       list.value = res.data
     }
@@ -181,6 +179,13 @@ const loadSubjects = async () => {
   } catch (e) {
     console.error(e)
   }
+}
+
+const handleSearch = () => {
+  if (!keyword.value.trim()) return
+  uni.navigateTo({
+    url: `/subpkg_resource/pages/paper-list?keyword=${keyword.value.trim()}`
+  })
 }
 
 const selectSubject = (name: string) => {

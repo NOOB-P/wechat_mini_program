@@ -15,6 +15,7 @@ public class WechatPayProperties {
     private String publicKeyId;
     private String merchantSerialNumber;
     private String notifyUrl;
+    private VirtualPayment virtualPayment = new VirtualPayment();
 
     public String getAppid() {
         return appid;
@@ -80,6 +81,14 @@ public class WechatPayProperties {
         this.notifyUrl = notifyUrl;
     }
 
+    public VirtualPayment getVirtualPayment() {
+        return virtualPayment;
+    }
+
+    public void setVirtualPayment(VirtualPayment virtualPayment) {
+        this.virtualPayment = virtualPayment;
+    }
+
     public boolean isConfigured() {
         return hasText(appid)
                 && hasText(mchid)
@@ -91,7 +100,89 @@ public class WechatPayProperties {
                 && hasText(notifyUrl);
     }
 
+    public boolean isVirtualPaymentConfigured() {
+        return virtualPayment != null
+                && hasText(virtualPayment.getOfferId())
+                && hasText(virtualPayment.getSecurityKey());
+    }
+
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    public static class VirtualPayment {
+
+        private String offerId;
+        private String appSecret; // 米大师支付密钥 (AppSecret)
+        private Integer env = 0; // 0: 正式环境, 1: 沙箱环境
+        private String vipGoodsPrefix = "vip";
+        private String courseGoodsPrefix = "course";
+        private String securityKey; // 用于后端 security 令牌签名的密钥
+        private Long ticketExpireSeconds = 900L;
+        private String notifyUrl; // 米大师回调 URI
+
+        public String getOfferId() {
+            return offerId;
+        }
+
+        public void setOfferId(String offerId) {
+            this.offerId = offerId;
+        }
+
+        public String getAppSecret() {
+            return appSecret;
+        }
+
+        public void setAppSecret(String appSecret) {
+            this.appSecret = appSecret;
+        }
+
+        public Integer getEnv() {
+            return env;
+        }
+
+        public void setEnv(Integer env) {
+            this.env = env;
+        }
+
+        public String getVipGoodsPrefix() {
+            return vipGoodsPrefix;
+        }
+
+        public void setVipGoodsPrefix(String vipGoodsPrefix) {
+            this.vipGoodsPrefix = vipGoodsPrefix;
+        }
+
+        public String getCourseGoodsPrefix() {
+            return courseGoodsPrefix;
+        }
+
+        public void setCourseGoodsPrefix(String courseGoodsPrefix) {
+            this.courseGoodsPrefix = courseGoodsPrefix;
+        }
+
+        public String getSecurityKey() {
+            return securityKey;
+        }
+
+        public void setSecurityKey(String securityKey) {
+            this.securityKey = securityKey;
+        }
+
+        public Long getTicketExpireSeconds() {
+            return ticketExpireSeconds;
+        }
+
+        public void setTicketExpireSeconds(Long ticketExpireSeconds) {
+            this.ticketExpireSeconds = ticketExpireSeconds;
+        }
+
+        public String getNotifyUrl() {
+            return notifyUrl;
+        }
+
+        public void setNotifyUrl(String notifyUrl) {
+            this.notifyUrl = notifyUrl;
+        }
     }
 }
