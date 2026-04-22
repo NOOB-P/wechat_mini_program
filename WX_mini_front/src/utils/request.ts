@@ -16,6 +16,17 @@ const MOCK_BYPASS_URLS = [
 const requestInterceptor = (options: requestOptions) => {
     // 设置请求超时时间
     options.timeout = __VITE_SERVER_TIMEOUT__
+    
+    // 处理 params 参数，将其拼接在 URL 后面
+    if (options.params) {
+        const query = Object.keys(options.params)
+            .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(options.params[key])}`)
+            .join('&')
+        if (query) {
+            options.url += (options.url.includes('?') ? '&' : '?') + query
+        }
+    }
+
     // 拼接请求地址
     options.url = __VITE_SERVER_BASEURL__ + options.url
     console.log(options.url)

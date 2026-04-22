@@ -41,6 +41,12 @@ public class SysNotification {
     @Column(name = "is_published")
     private Integer isPublished;
     
+    @Column(name = "read_uids")
+    private String readUids; // JSON array of uids for targetType=0
+    
+    @Column(name = "is_read")
+    private Integer isRead; // 0-unread, 1-read for targetType=1
+    
     @Column(name = "create_time", insertable = false, updatable = false)
     private LocalDateTime createTime;
     
@@ -70,6 +76,10 @@ public class SysNotification {
     public void setActionPath(String actionPath) { this.actionPath = actionPath; }
     public Integer getIsPublished() { return isPublished; }
     public void setIsPublished(Integer isPublished) { this.isPublished = isPublished; }
+    public String getReadUids() { return readUids; }
+    public void setReadUids(String readUids) { this.readUids = readUids; }
+    public Integer getIsRead() { return isRead; }
+    public void setIsRead(Integer isRead) { this.isRead = isRead; }
     public LocalDateTime getCreateTime() { return createTime; }
     public void setCreateTime(LocalDateTime createTime) { this.createTime = createTime; }
     public LocalDateTime getUpdateTime() { return updateTime; }

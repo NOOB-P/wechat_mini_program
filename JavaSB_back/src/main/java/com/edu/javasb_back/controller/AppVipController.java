@@ -76,6 +76,16 @@ public class AppVipController {
         return vipOrderService.confirmVirtualPayment(userUid, data == null ? null : (String) data.get("orderNo"), security);
     }
 
+    @LogOperation("App cancel VIP order")
+    @PostMapping("/order/cancel")
+    public Result<Void> cancelVipOrder(@RequestBody Map<String, Object> data) {
+        Long userUid = getCurrentUid();
+        if (userUid == null) {
+            return Result.error(401, "请先登录");
+        }
+        return vipOrderService.cancelOrder(userUid, (String) data.get("orderNo"));
+    }
+
     @LogOperation("App open school VIP")
     @PostMapping("/school/open")
     public Result<Map<String, Object>> openSchoolVip(@RequestBody SchoolVipOpenDTO request) {

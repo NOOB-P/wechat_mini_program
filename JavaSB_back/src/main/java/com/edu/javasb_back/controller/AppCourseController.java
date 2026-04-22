@@ -163,12 +163,7 @@ public class AppCourseController {
         if (uid == null) {
             return Result.error(401, "请先登录");
         }
-        try {
-            CourseOrder order = orderService.createOrder(uid, (String) params.get("courseId"));
-            return Result.success("订单创建成功", order);
-        } catch (Exception e) {
-            return Result.error(e.getMessage());
-        }
+        return orderService.createOrder(uid, (String) params.get("courseId"));
     }
 
     @LogOperation("创建课程支付参数")
@@ -191,6 +186,16 @@ public class AppCourseController {
         }
         Map<String, Object> security = params == null ? null : (Map<String, Object>) params.get("security");
         return orderService.confirmVirtualPayment(uid, params == null ? null : (String) params.get("orderNo"), security);
+    }
+
+    @LogOperation("取消课程订单")
+    @PostMapping("/course/order/cancel")
+    public Result<Void> cancelCourseOrder(@RequestBody Map<String, Object> params) {
+        Long uid = getCurrentUid();
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
+        return orderService.cancelOrder(uid, (String) params.get("orderNo"));
     }
 
     @LogOperation("模拟课程支付")

@@ -28,6 +28,7 @@ import com.edu.javasb_back.service.AppNotificationService;
 import com.edu.javasb_back.service.OssStorageService;
 import com.edu.javasb_back.service.SysAccountService;
 import com.edu.javasb_back.service.WechatPayService;
+import com.edu.javasb_back.service.SysNotificationService;
 
 /**
  * 小程序端个人中心/设置控制器
@@ -41,6 +42,9 @@ public class AppMineController {
 
     @Autowired
     private AppNotificationService appNotificationService;
+
+    @Autowired
+    private SysNotificationService sysNotificationService;
 
     @Autowired
     private OssStorageService ossStorageService;
@@ -86,6 +90,39 @@ public class AppMineController {
             return Result.error(401, "未登录");
         }
         return Result.success("获取通知成功", appNotificationService.getUserNotifications(uid, limit));
+    }
+
+    /**
+     * 标记单个通知为已读
+     */
+    @LogOperation("小程序标记通知已读")
+    @PostMapping("/notifications/read")
+    public Result<Void> markNotificationRead(@RequestParam String id) {
+        Long uid = getCurrentUid();
+        if (uid == null) {
+            return Result.error(401, "未登录");
+        }
+        if (id.startsWith("sys-")) {
+            Long sysId = Long.parseLong(id.substring(4));
+            sysNotificationService.markAsRead(sysId, uid);
+        } else {
+            sysNotificationService.markDynamicAsRead(id, uid);
+        }
+        return Result.success("标记成功", null);
+    }
+
+    /**
+     * 标记全部通知为已读
+     */
+    @LogOperation("小程序标记全部通知已读")
+    @PostMapping("/notifications/read-all")
+    public Result<Void> markAllNotificationsRead() {
+        Long uid = getCurrentUid();
+        if (uid == null) {
+            return Result.error(401, "未登录");
+        }
+        sysNotificationService.markAllAsRead(uid);
+        return Result.success("全部标记成功", null);
     }
 
     /**

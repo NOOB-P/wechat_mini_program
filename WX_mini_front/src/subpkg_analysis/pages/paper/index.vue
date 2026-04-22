@@ -58,42 +58,28 @@
 
       <!-- 小题得分 -->
       <view class="section">
-        <view class="section-title">小题得分</view>
-        <view class="answer-list">
-          <view class="answer-item" v-for="(ans, index) in paperData.questionScores" :key="index">
-            <view class="ans-header">
-              <text class="q-no">第 {{ ans.questionNo }} 题</text>
-              <text class="q-type">({{ ans.type }})</text>
-              <text class="status" :class="ans.isBest ? 'right' : 'wrong'">
-                {{ ans.isBest ? '最佳' : '待提升' }}
-              </text>
+        <view class="section-title">小题得分对比</view>
+        <view class="score-table">
+          <view class="table-header">
+            <text class="col">题号</text>
+            <text class="col">我</text>
+            <text class="col">班级</text>
+            <text class="col">年级</text>
+            <text class="col">学校</text>
+            <text class="col">联考</text>
+          </view>
+          <view class="table-row" v-for="(ans, index) in paperData.questionScores" :key="index">
+            <view class="col q-no-col">
+              <text class="no">{{ ans.questionNo }}</text>
+              <text class="type" v-if="ans.type">({{ ans.type }})</text>
             </view>
-            <view class="ans-detail">
-              <view class="ans-row">
-                <text class="label">我的得分</text>
-                <text class="val wrong-text">{{ formatScore(ans.myScore) }} 分</text>
-              </view>
-              <view class="ans-row">
-                <text class="label">小题最高分</text>
-                <text class="val correct-text">{{ formatScore(ans.highestScore) }} 分</text>
-              </view>
-              <view class="ans-row">
-                <text class="label">班级小题均分</text>
-                <text class="val">{{ formatScore(ans.classAvgScore) }} 分</text>
-              </view>
-              <view class="ans-row">
-                <text class="label">全校小题均分</text>
-                <text class="val">{{ formatScore(ans.schoolAvgScore) }} 分</text>
-              </view>
-              <view class="ans-row">
-                <text class="label">年级小题均分</text>
-                <text class="val">{{ formatScore(ans.gradeAvgScore) }} 分</text>
-              </view>
-              <view class="ans-row">
-                <text class="label">项目小题均分</text>
-                <text class="val">{{ formatScore(ans.projectAvgScore) }} 分</text>
-              </view>
-            </view>
+            <text class="col my-score-col" :class="{ 'perfect': ans.myScore >= ans.highestScore && ans.highestScore > 0 }">
+              {{ formatScore(ans.myScore) }}/{{ formatScore(ans.highestScore) }}
+            </text>
+            <text class="col">{{ formatScore(ans.classAvgScore) }}</text>
+            <text class="col">{{ formatScore(ans.gradeAvgScore) }}</text>
+            <text class="col">{{ formatScore(ans.schoolAvgScore) }}</text>
+            <text class="col">{{ formatScore(ans.projectAvgScore) }}</text>
           </view>
         </view>
       </view>
@@ -194,14 +180,34 @@ const downloadPaper = () => {
     return toast.show('暂无下载链接')
   }
   
-  toast.loading('准备下载...')
+  toast.loading('下载中...')
   
-  // 模拟下载过程
-  setTimeout(() => {
-    // 实际环境应使用 uni.downloadFile 和 uni.saveFile/uni.openDocument
-    // uni.downloadFile({ url: paperData.value.downloadUrl, success: (res) => { ... } })
-    toast.success('试卷已保存')
-  }, 1500)
+  uni.downloadFile({
+    url: paperData.value.downloadUrl,
+    success: (res) => {
+      if (res.statusCode === 200) {
+        const filePath = res.tempFilePath
+        // 在微信小程序中，可以使用 openDocument 打开 pdf, doc, xls, ppt 等
+        uni.openDocument({
+          filePath: filePath,
+          showMenu: true, // 允许转发/保存
+          success: () => {
+            toast.close()
+          },
+          fail: (err) => {
+            console.error('打开文件失败:', err)
+            toast.error('无法打开该类型文件')
+          }
+        })
+      } else {
+        toast.error('下载失败')
+      }
+    },
+    fail: (err) => {
+      console.error('下载文件错误:', err)
+      toast.error('网络错误，下载失败')
+    }
+  })
 }
 </script>
 
@@ -315,59 +321,79 @@ const downloadPaper = () => {
   }
 }
 
-.answer-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20rpx;
+.score-table {
+  border: 1rpx solid #e2e8f0;
+  border-radius: 12rpx;
+  overflow: hidden;
+  background-color: #fff;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.02);
 
-  .answer-item {
-    background: #fafafa;
-    border-radius: 12rpx;
-    padding: 20rpx;
+  .table-header {
+    display: flex;
+    background-color: #f8fafc;
+    border-bottom: 1rpx solid #e2e8f0;
+    
+    .col {
+      font-weight: 600;
+      color: #64748b;
+      font-size: 22rpx;
+      text-transform: uppercase;
+      letter-spacing: 1rpx;
+    }
+  }
 
-    .ans-header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 16rpx;
-      padding-bottom: 16rpx;
-      border-bottom: 1rpx solid #eee;
+  .table-row {
+    display: flex;
+    border-bottom: 1rpx solid #f1f5f9;
+    transition: background-color 0.2s;
+    
+    &:nth-child(even) {
+      background-color: #fafcfe;
+    }
 
-      .q-no {
-        font-size: 30rpx;
-        font-weight: bold;
-        color: #333;
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  .col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20rpx 4rpx;
+    font-size: 24rpx;
+    color: #334155;
+    border-right: 1rpx solid #f1f5f9;
+    text-align: center;
+    min-height: 90rpx;
+
+    &:last-child {
+      border-right: none;
+    }
+
+    &.q-no-col {
+      background-color: rgba(248, 250, 252, 0.5);
+      .no {
+        font-weight: 700;
+        color: #1e293b;
       }
-      .q-type {
-        font-size: 24rpx;
-        color: #999;
-        margin-left: 10rpx;
-        flex: 1;
-      }
-      .status {
-        font-size: 26rpx;
-        font-weight: bold;
-        &.right { color: #00c853; }
-        &.wrong { color: #f44336; }
+      .type {
+        font-size: 18rpx;
+        color: #94a3b8;
+        margin-top: 2rpx;
       }
     }
 
-    .ans-detail {
-      .ans-row {
-        display: flex;
-        margin-bottom: 8rpx;
-        font-size: 28rpx;
-
-        .label {
-          color: #666;
-          width: 140rpx;
-        }
-        .val {
-          flex: 1;
-          color: #333;
-          
-          &.wrong-text { color: #f44336; font-weight: bold; }
-          &.correct-text { color: #00c853; font-weight: bold; }
-        }
+    &.my-score-col {
+      font-weight: 700;
+      color: #ef4444; // 现代红
+      background-color: rgba(254, 242, 242, 0.3);
+      
+      &.perfect {
+        color: #10b981; // 现代绿
+        background-color: rgba(236, 253, 245, 0.3);
       }
     }
   }

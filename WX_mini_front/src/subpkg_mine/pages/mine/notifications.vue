@@ -76,7 +76,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getMineNotificationsApi, getUserInfoApi } from '@/api/mine'
+import { getMineNotificationsApi, getUserInfoApi, markNotificationReadApi, markAllNotificationsReadApi } from '@/api/mine'
 
 interface NotificationItem {
   id: string
@@ -131,14 +131,12 @@ const loadNotifications = async () => {
       currentUid.value = userRes.data?.uid || 'guest'
     }
 
-    const lastReadAt = getLastReadAt()
-    const readIds = getReadIds()
     const notificationRes = await getMineNotificationsApi(50)
 
     if (notificationRes.code === 200) {
       notifications.value = (Array.isArray(notificationRes.data) ? notificationRes.data : []).map((item: NotificationItem) => ({
         ...item,
-        isNew: parseTimeToMs(item.time) > lastReadAt && !readIds.includes(item.id)
+        isNew: !!item.isNew
       }))
     }
   } catch (error) {
@@ -146,18 +144,32 @@ const loadNotifications = async () => {
   }
 }
 
-const handleMarkAllRead = () => {
-  notifications.value = notifications.value.map(item => ({ ...item, isNew: false }))
-  markAsRead()
-  clearReadIds()
-  uni.showToast({ title: '已全部标为已读', icon: 'none' })
+const handleMarkAllRead = async () => {
+  try {
+    const res = await markAllNotificationsReadApi()
+    if (res.code === 200) {
+      notifications.value = notifications.value.map(item => ({ ...item, isNew: false }))
+      uni.showToast({ title: '已全部标为已读', icon: 'none' })
+    }
+  } catch (error) {
+    console.error('标记全部已读失败:', error)
+  }
 }
 
-const handleNotificationClick = (item: NotificationItem) => {
+const handleNotificationClick = async (item: NotificationItem) => {
   if (item.isNew) {
+    // 立即消除红点，提升响应速度
     item.isNew = false
-    addReadId(item.id)
+    try {
+      // 异步调用后台标记已读，不阻塞跳转逻辑
+      markNotificationReadApi(item.id).catch(err => {
+        console.error('标记已读失败:', err)
+      })
+    } catch (error) {
+      console.error('处理已读逻辑出错:', error)
+    }
   }
+  
   if (item.actionPath) {
     uni.navigateTo({ url: item.actionPath })
   }
@@ -188,22 +200,6 @@ const formatTimeOnly = (timeStr: string) => {
   if (!timeStr) return ''
   return timeStr.split(' ')[1]?.slice(0, 5) || ''
 }
-
-const getStorageKey = () => `mine_notification_last_read_${currentUid.value || 'guest'}`
-const getReadIdsKey = () => `mine_notification_read_ids_${currentUid.value || 'guest'}`
-
-const getLastReadAt = () => Number(uni.getStorageSync(getStorageKey()) || 0)
-const markAsRead = () => uni.setStorageSync(getStorageKey(), Date.now())
-
-const getReadIds = () => uni.getStorageSync(getReadIdsKey()) || []
-const addReadId = (id: string) => {
-  const ids = getReadIds()
-  if (!ids.includes(id)) {
-    ids.push(id)
-    uni.setStorageSync(getReadIdsKey(), ids)
-  }
-}
-const clearReadIds = () => uni.removeStorageSync(getReadIdsKey())
 
 const parseTimeToMs = (time?: string) => time ? new Date(time.replace(/-/g, '/')).getTime() || 0 : 0
 

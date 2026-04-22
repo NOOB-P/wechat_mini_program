@@ -9,7 +9,7 @@ import com.edu.javasb_back.model.entity.CourseOrder;
 
 public interface CourseOrderService {
 
-    CourseOrder createOrder(Long userUid, String courseId);
+    Result<CourseOrder> createOrder(Long userUid, String courseId);
 
     void paySuccess(String orderNo);
 
@@ -20,6 +20,8 @@ public interface CourseOrderService {
     boolean isCoursePurchased(Long userUid, String courseId);
 
     List<Course> getPurchasedCourses(Long userUid);
+
+    Result<Void> cancelOrder(Long userUid, String orderNo);
 
     Result<Map<String, Object>> getCourseOrderList(int current, int size, String orderNo, String userName,
                                                    Integer paymentStatus, String startDate, String endDate);

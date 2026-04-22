@@ -98,8 +98,28 @@ export const getMineNotificationsApi = (limit?: number) => {
     url: '/api/app/mine/notifications',
     method: 'GET',
     silent: true,
-    data: {
-      limit
-    }
+    params: { limit }
   })
 }
+
+/**
+ * @Description: 标记通知已读
+ */
+export const markNotificationReadApi = (id: string) => {
+  return request({
+    url: '/api/app/mine/notifications/read',
+    method: 'POST',
+    params: { id }
+  })
+}
+
+/**
+ * @Description: 标记全部通知已读
+ */
+export const markAllNotificationsReadApi = () => {
+  return request({
+    url: '/api/app/mine/notifications/read-all',
+    method: 'POST'
+  })
+}
+
