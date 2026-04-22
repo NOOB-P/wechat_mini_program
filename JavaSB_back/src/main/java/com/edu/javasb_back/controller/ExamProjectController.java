@@ -5,6 +5,7 @@ import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
 import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import com.edu.javasb_back.model.dto.PaperOcrAutoCutDTO;
+import com.edu.javasb_back.model.dto.PaperRegionOcrDTO;
 import com.edu.javasb_back.service.ExamProjectService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -174,6 +175,18 @@ public class ExamProjectController {
     @PostMapping("/papers/layout/ocr-auto")
     public Result<Map<String, Object>> autoCutPaperLayoutByOcr(@RequestBody PaperOcrAutoCutDTO dto) {
         return examProjectService.autoCutPaperLayoutByOcr(dto);
+    }
+
+    @LogOperation("OCR 识别试卷分页")
+    @PostMapping("/papers/layout/ocr-page")
+    public Result<Map<String, Object>> ocrPaperLayoutPage(@RequestBody PaperOcrAutoCutDTO dto) {
+        return examProjectService.ocrPaperLayoutPage(dto);
+    }
+
+    @LogOperation("OCR 识别单个题框文本")
+    @PostMapping("/papers/layout/ocr-question")
+    public Result<Map<String, Object>> ocrPaperRegion(@RequestBody PaperRegionOcrDTO dto) {
+        return examProjectService.ocrPaperRegion(dto);
     }
 
     @LogOperation("保存单个学生成绩")

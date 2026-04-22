@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 
 import com.baomidou.dynamic.datasource.annotation.DS;
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.common.WechatBindRequiredException;
 import com.edu.javasb_back.config.WechatPayProperties;
 import com.edu.javasb_back.config.datasource.DataSourceName;
 import com.edu.javasb_back.model.entity.Course;
@@ -147,6 +148,8 @@ public class CourseOrderServiceImpl implements CourseOrderService {
             result.put("security", payPackage.get("security"));
             result.put("courseTitle", course.getTitle());
             return Result.success("获取支付参数成功", result);
+        } catch (WechatBindRequiredException e) {
+            return Result.wechatBindRequired(e.getMessage());
         } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.error(e.getMessage());
         } catch (Exception e) {
@@ -179,7 +182,7 @@ public class CourseOrderServiceImpl implements CourseOrderService {
                 userUid,
                 asString(securityData == null ? null : securityData.get("timestamp")),
                 asString(securityData == null ? null : securityData.get("nonceStr")),
-                asString(securityData == null ? null : securityData.get("signature")));
+                resolveSecuritySignature(securityData));
         if (!valid) {
             return Result.error(400, "虚拟支付校验失败");
         }
@@ -365,5 +368,16 @@ public class CourseOrderServiceImpl implements CourseOrderService {
 
     private String asString(Object value) {
         return value == null ? "" : value.toString();
+    }
+
+    private String resolveSecuritySignature(Map<String, Object> securityData) {
+        if (securityData == null) {
+            return "";
+        }
+        Object confirmSignature = securityData.get("confirmSignature");
+        if (confirmSignature != null && StringUtils.hasText(confirmSignature.toString())) {
+            return confirmSignature.toString();
+        }
+        return asString(securityData.get("signature"));
     }
 }

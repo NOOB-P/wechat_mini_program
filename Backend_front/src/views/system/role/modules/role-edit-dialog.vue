@@ -133,11 +133,12 @@
   const initForm = () => {
     if (props.dialogType === 'edit' && props.roleData) {
       Object.assign(form, {
-        id: props.roleData.id,
+        id: props.roleData.id ?? props.roleData.roleId,
         roleName: props.roleData.roleName,
         roleCode: props.roleData.roleCode,
         description: props.roleData.description,
-        enabled: props.roleData.status === 1
+        enabled:
+          props.roleData.status != null ? props.roleData.status === 1 : !!props.roleData.enabled
       })
     } else {
       Object.assign(form, {

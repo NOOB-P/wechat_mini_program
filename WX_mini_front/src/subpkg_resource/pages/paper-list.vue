@@ -79,7 +79,10 @@ const list = ref<any[]>([])
 const loading = ref(false)
 
 onLoad((options: any) => {
-  if (options.subject) {
+  if (options.keyword) {
+    keyword.value = options.keyword
+    uni.setNavigationBarTitle({ title: '搜索结果' })
+  } else if (options.subject) {
     subject.value = options.subject
     uni.setNavigationBarTitle({ title: options.subject + '试卷' })
   } else if (options.type) {

@@ -13,6 +13,7 @@ import javax.crypto.spec.SecretKeySpec;
 public final class VirtualPaymentSignatureUtils {
 
     private static final String HMAC_SHA256 = "HmacSHA256";
+    private static final String REQUEST_VIRTUAL_PAYMENT = "requestVirtualPayment";
 
     private VirtualPaymentSignatureUtils() {
     }
@@ -29,18 +30,13 @@ public final class VirtualPaymentSignatureUtils {
     }
 
     /**
-     * 米大师 V3 签名 (paySig)
-     * 算法: hmac_sha256(app_key, signData + "&" + uri)
+     * 小程序虚拟支付签名
+     * 算法: hmac_sha256(app_key, signData)
      */
-    public static String midasPaySig(String signData, String uri, String appKey) {
-        String payload = signData + "&" + uri;
-        return sign(payload, appKey);
+    public static String midasPaySig(String signData, String appKey) {
+        return sign(REQUEST_VIRTUAL_PAYMENT + "&" + signData, appKey);
     }
 
-    /**
-     * 用户态签名 (signature)
-     * 算法: hmac_sha256(session_key, signData)
-     */
     public static String midasSignature(String signData, String sessionKey) {
         return sign(signData, sessionKey);
     }

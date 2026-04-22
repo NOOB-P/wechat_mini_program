@@ -2,6 +2,7 @@ package com.edu.javasb_back.service.impl;
 
 import com.baomidou.dynamic.datasource.annotation.DS;
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.common.WechatBindRequiredException;
 import com.edu.javasb_back.model.entity.*;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
@@ -87,7 +88,8 @@ public class VipOrderServiceImpl implements VipOrderService {
     @Autowired
 
     private WechatPayProperties wechatPayProperties;
-
+    
+    @Autowired
     private SysNotificationService notificationService;
 
     @Override
@@ -120,6 +122,10 @@ public class VipOrderServiceImpl implements VipOrderService {
         order.setPackageType(StringUtils.hasText(tierCode) ? tierCode : title);
         order.setPeriod(formatMonthPeriod(months));
         order.setPrice(price);
+        
+        Integer pricingId = parseInteger(orderData.get("pricingId"));
+        order.setPricingId(pricingId);
+
         order.setPaymentStatus(0);
         order.setPaymentMethod(ONLINE_PAYMENT_METHOD);
         order.setSourceType(SOURCE_ONLINE_PURCHASE);
@@ -182,9 +188,12 @@ public class VipOrderServiceImpl implements VipOrderService {
         }
 
         try {
+            // 使用 pricingId 作为 goodsId 以便 WechatPayService 进行映射
+            String goodsId = order.getPricingId() != null ? String.valueOf(order.getPricingId()) : buildVipGoodsId(order);
+            
             Map<String, Object> payPackage = wechatPayService.createVirtualPaymentParams(
                     order.getOrderNo(),
-                    buildVipGoodsId(order),
+                    goodsId,
                     order.getPrice(),
                     userUid);
             Map<String, Object> result = new HashMap<>();
@@ -195,6 +204,8 @@ public class VipOrderServiceImpl implements VipOrderService {
             result.put("packageType", order.getPackageType());
             result.put("period", order.getPeriod());
             return Result.success("获取支付参数成功", result);
+        } catch (WechatBindRequiredException e) {
+            return Result.wechatBindRequired(e.getMessage());
         } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.error(e.getMessage());
         } catch (Exception e) {
@@ -220,14 +231,17 @@ public class VipOrderServiceImpl implements VipOrderService {
             return Result.success("支付已处理");
         }
 
+        // 使用与 createWechatPayParams 一致的 goodsId 逻辑
+        String goodsId = order.getPricingId() != null ? String.valueOf(order.getPricingId()) : buildVipGoodsId(order);
+        
         boolean valid = wechatPayService.verifyVirtualPaymentSecurity(
                 orderNo,
-                buildVipGoodsId(order),
+                goodsId,
                 order.getPrice(),
                 userUid,
                 asString(securityData == null ? null : securityData.get("timestamp")),
                 asString(securityData == null ? null : securityData.get("nonceStr")),
-                asString(securityData == null ? null : securityData.get("signature")));
+                resolveSecuritySignature(securityData));
         if (!valid) {
             return Result.error(400, "虚拟支付校验失败");
         }
@@ -546,5 +560,16 @@ public class VipOrderServiceImpl implements VipOrderService {
         normalized = normalized.replaceAll("-{2,}", "-");
         normalized = normalized.replaceAll("^-|-$", "");
         return normalized.toLowerCase();
+    }
+
+    private String resolveSecuritySignature(Map<String, Object> securityData) {
+        if (securityData == null) {
+            return "";
+        }
+        Object confirmSignature = securityData.get("confirmSignature");
+        if (confirmSignature != null && StringUtils.hasText(confirmSignature.toString())) {
+            return confirmSignature.toString();
+        }
+        return asString(securityData.get("signature"));
     }
 }

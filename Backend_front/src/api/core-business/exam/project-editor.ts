@@ -1,7 +1,7 @@
 import api from '@/utils/http'
 import { normalizeQuestionNo } from '@/utils/exam-utils'
 
-const PAPER_UPLOAD_TIMEOUT = 120000
+const PAPER_UPLOAD_TIMEOUT = 10 * 60 * 1000
 const PAPER_OCR_TIMEOUT = 180000
 
 export interface ProjectStudentItem {
@@ -88,13 +88,34 @@ export interface PaperRegionItem {
   questionNo: string
   questionType: string
   knowledgePoint: string
+  questionText: string
+  remark?: string
   score: number | null
-  remark: string
   sortOrder: number
   x: number
   y: number
   width: number
   height: number
+}
+
+export interface PaperMergePageItem {
+  pageIndex: number
+  offsetX: number
+  offsetY: number
+  width: number
+  height: number
+  xRatio: number
+  yRatio: number
+  widthRatio: number
+  heightRatio: number
+}
+
+export interface PaperMergeInfo {
+  sourceType: string
+  imageWidth: number
+  imageHeight: number
+  pageCount: number
+  pages: PaperMergePageItem[]
 }
 
 export interface PaperOcrAutoCutResult {
@@ -106,8 +127,33 @@ export interface PaperOcrAutoCutResult {
   ocrSubject: string
   imageType: string
   cutType: string
+  pageCount: number
+  pageResults?: Record<string, any>[]
   recognizedCount: number
   regions: PaperRegionItem[]
+}
+
+export interface PaperOcrPageResult {
+  pageIndex: number
+  pageCount: number
+  paperUrl: string
+  requestId: string
+  ocrSubject: string
+  imageType: string
+  cutType: string
+  recognizedCount: number
+  pageInfo?: PaperMergePageItem
+  regions: PaperRegionItem[]
+}
+
+export interface PaperQuestionOcrResult {
+  projectId: string
+  subjectName: string
+  type: 'template' | 'original'
+  requestId: string
+  questionText: string
+  questionType: string
+  score: number | null
 }
 
 export function normalizePaperRegion(
@@ -120,8 +166,8 @@ export function normalizePaperRegion(
     questionNo: normalizeQuestionNo(region?.questionNo, sortOrder),
     questionType: String(region?.questionType || '').trim(),
     knowledgePoint: String(region?.knowledgePoint || '').trim(),
+    questionText: String(region?.questionText || region?.remark || '').trim(),
     score: region?.score ?? null,
-    remark: String(region?.remark || '').trim(),
     sortOrder,
     x: Number(region?.x ?? 0),
     y: Number(region?.y ?? 0),
@@ -308,6 +354,8 @@ export function fetchPaperConfig(params: { projectId: string; subjectName: strin
     .get<{
       templateUrl: string | null
       originalUrl: string | null
+      templateMergeInfo: PaperMergeInfo
+      originalMergeInfo: PaperMergeInfo
       templateRegions: PaperRegionItem[]
       originalRegions: PaperRegionItem[]
     }>({
@@ -317,6 +365,8 @@ export function fetchPaperConfig(params: { projectId: string; subjectName: strin
     })
     .then((res) => ({
       ...res,
+      templateMergeInfo: res.templateMergeInfo || { sourceType: '', imageWidth: 0, imageHeight: 0, pageCount: 0, pages: [] },
+      originalMergeInfo: res.originalMergeInfo || { sourceType: '', imageWidth: 0, imageHeight: 0, pageCount: 0, pages: [] },
       templateRegions: normalizePaperRegions(res.templateRegions),
       originalRegions: normalizePaperRegions(res.originalRegions)
     }))
@@ -354,4 +404,42 @@ export function fetchAutoCutPaperLayout(params: {
       ...res,
       regions: normalizePaperRegions(res.regions)
     }))
+}
+
+export function fetchOcrPaperLayoutPage(params: {
+  projectId: string
+  subjectName: string
+  type: 'template' | 'original'
+  pageIndex: number
+  imageType?: string
+}) {
+  return api
+    .post<PaperOcrPageResult>({
+      url: '/api/system/exam-project/papers/layout/ocr-page',
+      data: params,
+      timeout: PAPER_OCR_TIMEOUT,
+      showErrorMessage: false
+    })
+    .then((res) => ({
+      ...res,
+      regions: normalizePaperRegions(res.regions)
+    }))
+}
+
+export function fetchOcrPaperQuestion(params: {
+  projectId: string
+  subjectName: string
+  type: 'template' | 'original'
+  imageType?: string
+  x: number
+  y: number
+  width: number
+  height: number
+}) {
+  return api.post<PaperQuestionOcrResult>({
+    url: '/api/system/exam-project/papers/layout/ocr-question',
+    data: params,
+    timeout: PAPER_OCR_TIMEOUT,
+    showErrorMessage: false
+  })
 }

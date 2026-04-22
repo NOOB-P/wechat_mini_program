@@ -223,13 +223,18 @@
   }
 
   const deleteRole = (row: RoleListItem) => {
+    const roleId = row.id ?? row.roleId
+    if (roleId == null) {
+      ElMessage.error('当前角色缺少ID，无法删除')
+      return
+    }
     ElMessageBox.confirm(`确定删除角色"${row.roleName}"吗？此操作不可恢复！`, '删除确认', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
     })
       .then(async () => {
-        await fetchDeleteRole(row.id)
+        await fetchDeleteRole(roleId)
         ElMessage.success('删除成功')
         refreshData()
       })

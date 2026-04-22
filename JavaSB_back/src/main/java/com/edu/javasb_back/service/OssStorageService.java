@@ -15,12 +15,15 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class OssStorageService {
@@ -33,6 +36,9 @@ public class OssStorageService {
 
     @Value("${aliyun.oss.bucket}")
     private String bucket;
+
+    @Value("${aliyun.oss.endpoint}")
+    private String endpoint;
 
     @Value("${aliyun.oss.cdn-base-url}")
     private String cdnBaseUrl;
@@ -119,20 +125,41 @@ public class OssStorageService {
             return null;
         }
         String trimmedUrl = url.trim();
-        String baseUrl = normalizedBaseUrl();
-        if (!StringUtils.hasText(baseUrl) || !trimmedUrl.startsWith(baseUrl)) {
-            return null;
+        
+        // Try CDN base URL
+        String cdnUrl = normalizedBaseUrl();
+        if (StringUtils.hasText(cdnUrl) && trimmedUrl.startsWith(cdnUrl)) {
+            String rawKey = trimmedUrl.substring(cdnUrl.length()).trim();
+            return normalizeObjectKey(rawKey);
         }
-        String rawObjectKey = trimmedUrl.substring(baseUrl.length()).trim();
-        if (!StringUtils.hasText(rawObjectKey)) {
-            return null;
+
+        // Try raw OSS URL: https://{bucket}.{endpoint}/
+        String ossUrl = "https://" + bucket + "." + endpoint + "/";
+        if (trimmedUrl.startsWith(ossUrl)) {
+            String rawKey = trimmedUrl.substring(ossUrl.length()).trim();
+            return normalizeObjectKey(rawKey);
         }
-        String objectKey = normalizeObjectKey(rawObjectKey);
-        return StringUtils.hasText(objectKey) ? objectKey : null;
+
+        return null;
     }
 
     public String buildUrl(String objectKey) {
         return normalizedBaseUrl() + normalizeObjectKey(objectKey);
+    }
+
+    public String toCdnUrl(String url) {
+        if (!StringUtils.hasText(url)) {
+            return url;
+        }
+        String trimmedUrl = url.trim();
+        if (trimmedUrl.startsWith("/uploads/")) {
+            return normalizedBaseUrl() + trimmedUrl.replaceFirst("^/+", "");
+        }
+        String objectKey = extractObjectKey(url);
+        if (StringUtils.hasText(objectKey)) {
+            return buildUrl(objectKey);
+        }
+        return url;
     }
 
     private String normalizeObjectKey(String objectKey) {
@@ -151,12 +178,54 @@ public class OssStorageService {
         return normalized.endsWith("/") ? normalized : normalized + "/";
     }
 
+    private List<String> supportedUrlPrefixes() {
+        List<String> prefixes = new ArrayList<>();
+        String cdnPrefix = normalizedBaseUrl();
+        if (StringUtils.hasText(cdnPrefix)) {
+            prefixes.add(cdnPrefix);
+        }
+
+        String rawOssPrefix = rawOssBaseUrl();
+        if (StringUtils.hasText(rawOssPrefix) && !prefixes.contains(rawOssPrefix)) {
+            prefixes.add(rawOssPrefix);
+        }
+        return prefixes;
+    }
+
+    private String rawOssBaseUrl() {
+        if (!StringUtils.hasText(bucket)) {
+            return "";
+        }
+        try {
+            URI endpointUri = URI.create(endpoint.startsWith("http://") || endpoint.startsWith("https://")
+                    ? endpoint
+                    : "https://" + endpoint);
+            String host = endpointUri.getHost();
+            if (!StringUtils.hasText(host)) {
+                return "";
+            }
+            return "https://" + bucket + "." + host + "/";
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
     private String resolveContentType(String fileName, String explicitContentType) {
         if (StringUtils.hasText(explicitContentType)) {
             return explicitContentType;
         }
         String guessed = URLConnection.guessContentTypeFromName(fileName);
         return StringUtils.hasText(guessed) ? guessed : "application/octet-stream";
+    }
+
+    public void delete(String url) throws IOException {
+        String objectKey = extractObjectKey(url);
+        if (StringUtils.hasText(objectKey)) {
+            execute(client -> {
+                client.deleteObject(bucket, objectKey);
+                return null;
+            });
+        }
     }
 
     private String getFileSuffix(String url) {
@@ -178,13 +247,32 @@ public class OssStorageService {
 
     private <T> T execute(OssCallback<T> callback) throws IOException {
         validateConfig();
-        try {
-            return callback.execute(ossClient);
-        } catch (IOException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IOException("OSS 操作失败: " + e.getMessage(), e);
+        int maxRetries = 3;
+        int retryCount = 0;
+        Exception lastException = null;
+
+        while (retryCount < maxRetries) {
+            try {
+                return callback.execute(ossClient);
+            } catch (Exception e) {
+                retryCount++;
+                lastException = e;
+                if (retryCount >= maxRetries) {
+                    break;
+                }
+                // Optional: add a small delay before retry
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+            }
         }
+
+        if (lastException instanceof IOException ioException) {
+            throw ioException;
+        }
+        throw new IOException("OSS 操作在重试 " + maxRetries + " 次后依然失败: " + lastException.getMessage(), lastException);
     }
 
     @FunctionalInterface

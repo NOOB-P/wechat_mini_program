@@ -150,7 +150,12 @@
     async (newVal) => {
       if (newVal && props.roleData) {
         try {
-          const res = await fetchGetRolePermissions(props.roleData.id)
+          const roleId = props.roleData.id ?? props.roleData.roleId
+          if (roleId == null) {
+            ElMessage.error('当前角色缺少ID，无法加载权限')
+            return
+          }
+          const res = await fetchGetRolePermissions(roleId)
           if (res) {
             nextTick(() => {
               treeRef.value?.setCheckedKeys(res)
@@ -176,6 +181,11 @@
    */
   const savePermission = async () => {
     if (!props.roleData) return
+    const roleId = props.roleData.id ?? props.roleData.roleId
+    if (roleId == null) {
+      ElMessage.error('当前角色缺少ID，无法保存权限')
+      return
+    }
     
     submitLoading.value = true
     try {
@@ -183,7 +193,7 @@
       // 过滤掉空的 key
       const permissionCodes = checkedKeys.filter((k: string) => k)
       
-      await fetchAssignPermissions(props.roleData.id, permissionCodes)
+      await fetchAssignPermissions(roleId, permissionCodes)
       ElMessage.success('权限保存成功')
       emit('success')
       handleClose()

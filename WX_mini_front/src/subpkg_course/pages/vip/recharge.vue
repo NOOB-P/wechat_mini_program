@@ -94,13 +94,17 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 
-import { getUserInfoApi } from '@/api/mine'
 import {
   confirmVipVirtualPayApi,
   createVipOrderApi,
   createVipPayApi,
   getVipRechargeConfigApi
 } from '@/api/vip'
+import {
+  PAYMENT_WECHAT_BIND_OPTIONS,
+  refreshWechatUserInfo,
+  runWithWechatBindGuard
+} from '@/utils/wechat-bind'
 import { requestWechatPaymentByType } from '@/utils/wechat-pay'
 
 const toast = useToast()
@@ -232,11 +236,8 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const refreshUserInfoAfterPay = async () => {
   for (let index = 0; index < 3; index += 1) {
     try {
-      const res = await getUserInfoApi()
-      if (res.code === 200) {
-        uni.setStorageSync('userInfo', res.data)
-        return
-      }
+      await refreshWechatUserInfo()
+      return
     } catch (error) {
       console.error('refresh user info failed', error)
     }
@@ -269,28 +270,30 @@ const handlePay = async () => {
   submitting.value = true
   try {
     toast.loading('正在准备支付...')
-    const createRes = await createVipOrderApi({
-      packageType: currentConfig.value.title,
-      tierCode: currentConfig.value.tierCode,
-      period: selectedPlan.duration,
-      durationMonths: selectedPlan.durationMonths,
-      price: selectedPlan.price,
-      pricingId: selectedPlan.id
-    })
-
-    const payRes = await createVipPayApi(createRes.data.orderNo)
-    
-    // 调用统一支付调度器 (由后端返回的 paymentType 决定走哪条路径)
+    const { createRes, payRes } = await runWithWechatBindGuard(async () => {
+      const createRes = await createVipOrderApi({
+        packageType: currentConfig.value.title,
+        tierCode: currentConfig.value.tierCode,
+        period: selectedPlan.duration,
+        durationMonths: selectedPlan.durationMonths,
+        price: selectedPlan.price,
+        pricingId: selectedPlan.id
+      })
+      const payRes = await createVipPayApi(createRes.data.orderNo)
+      return { createRes, payRes }
+    }, PAYMENT_WECHAT_BIND_OPTIONS)
+    console.log("-------------------------------------------")
+    console.log(payRes.data?.paymentType)
+    console.log(payRes.data?.payParams || {})
+    console.log("-------------------------------------------")
     await requestWechatPaymentByType(payRes.data?.paymentType, payRes.data?.payParams || {})
 
-    if (payRes.data?.paymentType === 'VIRTUAL') {
+    if (payRes.data?.paymentType === 'VIRTUAL' || payRes.data?.paymentType === 'FREE') {
       try {
-        // 虚拟支付：尝试前端确认，如果失败则提示用户正在处理（后端回调作为最终保障）
         await confirmVipVirtualPayWithRetry(createRes.data.orderNo, payRes.data?.security || {})
       } catch (confirmError) {
-        console.warn('Virtual pay confirm failed, relying on backend notify', confirmError)
+        console.warn('Payment confirm failed, relying on backend notify', confirmError)
         toast.show('支付已提交，会员状态更新中...')
-        // 稍等片刻后刷新
         await wait(2000)
       }
     }
@@ -299,6 +302,9 @@ const handlePay = async () => {
     toast.success('开通成功')
     redirectAfterSuccess()
   } catch (error: any) {
+    if (error?.code === 'WECHAT_BIND_CANCELLED' || error?.code === 'WECHAT_BIND_REQUIRED') {
+      return
+    }
     if (error?.code === 'PAY_CANCEL') {
       toast.show('已取消支付')
       return
@@ -315,255 +321,4 @@ const handlePay = async () => {
 }
 </script>
 
-<style lang="scss" scoped>
-.recharge-container {
-  min-height: 100vh;
-  background-color: #f8f9fa;
-  padding-bottom: 120rpx;
-}
-
-.top-card {
-  height: 280rpx;
-  padding: 40rpx;
-  color: #fff;
-  transition: background 0.3s ease;
-}
-
-.vip-bg {
-  background: linear-gradient(135deg, #1a5f8e 0%, #00897b 100%);
-}
-
-.svip-bg {
-  background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%);
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 30rpx;
-  margin-top: 20rpx;
-}
-
-.info-text {
-  display: flex;
-  flex-direction: column;
-  gap: 10rpx;
-}
-
-.name {
-  font-size: 36rpx;
-  font-weight: bold;
-}
-
-.status {
-  font-size: 24rpx;
-  opacity: 0.8;
-}
-
-.type-switch {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  margin: -40rpx 40rpx 0;
-  overflow: hidden;
-  border-radius: 16rpx;
-  background: #fff;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
-}
-
-.switch-item {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10rpx;
-  padding: 30rpx 0;
-  font-size: 30rpx;
-  font-weight: bold;
-  color: #666;
-  transition: all 0.3s;
-}
-
-.icon {
-  font-size: 36rpx;
-}
-
-.active {
-  color: #1a5f8e;
-  background: rgba(26, 95, 142, 0.05);
-}
-
-.svip-active {
-  color: #f6d365;
-  background: rgba(246, 211, 101, 0.1);
-}
-
-.section-title {
-  margin-bottom: 30rpx;
-  padding-left: 20rpx;
-  border-left: 8rpx solid #1a5f8e;
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #333;
-}
-
-.privilege-section,
-.plan-section {
-  margin-top: 20rpx;
-  padding: 40rpx;
-  background: #fff;
-}
-
-.privilege-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20rpx;
-}
-
-.tag-item {
-  padding: 12rpx 24rpx;
-  border: 1px solid #e1e8f0;
-  border-radius: 32rpx;
-  background: #f0f4f8;
-  color: #1a5f8e;
-  font-size: 24rpx;
-}
-
-.plan-grid {
-  display: flex;
-  justify-content: space-between;
-  gap: 20rpx;
-}
-
-.plan-item {
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 40rpx 20rpx;
-  border: 2rpx solid #eee;
-  border-radius: 16rpx;
-  transition: all 0.3s;
-}
-
-.tag {
-  position: absolute;
-  top: -16rpx;
-  left: -2rpx;
-  padding: 4rpx 12rpx;
-  border-radius: 16rpx 0 16rpx 0;
-  background: #ff5252;
-  color: #fff;
-  font-size: 20rpx;
-}
-
-.plan-duration {
-  margin-bottom: 20rpx;
-  font-size: 28rpx;
-  font-weight: bold;
-  color: #333;
-}
-
-.plan-price {
-  margin-bottom: 10rpx;
-  color: #f44336;
-}
-
-.symbol {
-  font-size: 24rpx;
-}
-
-.num {
-  font-size: 48rpx;
-  font-weight: bold;
-}
-
-.plan-origin {
-  font-size: 24rpx;
-  color: #999;
-  text-decoration: line-through;
-}
-
-.plan-item.active {
-  border-color: #f6d365;
-  background: rgba(246, 211, 101, 0.1);
-}
-
-.plan-item.active .plan-duration {
-  color: #8a6d3b;
-}
-
-.bottom-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  z-index: 100;
-  box-sizing: border-box;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  height: 120rpx;
-  padding: 0 40rpx;
-  background: #fff;
-  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.05);
-}
-
-.label {
-  margin-right: 10rpx;
-  font-size: 28rpx;
-  color: #333;
-}
-
-.price-info .symbol {
-  font-size: 24rpx;
-  color: #f44336;
-}
-
-.price-info .num {
-  font-size: 48rpx;
-  font-weight: bold;
-  color: #f44336;
-}
-
-.pay-btn {
-  width: 240rpx !important;
-  border: none !important;
-  border-radius: 40rpx !important;
-  background: linear-gradient(135deg, #1a5f8e 0%, #00897b 100%) !important;
-}
-
-.svip-btn {
-  background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%) !important;
-  color: #f6d365 !important;
-}
-
-.loading-box,
-.empty-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding-top: 200rpx;
-  text-align: center;
-}
-
-.loading-text {
-  margin-top: 20rpx;
-  font-size: 28rpx;
-  color: #999;
-}
-
-.empty-title {
-  font-size: 36rpx;
-  font-weight: 600;
-  color: #222;
-}
-
-.empty-desc {
-  margin-top: 20rpx;
-  font-size: 28rpx;
-  color: #999;
-}
-</style>
+<style src="./recharge.scss" lang="scss" scoped></style>

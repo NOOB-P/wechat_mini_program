@@ -256,6 +256,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
     };
   },
   */
+  /*
     '/api/app/paper/detail': (data) => {
     return {
       code: 200,
@@ -283,6 +284,7 @@ const mocks: Record<string, (data: any) => MockResponse> = {
       }
     };
   },
+  */
   '/api/app/vip/wrongbook/list': (data) => {
     return {
       code: 200,

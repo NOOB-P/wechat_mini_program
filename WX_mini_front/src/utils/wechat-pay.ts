@@ -1,23 +1,4 @@
-import { bindWechatOpenidApi } from '@/api/login'
-import { getUserInfoApi } from '@/api/mine'
-
 const VIRTUAL_PAYMENT_MIN_SDK = '2.19.2'
-
-const getWechatLoginCode = () => {
-  return new Promise<string>((resolve, reject) => {
-    uni.login({
-      provider: 'weixin',
-      success: (res) => {
-        if (res.code) {
-          resolve(res.code)
-          return
-        }
-        reject(new Error('获取微信登录凭证失败'))
-      },
-      fail: () => reject(new Error('微信授权失败'))
-    })
-  })
-}
 
 const compareVersion = (sourceVersion = '', targetVersion = '') => {
   const sourceList = sourceVersion.split('.')
@@ -59,29 +40,6 @@ const canUseVirtualPayment = () => {
   return typeof wxApi.canIUse === 'function' ? !!wxApi.canIUse('requestVirtualPayment') : false
 }
 
-export const refreshUserInfo = async () => {
-  const res = await getUserInfoApi()
-  if (res.code !== 200) {
-    throw new Error(res.msg || '获取用户信息失败')
-  }
-  uni.setStorageSync('userInfo', res.data)
-  return res.data
-}
-
-export const ensureWechatPayBound = async () => {
-  const localUserInfo = uni.getStorageSync('userInfo')
-  if (localUserInfo?.wxid) {
-    return localUserInfo
-  }
-
-  const code = await getWechatLoginCode()
-  const bindRes = await bindWechatOpenidApi(code)
-  if (bindRes.code !== 200) {
-    throw new Error(bindRes.msg || '绑定微信失败')
-  }
-  return refreshUserInfo()
-}
-
 export const requestWechatPay = (payParams: Record<string, any>) => {
   return new Promise<void>((resolve, reject) => {
     uni.requestPayment({
@@ -106,18 +64,21 @@ export const requestWechatVirtualPay = (payParams: Record<string, any>) => {
       return
     }
 
-    const { signData, paySig, signature } = payParams
-    if (!signData || !paySig || !signature) {
+    const { signData, paySig, signature, mode } = payParams
+    if (!signData || !paySig || !signature || !mode) {
       reject(new Error('虚拟支付参数缺失'))
       return
     }
 
     const wxApi = getWechatApi()
+
     wxApi.requestVirtualPayment({
+      mode,
       signData,
       paySig,
       signature,
       success: () => resolve(),
+      
       fail: (error: Record<string, any>) => {
         if (error?.errCode === -2 || error?.errMsg?.includes('cancel')) {
           reject({ code: 'PAY_CANCEL', msg: '用户取消支付' })
@@ -126,10 +87,18 @@ export const requestWechatVirtualPay = (payParams: Record<string, any>) => {
         reject(new Error(error?.errMsg || '调起微信虚拟支付失败'))
       }
     })
+
   })
 }
 
+export const requestWechatFreePay = () => {
+  return Promise.resolve()
+}
+
 export const requestWechatPaymentByType = (paymentType: string, payParams: Record<string, any>) => {
+  if (paymentType === 'FREE') {
+    return requestWechatFreePay()
+  }
   if (paymentType === 'VIRTUAL') {
     return requestWechatVirtualPay(payParams)
   }

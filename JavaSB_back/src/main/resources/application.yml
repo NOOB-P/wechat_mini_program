@@ -61,10 +61,10 @@ app:
     upload-temp-dir: ${APP_UPLOAD_TEMP_DIR:${java.io.tmpdir}/edu-upload-temp/}
     oss-endpoint: ${ALIYUN_OSS_ENDPOINT:oss-cn-hangzhou.aliyuncs.com}
     oss-bucket: ${ALIYUN_OSS_BUCKET:back-resources}
-    oss-access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID:${ALIYUN_OCR_ACCESS_KEY_ID:}}
-    oss-access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:${ALIYUN_OCR_ACCESS_KEY_SECRET:}}
-    oss-public-base-url: ${ALIYUN_OSS_PUBLIC_BASE_URL:https://back-resources.oss-cn-hangzhou.aliyuncs.com/}
-    qwen-api-key: ${QWEN_API_KEY:sk-6cf983c5f39b45edb304ae6fde0325c0}
+    oss-access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID:}
+    oss-access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:}
+    oss-public-base-url: ${ALIYUN_OSS_PUBLIC_BASE_URL:https://cdn.youtihui.com/}
+    qwen-api-key: ${QWEN_API_KEY:}
     qwen-chat-url: ${QWEN_CHAT_URL:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
     qwen-model: ${QWEN_MODEL:qwen3.6-plus}
     qwen-prompt-version: ${QWEN_PROMPT_VERSION:qwen-score-report-v1}
@@ -101,7 +101,7 @@ wechat:
     notifyUrl: ${WECHAT_PAY_NOTIFY_URL:http://10.62.50.208:8082/api/pay/wechat/notify}
     virtual-payment:
       offerId: ${WECHAT_PAY_VIRTUAL_OFFER_ID:1450516117}
-      appSecret: ${WECHAT_PAY_VIRTUAL_APP_SECRET:Zjq125800liuyue20011018chent903b}
+      appSecret: ${WECHAT_PAY_VIRTUAL_APP_SECRET:laP7esl71JZchpLX3cXuEVsBxrUzL6N0}
       env: ${WECHAT_PAY_VIRTUAL_ENV:1}
       vipGoodsPrefix: ${WECHAT_PAY_VIRTUAL_VIP_GOODS_PREFIX:vip}
       courseGoodsPrefix: ${WECHAT_PAY_VIRTUAL_COURSE_GOODS_PREFIX:course}

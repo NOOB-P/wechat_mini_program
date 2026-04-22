@@ -6,6 +6,7 @@ public class PaperOcrAutoCutDTO {
     private String subjectName;
     private String type;
     private String imageType;
+    private Integer pageIndex;
 
     public String getProjectId() {
         return projectId;
@@ -37,5 +38,13 @@ public class PaperOcrAutoCutDTO {
 
     public void setImageType(String imageType) {
         this.imageType = imageType;
+    }
+
+    public Integer getPageIndex() {
+        return pageIndex;
+    }
+
+    public void setPageIndex(Integer pageIndex) {
+        this.pageIndex = pageIndex;
     }
 }

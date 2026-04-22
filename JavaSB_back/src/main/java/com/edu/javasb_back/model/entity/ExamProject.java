@@ -33,6 +33,9 @@ public class ExamProject {
     @Column(name = "paper_layouts", columnDefinition = "TEXT")
     private String paperLayouts;
 
+    @Column(name = "paper_merge_info", columnDefinition = "TEXT")
+    private String paperMergeInfo;
+
     @Column(name = "school_count")
     private Integer schoolCount;
 
@@ -85,6 +88,9 @@ public class ExamProject {
 
     public String getPaperLayouts() { return paperLayouts; }
     public void setPaperLayouts(String paperLayouts) { this.paperLayouts = paperLayouts; }
+
+    public String getPaperMergeInfo() { return paperMergeInfo; }
+    public void setPaperMergeInfo(String paperMergeInfo) { this.paperMergeInfo = paperMergeInfo; }
 
     public Integer getSchoolCount() { return schoolCount; }
     public void setSchoolCount(Integer schoolCount) { this.schoolCount = schoolCount; }

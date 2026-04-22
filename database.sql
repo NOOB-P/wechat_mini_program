@@ -1,4 +1,4 @@
-﻿DROP DATABASE IF EXISTS edu_data;
+DROP DATABASE IF EXISTS edu_data;
 CREATE DATABASE edu_data CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE edu_data;
 
@@ -47,6 +47,7 @@ CREATE TABLE `sys_accounts` (
 ) ENGINE=InnoDB COMMENT='系统统一账号表';
 
 -- 2.1 角色权限关联表
+DROP TABLE IF EXISTS `sys_user_modules`;
 DROP TABLE IF EXISTS `sys_role_menu`;
 CREATE TABLE `sys_role_menu` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -84,6 +85,7 @@ CREATE TABLE `sys_vip_pricing` (
     `duration_months` INT NOT NULL COMMENT '有效时长(月)',
     `is_best_value` TINYINT DEFAULT 0 COMMENT '是否为营销推荐',
     `sort_order` INT DEFAULT 0 COMMENT '排序',
+    `midas_product_id` VARCHAR(100) DEFAULT NULL COMMENT '微信米大师道具ID',
     CONSTRAINT `fk_vip_pricing_vip_id` FOREIGN KEY (`vip_id`) REFERENCES `sys_vip_config` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB COMMENT='会员价格套餐表';
 
@@ -93,13 +95,13 @@ INSERT INTO `sys_vip_config` (`id`, `tier_code`, `title`, `sub_title`, `benefits
 (2, 'SVIP', 'SVIP 专业版', '全能学习助手，解锁所有高级分析与名师课程', '["全站题库无限制访问", "AI 智能解析", "名师精讲视频", "专属客服优先响应"]', 1, 2);
 
 -- 初始化会员价格数据
-INSERT INTO `sys_vip_pricing` (`vip_id`, `pkg_name`, `pkg_desc`, `current_price`, `original_price`, `duration_months`, `is_best_value`, `sort_order`) VALUES 
-(1, '月包', '', 29.00, 39.00, 1, 0, 1),
-(1, '季包', '一学期', 99.00, 129.00, 4, 1, 2),
-(1, '年包', '', 299.00, 399.00, 12, 0, 3),
-(2, '月包', '', 59.00, 79.00, 1, 0, 1),
-(2, '季包', '一学期', 199.00, 249.00, 4, 1, 2),
-(2, '年包', '', 599.00, 799.00, 12, 0, 3);
+INSERT INTO `sys_vip_pricing` (`vip_id`, `pkg_name`, `pkg_desc`, `current_price`, `original_price`, `duration_months`, `is_best_value`, `sort_order`, `midas_product_id`) VALUES 
+(1, '月包', '', 29.00, 39.00, 1, 0, 1, 'vip_1m'),
+(1, '季包', '一学期', 99.00, 129.00, 4, 1, 2, 'vip_4m'),
+(1, '年包', '', 299.00, 399.00, 12, 0, 3, 'vip_12m'),
+(2, '月包', '', 59.00, 79.00, 1, 0, 1, 'svip_1m'),
+(2, '季包', '一学期', 199.00, 249.00, 4, 1, 2, 'svip_4m'),
+(2, '年包', '', 599.00, 799.00, 12, 0, 3, 'svip_12m');
 
 
 -- ---------------------------------------------------------
@@ -224,6 +226,7 @@ CREATE TABLE `exam_projects` (
     `subject_names` TEXT COMMENT '项目科目列表(JSON)',
     `subject_benchmarks` TEXT COMMENT '学科基准分数配置',
     `paper_layouts` TEXT COMMENT '试卷框选布局配置(JSON)',
+    `paper_merge_info` TEXT COMMENT 'PDF拼接分页信息(JSON)',
     `school_count` INT DEFAULT 0 COMMENT '覆盖学校数',
     `class_count` INT DEFAULT 0 COMMENT '覆盖班级数',
     `student_count` INT DEFAULT 0 COMMENT '覆盖学生数',
@@ -303,6 +306,7 @@ CREATE TABLE `courses` (
     `episodes` INT DEFAULT 0 COMMENT '总节数',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 1-上架, 0-下架',
     `is_recommend` TINYINT(1) DEFAULT 0 COMMENT '是否今日推荐: 0-否, 1-是',
+    `midas_product_id` VARCHAR(100) DEFAULT NULL COMMENT '微信米大师道具ID',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='课程与学习资源表';
@@ -405,7 +409,7 @@ CREATE TABLE `faq_categories` (
     `sort` INT DEFAULT 0 COMMENT '排序',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB COMMENT='FAQ 分类表';
 
 -- 10. 常见问题 FAQ 表
@@ -418,7 +422,7 @@ CREATE TABLE `faqs` (
     `answer` TEXT NOT NULL COMMENT '问题解答',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB COMMENT='客服支持常见问题表';
 
 -- 11. 企业微信客服配置表
@@ -501,6 +505,7 @@ CREATE TABLE `vip_orders` (
     `package_type` VARCHAR(50) NOT NULL COMMENT '套餐类型(VIP基础版/SVIP专业版)',
     `period` VARCHAR(50) NOT NULL COMMENT '时长(月包/季包/年包)',
     `price` DECIMAL(10,2) NOT NULL COMMENT '支付金额',
+    `pricing_id` INT DEFAULT NULL COMMENT '关联 sys_vip_pricing.id',
     `payment_status` TINYINT DEFAULT 0 COMMENT '支付状态: 0-待支付, 1-已支付, 2-已退款',
     `payment_method` VARCHAR(50) COMMENT '支付方式(微信/支付宝)',
     `source_type` VARCHAR(50) NOT NULL DEFAULT 'ONLINE_PURCHASE' COMMENT '订单来源: ONLINE_PURCHASE-在线购买, SCHOOL_GIFT-校讯通赠送',
@@ -563,7 +568,7 @@ INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `avatar`, `password`,
 (9, 'parent06', '周八爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000008', 'parent06@example.com', 3, 0, 0, 'offline', 1, 1),
 (10, 'parent07', '吴九妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000009', 'parent07@example.com', 3, 1, 1, 'offline', 1, 1);
 
--- 2.1 角色权限初始化数据
+-- 2.1 角色权限关联初始化数据
 INSERT INTO `sys_role_menu` (`role_id`, `permission_code`) VALUES
 (1, 'dashboard:analysis:view'),
 (1, 'system:school:list'),
@@ -643,106 +648,16 @@ INSERT INTO `sys_role_menu` (`role_id`, `permission_code`) VALUES
 (1, 'system:user:import'),
 (1, 'system:user:template'),
 (1, 'system:role:list'),
-(1, 'system:role:save'),
-(1, 'system:role:update'),
-(1, 'system:role:delete'),
 (1, 'system:permission:list'),
 (1, 'system:permission:edit'),
 (1, 'system:permission:options'),
 (1, 'system:log:list'),
-(1, 'system:log:delete'),
-(1, 'system:notification:list'),
-(1, 'system:notification:save'),
-(1, 'system:notification:delete'),
-(2, 'dashboard:analysis:view'),
-(2, 'system:school:list'),
-(2, 'system:school:add'),
-(2, 'system:school:edit'),
-(2, 'system:school:delete'),
-(2, 'system:school:import'),
-(2, 'system:class:list'),
-(2, 'system:class:add'),
-(2, 'system:class:batch-add'),
-(2, 'system:class:edit'),
-(2, 'system:class:delete'),
-(2, 'system:class:import'),
-(2, 'system:class:detail'),
-(2, 'system:student:list'),
-(2, 'system:student:add'),
-(2, 'system:student:edit'),
-(2, 'system:student:delete'),
-(2, 'system:student:import'),
-(2, 'system:student:bound-parents'),
-(2, 'exam:project:list'),
-(2, 'exam:project:options'),
-(2, 'exam:project:add'),
-(2, 'exam:project:edit'),
-(2, 'exam:project:delete'),
-(2, 'exam:project:detail'),
-(2, 'exam:project:students'),
-(2, 'exam:project:score-summary'),
-(2, 'exam:project:score-list'),
-(2, 'exam:project:score-template'),
-(2, 'exam:project:score-import'),
-(2, 'exam:project:score-save'),
-(2, 'exam:project:paper-import'),
-(2, 'exam:project:paper-upload'),
-(2, 'exam:class:list'),
-(2, 'exam:class:add'),
-(2, 'exam:class:edit'),
-(2, 'exam:class:delete'),
-(2, 'order:vip:list'),
-(2, 'order:course:list'),
-(2, 'order:print:list'),
-(2, 'order:print:detail'),
-(2, 'order:print:status'),
-(2, 'course:manage:list'),
-(2, 'course:manage:add'),
-(2, 'course:manage:edit'),
-(2, 'course:manage:delete'),
-(2, 'course:manage:status'),
-(2, 'paper:manage:list'),
-(2, 'paper:manage:save'),
-(2, 'paper:manage:delete'),
-(2, 'paper:manage:upload'),
-(2, 'paper:subject:list'),
-(2, 'paper:subject:save'),
-(2, 'paper:subject:delete'),
-(2, 'payment:vip:list'),
-(2, 'payment:vip:edit'),
-(2, 'payment:print:list'),
-(2, 'payment:print:edit'),
-(2, 'support:faq:list'),
-(2, 'support:faq:add'),
-(2, 'support:faq:edit'),
-(2, 'support:faq:delete'),
-(2, 'support:faq-category:list'),
-(2, 'support:faq-category:add'),
-(2, 'support:faq-category:edit'),
-(2, 'support:faq-category:delete'),
-(2, 'support:wechat:list'),
-(2, 'support:wechat:upload'),
-(2, 'support:wechat:add'),
-(2, 'support:wechat:edit'),
-(2, 'support:wechat:delete'),
-(2, 'system:user:list'),
-(2, 'system:user:add'),
-(2, 'system:user:edit'),
-(2, 'system:user:delete'),
-(2, 'system:user:import'),
-(2, 'system:user:template'),
-(2, 'system:role:list'),
-(2, 'system:role:save'),
-(2, 'system:role:update'),
-(2, 'system:role:delete'),
-(2, 'system:permission:list'),
-(2, 'system:permission:edit'),
-(2, 'system:permission:options'),
-(2, 'system:log:list'),
-(2, 'system:log:delete'),
-(2, 'system:notification:list'),
-(2, 'system:notification:save'),
-(2, 'system:notification:delete');
+(1, 'system:log:delete');
+
+INSERT INTO `sys_role_menu` (`role_id`, `permission_code`)
+SELECT 2, `permission_code`
+FROM `sys_role_menu`
+WHERE `role_id` = 1;
 
 -- 3. 学校结构表数据
 INSERT INTO `schools` (`school_id`, `province`, `city`, `name`, `type`, `status`) VALUES
@@ -818,32 +733,32 @@ INSERT INTO `exam_results` (`exam_id`, `student_no`, `student_name`, `school`, `
 ('EXAM001', '20230009', '张小三', '第一中学', '初三', '1班', 85.0, '{"q1": 5, "q2": 5, "q3": 5}');
 
 -- 7. 课程资源表数据
-INSERT INTO `courses` (`id`, `title`, `cover`, `video_url`, `content`, `type`, `subject`, `grade`, `status`, `price`, `is_svip_only`, `author`, `buy_count`, `episodes`, `is_recommend`) VALUES
-('CRS001', '初中数学基础巩固', 'https://example.com/cover1.jpg', 'https://example.com/video1.mp4', '<p>这是初中数学基础巩固课程的详细介绍...</p>', 'general', NULL, NULL, 1, 0.00, 0, '教研组', 1200, 24, 1),
-('CRS002', '中考物理冲刺班', 'https://example.com/cover2.jpg', 'https://example.com/video2.mp4', '<p>这是中考物理冲刺冲刺班的详细介绍...</p>', 'general', NULL, NULL, 1, 99.00, 1, '张老师', 850, 12, 1),
-('CRS003', '小学英语启蒙课', 'https://example.com/cover3.jpg', 'https://example.com/video3.mp4', '<p>英语启蒙...</p>', 'general', NULL, NULL, 1, 0.00, 0, 'Emma', 3000, 30, 0),
-('CRS004', '高中化学难点解析', 'https://example.com/cover4.jpg', 'https://example.com/video4.mp4', '<p>化学难点...</p>', 'general', NULL, NULL, 1, 199.00, 1, '李博士', 420, 15, 0),
-('CRS005', '初中生物实验视频', 'https://example.com/cover5.jpg', 'https://example.com/video5.mp4', '<p>生物实验...</p>', 'general', NULL, NULL, 1, 0.00, 0, '王老师', 1500, 10, 0),
-('CRS006', '公益课程：趣味数学', 'https://example.com/cover6.jpg', 'https://example.com/video6.mp4', '<p>趣味数学公益讲座...</p>', 'general', '数学', '全级', 1, 0.00, 0, '陈教授', 5000, 1, 0),
-('CRS007', '公益课程：文学鉴赏', 'https://example.com/cover7.jpg', 'https://example.com/video7.mp4', '<p>经典文学名著鉴赏公益课...</p>', 'general', '语文', '全级', 1, 0.00, 0, '林博士', 2800, 5, 0),
-('SYNC001', '七年级上册数学同步', 'https://example.com/sync1.jpg', 'https://example.com/video3.mp4', '<p>七年级数学同步讲解...</p>', 'sync', '数学', '七年级', 1, 0.00, 0, '张老师', 12000, 48, 1),
-('SYNC002', '八年级下册物理同步', 'https://example.com/sync2.jpg', 'https://example.com/video_sync2.mp4', '<p>八年级物理同步辅导...</p>', 'sync', '物理', '八年级', 1, 0.00, 0, '王老师', 8000, 36, 0),
-('SYNC003', '九年级英语中考总复习', 'https://example.com/sync3.jpg', 'https://example.com/video_sync3.mp4', '<p>中考英语重点难点突破...</p>', 'sync', '英语', '九年级', 1, 0.00, 0, 'Sarah', 15000, 60, 0),
-('SYNC004', '小学五年级语文同步', 'https://example.com/sync4.jpg', 'https://example.com/video_sync4.mp4', '<p>小学语文阅读与写作...</p>', 'sync', '语文', '五年级', 1, 0.00, 0, '林老师', 5000, 40, 0),
-('SYNC005', '高一数学必修一精品课', 'https://example.com/sync5.jpg', 'https://example.com/video_sync5.mp4', '<p>高中数学衔接与提高...</p>', 'sync', '数学', '高一', 1, 0.00, 0, '陈教授', 9000, 52, 0),
-('FAM001', '如何与青春期孩子沟通', 'https://example.com/fam1.jpg', 'https://example.com/video4.mp4', '<p>家庭教育讲座...</p>', 'family', NULL, NULL, 1, 0.00, 0, '心连心工作室', 6000, 8, 1),
-('FAM002', '考前家长心理疏导指南', 'https://example.com/fam2.jpg', 'https://example.com/video_fam2.mp4', '<p>如何陪伴孩子度过备考期...</p>', 'family', NULL, NULL, 1, 0.00, 0, '心理专家李老师', 4500, 5, 0),
-('FAM003', '小学生行为习惯养成方案', 'https://example.com/fam3.jpg', 'https://example.com/video_fam3.mp4', '<p>从小培养良好的学习习惯...</p>', 'family', NULL, NULL, 1, 0.00, 0, '资深教育者张老师', 3200, 12, 0),
-('SVIP001', 'SVIP 特权课程：奥数思维突破', 'https://example.com/svip1.jpg', 'https://example.com/video_svip1.mp4', '<p>高级奥数解题技巧...</p>', 'general', '数学', '初中', 1, 0.00, 1, '金牌教练', 150, 20, 0),
-('SVIP002', 'SVIP 特权课程：英语口语大师课', 'https://example.com/svip2.jpg', 'https://example.com/video_svip2.mp4', '<p>外教母语级口语训练...</p>', 'general', '英语', '全级', 1, 0.00, 1, 'Steven', 300, 10, 0),
-('SVIP003', 'SVIP 特权课程：物理竞赛培优', 'https://example.com/svip3.jpg', 'https://example.com/video_svip3.mp4', '<p>全国物理竞赛重难点解析...</p>', 'general', '物理', '高中', 1, 0.00, 1, '物理特级教师', 100, 15, 0),
-('SVIP004', 'SVIP 特权课程：考研数学提分营', 'https://example.com/svip4.jpg', 'https://example.com/video_svip4.mp4', '<p>考研数学核心考点串讲...</p>', 'general', '数学', '考研', 1, 0.00, 1, '数学名师', 80, 45, 0),
-('TALK001', '清华学霸分享：我的高效学习法', 'https://example.com/talk1.jpg', 'https://example.com/video_talk1.mp4', '<p>如何制定计划，如何保持专注...</p>', 'talk', NULL, NULL, 1, 0.00, 0, '张学霸', 15000, 1, 1),
-('TALK002', '北大才女谈：语文阅读理解提分秘籍', 'https://example.com/talk2.jpg', 'https://example.com/video_talk2.mp4', '<p>阅读理解不丢分的技巧分享...</p>', 'talk', NULL, NULL, 1, 9.90, 0, '李学霸', 8000, 3, 0),
-('TALK003', '中考状元：物理考前冲刺心态调节', 'https://example.com/talk3.jpg', 'https://example.com/video_talk3.mp4', '<p>考前如何调整心态，发挥超常...</p>', 'talk', NULL, NULL, 1, 0.00, 1, '王学霸', 5000, 1, 0),
-('TALK004', '学霸笔记展示：数学错题本怎么做', 'https://example.com/talk4.jpg', 'https://example.com/video_talk4.mp4', '<p>手把手教你整理最高效的错题本...</p>', 'talk', NULL, NULL, 1, 0.00, 0, '刘学霸', 12000, 2, 0),
-('TALK005', '英语大神：如何在一个月内词汇量翻倍', 'https://example.com/talk5.jpg', 'https://example.com/video_talk5.mp4', '<p>科学背单词法，告别死记硬背...</p>', 'talk', NULL, NULL, 1, 19.90, 0, '陈学霸', 6500, 5, 0),
-('TALK006', '浙大学霸：理综解题套路大公开', 'https://example.com/talk6.jpg', 'https://example.com/video_talk6.mp4', '<p>物理化学生物联动的解题思路...</p>', 'talk', NULL, NULL, 1, 0.00, 1, '赵学霸', 4000, 10, 0);
+INSERT INTO `courses` (`id`, `title`, `cover`, `video_url`, `content`, `type`, `subject`, `grade`, `status`, `price`, `is_svip_only`, `author`, `buy_count`, `episodes`, `is_recommend`, `midas_product_id`) VALUES
+('CRS001', '初中数学基础巩固', 'https://example.com/cover1.jpg', 'https://example.com/video1.mp4', '<p>这是初中数学基础巩固课程的详细介绍...</p>', 'general', NULL, NULL, 1, 0.00, 0, '教研组', 1200, 24, 1, NULL),
+('CRS002', '中考物理冲刺班', 'https://example.com/cover2.jpg', 'https://example.com/video2.mp4', '<p>这是中考物理冲刺冲刺班的详细介绍...</p>', 'general', NULL, NULL, 1, 99.00, 1, '张老师', 850, 12, 1, 'crs_002_phy'),
+('CRS003', '小学英语启蒙课', 'https://example.com/cover3.jpg', 'https://example.com/video3.mp4', '<p>英语启蒙...</p>', 'general', NULL, NULL, 1, 0.00, 0, 'Emma', 3000, 30, 0, NULL),
+('CRS004', '高中化学难点解析', 'https://example.com/cover4.jpg', 'https://example.com/video4.mp4', '<p>化学难点...</p>', 'general', NULL, NULL, 1, 199.00, 1, '李博士', 420, 15, 0, 'crs_004_che'),
+('CRS005', '初中生物实验视频', 'https://example.com/cover5.jpg', 'https://example.com/video5.mp4', '<p>生物实验...</p>', 'general', NULL, NULL, 1, 0.00, 0, '王老师', 1500, 10, 0, NULL),
+('CRS006', '公益课程：趣味数学', 'https://example.com/cover6.jpg', 'https://example.com/video6.mp4', '<p>趣味数学公益讲座...</p>', 'general', '数学', '全级', 1, 0.00, 0, '陈教授', 5000, 1, 0, NULL),
+('CRS007', '公益课程：文学鉴赏', 'https://example.com/cover7.jpg', 'https://example.com/video7.mp4', '<p>经典文学名著鉴赏公益课...</p>', 'general', '语文', '全级', 1, 0.00, 0, '林博士', 2800, 5, 0, NULL),
+('SYNC001', '七年级上册数学同步', 'https://example.com/sync1.jpg', 'https://example.com/video3.mp4', '<p>七年级数学同步讲解...</p>', 'sync', '数学', '七年级', 1, 0.00, 0, '张老师', 12000, 48, 1, NULL),
+('SYNC002', '八年级下册物理同步', 'https://example.com/sync2.jpg', 'https://example.com/video_sync2.mp4', '<p>八年级物理同步辅导...</p>', 'sync', '物理', '八年级', 1, 0.00, 0, '王老师', 8000, 36, 0, NULL),
+('SYNC003', '九年级英语中考总复习', 'https://example.com/sync3.jpg', 'https://example.com/video_sync3.mp4', '<p>中考英语重点难点突破...</p>', 'sync', '英语', '九年级', 1, 0.00, 0, 'Sarah', 15000, 60, 0, NULL),
+('SYNC004', '小学五年级语文同步', 'https://example.com/sync4.jpg', 'https://example.com/video_sync4.mp4', '<p>小学语文阅读与写作...</p>', 'sync', '语文', '五年级', 1, 0.00, 0, '林老师', 5000, 40, 0, NULL),
+('SYNC005', '高一数学必修一精品课', 'https://example.com/sync5.jpg', 'https://example.com/video_sync5.mp4', '<p>高中数学衔接与提高...</p>', 'sync', '数学', '高一', 1, 0.00, 0, '陈教授', 9000, 52, 0, NULL),
+('FAM001', '如何与青春期孩子沟通', 'https://example.com/fam1.jpg', 'https://example.com/video4.mp4', '<p>家庭教育讲座...</p>', 'family', NULL, NULL, 1, 0.00, 0, '心连心工作室', 6000, 8, 1, NULL),
+('FAM002', '考前家长心理疏导指南', 'https://example.com/fam2.jpg', 'https://example.com/video_fam2.mp4', '<p>如何陪伴孩子度过备考期...</p>', 'family', NULL, NULL, 1, 0.00, 0, '心理专家李老师', 4500, 5, 0, NULL),
+('FAM003', '小学生行为习惯养成方案', 'https://example.com/fam3.jpg', 'https://example.com/video_fam3.mp4', '<p>从小培养良好的学习习惯...</p>', 'family', NULL, NULL, 1, 0.00, 0, '资深教育者张老师', 3200, 12, 0, NULL),
+('SVIP001', 'SVIP 特权课程：奥数思维突破', 'https://example.com/svip1.jpg', 'https://example.com/video_svip1.mp4', '<p>高级奥数解题技巧...</p>', 'general', '数学', '初中', 1, 0.00, 1, '金牌教练', 150, 20, 0, NULL),
+('SVIP002', 'SVIP 特权课程：英语口语大师课', 'https://example.com/svip2.jpg', 'https://example.com/video_svip2.mp4', '<p>外教母语级口语训练...</p>', 'general', '英语', '全级', 1, 0.00, 1, 'Steven', 300, 10, 0, NULL),
+('SVIP003', 'SVIP 特权课程：物理竞赛培优', 'https://example.com/svip3.jpg', 'https://example.com/video_svip3.mp4', '<p>全国物理竞赛重难点解析...</p>', 'general', '物理', '高中', 1, 0.00, 1, '物理特级教师', 100, 15, 0, NULL),
+('SVIP004', 'SVIP 特权课程：考研数学提分营', 'https://example.com/svip4.jpg', 'https://example.com/video_svip4.mp4', '<p>考研数学核心考点串讲...</p>', 'general', '数学', '考研', 1, 0.00, 1, '数学名师', 80, 45, 0, NULL),
+('TALK001', '清华学霸分享：我的高效学习法', 'https://example.com/talk1.jpg', 'https://example.com/video_talk1.mp4', '<p>如何制定计划，如何保持专注...</p>', 'talk', NULL, NULL, 1, 0.00, 0, '张学霸', 15000, 1, 1, NULL),
+('TALK002', '北大才女谈：语文阅读理解提分秘籍', 'https://example.com/talk2.jpg', 'https://example.com/video_talk2.mp4', '<p>阅读理解不丢分的技巧分享...</p>', 'talk', NULL, NULL, 1, 9.90, 0, '李学霸', 8000, 3, 0, 'talk_002_chi'),
+('TALK003', '中考状元：物理考前冲刺心态调节', 'https://example.com/talk3.jpg', 'https://example.com/video_talk3.mp4', '<p>考前如何调整心态，发挥超常...</p>', 'talk', NULL, NULL, 1, 0.00, 1, '王学霸', 5000, 1, 0, NULL),
+('TALK004', '学霸笔记展示：数学错题本怎么做', 'https://example.com/talk4.jpg', 'https://example.com/video_talk4.mp4', '<p>手把手教你整理最高效的错题本...</p>', 'talk', NULL, NULL, 1, 0.00, 0, '刘学霸', 12000, 2, 0, NULL),
+('TALK005', '英语大神：如何在一个月内词汇量翻倍', 'https://example.com/talk5.jpg', 'https://example.com/video_talk5.mp4', '<p>科学背单词法，告别死记硬背...</p>', 'talk', NULL, NULL, 1, 19.90, 0, '陈学霸', 6500, 5, 0, 'talk_005_eng'),
+('TALK006', '浙大学霸：理综解题套路大公开', 'https://example.com/talk6.jpg', 'https://example.com/video_talk6.mp4', '<p>物理化学生物联动的解题思路...</p>', 'talk', NULL, NULL, 1, 0.00, 1, '赵学霸', 4000, 10, 0, NULL);
 
 -- 8. AI 自习室报名表数据
 INSERT INTO `study_room_enrollments` (`id`, `parent_name`, `student_name`, `phone`, `status`, `apply_time`) VALUES
@@ -948,12 +863,6 @@ CREATE TABLE IF NOT EXISTS `course_orders` (
     INDEX `idx_user_course` (`user_uid`, `course_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 16. 初始化课程数据 (仅保留结构，不使用外部链接)
-INSERT IGNORE INTO `courses` (`id`, `title`, `type`, `status`, `is_recommend`, `price`) VALUES
-('CRS001', '初中数学基础巩固', 'general', 1, 1, 0.00),
-('CRS002', '中考物理冲刺班', 'general', 1, 1, 99.00),
-('CRS003', '小学英语启蒙课', 'general', 1, 0, 0.00);
-
 -- 17. 系统通知表
 DROP TABLE IF EXISTS `sys_notifications`;
 CREATE TABLE `sys_notifications` (
@@ -979,5 +888,27 @@ INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `
 ('上海中学2023-2024学年高一期末考试卷', '数学', '高一', '2024', 'FAMOUS', '名校,期末,数学,精品', 890, 1, '/uploads/papers/demo.pdf', 1),
 ('2023年西安西工大附中初一入学摸底测试', '语文', '初一', '2023', 'FAMOUS', '摸底,语文,PDF版', 2100, 0, '/uploads/papers/demo.pdf', 1),
 ('2024年成都七中高二联考物理压轴卷', '物理', '高二', '2024', 'JOINT', '联考,名校,物理,解析', 1560, 1, '/uploads/papers/demo.pdf', 1);
+
+-- ---------------------------------------------------------
+-- 数据修正与同步 (Merged from update_students.sql)
+-- ---------------------------------------------------------
+-- 将李四和王五的学校、年级、班级信息修改为与张三（STU001）一致
+-- 张三信息：学校 SCH001 (第一中学), 班级 CLS001 (初一 1班)
+
+-- 更新 students 表
+UPDATE students 
+SET school_id = 'SCH001', 
+    class_id = 'CLS001', 
+    school = '第一中学', 
+    grade = '初一', 
+    class_name = '1班' 
+WHERE student_no IN ('20230002', '20230003');
+
+-- 更新 exam_results 表（冗余数据同步）
+UPDATE exam_results 
+SET school = '第一中学', 
+    grade = '初一', 
+    class_name = '1班' 
+WHERE student_no IN ('20230002', '20230003');
 
 SET FOREIGN_KEY_CHECKS = 1;

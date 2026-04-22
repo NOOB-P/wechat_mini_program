@@ -28,4 +28,9 @@ public interface ScoreService {
      * 获取近六次考试趋势
      */
     Result<Map<String, Object>> getScoreTrend(Long uid, String examId);
+
+    /**
+     * 获取试卷报告详情
+     */
+    Result<Map<String, Object>> getPaperDetail(Long uid, String examId, String subject);
 }

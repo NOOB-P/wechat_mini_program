@@ -40,7 +40,7 @@ public class GlobalConfigProperties {
     /**
      * 文件上传目录
      */
-    private String uploadDir = "/upload/";
+    private String uploadDir = "src/main/resources/uploads/code/";
 
     /**
      * 试卷存储目录
@@ -118,8 +118,15 @@ public class GlobalConfigProperties {
     private Boolean aliyunOcrOutputOriCoord = Boolean.FALSE;
 
     /**
-     * 阿里云短信 AccessKey ID
+     * 阿里云 OCR 连接超时，单位毫秒
      */
+    private Integer aliyunOcrConnectTimeout = 30000;
+
+    /**
+     * 阿里云 OCR 读取超时，单位毫秒
+     */
+    private Integer aliyunOcrReadTimeout = 300000;
+    
     private String aliyunSmsAccessKeyId;
 
     /**
@@ -177,6 +184,10 @@ public class GlobalConfigProperties {
     public void setAliyunOcrCutType(String aliyunOcrCutType) { this.aliyunOcrCutType = aliyunOcrCutType; }
     public Boolean getAliyunOcrOutputOriCoord() { return aliyunOcrOutputOriCoord; }
     public void setAliyunOcrOutputOriCoord(Boolean aliyunOcrOutputOriCoord) { this.aliyunOcrOutputOriCoord = aliyunOcrOutputOriCoord; }
+    public Integer getAliyunOcrConnectTimeout() { return aliyunOcrConnectTimeout; }
+    public void setAliyunOcrConnectTimeout(Integer aliyunOcrConnectTimeout) { this.aliyunOcrConnectTimeout = aliyunOcrConnectTimeout; }
+    public Integer getAliyunOcrReadTimeout() { return aliyunOcrReadTimeout; }
+    public void setAliyunOcrReadTimeout(Integer aliyunOcrReadTimeout) { this.aliyunOcrReadTimeout = aliyunOcrReadTimeout; }
     public String getAliyunSmsAccessKeyId() { return aliyunSmsAccessKeyId; }
     public void setAliyunSmsAccessKeyId(String aliyunSmsAccessKeyId) { this.aliyunSmsAccessKeyId = aliyunSmsAccessKeyId; }
     public String getAliyunSmsAccessKeySecret() { return aliyunSmsAccessKeySecret; }

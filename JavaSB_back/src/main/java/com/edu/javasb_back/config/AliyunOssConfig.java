@@ -15,10 +15,10 @@ public class AliyunOssConfig {
     @Value("${aliyun.oss.endpoint}")
     private String endpoint;
 
-    @Value("${app.config.aliyun-ocr-access-key-id}")
+    @Value("${app.config.oss-access-key-id}")
     private String accessKeyId;
 
-    @Value("${app.config.aliyun-ocr-access-key-secret}")
+    @Value("${app.config.oss-access-key-secret}")
     private String accessKeySecret;
 
     @Bean(destroyMethod = "shutdown")
