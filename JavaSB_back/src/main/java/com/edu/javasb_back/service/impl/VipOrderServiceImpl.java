@@ -1,5 +1,25 @@
 package com.edu.javasb_back.service.impl;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
+import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.common.WechatBindRequiredException;
+import com.edu.javasb_back.model.entity.*;
+import com.edu.javasb_back.repository.StudentParentBindingRepository;
+import com.edu.javasb_back.repository.SysAccountRepository;
+import com.edu.javasb_back.repository.VipPricingRepository;
+import com.edu.javasb_back.repository.VipOrderRepository;
+import com.edu.javasb_back.service.SysNotificationService;
+import com.edu.javasb_back.service.VipOrderService;
+import com.edu.javasb_back.service.WechatPayService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -68,7 +88,8 @@ public class VipOrderServiceImpl implements VipOrderService {
 
     @Autowired
     private WechatPayProperties wechatPayProperties;
-
+    
+    @Autowired
     private SysNotificationService notificationService;
 
     @Autowired
