@@ -93,7 +93,7 @@ wechat:
   pay:
     appid: ${WECHAT_PAY_APPID:${app.config.wechat-app-id}}
     mchid: ${WECHAT_PAY_MCHID:1744383897}
-    apiV3Key: ${WECHAT_PAY_API_V3_KEY:Zjq125800liuyue20011018chent903b}
+    apiV3Key: ${WECHAT_PAY_API_V3_KEY:laP7esl71JZchpLX3cXuEVsBxrUzL6N0}
     privateKeyPath: ${WECHAT_PAY_PRIVATE_KEY_PATH:apiclient_key.pem}
     publicKeyPath: ${WECHAT_PAY_PUBLIC_KEY_PATH:pub_key.pem}
     publicKeyId: ${WECHAT_PAY_PUBLIC_KEY_ID:PUB_KEY_ID_0117443838972026041800381657002000}

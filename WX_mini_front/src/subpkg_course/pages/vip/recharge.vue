@@ -282,10 +282,6 @@ const handlePay = async () => {
       const payRes = await createVipPayApi(createRes.data.orderNo)
       return { createRes, payRes }
     }, PAYMENT_WECHAT_BIND_OPTIONS)
-    console.log("-------------------------------------------")
-    console.log(payRes.data?.paymentType)
-    console.log(payRes.data?.payParams || {})
-    console.log("-------------------------------------------")
     await requestWechatPaymentByType(payRes.data?.paymentType, payRes.data?.payParams || {})
 
     if (payRes.data?.paymentType === 'VIRTUAL' || payRes.data?.paymentType === 'FREE') {

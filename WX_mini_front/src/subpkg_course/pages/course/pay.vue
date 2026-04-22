@@ -151,10 +151,6 @@ const handlePay = async () => {
     const payRes = await fetchPayParams()
     const paymentType = payRes.data?.paymentType
     const payParams = payRes.data?.payParams || {}
-    console.log("-------------------------------------------")
-    console.log(paymentType)
-    console.log(payParams)
-    console.log("-------------------------------------------")
     await requestWechatPaymentByType(paymentType, payParams)
 
     if (paymentType === 'VIRTUAL' || paymentType === 'FREE') {

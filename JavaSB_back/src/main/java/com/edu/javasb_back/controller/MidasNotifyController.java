@@ -75,17 +75,32 @@ public class MidasNotifyController {
     }
 
     private boolean verifyMidasSign(Map<String, Object> body, String paySig) {
+        String currentAppKey = wechatPayProperties.getVirtualPayment().getAppSecret();
+        
+        // 回调请求的 uri，不包含 query_string
+        String uri = "/api/pay/midas/notify";
+
         Map<String, Object> params = new TreeMap<>(body);
         params.remove("pay_sig");
 
-        String payload = params.entrySet().stream()
+        String postBody = params.entrySet().stream()
                 .filter(entry -> entry.getValue() != null && hasText(String.valueOf(entry.getValue())))
                 .map(entry -> entry.getKey() + "=" + String.valueOf(entry.getValue()))
                 .collect(Collectors.joining("&"));
 
-        String expectedSig = VirtualPaymentSignatureUtils.sign(
-                payload,
-                wechatPayProperties.getVirtualPayment().getAppSecret());
+        // 算法: pay_sig = hmac_sha256(appKey, uri + '&' + post_body)
+        String needSignMsg = uri + "&" + postBody;
+        String expectedSig = VirtualPaymentSignatureUtils.sign(needSignMsg, currentAppKey);
+        
+        log.info("--- 米大师回调验签详情 ---");
+        log.info("URI: {}", uri);
+        log.info("PostBody: {}", postBody);
+        log.info("NeedSignMsg: {}", needSignMsg);
+        log.info("AppKey: {}", currentAppKey);
+        log.info("ExpectedSig: {}", expectedSig);
+        log.info("ReceivedPaySig: {}", paySig);
+        log.info("--------------------------");
+        
         return VirtualPaymentSignatureUtils.secureEquals(expectedSig, paySig);
     }
 
