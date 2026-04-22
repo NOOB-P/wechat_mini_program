@@ -1,6 +1,8 @@
 package com.edu.javasb_back.repository;
 
-import com.edu.javasb_back.model.entity.CourseOrder;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,13 +10,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
+import com.edu.javasb_back.model.entity.CourseOrder;
 
 @Repository
 public interface CourseOrderRepository extends JpaRepository<CourseOrder, Long> {
     Optional<CourseOrder> findByOrderNo(String orderNo);
     Optional<CourseOrder> findByOrderNoAndUserUid(String orderNo, Long userUid);
+    List<CourseOrder> findByUserUidAndCourseId(Long userUid, String courseId);
     List<CourseOrder> findByUserUidAndPaymentStatus(Long userUid, Integer paymentStatus);
     List<CourseOrder> findByUserUidOrderByCreateTimeDesc(Long userUid);
     List<CourseOrder> findTop5ByOrderByCreateTimeDesc();
@@ -27,7 +29,7 @@ public interface CourseOrderRepository extends JpaRepository<CourseOrder, Long> 
             "LEFT JOIN courses c ON co.course_id = c.id " +
             "WHERE (:paymentStatus IS NULL " +
             "   OR (:paymentStatus = 0 AND co.payment_status = 0 AND co.create_time >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)) " +
-            "   OR (:paymentStatus = -1 AND co.payment_status = 0 AND co.create_time < DATE_SUB(NOW(), INTERVAL 10 MINUTE)) " +
+            "   OR (:paymentStatus = -1 AND (co.payment_status = 2 OR (co.payment_status = 0 AND co.create_time < DATE_SUB(NOW(), INTERVAL 10 MINUTE)))) " +
             "   OR (:paymentStatus = 1 AND co.payment_status = 1)) " +
             "AND (:orderNo IS NULL OR co.order_no LIKE CONCAT('%', :orderNo, '%')) " +
             "AND (:userName IS NULL OR sa.nickname LIKE CONCAT('%', :userName, '%')) " +
@@ -38,7 +40,7 @@ public interface CourseOrderRepository extends JpaRepository<CourseOrder, Long> 
                     "LEFT JOIN sys_accounts sa ON co.user_uid = sa.uid " +
                     "WHERE (:paymentStatus IS NULL " +
                     "   OR (:paymentStatus = 0 AND co.payment_status = 0 AND co.create_time >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)) " +
-                    "   OR (:paymentStatus = -1 AND co.payment_status = 0 AND co.create_time < DATE_SUB(NOW(), INTERVAL 10 MINUTE)) " +
+                    "   OR (:paymentStatus = -1 AND (co.payment_status = 2 OR (co.payment_status = 0 AND co.create_time < DATE_SUB(NOW(), INTERVAL 10 MINUTE)))) " +
                     "   OR (:paymentStatus = 1 AND co.payment_status = 1)) " +
                     "AND (:orderNo IS NULL OR co.order_no LIKE CONCAT('%', :orderNo, '%')) " +
                     "AND (:userName IS NULL OR sa.nickname LIKE CONCAT('%', :userName, '%')) " +
@@ -58,7 +60,7 @@ public interface CourseOrderRepository extends JpaRepository<CourseOrder, Long> 
             "LEFT JOIN courses c ON co.course_id = c.id " +
             "WHERE (:paymentStatus IS NULL " +
             "   OR (:paymentStatus = 0 AND co.payment_status = 0 AND co.create_time >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)) " +
-            "   OR (:paymentStatus = -1 AND co.payment_status = 0 AND co.create_time < DATE_SUB(NOW(), INTERVAL 10 MINUTE)) " +
+            "   OR (:paymentStatus = -1 AND (co.payment_status = 2 OR (co.payment_status = 0 AND co.create_time < DATE_SUB(NOW(), INTERVAL 10 MINUTE)))) " +
             "   OR (:paymentStatus = 1 AND co.payment_status = 1)) " +
             "AND (:orderNo IS NULL OR co.order_no LIKE CONCAT('%', :orderNo, '%')) " +
             "AND (:userName IS NULL OR sa.nickname LIKE CONCAT('%', :userName, '%')) " +

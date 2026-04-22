@@ -103,9 +103,10 @@ const handleBuy = async (event: any, course: any) => {
     } else {
       uni.showToast({ title: res.msg || '下单失败', icon: 'none' })
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('课程下单失败:', error)
-    uni.showToast({ title: '网络错误', icon: 'none' })
+    const msg = error.msg || error.message || '网络错误'
+    uni.showToast({ title: msg, icon: 'none' })
   }
 }
 

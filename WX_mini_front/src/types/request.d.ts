@@ -24,4 +24,5 @@ export type uploadFileOptions = {
 export type requestOptions = UniApp.RequestOptions &
   uploadFileOptions & {
     silent?: boolean;
+    params?: any;
   };

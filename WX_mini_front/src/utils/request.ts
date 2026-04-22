@@ -1,8 +1,8 @@
 import type { requestOptions } from '@/types/request'
-import { useNotify } from '@/components/GlobalNotify/useNotify'
+import { useToast } from 'wot-design-uni'
 import { getMockData } from '@/mock/index'
 
-const Notify = useNotify()
+const toast = useToast()
 
 // 是否开启 mock (通常只在开发环境下开启)
 const USE_MOCK = import.meta.env.DEV
@@ -16,6 +16,17 @@ const MOCK_BYPASS_URLS = [
 const requestInterceptor = (options: requestOptions) => {
     // 设置请求超时时间
     options.timeout = __VITE_SERVER_TIMEOUT__
+    
+    // 处理 params 参数，将其拼接在 URL 后面
+    if (options.params) {
+        const query = Object.keys(options.params)
+            .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(options.params[key])}`)
+            .join('&')
+        if (query) {
+            options.url += (options.url.includes('?') ? '&' : '?') + query
+        }
+    }
+
     // 拼接请求地址
     options.url = __VITE_SERVER_BASEURL__ + options.url
     console.log(options.url)
@@ -31,11 +42,7 @@ const requestInterceptor = (options: requestOptions) => {
 
 export default (options:requestOptions): Promise<any> => {
     if (!options.silent) {
-        Notify.show({
-            content: '加载中...',
-            duration: false,
-            icon: 'loading'
-        })
+        toast.loading('加载中...')
     }
     
     // 如果开启 mock，则尝试拦截并返回模拟数据
@@ -48,22 +55,12 @@ export default (options:requestOptions): Promise<any> => {
                     if (mockResponse.code === 200) {
                         resolve(mockResponse);
                         if (!options.silent) {
-                            Notify.show({
-                                content: mockResponse.msg,
-                                duration: 500,
-                                type: 'success',
-                                icon: 'check-outline'
-                            });
+                            toast.success(mockResponse.msg);
                         }
                     } else {
                         reject(mockResponse);
                         if (!options.silent) {
-                            Notify.show({
-                                content: `Mock Error ${mockResponse.code}:${mockResponse.msg}`,
-                                duration: 2000,
-                                type: 'danger',
-                                icon: 'close-outline'
-                            });
+                            toast.error(`Mock Error ${mockResponse.code}:${mockResponse.msg}`);
                         }
                     }
                 }, 500); // 模拟网络延迟
@@ -81,45 +78,25 @@ export default (options:requestOptions): Promise<any> => {
                     if(res.data.code === 200) {
                         resolve(res.data)
                         if (!options.silent) {
-                            Notify.show({
-                                content: res.data.msg,
-                                duration: 500,
-                                type: 'success',
-                                icon: 'check-outline'
-                            })
+                            toast.success(res.data.msg)
                         }
                     } else {
                         reject(res.data)
                         if (!options.silent) {
-                            Notify.show({
-                                content: `Error ${res.data.code}:${res.data.msg}`,
-                                duration: 2000,
-                                type: 'danger',
-                                icon: 'close-outline'
-                            })
+                            toast.error(`Error ${res.data.code}:${res.data.msg}`)
                         }
                     }
                 } else {
                     resolve(res.data)
                     if (!options.silent) {
-                        Notify.show({
-                            content: '请求成功',
-                            duration: 500,
-                            type: 'success',
-                            icon: 'check-outline'
-                        })
+                        toast.success('请求成功')
                     }
                 }
             },
             fail(error) {
                 reject(error)
                 if (!options.silent) {
-                    Notify.show({
-                        content: `Error: ${error.errMsg}`,
-                        duration: 2000,
-                        type: 'danger',
-                        icon: 'close-outline'
-                    })
+                    toast.error(`Error: ${error.errMsg}`)
                 }
             },
             complete() {}

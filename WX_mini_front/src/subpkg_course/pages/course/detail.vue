@@ -253,19 +253,19 @@ const handleAction = async () => {
     try {
       toast.loading('正在下单...')
       const res = await buyCourseApi(courseInfo.value.id)
-      if (res.code === 200) {
-        // 跳转到支付页面
-        const orderData = encodeURIComponent(JSON.stringify(res.data))
-        uni.navigateTo({
-          url: `/subpkg_course/pages/course/pay?order=${orderData}`
-        })
-      } else {
-        toast.error(res.msg || '下单失败')
+        if (res.code === 200) {
+          // 跳转到支付页面
+          const orderData = encodeURIComponent(JSON.stringify(res.data))
+          uni.navigateTo({
+            url: `/subpkg_course/pages/course/pay?order=${orderData}`
+          })
+        } else {
+          toast.error(res.msg || '下单失败')
+        }
+      } catch (e: any) {
+        toast.error(e.msg || e.message || '网络错误')
       }
-    } catch (e) {
-      toast.error('网络错误')
-    }
-  } else {
+    } else {
     // 直接学习
     startLearning()
   }

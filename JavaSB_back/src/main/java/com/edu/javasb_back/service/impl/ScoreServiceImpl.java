@@ -8,6 +8,7 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -455,12 +456,12 @@ public class ScoreServiceImpl implements ScoreService {
         data.put("score", roundScore(studentScore.getTotalScore()));
         data.put("fullScore", roundScore(fullScore));
         data.put("teacherComment", buildTeacherComment(targetSubject, answers));
-        data.put("myPaperImages", collectPaperImages(ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl())));
+        data.put("myPaperImages", collectPaperImages(studentScore.getAnswerSheetUrl()));
         data.put("examPaperImages", collectPaperImages(
-                ossStorageService.toCdnUrl(StringUtils.hasText(classSubject.getPaperUrl()) ? classSubject.getPaperUrl() : classSubject.getAnswerUrl())
+                StringUtils.hasText(classSubject.getPaperUrl()) ? classSubject.getPaperUrl() : classSubject.getAnswerUrl()
         ));
         data.put("questionScores", answers);
-        data.put("downloadUrl", ossStorageService.toCdnUrl(StringUtils.hasText(classSubject.getPaperUrl()) ? classSubject.getPaperUrl() : studentScore.getAnswerSheetUrl()));
+        data.put("downloadUrl", ossStorageService.toCdnUrl(StringUtils.hasText(studentScore.getAnswerSheetUrl()) ? studentScore.getAnswerSheetUrl() : classSubject.getPaperUrl()));
         return Result.success(data);
     }
 
@@ -1173,7 +1174,17 @@ public class ScoreServiceImpl implements ScoreService {
         if (!StringUtils.hasText(url)) {
             return Collections.emptyList();
         }
-        return List.of(url.trim());
+        
+        // 支持逗号分隔的多个 URL
+        if (url.contains(",")) {
+            return Arrays.stream(url.split(","))
+                    .map(String::trim)
+                    .filter(StringUtils::hasText)
+                    .map(ossStorageService::toCdnUrl)
+                    .toList();
+        }
+        
+        return List.of(ossStorageService.toCdnUrl(url.trim()));
     }
 
     private String buildTeacherComment(String subjectName, List<Map<String, Object>> answers) {

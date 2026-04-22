@@ -125,6 +125,16 @@ public class AppAuthController {
         return sysAccountService.bindWechat(uid, loginDTO.getCode());
     }
 
+    @LogOperation("小程序解绑微信 OpenID")
+    @PostMapping("/wechat/unbind")
+    public Result<Void> unbindWechat() {
+        Long uid = getCurrentUid();
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
+        return sysAccountService.unbindWechat(uid);
+    }
+
     @LogOperation("确认绑定学生账号")
     @PostMapping("/bind-student/confirm")
     public Result<Void> bindStudentConfirm(@RequestBody BindStudentDTO bindDTO) {

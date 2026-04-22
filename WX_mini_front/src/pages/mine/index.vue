@@ -103,40 +103,12 @@ const goToNotifications = () => {
   uni.navigateTo({ url: '/subpkg_mine/pages/mine/notifications' })
 }
 
-const getNotificationStorageKey = () => {
-  return `mine_notification_last_read_${userInfo.uid || 'guest'}`
-}
-
-const getReadIdsKey = () => {
-  return `mine_notification_read_ids_${userInfo.uid || 'guest'}`
-}
-
-const getLastReadAt = () => {
-  const value = Number(uni.getStorageSync(getNotificationStorageKey()) || 0)
-  return Number.isNaN(value) ? 0 : value
-}
-
-const getReadIds = () => {
-  return uni.getStorageSync(getReadIdsKey()) || []
-}
-
-const parseTimeToMs = (time?: string) => {
-  if (!time) {
-    return 0
-  }
-  return new Date(time.replace(/-/g, '/')).getTime() || 0
-}
-
 const loadNotificationSummary = async () => {
   try {
     const res = await getMineNotificationsApi(50)
     if (res.code === 200) {
       const list = Array.isArray(res.data) ? res.data : []
-      const lastReadAt = getLastReadAt()
-      const readIds = getReadIds()
-      notificationCount.value = list.filter((item: any) => 
-        parseTimeToMs(item.time) > lastReadAt && !readIds.includes(item.id)
-      ).length
+      notificationCount.value = list.filter((item: any) => item.isNew).length
     } else {
       notificationCount.value = 0
     }

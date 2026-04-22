@@ -1,7 +1,9 @@
 package com.edu.javasb_back.controller;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,8 @@ import com.edu.javasb_back.model.vo.AppNotificationVO;
 import com.edu.javasb_back.service.AppNotificationService;
 import com.edu.javasb_back.service.OssStorageService;
 import com.edu.javasb_back.service.SysAccountService;
+import com.edu.javasb_back.service.WechatPayService;
+import com.edu.javasb_back.service.SysNotificationService;
 
 /**
  * 小程序端个人中心/设置控制器
@@ -40,7 +44,13 @@ public class AppMineController {
     private AppNotificationService appNotificationService;
 
     @Autowired
+    private SysNotificationService sysNotificationService;
+
+    @Autowired
     private OssStorageService ossStorageService;
+
+    @Autowired
+    private WechatPayService wechatPayService;
 
     // 辅助方法：获取当前用户的 UID
     private Long getCurrentUid() {
@@ -80,6 +90,39 @@ public class AppMineController {
             return Result.error(401, "未登录");
         }
         return Result.success("获取通知成功", appNotificationService.getUserNotifications(uid, limit));
+    }
+
+    /**
+     * 标记单个通知为已读
+     */
+    @LogOperation("小程序标记通知已读")
+    @PostMapping("/notifications/read")
+    public Result<Void> markNotificationRead(@RequestParam String id) {
+        Long uid = getCurrentUid();
+        if (uid == null) {
+            return Result.error(401, "未登录");
+        }
+        if (id.startsWith("sys-")) {
+            Long sysId = Long.parseLong(id.substring(4));
+            sysNotificationService.markAsRead(sysId, uid);
+        } else {
+            sysNotificationService.markDynamicAsRead(id, uid);
+        }
+        return Result.success("标记成功", null);
+    }
+
+    /**
+     * 标记全部通知为已读
+     */
+    @LogOperation("小程序标记全部通知已读")
+    @PostMapping("/notifications/read-all")
+    public Result<Void> markAllNotificationsRead() {
+        Long uid = getCurrentUid();
+        if (uid == null) {
+            return Result.error(401, "未登录");
+        }
+        sysNotificationService.markAllAsRead(uid);
+        return Result.success("全部标记成功", null);
     }
 
     /**

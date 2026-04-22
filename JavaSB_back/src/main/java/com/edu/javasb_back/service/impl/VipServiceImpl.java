@@ -384,6 +384,8 @@ public class VipServiceImpl implements VipService {
         notification.setTargetUid(uid);
         notification.setIsPublished(1);
         notification.setCreateTime(LocalDateTime.now());
+        notification.setActionText("立即支付");
+        notification.setActionPath("/subpkg_mine/pages/mine/order-list?tab=print");
         notificationService.saveNotification(notification);
 
         return Result.success("订单已提交，请前往支付", null);

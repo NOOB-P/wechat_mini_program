@@ -23,6 +23,8 @@ public interface VipOrderService {
      */
     Result<List<VipOrder>> getMyVipOrders(Long userUid);
 
+    Result<Void> cancelOrder(Long userUid, String orderNo);
+
     /**
      * 后台分页查询 VIP 订单
      */

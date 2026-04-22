@@ -36,6 +36,10 @@ export const buyCourseApi = (courseId: string) => {
   return request({ url: '/api/app/course/buy', method: 'POST', data: { courseId } })
 }
 
+export const cancelCourseOrderApi = (orderNo: string) => {
+  return request({ url: '/api/app/course/order/cancel', method: 'POST', data: { orderNo } })
+}
+
 export const createCoursePayApi = (orderNo: string) => {
   return request({ url: '/api/app/course/pay', method: 'POST', data: { orderNo } })
 }

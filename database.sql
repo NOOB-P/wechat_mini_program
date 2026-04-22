@@ -41,6 +41,7 @@ CREATE TABLE `sys_accounts` (
     `is_bound_student` TINYINT DEFAULT 0 COMMENT '是否已绑定学生: 1-是, 0-否',
     `is_enabled` TINYINT DEFAULT 1 COMMENT '是否启用: 1-启用, 0-禁用',
     `last_login_time` DATETIME COMMENT '最后登录时间',
+    `read_notification_ids` LONGTEXT COMMENT '已读通知ID列表 (JSON数组, 包含成绩、订单等动态通知)',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建日期',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     CONSTRAINT `fk_account_role` FOREIGN KEY (`role_id`) REFERENCES `sys_roles` (`id`)
@@ -99,9 +100,9 @@ INSERT INTO `sys_vip_pricing` (`vip_id`, `pkg_name`, `pkg_desc`, `current_price`
 (1, '月包', '', 29.00, 39.00, 1, 0, 1, 'vip_1m'),
 (1, '季包', '一学期', 99.00, 129.00, 4, 1, 2, 'vip_4m'),
 (1, '年包', '', 299.00, 399.00, 12, 0, 3, 'vip_12m'),
-(2, '月包', '', 59.00, 79.00, 1, 0, 1, 'svip_1m'),
-(2, '季包', '一学期', 199.00, 249.00, 4, 1, 2, 'svip_4m'),
-(2, '年包', '', 599.00, 799.00, 12, 0, 3, 'svip_12m');
+(2, '月包', '', 79.00, 79.00, 1, 0, 1, 'svip_1m'),
+(2, '季包', '一学期', 249.00, 249.00, 4, 1, 2, 'svip_4m'),
+(2, '年包', '', 799.00, 799.00, 12, 0, 3, 'svip_12m');
 
 
 -- ---------------------------------------------------------
@@ -724,13 +725,6 @@ INSERT INTO `exams` (`id`, `name`, `school`, `grade`, `class_name`, `exam_date`,
 ('EXAM005', '2024年春季月考二', '北京四中', '初一', '2班', '2024-04-15', '已解析', 50, 0);
 
 -- 6. 成绩与错题明细表数据
-INSERT INTO `exam_results` (`exam_id`, `student_no`, `student_name`, `school`, `grade`, `class_name`, `total_score`, `question_scores`) VALUES
-('EXAM001', '20230001', '张三', '第一中学', '初一', '1班', 95.5, '{"q1": 5, "q2": 10, "q3": 0}'),
-('EXAM002', '20230002', '李四', '实验小学', '六年级', '2班', 88.0, '{"q1": 5, "q2": 5, "q3": 5}'),
-('EXAM001', '20230005', '孙七', '南京外国语学校', '初三', '英语强化班', 76.5, '{"q1": 5, "q2": 0, "q3": 5}'),
-('EXAM002', '20230004', '赵六', '杭州高级中学', '高二', '理科班', 92.0, '{"q1": 10, "q2": 10, "q3": 5}'),
-('EXAM005', '20230006', '周八', '北京四中', '初一', '2班', 98.0, '{"q1": 10, "q2": 10, "q3": 10}'),
-('EXAM001', '20230009', '张小三', '第一中学', '初三', '1班', 85.0, '{"q1": 5, "q2": 5, "q3": 5}');
 
 -- 7. 课程资源表数据
 INSERT INTO `courses` (`id`, `title`, `cover`, `video_url`, `content`, `type`, `subject`, `grade`, `status`, `price`, `is_svip_only`, `author`, `buy_count`, `episodes`, `is_recommend`, `midas_product_id`) VALUES
@@ -790,26 +784,10 @@ INSERT INTO `wechat_configs` (`group_name`, `corp_id`, `customer_service_url`, `
 ('备用企微客服', 'wwfedcba0987654321', 'https://work.weixin.qq.com/kfid/kfc0987654321fedcba', 0, 'NONE');
 
 -- 12. 错题打印订单表数据
-INSERT INTO `print_orders` (`order_no`, `user_name`, `user_phone`, `document_name`, `pages`, `print_type`, `delivery_method`, `total_price`, `order_status`) VALUES
-('POD202310010001', '张三爸爸', '13800000002', '张三数学错题本_10月', 15, '黑白双面', '快递配送', 12.50, 4),
-('POD202310050002', '李四妈妈', '13800000003', '李四英语复习资料', 30, '彩色单面', '门店自提', 45.00, 1),
-('POD202311020003', '王五妈妈', '13800000004', '王五物理错题集', 10, '黑白单面', '快递配送', 8.00, 2),
-('POD202404010004', '吴九妈妈', '13800000009', '吴九化学重点', 20, '彩色双面', '标准快递', 30.00, 1);
 
 -- 13. VIP套餐订单表数据
-INSERT INTO `vip_orders` (`order_no`, `user_uid`, `user_name`, `user_phone`, `package_type`, `period`, `price`, `payment_status`, `payment_method`, `source_type`, `school_name`) VALUES
-('VOD202309010001', 3, '张三爸爸', '13800000002', 'SVIP专业版', '年包', 365.00, 1, '微信支付', 'ONLINE_PURCHASE', '第一中学'),
-('VOD202309150002', 4, '李四妈妈', '13800000003', 'VIP基础版', '季包', 99.00, 1, '支付宝', 'ONLINE_PURCHASE', '第一中学'),
-('VOD202310010003', 5, '王五妈妈', '13800000004', 'SVIP专业版', '月包', 39.00, 1, '微信支付', 'SCHOOL_GIFT', '第二中学'),
-('VOD202404010004', 10, '吴九妈妈', '13800000009', 'SVIP专业版', '年包', 365.00, 1, '微信支付', 'ONLINE_PURCHASE', '实验中学');
 
 -- 14. 系统操作日志表数据
-INSERT INTO `sys_logs` (`uid`, `user_name`, `nick_name`, `operation`, `method`, `url`, `ip`, `location`, `status`) VALUES
-(1, 'admin', '超级管理员', '登录系统', 'POST', '/api/auth/login/password', '192.168.1.100', '局域网', 200),
-(2, 'manager', '运营人员', '查询学生列表', 'GET', '/api/students/list', '192.168.1.101', '局域网', 200),
-(1, 'admin', '超级管理员', '新增学校', 'POST', '/api/school/add', '192.168.1.100', '局域网', 200),
-(3, 'parent01', '张三爸爸', '查看错题', 'GET', '/api/exams/mistakes', '10.0.0.1', '外网', 200),
-(10, 'parent07', '吴九妈妈', '报名自习室', 'POST', '/api/study-room/enroll', '172.16.0.1', '外网', 200);
 
 -- 11. 试卷科目表
 CREATE TABLE IF NOT EXISTS `paper_subjects` (
@@ -876,6 +854,8 @@ CREATE TABLE `sys_notifications` (
     `action_text` VARCHAR(50) COMMENT '跳转按钮文字',
     `action_path` VARCHAR(255) COMMENT '跳转路径',
     `is_published` TINYINT DEFAULT 1 COMMENT '是否发布: 1-已发布, 0-草稿',
+    `read_uids` LONGTEXT COMMENT '已读用户UID列表 (JSON数组, 针对全部用户通知)',
+    `is_read` TINYINT DEFAULT 0 COMMENT '是否已读 (仅针对指定用户通知有效): 0-未读, 1-已读',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX `idx_target_uid` (`target_uid`)
@@ -889,26 +869,6 @@ INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `
 ('2023年西安西工大附中初一入学摸底测试', '语文', '初一', '2023', 'FAMOUS', '摸底,语文,PDF版', 2100, 0, '/uploads/papers/demo.pdf', 1),
 ('2024年成都七中高二联考物理压轴卷', '物理', '高二', '2024', 'JOINT', '联考,名校,物理,解析', 1560, 1, '/uploads/papers/demo.pdf', 1);
 
--- ---------------------------------------------------------
--- 数据修正与同步 (Merged from update_students.sql)
--- ---------------------------------------------------------
--- 将李四和王五的学校、年级、班级信息修改为与张三（STU001）一致
--- 张三信息：学校 SCH001 (第一中学), 班级 CLS001 (初一 1班)
 
--- 更新 students 表
-UPDATE students 
-SET school_id = 'SCH001', 
-    class_id = 'CLS001', 
-    school = '第一中学', 
-    grade = '初一', 
-    class_name = '1班' 
-WHERE student_no IN ('20230002', '20230003');
-
--- 更新 exam_results 表（冗余数据同步）
-UPDATE exam_results 
-SET school = '第一中学', 
-    grade = '初一', 
-    class_name = '1班' 
-WHERE student_no IN ('20230002', '20230003');
 
 SET FOREIGN_KEY_CHECKS = 1;

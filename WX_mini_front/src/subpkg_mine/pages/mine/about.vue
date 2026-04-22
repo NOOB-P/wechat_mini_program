@@ -29,8 +29,8 @@
     <view class="section">
       <view class="section-title">联系我们</view>
       <wd-cell-group border>
-        <wd-cell title="官方客服" value="[电话/微信号]" is-link @click="copyText('[电话/微信号]')" />
-        <wd-cell title="商务合作" value="[邮箱地址]" is-link @click="copyText('[邮箱地址]')" />
+        <wd-cell title="官方客服" value="15555616622" is-link @click="copyText('15555616622')" />
+        <wd-cell title="商务合作" value="youtihui@qq.com" is-link @click="copyText('[邮箱地址')" />
       </wd-cell-group>
     </view>
 

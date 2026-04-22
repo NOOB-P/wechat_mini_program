@@ -41,11 +41,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import com.baomidou.dynamic.datasource.annotation.DS;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.config.WechatPayProperties;
-import com.edu.javasb_back.config.datasource.DataSourceName;
 import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.model.entity.SysNotification;
 import com.edu.javasb_back.model.entity.VipOrder;
 import com.edu.javasb_back.model.entity.VipPricing;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
@@ -53,8 +52,10 @@ import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.repository.VipOrderRepository;
 import com.edu.javasb_back.repository.VipPricingRepository;
+import com.edu.javasb_back.service.SysNotificationService;
 import com.edu.javasb_back.service.VipOrderService;
 import com.edu.javasb_back.service.WechatPayService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @Transactional(readOnly = true)
@@ -86,11 +87,13 @@ public class VipOrderServiceImpl implements VipOrderService {
     private WechatPayService wechatPayService;
 
     @Autowired
-
     private WechatPayProperties wechatPayProperties;
     
     @Autowired
     private SysNotificationService notificationService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -98,6 +101,17 @@ public class VipOrderServiceImpl implements VipOrderService {
         Optional<SysAccount> accountOptional = sysAccountRepository.findById(userUid);
         if (accountOptional.isEmpty()) {
             return Result.error("用户不存在");
+        }
+
+        String tierCode = asString(orderData.get("tierCode"));
+        // 校验是否存在同类型的待支付订单
+        List<VipOrder> existingOrders = vipOrderRepository.findByUserUidOrderByCreateTimeDesc(userUid);
+        for (VipOrder order : existingOrders) {
+            if (order.getPaymentStatus() == 0 && order.getPackageType().equals(tierCode)) {
+                if (order.getCreateTime().plusMinutes(10).isAfter(LocalDateTime.now())) {
+                    return Result.error(400, "您已有一个同类型的待支付订单，请先支付或取消原订单");
+                }
+            }
         }
 
         BigDecimal price = parsePrice(orderData.get("price"));
@@ -113,7 +127,6 @@ public class VipOrderServiceImpl implements VipOrderService {
         order.setUserPhone(resolveUserPhone(account));
         order.setSchoolName(resolveSchoolName(userUid));
 
-        String tierCode = asString(orderData.get("tierCode"));
         String title = asString(orderData.get("packageType"));
         int months = resolveDurationMonths(orderData);
         if (months <= 0) {
@@ -140,9 +153,43 @@ public class VipOrderServiceImpl implements VipOrderService {
         notification.setTargetUid(userUid);
         notification.setIsPublished(1);
         notification.setCreateTime(LocalDateTime.now());
+        notification.setActionText("立即支付");
+
+        // 构建前端跳转所需的订单对象
+        Map<String, Object> orderObj = new HashMap<>();
+        orderObj.put("orderNo", savedOrder.getOrderNo());
+        orderObj.put("price", savedOrder.getPrice());
+        orderObj.put("createTime", savedOrder.getCreateTime());
+        orderObj.put("tierCode", tierCode);
+        orderObj.put("packageType", title);
+        orderObj.put("type", "VIP");
+
+        try {
+            String orderJson = objectMapper.writeValueAsString(orderObj);
+            notification.setActionPath("/subpkg_course/pages/course/pay?order=" + java.net.URLEncoder.encode(orderJson, "UTF-8"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         notificationService.saveNotification(notification);
 
         return Result.success(savedOrder);
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> cancelOrder(Long userUid, String orderNo) {
+        Optional<VipOrder> orderOptional = vipOrderRepository.findByOrderNoAndUserUid(orderNo, userUid);
+        if (orderOptional.isEmpty()) {
+            return Result.error("订单不存在");
+        }
+        VipOrder order = orderOptional.get();
+        if (order.getPaymentStatus() != 0) {
+            return Result.error("只能取消待支付订单");
+        }
+        order.setPaymentStatus(2); // 2-已取消
+        vipOrderRepository.save(order);
+        return Result.success("订单已取消", null);
     }
 
     @Override
@@ -166,6 +213,7 @@ public class VipOrderServiceImpl implements VipOrderService {
                     validOrders.add(order);
                 }
             }
+            // 已取消/已过期订单在小程序端不显示
         }
 
         return Result.success(validOrders);

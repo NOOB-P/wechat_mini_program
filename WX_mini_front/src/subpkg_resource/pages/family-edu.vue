@@ -150,8 +150,8 @@ const handleAction = async (item: any) => {
       } else {
         toast.error(res.msg || '下单失败')
       }
-    } catch (e) {
-      toast.error('网络错误')
+    } catch (e: any) {
+      toast.error(e.msg || e.message || '网络错误')
     }
   } else {
     handleItemClick(item)

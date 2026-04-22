@@ -267,10 +267,9 @@ const handlePay = async () => {
     return
   }
 
-  submitting.value = true
   try {
-    toast.loading('正在准备支付...')
     const { createRes, payRes } = await runWithWechatBindGuard(async () => {
+      submitting.value = true
       const createRes = await createVipOrderApi({
         packageType: currentConfig.value.title,
         tierCode: currentConfig.value.tierCode,
@@ -282,10 +281,6 @@ const handlePay = async () => {
       const payRes = await createVipPayApi(createRes.data.orderNo)
       return { createRes, payRes }
     }, PAYMENT_WECHAT_BIND_OPTIONS)
-    console.log("-------------------------------------------")
-    console.log(payRes.data?.paymentType)
-    console.log(payRes.data?.payParams || {})
-    console.log("-------------------------------------------")
     await requestWechatPaymentByType(payRes.data?.paymentType, payRes.data?.payParams || {})
 
     if (payRes.data?.paymentType === 'VIRTUAL' || payRes.data?.paymentType === 'FREE') {

@@ -45,11 +45,11 @@ export const getPrintConfigApi = () => {
 }
 
 export const createVipOrderApi = (data: any) => {
-  return request({
-    url: '/api/app/vip/order/create',
-    method: 'POST',
-    data
-  })
+  return request({ url: '/api/app/vip/order/create', method: 'POST', data })
+}
+
+export const cancelVipOrderApi = (orderNo: string) => {
+  return request({ url: '/api/app/vip/order/cancel', method: 'POST', data: { orderNo } })
 }
 
 export const createVipPayApi = (orderNo: string) => {
