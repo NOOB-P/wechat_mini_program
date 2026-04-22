@@ -21,7 +21,7 @@
       </view>
     </view>
 
-    <scroll-view scroll-y class="content" v-if="scoreData">
+    <scroll-view scroll-y class="content" v-if="scoreData" :show-scrollbar="false" :enhanced="true">
       <!-- 考试概览 -->
       <view class="overview-card">
         <view class="exam-info">
@@ -155,53 +155,27 @@
               <wd-button custom-class="upgrade-btn" @click="goToRecharge('VIP')">立即开通 VIP</wd-button>
             </view>
             
-            <scroll-view scroll-y class="wrong-list" style="height: 700rpx;" v-else>
-              <view class="wrong-item" v-for="item in wrongBookData" :key="item.id">
-                <view class="w-header">
-                  <view class="w-subject-box">
-                    <text class="subject">{{ item.subject }}</text>
-                    <text class="source" v-if="item.source">来源：{{ item.source }}</text>
-                  </view>
-                  <text class="time">{{ item.time }}</text>
-                </view>
-                
-                <view class="w-body">
-                  <view class="w-question">第{{ item.questionNo }}题</view>
-                  <image
-                    v-if="item.sliceImageUrl"
-                    class="paper-slice-image"
-                    :src="resolveAssetUrl(item.sliceImageUrl)"
-                    mode="widthFix"
-                    @click="previewSliceImage(item.sliceImageUrl)"
-                  />
-                  <view class="w-tags">
-                    <text class="tag" v-for="(tag, idx) in item.tags" :key="idx">{{ tag }}</text>
-                    <text class="difficulty" :class="getDifficultyClass(item.difficulty)">{{ item.difficulty }}</text>
-                  </view>
-                  
-                  <view class="w-analysis-box">
-                    <view class="ans-row">
-                      <text class="label">我的得分</text>
-                      <text class="val wrong">{{ item.myScore }} 分</text>
-                    </view>
-                    <view class="ans-row">
-                      <text class="label">小题最高分</text>
-                      <text class="val correct">{{ item.highestScore }} 分</text>
-                    </view>
-                  </view>
-                  
-                  <view class="mastery-box">
-                    <text class="m-label">掌握程度</text>
-                    <wd-progress :percentage="item.mastery" :color="getMasteryColor(item.mastery)" />
-                  </view>
-                </view>
-                
-                <view class="w-actions">
-                  <wd-button size="small" plain custom-class="action-btn" @click="handleExport">导出 PDF/Word</wd-button>
-                  <wd-button size="small" plain type="success" custom-class="action-btn" @click="showPrintDialog = true">纸质打印下单</wd-button>
+            <view v-else>
+              <WrongBookToolbar
+                v-model="selectedWrongSubject"
+                :source-label="wrongSourceLabel"
+                :options="wrongBookFilterOptions"
+                @export="handleExport"
+                @print="showPrintDialog = true"
+              />
+
+              <view class="wrong-list">
+                <WrongQuestionCard
+                  v-for="item in filteredWrongBookData"
+                  :key="item.id"
+                  :item="item"
+                  @preview="previewSliceImage"
+                />
+                <view v-if="!filteredWrongBookData.length" class="wrong-empty">
+                  <text>当前筛选条件下暂无错题</text>
                 </view>
               </view>
-            </scroll-view>
+            </view>
           </view>
         </view>
 
@@ -299,6 +273,8 @@ import { getStudentScoresApi, getSemesterListApi, getAiExamReportApi } from '@/s
 import { submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
 import { getUserInfoApi } from '@/api/mine'
 import AiReportPanel from '@/subpkg_analysis/components/AiReportPanel.vue'
+import WrongBookToolbar from '@/subpkg_analysis/components/WrongBookToolbar.vue'
+import WrongQuestionCard from '@/subpkg_analysis/components/WrongQuestionCard.vue'
 
 const toast = useToast()
 const scoreData = ref<any>(null)
@@ -357,6 +333,7 @@ const getMasteryColor = (val: number) => {
 
 const analysisData = ref<any>(null)
 const wrongBookData = ref<any[]>([])
+const selectedWrongSubject = ref('all')
 const aiReportLoading = ref(false)
 const aiReportData = ref<any>(null)
 const aiReportExamId = ref('')
@@ -393,6 +370,48 @@ const currentDisplayLabel = ref('加载中...')
 // 动态计算当前选中的配送配置
 const currentDeliveryConfig = computed(() => {
   return printConfig.value.deliveryConfigs.find((d: any) => d.method === printForm.value.deliveryMethod)
+})
+
+const normalizedWrongBookData = computed(() =>
+  (wrongBookData.value || []).map((item: any) => ({
+    ...item,
+    displaySliceImageUrl: resolveAssetUrl(item.sliceImageUrl),
+    subject: String(item.subject || ''),
+    source: String(item.source || scoreData.value?.examName || ''),
+    myScore: item.myScore ?? 0,
+    highestScore: item.highestScore ?? 0
+  }))
+)
+
+const wrongSourceLabel = computed(() => {
+  return String(scoreData.value?.examName || currentDisplayLabel.value || '当前试卷')
+})
+
+const wrongBookFilterOptions = computed(() => {
+  const groups = new Map<string, number>()
+  for (const item of normalizedWrongBookData.value) {
+    const subject = String(item.subject || '未分类')
+    groups.set(subject, (groups.get(subject) || 0) + 1)
+  }
+  return [
+    {
+      label: '全部',
+      value: 'all',
+      count: normalizedWrongBookData.value.length
+    },
+    ...Array.from(groups.entries()).map(([label, count]) => ({
+      label,
+      value: label,
+      count
+    }))
+  ]
+})
+
+const filteredWrongBookData = computed(() => {
+  if (selectedWrongSubject.value === 'all') {
+    return normalizedWrongBookData.value
+  }
+  return normalizedWrongBookData.value.filter((item: any) => item.subject === selectedWrongSubject.value)
 })
 
 // 动态计算预估费用
@@ -457,6 +476,13 @@ const resolveAssetUrl = (url?: string) => {
   if (!url) return ''
   if (/^(https?:)?\/\//.test(url) || url.startsWith('data:') || url.startsWith('blob:')) {
     return url
+  }
+  const staticBaseUrl = String(__VITE_STATIC_BASEURL__ || '')
+  if (url.startsWith('/uploads/') && staticBaseUrl) {
+    const cdnRoot = staticBaseUrl.replace(/\/static\/?$/i, '')
+    if (cdnRoot) {
+      return `${cdnRoot}${url}`
+    }
   }
   const baseUrl = String(import.meta.env.VITE_SERVER_BASEURL || '')
   if (!baseUrl) return url
@@ -576,6 +602,7 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
     }
 
     wrongBookData.value = isVIPUser.value ? (res.data?.wrongQuestions || []) : []
+    selectedWrongSubject.value = 'all'
 
     uni.hideLoading()
     tryLoadAiReport()
@@ -714,8 +741,18 @@ watch(
 
 .content {
   flex: 1;
+  min-height: 0;
   padding: 30rpx;
   box-sizing: border-box;
+
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0 !important;
+    height: 0 !important;
+    -webkit-appearance: none;
+    background: transparent;
+    color: transparent;
+  }
 }
 
 .overview-card {
@@ -1200,138 +1237,17 @@ watch(
 
 // 错题集样式
 .wrong-list {
-  padding: 0 10rpx;
+  padding: 0 4rpx 12rpx;
+  box-sizing: border-box;
 }
 
-.wrong-item {
-  background: #fff;
-  border-radius: 24rpx;
-  padding: 30rpx;
-  margin-bottom: 30rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
-  border: 1px solid #f0f2f5;
-
-  .w-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 24rpx;
-    border-bottom: 1rpx solid #f8fafc;
-    padding-bottom: 16rpx;
-
-    .w-subject-box {
-      .subject {
-        font-size: 32rpx;
-        font-weight: bold;
-        color: #4364f7;
-        margin-right: 16rpx;
-      }
-      .source {
-        font-size: 22rpx;
-        color: #999;
-        background: #f4f6f9;
-        padding: 2rpx 12rpx;
-        border-radius: 6rpx;
-      }
-    }
-    .time {
-      font-size: 24rpx;
-      color: #bbb;
-    }
-  }
-
-  .w-body {
-    .w-question {
-      font-size: 28rpx;
-      color: #333;
-      line-height: 1.6;
-      margin-bottom: 20rpx;
-      font-weight: 500;
-    }
-
-    .paper-slice-image {
-      width: 100%;
-      margin-bottom: 20rpx;
-      border-radius: 16rpx;
-      background: #f6f8fb;
-      box-shadow: inset 0 0 0 1rpx rgba(67, 100, 247, 0.08);
-      overflow: hidden;
-    }
-
-    .w-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12rpx;
-      margin-bottom: 24rpx;
-
-      .tag {
-        font-size: 22rpx;
-        color: #666;
-        background: #f0f4ff;
-        padding: 4rpx 16rpx;
-        border-radius: 8rpx;
-      }
-      .difficulty {
-        font-size: 22rpx;
-        padding: 4rpx 16rpx;
-        border-radius: 8rpx;
-        &.diff-easy { color: #07c160; background: #e6f7ef; }
-        &.diff-medium { color: #fa9d3b; background: #fff7e6; }
-        &.diff-hard { color: #ee0a24; background: #fff1f0; }
-      }
-    }
-
-    .w-analysis-box {
-      background: #f8fafc;
-      border-radius: 16rpx;
-      padding: 24rpx;
-      margin-bottom: 24rpx;
-
-      .ans-row {
-        margin-bottom: 16rpx;
-        display: flex;
-        flex-direction: column;
-        &:last-child { margin-bottom: 0; }
-
-        .label {
-          font-size: 22rpx;
-          color: #999;
-          margin-bottom: 4rpx;
-        }
-        .val {
-          font-size: 26rpx;
-          color: #444;
-          line-height: 1.5;
-          &.wrong { color: #ee0a24; font-weight: 500; }
-          &.correct { color: #07c160; font-weight: 500; }
-        }
-      }
-    }
-
-    .mastery-box {
-      margin-bottom: 30rpx;
-      .m-label {
-        font-size: 22rpx;
-        color: #666;
-        margin-bottom: 12rpx;
-        display: block;
-      }
-    }
-  }
-
-  .w-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 20rpx;
-    border-top: 1rpx solid #f8fafc;
-    padding-top: 24rpx;
-    
-    .action-btn {
-      margin: 0 !important;
-      border-radius: 30rpx;
-      font-size: 24rpx;
-    }
-  }
+.wrong-empty {
+  min-height: 320rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #98a6b8;
+  font-size: 26rpx;
 }
 
 .print-dialog {

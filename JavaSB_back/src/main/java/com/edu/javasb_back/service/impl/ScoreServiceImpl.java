@@ -1117,13 +1117,19 @@ public class ScoreServiceImpl implements ScoreService {
                 row.put("explanation", buildWrongExplanation(subjectName, index + 1, personal, bestScore));
                 row.put("paperUrl", ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl()));
                 row.put("paperRegion", buildPaperRegion(region, ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl())));
+                
+                // 优先从原卷中切割题目，如果没有原卷则回退到答题卡
+                String sliceSourceUrl = StringUtils.hasText(classSubject.getPaperUrl()) ? classSubject.getPaperUrl() : studentScore.getAnswerSheetUrl();
+                // 如果是从原卷切割，则 uniqueKey 不包含学生编号，以便在不同学生间复用切片
+                String sliceUniqueKey = StringUtils.hasText(classSubject.getPaperUrl()) ? "common" : student.getStudentNo() + "_" + normalizeQuestionNo(regionQuestionNo, index + 1);
+
                 row.put("sliceImageUrl", createQuestionSliceUrl(
-                        studentScore.getAnswerSheetUrl(),
+                        sliceSourceUrl,
                         region,
                         snapshot.project().getId(),
                         subjectName,
                         "wrong",
-                        student.getStudentNo() + "_" + normalizeQuestionNo(regionQuestionNo, index + 1)
+                        sliceUniqueKey
                 ));
                 rows.add(row);
             }
