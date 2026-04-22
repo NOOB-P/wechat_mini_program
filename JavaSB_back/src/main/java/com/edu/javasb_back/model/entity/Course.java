@@ -60,6 +60,9 @@ public class Course {
     @Column(name = "is_recommend")
     private Integer isRecommend = 0;
 
+    @Column(name = "midas_product_id", length = 100)
+    private String midasProductId;
+
     @Transient
     private Boolean isCollected = false;
 
@@ -124,4 +127,6 @@ public class Course {
     public void setProgress(Integer progress) { this.progress = progress; }
     public List<CourseEpisode> getEpisodeList() { return episodeList; }
     public void setEpisodeList(List<CourseEpisode> episodeList) { this.episodeList = episodeList; }
+    public String getMidasProductId() { return midasProductId; }
+    public void setMidasProductId(String midasProductId) { this.midasProductId = midasProductId; }
 }

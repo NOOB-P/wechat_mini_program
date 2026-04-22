@@ -8,4 +8,7 @@ public interface SysNotificationService {
     SysNotification saveNotification(SysNotification notification);
     void deleteNotification(Long id);
     List<SysNotification> getPublishedNotifications(Long uid);
+    void markAsRead(Long id, Long uid);
+    void markDynamicAsRead(String id, Long uid);
+    void markAllAsRead(Long uid);
 }

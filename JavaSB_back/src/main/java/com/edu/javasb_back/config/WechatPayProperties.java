@@ -103,6 +103,7 @@ public class WechatPayProperties {
     public boolean isVirtualPaymentConfigured() {
         return virtualPayment != null
                 && hasText(virtualPayment.getOfferId())
+                && hasText(virtualPayment.getAppSecret())
                 && hasText(virtualPayment.getSecurityKey());
     }
 
@@ -113,13 +114,13 @@ public class WechatPayProperties {
     public static class VirtualPayment {
 
         private String offerId;
-        private String appSecret; // 米大师支付密钥 (AppSecret)
-        private Integer env = 0; // 0: 正式环境, 1: 沙箱环境
+        private String appSecret;
+        private Integer env = 0;
         private String vipGoodsPrefix = "vip";
         private String courseGoodsPrefix = "course";
-        private String securityKey; // 用于后端 security 令牌签名的密钥
+        private String securityKey;
         private Long ticketExpireSeconds = 900L;
-        private String notifyUrl; // 米大师回调 URI
+        private String notifyUrl;
 
         public String getOfferId() {
             return offerId;

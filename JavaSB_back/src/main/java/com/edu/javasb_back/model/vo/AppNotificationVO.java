@@ -10,6 +10,7 @@ public class AppNotificationVO {
     private String time;
     private String actionText;
     private String actionPath;
+    private Boolean isNew;
 
     public String getId() {
         return id;
@@ -73,5 +74,13 @@ public class AppNotificationVO {
 
     public void setActionPath(String actionPath) {
         this.actionPath = actionPath;
+    }
+
+    public Boolean getIsNew() {
+        return isNew;
+    }
+
+    public void setIsNew(Boolean isNew) {
+        this.isNew = isNew;
     }
 }

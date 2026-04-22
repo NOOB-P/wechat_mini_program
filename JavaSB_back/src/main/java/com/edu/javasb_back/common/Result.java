@@ -8,6 +8,8 @@ import lombok.Data;
  */
 @Data
 public class Result<T> {
+    public static final Integer CODE_WECHAT_BIND_REQUIRED = 40101;
+
     private Integer code;
     private String msg;
     private T data;
@@ -41,5 +43,9 @@ public class Result<T> {
 
     public static <T> Result<T> error(Integer code, String msg) {
         return new Result<>(code, msg, null);
+    }
+
+    public static <T> Result<T> wechatBindRequired(String msg) {
+        return new Result<>(CODE_WECHAT_BIND_REQUIRED, msg, null);
     }
 }

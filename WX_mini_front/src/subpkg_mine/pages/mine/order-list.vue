@@ -39,9 +39,14 @@
                   <text class="price-tag" :class="{ 'pending': item.paymentStatus === 0 }">
                     {{ item.paymentStatus === 0 ? '待支付' : '已支付' }}
                   </text>
-                  <view class="action-link" :class="{ 'pay-btn': item.paymentStatus === 0 }">
-                    <text>{{ item.paymentStatus === 0 ? '去支付' : '立即学习' }}</text>
-                    <wd-icon name="arrow-right" size="14px" />
+                  <view class="actions-group">
+                    <view v-if="item.paymentStatus === 0" class="cancel-btn" @click.stop="handleCancelOrder(item, 'course')">
+                      取消
+                    </view>
+                    <view class="action-link" :class="{ 'pay-btn': item.paymentStatus === 0 }">
+                      <text>{{ item.paymentStatus === 0 ? '去支付' : '立即学习' }}</text>
+                      <wd-icon name="arrow-right" size="14px" v-if="item.paymentStatus !== 0" />
+                    </view>
                   </view>
                 </view>
               </view>
@@ -77,9 +82,14 @@
                   <text class="price-tag" :class="{ 'pending': item.paymentStatus === 0 }">
                     {{ item.paymentStatus === 0 ? '待支付' : '已支付' }}
                   </text>
-                  <view class="action-link" :class="{ 'pay-btn': item.paymentStatus === 0 }">
-                    <text>{{ item.paymentStatus === 0 ? '去支付' : '详情' }}</text>
-                    <wd-icon name="arrow-right" size="14px" />
+                  <view class="actions-group">
+                    <view v-if="item.paymentStatus === 0" class="cancel-btn" @click.stop="handleCancelOrder(item, 'vip')">
+                      取消
+                    </view>
+                    <view class="action-link" :class="{ 'pay-btn': item.paymentStatus === 0 }">
+                      <text>{{ item.paymentStatus === 0 ? '去支付' : '详情' }}</text>
+                      <wd-icon name="arrow-right" size="14px" v-if="item.paymentStatus !== 0" />
+                    </view>
                   </view>
                 </view>
               </view>
@@ -112,12 +122,14 @@
                   </view>
                 </view>
                 <view class="bottom-info">
-                  <text class="price-tag" :class="{ 'pending': item.orderStatus === 1 }">
+                  <text class="price-tag" :class="{ 'pending': item.orderStatus === 1, 'expired': item.orderStatus === 0 }">
                     {{ getPrintStatusText(item.orderStatus) }}
                   </text>
-                  <view class="action-link" :class="{ 'pay-btn': item.orderStatus === 1 }">
-                    <text>{{ item.orderStatus === 1 ? '去支付' : '详情' }}</text>
-                    <wd-icon name="arrow-right" size="14px" />
+                  <view class="actions-group">
+                    <view v-if="item.orderStatus === 1" class="action-link" :class="{ 'pay-btn': item.orderStatus === 1 }">
+                      <text>{{ item.orderStatus === 1 ? '去支付' : '详情' }}</text>
+                      <wd-icon name="arrow-right" size="14px" v-if="item.orderStatus !== 1" />
+                    </view>
                   </view>
                 </view>
               </view>
@@ -137,6 +149,8 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getPurchasedCoursesApi, getMyPrintOrdersApi, getMyVipOrdersApi } from '@/api/order'
+import { cancelCourseOrderApi } from '@/api/course'
+import { cancelVipOrderApi } from '@/api/vip'
 import { useToast } from 'wot-design-uni'
 
 const toast = useToast()
@@ -174,6 +188,43 @@ const getPrintStatusText = (status: number) => {
     case 3: return '待配送'
     case 4: return '已完成'
     default: return '未知'
+  }
+}
+
+const handleCancelOrder = async (item: any, type: 'course' | 'vip' | 'print') => {
+  try {
+    const confirm = await new Promise((resolve) => {
+      uni.showModal({
+        title: '提示',
+        content: '确定要取消该订单吗？',
+        success: (res) => {
+          if (res.confirm) resolve(true)
+          else resolve(false)
+        }
+      })
+    })
+
+    if (!confirm) return
+
+    let res: any
+    if (type === 'course') {
+      res = await cancelCourseOrderApi(item.orderNo)
+    } else if (type === 'vip') {
+      res = await cancelVipOrderApi(item.orderNo)
+    } else {
+      // 打印订单暂不支持取消接口，或者需要单独实现
+      uni.showToast({ title: '暂不支持取消打印订单', icon: 'none' })
+      return
+    }
+
+    if (res.code === 200) {
+      uni.showToast({ title: '订单已取消' })
+      loadData()
+    } else {
+      uni.showToast({ title: res.msg || '取消失败', icon: 'none' })
+    }
+  } catch (error) {
+    console.error('取消订单失败', error)
   }
 }
 
@@ -502,6 +553,22 @@ onUnmounted(() => {
         &.pending {
           color: #ff9800;
         }
+      }
+
+      .actions-group {
+        display: flex;
+        align-items: center;
+        gap: 16rpx;
+      }
+
+      .cancel-btn {
+        font-size: 24rpx;
+        color: #999;
+        padding: 8rpx 24rpx;
+        border-radius: 100rpx;
+        border: 1rpx solid #ddd;
+        background: #fff;
+        font-weight: 500;
       }
 
       .action-link {

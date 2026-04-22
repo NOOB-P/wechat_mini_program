@@ -56,44 +56,16 @@
       }
     }
 
-    // 1. 启发式识别并为未包裹的 LaTeX 加上 $$ 定界符 (针对 OCR 识别结果)
-    // 改进：更全面地捕捉包含 \ 指令及其前后关联的数学字符（数字、字母、空格、运算符）
-    // 优先级：先匹配包含 \ 的复杂结构，再匹配上下标结构
-    const mathRegex = /(([a-zA-Z0-9_\(\)]*\s*[\=<>]{1,2}\s*)?(\\left\s*[\\\\\(\{\[\.].*?\\right\s*[\\\\\)\}\]\.](\s*[\^\_]\s*\{[^\}]*\})?|\\left\s*[\\\\\(\{\[\.].*?[\)\}\]]|\\(frac|sqrt|sum|int|alpha|beta|gamma|delta|theta|pi|phi|omega|infty|pm|times|div|neq|leq|geq|approx|in|subset|cup|cap|forall|exists|partial|nabla)\b([\s]*[a-zA-Z0-9]|\s*\{[^\}]*\})*|[\w\d\(\)]+\s*[\^\_]\s*\{[^\}]*\}|f\s*\\left\s*\([\s\S]*?\\right\s*\)|f\s*\\left\s*\(.*?\)))[^\u4e00-\u9fa5]*(?=[,，。]|\s{2,}|[\u4e00-\u9fa5]|$)/g;
-
-    content = content.replace(mathRegex, (match) => {
-      // 避免重复处理已有定界符的内容
-      if (/^\$|\\\(|\\\[/.test(match)) return match
-      // 检查匹配到的内容是否真的包含数学指令或特殊符号
-      if (match.includes('\\') || match.includes('^') || match.includes('_')) {
-        return `$$${match}$$`
-      }
-      return match
-    })
-
-    // 额外处理：针对 OCR 结果中整行公式混排或被遗漏的复杂数学段落
-    content = content.split('\n').map(line => {
-      // 如果一行中包含 LaTeX 关键指令或数学符号，且没有被 $$ 包裹
-      if ((line.match(/\\(left|right|frac|sqrt|alpha|beta|gamma|delta|theta|pi|phi|omega|infty|pm|times|div|neq|leq|geq|approx|in|subset|cup|cap|forall|exists|partial|nabla|int|sum|prod)/) || line.match(/[\^\_]\s*\{/)) && !line.includes('$')) {
-        // 匹配从数学字符开始，包含 \ 指令，直到遇到中文或明显文本边界的段落
-        return line.replace(/(([a-zA-Z0-9_\(\)]*\s*[\=<>]{1,2}\s*)?(\\.*?(?=[,，。]|\s{2,}|[\u4e00-\u9fa5]|$)))/g, (match) => {
-          if (match.length < 3 || match.includes('$')) return match
-          return `$$${match}$$`
-        })
-      }
-      return line
-    }).join('\n')
-
-    // 2. 统一提取各种 LaTeX 格式并替换为占位符
+    // 1. 统一提取各种 LaTeX 格式并替换为占位符
     // 块级公式
     content = content.replace(/\$\$(.*?)\$\$/gs, (_, f) => renderMath(f, true))
     content = content.replace(/\\\[(.*?)\\\]/gs, (_, f) => renderMath(f, true))
-    
+
     // 行内公式
     content = content.replace(/\$(.*?)\$/g, (_, f) => renderMath(f, false))
     content = content.replace(/\\\((.*?)\\\)/g, (_, f) => renderMath(f, false))
 
-    // 3. 使用 marked 渲染 Markdown
+    // 2. 使用 marked 渲染 Markdown
     let finalHtml = ''
     try {
       marked.setOptions({

@@ -45,6 +45,9 @@ public class VipOrder {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
+    @Column(name = "pricing_id")
+    private Integer pricingId;
+
     @Column(name = "payment_status")
     private Integer paymentStatus = 0;
 
@@ -127,6 +130,14 @@ public class VipOrder {
 
     public void setPrice(BigDecimal price) {
         this.price = price;
+    }
+
+    public Integer getPricingId() {
+        return pricingId;
+    }
+
+    public void setPricingId(Integer pricingId) {
+        this.pricingId = pricingId;
     }
 
     public Integer getPaymentStatus() {

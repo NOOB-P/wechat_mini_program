@@ -98,10 +98,10 @@ wechat:
     publicKeyPath: ${WECHAT_PAY_PUBLIC_KEY_PATH:pub_key.pem}
     publicKeyId: ${WECHAT_PAY_PUBLIC_KEY_ID:PUB_KEY_ID_0117443838972026041800381657002000}
     merchantSerialNumber: ${WECHAT_PAY_MERCHANT_SERIAL_NUMBER:64D622036126915C5930E5EDD8D27CC0A9FAEB7F}
-    notifyUrl: ${WECHAT_PAY_NOTIFY_URL:http://10.62.50.208:8082/api/pay/wechat/notify}
+    notifyUrl: ${WECHAT_PAY_NOTIFY_URL:http://10.62.61.71:8082/api/pay/wechat/notify}
     virtual-payment:
       offerId: ${WECHAT_PAY_VIRTUAL_OFFER_ID:1450516117}
-      appSecret: ${WECHAT_PAY_VIRTUAL_APP_SECRET:Zjq125800liuyue20011018chent903b}
+      appSecret: ${WECHAT_PAY_VIRTUAL_APP_SECRET:laP7esl71JZchpLX3cXuEVsBxrUzL6N0}
       env: ${WECHAT_PAY_VIRTUAL_ENV:1}
       vipGoodsPrefix: ${WECHAT_PAY_VIRTUAL_VIP_GOODS_PREFIX:vip}
       courseGoodsPrefix: ${WECHAT_PAY_VIRTUAL_COURSE_GOODS_PREFIX:course}

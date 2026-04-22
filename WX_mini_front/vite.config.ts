@@ -42,9 +42,9 @@ export default ({ command, mode }) => {
       Components({
         resolvers: [WotResolver()]
       }),
-      // UniKuRoot({
-      //   rootFileName: 'KuRoot'
-      // }),
+      UniKuRoot({
+        rootFileName: 'KuRoot'
+      }),
       uni(),
       AutoImport({
         imports: ['vue', 'uni-app'],

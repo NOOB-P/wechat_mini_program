@@ -1,40 +1,42 @@
 <template>
   <view class="settings-container">
-    <!-- 模块一：账号安全 -->
     <view class="section-group">
       <view class="section-header">账号安全</view>
       <wd-cell-group border>
-        <wd-cell title="手机号" :value="userInfo.phone" is-link @click="showChangePhonePopup = true" />
+        <wd-cell title="手机号" :value="userInfo.phone || '未设置'" is-link @click="showChangePhonePopup = true" />
+        <wd-cell title="微信绑定" is-link @click="handleWechatBindingClick">
+          <view class="wechat-bind-value" :class="{ bound: isWechatLinked }">
+            <text>{{ wechatBindText }}</text>
+            <wd-icon v-if="!isWechatLinked" name="wechat" size="18px" color="#07c160" />
+          </view>
+        </wd-cell>
         <wd-cell title="修改密码" is-link @click="showChangePasswordPopup = true" />
       </wd-cell-group>
     </view>
 
-    <!-- 模块二：学生管理 -->
     <view class="section-group">
       <view class="section-header">学生管理</view>
       <wd-cell-group border>
-        <wd-cell 
-          v-if="userInfo.isBoundStudent === 1" 
-          title="绑定学生" 
-          :value="userInfo.boundStudentInfo?.name" 
-          is-link 
-          @click="showStudentDetailPopup = true" 
+        <wd-cell
+          v-if="userInfo.isBoundStudent === 1"
+          title="绑定学生"
+          :value="userInfo.boundStudentInfo?.name"
+          is-link
+          @click="showStudentDetailPopup = true"
         />
-        <wd-cell 
-          v-else 
-          title="绑定学生" 
-          value="未绑定" 
-          is-link 
-          @click="handleGoToBind" 
+        <wd-cell
+          v-else
+          title="绑定学生"
+          value="未绑定"
+          is-link
+          @click="handleGoToBind"
         />
       </wd-cell-group>
     </view>
 
-    <!-- 模块三：系统支持 -->
     <view class="section-group">
       <view class="section-header">系统支持</view>
       <wd-cell-group border>
-        <!-- <wd-cell title="上传日志" is-link @click="handleUploadLogs" /> -->
         <wd-cell title="版本更新" :value="settingsInfo.version" is-link @click="handleCheckUpdate" />
       </wd-cell-group>
     </view>
@@ -43,26 +45,27 @@
       <text class="logout-text" @click="handleLogout">退出登录</text>
     </view>
 
-    <!-- 学生信息详情弹窗 -->
-    <wd-popup v-model="showStudentDetailPopup" position="bottom" custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+    <wd-popup v-model="showStudentDetailPopup" position="bottom" :custom-style="bottomPopupStyle">
       <view class="popup-content">
         <view class="popup-title">学生详情</view>
         <view class="detail-list">
           <view class="detail-item">
             <text class="label">学生姓名</text>
-            <text class="value">{{ userInfo.boundStudentInfo?.name }}</text>
+            <text class="value">{{ userInfo.boundStudentInfo?.name || '--' }}</text>
           </view>
           <view class="detail-item">
             <text class="label">所在学校</text>
-            <text class="value">{{ userInfo.boundStudentInfo?.school }}</text>
+            <text class="value">{{ userInfo.boundStudentInfo?.school || '--' }}</text>
           </view>
           <view class="detail-item">
             <text class="label">所在班级</text>
-            <text class="value">{{ userInfo.boundStudentInfo?.grade }}{{ userInfo.boundStudentInfo?.className }}</text>
+            <text class="value">
+              {{ `${userInfo.boundStudentInfo?.grade || ''}${userInfo.boundStudentInfo?.className || ''}` || '--' }}
+            </text>
           </view>
           <view class="detail-item">
             <text class="label">学生学号</text>
-            <text class="value">{{ userInfo.boundStudentInfo?.studentNo }}</text>
+            <text class="value">{{ userInfo.boundStudentInfo?.studentNo || '--' }}</text>
           </view>
         </view>
         <view class="action-btn">
@@ -71,33 +74,40 @@
       </view>
     </wd-popup>
 
-    <!-- 修改手机号弹窗 -->
-    <wd-popup v-model="showChangePhonePopup" position="bottom" custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+    <wd-popup v-model="showChangePhonePopup" position="bottom" :custom-style="bottomPopupStyle">
       <view class="popup-content">
         <view class="popup-title">修改手机号</view>
         <view class="input-group">
           <wd-input v-model="phoneForm.newPhone" placeholder="请输入新手机号" type="number" :maxlength="11" no-border />
           <view class="code-wrapper">
-            <wd-input v-model="phoneForm.code" placeholder="请输入验证码" type="number" :maxlength="6" use-suffix-slot no-border>
+            <wd-input
+              v-model="phoneForm.code"
+              placeholder="请输入验证码"
+              type="number"
+              :maxlength="6"
+              use-suffix-slot
+              no-border
+            >
               <template #suffix>
-                <view class="code-btn-text" :class="{ disabled: phoneCountdown > 0 }" @click="phoneCountdown === 0 && sendPhoneCode()">
+                <view
+                  class="code-btn-text"
+                  :class="{ disabled: phoneCountdown > 0 }"
+                  @click="phoneCountdown === 0 && sendPhoneCode()"
+                >
                   {{ phoneCountdown > 0 ? `${phoneCountdown}s后重试` : '获取验证码' }}
                 </view>
               </template>
             </wd-input>
           </view>
         </view>
-        <view v-if="phoneErrorMessage" class="form-error-tip">
-          {{ phoneErrorMessage }}
-        </view>
+        <view v-if="phoneErrorMessage" class="form-error-tip">{{ phoneErrorMessage }}</view>
         <view class="action-btn">
           <wd-button type="primary" block @click="handleChangePhone">确认修改</wd-button>
         </view>
       </view>
     </wd-popup>
 
-    <!-- 修改密码弹窗 -->
-    <wd-popup v-model="showChangePasswordPopup" position="bottom" custom-style="height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
+    <wd-popup v-model="showChangePasswordPopup" position="bottom" :custom-style="bottomPopupStyle">
       <view class="popup-content">
         <view class="popup-title">修改密码</view>
         <view class="input-group">
@@ -116,71 +126,113 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, onUnmounted, watch } from 'vue'
-import { getMineInfoApi, updateMineInfoApi, updatePasswordApi, logoutApi, unbindStudentApi } from '@/api/mine'
-import { sendSmsCode } from '@/api/login'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useToast } from 'wot-design-uni'
 
-const toast = useToast()
+import { sendSmsCode } from '@/api/login'
+import {
+  getMineInfoApi,
+  logoutApi,
+  unbindStudentApi,
+  updateMineInfoApi,
+  updatePasswordApi
+} from '@/api/mine'
+import { ensureWechatBound, isWechatBound, maskWechatIdentifier } from '@/utils/wechat-bind'
 
-// 用户信息
+const toast = useToast()
+const bottomPopupStyle = 'height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;'
+
 const userInfo = reactive({
   phone: '',
   nickname: '',
   email: '',
+  wxid: '',
   isBoundStudent: 0,
-  boundStudentInfo: null as any
+  boundStudentInfo: null as Record<string, any> | null
 })
 
-// 设置信息
 const settingsInfo = reactive({
   version: '1.0.0'
 })
 
-// 学生详情弹窗
 const showStudentDetailPopup = ref(false)
-
-// 修改手机号相关
 const showChangePhonePopup = ref(false)
+const showChangePasswordPopup = ref(false)
+
 const phoneCountdown = ref(0)
-let phoneTimer: ReturnType<typeof setInterval> | null = null
 const phoneErrorMessage = ref('')
+let phoneTimer: ReturnType<typeof setInterval> | null = null
+
 const phoneForm = reactive({
   newPhone: '',
   code: ''
 })
 
-// 修改密码相关
-const showChangePasswordPopup = ref(false)
 const passwordForm = reactive({
   oldPassword: '',
   newPassword: '',
   confirmPassword: ''
 })
 
-// 获取数据
+const isWechatLinked = computed(() => isWechatBound(userInfo))
+const wechatBindText = computed(() => (isWechatLinked.value ? '已绑定' : '去绑定'))
+const maskedWechatId = computed(() => maskWechatIdentifier(userInfo.wxid))
+
+const syncCachedUserInfo = (data: Record<string, any>) => {
+  const cachedUserInfo = uni.getStorageSync('userInfo') || {}
+  uni.setStorageSync('userInfo', {
+    ...cachedUserInfo,
+    ...data
+  })
+}
+
+const assignUserInfo = (data: Record<string, any> = {}) => {
+  const cachedUserInfo = uni.getStorageSync('userInfo') || {}
+  const mergedUserInfo = {
+    ...cachedUserInfo,
+    ...data
+  }
+
+  userInfo.phone = mergedUserInfo.phone || ''
+  userInfo.nickname = mergedUserInfo.nickname || ''
+  userInfo.email = mergedUserInfo.email || ''
+  userInfo.wxid = mergedUserInfo.wxid || mergedUserInfo.openid || ''
+  userInfo.isBoundStudent = Number(mergedUserInfo.isBoundStudent || 0)
+  userInfo.boundStudentInfo = mergedUserInfo.boundStudentInfo || null
+
+  syncCachedUserInfo(mergedUserInfo)
+}
+
 const fetchData = async () => {
   try {
     const res = await getMineInfoApi()
-    if (res.code === 200) {
-      userInfo.phone = res.data.phone
-      userInfo.nickname = res.data.nickname
-      userInfo.email = res.data.email
-      userInfo.isBoundStudent = res.data.isBoundStudent
-      userInfo.boundStudentInfo = res.data.boundStudentInfo
-    }
+    assignUserInfo(res.data || {})
   } catch (error) {
-    console.error('获取数据失败:', error)
+    console.error('fetch mine info failed', error)
   }
 }
 
-onMounted(() => {
-  fetchData()
-})
+const resetPhoneForm = () => {
+  phoneForm.newPhone = ''
+  phoneForm.code = ''
+  phoneErrorMessage.value = ''
+}
+
+const resetPasswordForm = () => {
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
+}
 
 watch(showChangePhonePopup, (visible) => {
   if (!visible) {
-    phoneErrorMessage.value = ''
+    resetPhoneForm()
+  }
+})
+
+watch(showChangePasswordPopup, (visible) => {
+  if (!visible) {
+    resetPasswordForm()
   }
 })
 
@@ -193,6 +245,10 @@ watch(
   }
 )
 
+onMounted(() => {
+  fetchData()
+})
+
 onUnmounted(() => {
   if (phoneTimer) {
     clearInterval(phoneTimer)
@@ -200,32 +256,29 @@ onUnmounted(() => {
   }
 })
 
-// 发送验证码
 const sendPhoneCode = async () => {
   if (!phoneForm.newPhone || phoneForm.newPhone.length !== 11) {
     toast.show('请输入正确的手机号')
     return
   }
-  phoneErrorMessage.value = ''
+
   try {
     await sendSmsCode(phoneForm.newPhone)
     toast.success('验证码已发送')
     phoneCountdown.value = 60
     phoneTimer = setInterval(() => {
-      phoneCountdown.value--
-      if (phoneCountdown.value <= 0) {
-        clearInterval(phoneTimer!)
+      phoneCountdown.value -= 1
+      if (phoneCountdown.value <= 0 && phoneTimer) {
+        clearInterval(phoneTimer)
         phoneTimer = null
       }
     }, 1000)
   } catch (error: any) {
     phoneErrorMessage.value = error?.msg || '验证码发送失败，请稍后重试'
     toast.error(phoneErrorMessage.value)
-    console.error('发送验证码失败:', error)
   }
 }
 
-// 修改手机号
 const handleChangePhone = async () => {
   if (!phoneForm.newPhone || !phoneForm.code) {
     toast.show('请填写完整信息')
@@ -235,34 +288,48 @@ const handleChangePhone = async () => {
     toast.show('新手机号不能与当前手机号相同')
     return
   }
-  phoneErrorMessage.value = ''
+
   try {
-    // 后端 updateMineInfoApi 支持更新手机号，需要传递新手机号和验证码
-    const res = await updateMineInfoApi({ 
+    await updateMineInfoApi({
       phone: phoneForm.newPhone,
-      code: phoneForm.code 
+      code: phoneForm.code
     })
-    if (res.code === 200) {
-      toast.success('修改成功')
-      await fetchData()
-      const cachedUserInfo = uni.getStorageSync('userInfo') || {}
-      uni.setStorageSync('userInfo', {
-        ...cachedUserInfo,
-        phone: userInfo.phone
-      })
-      showChangePhonePopup.value = false
-      // 重置表单
-      phoneForm.newPhone = ''
-      phoneForm.code = ''
-    }
+    toast.success('修改成功')
+    await fetchData()
+    showChangePhonePopup.value = false
   } catch (error: any) {
     phoneErrorMessage.value = error?.msg || '修改手机号失败，请稍后重试'
     toast.error(phoneErrorMessage.value)
-    console.error('修改手机号失败:', error)
   }
 }
 
-// 修改密码
+const handleWechatBindingClick = async () => {
+  if (isWechatLinked.value) {
+    uni.showModal({
+      title: '微信绑定信息',
+      content: maskedWechatId.value
+        ? `当前账号已绑定微信标识：${maskedWechatId.value}`
+        : '当前账号已完成微信绑定',
+      showCancel: false
+    })
+    return
+  }
+
+  try {
+    const latestUserInfo = await ensureWechatBound({
+      title: '绑定微信',
+      subtitle: '绑定后可接收课程提醒、同步多端学习进度，并保障支付安全。',
+      cancelText: '暂不绑定'
+    })
+    assignUserInfo(latestUserInfo || {})
+  } catch (error: any) {
+    if (error?.code === 'WECHAT_BIND_CANCELLED') {
+      return
+    }
+    toast.error(error?.msg || error?.message || '微信绑定失败')
+  }
+}
+
 const handleChangePassword = async () => {
   if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
     toast.show('请填写完整信息')
@@ -272,69 +339,71 @@ const handleChangePassword = async () => {
     toast.show('两次输入的新密码不一致')
     return
   }
+
   try {
-    const res = await updatePasswordApi({
+    await updatePasswordApi({
       oldPassword: passwordForm.oldPassword,
       newPassword: passwordForm.newPassword
     })
-    if (res.code === 200) {
-      toast.success('修改成功')
-      showChangePasswordPopup.value = false
-      // 重置表单
-      passwordForm.oldPassword = ''
-      passwordForm.newPassword = ''
-      passwordForm.confirmPassword = ''
-    }
-  } catch (error) {
-    console.error('修改密码失败:', error)
+    toast.success('修改成功')
+    showChangePasswordPopup.value = false
+  } catch (error: any) {
+    toast.error(error?.msg || error?.message || '修改密码失败')
   }
 }
 
-// 跳转至绑定页面
-const handleGoToBind = () => {
-  const phone = userInfo.phone || uni.getStorageSync('userInfo')?.phone || ''
-  uni.navigateTo({ 
-    url: `/pages/auth/bind-student?phone=${phone}` 
-  })
-}
-
-// 解绑学生
-const handleUnbindStudent = () => {
+const handleCancelAccount = () => {
   uni.showModal({
-    title: '解绑确认',
-    content: `确定要解绑学生 [${userInfo.boundStudentInfo?.name}] 吗？`,
+    title: '账户注销',
+    content: '注销后账户信息将无法找回，确定要注销吗？',
     confirmColor: '#fa4350',
-    success: async (res) => {
+    success: (res) => {
       if (res.confirm) {
-        try {
-          toast.loading('正在解绑...')
-          const res = await unbindStudentApi()
-          if (res.code === 200) {
-            toast.success('解绑成功')
-            userInfo.isBoundStudent = 0
-            userInfo.boundStudentInfo = null
-            showStudentDetailPopup.value = false // 关闭详情弹窗
-            setTimeout(() => {
-              uni.redirectTo({ url: '/pages/auth/bind-student' })
-            }, 1000)
-          }
-        } catch (error: any) {
-          toast.error(error.msg || '解绑失败')
-        }
+        toast.show('暂不支持在线注销，请联系客服处理')
       }
     }
   })
 }
 
-// 上传日志
-const handleUploadLogs = () => {
-  toast.loading('正在上传日志...')
-  setTimeout(() => {
-    toast.success('上传成功')
-  }, 1500)
+// 跳转至绑定页面
+const handleGoToBind = () => {
+  const phone = userInfo.phone || uni.getStorageSync('userInfo')?.phone || ''
+  uni.navigateTo({
+    url: `/pages/auth/bind-student?phone=${phone}`
+  })
 }
 
-// 版本更新
+const handleUnbindStudent = () => {
+  uni.showModal({
+    title: '解绑确认',
+    content: `确定要解绑学生 [${userInfo.boundStudentInfo?.name || ''}] 吗？`,
+    confirmColor: '#fa4350',
+    success: async (res) => {
+      if (!res.confirm) {
+        return
+      }
+
+      try {
+        toast.loading('正在解绑...')
+        await unbindStudentApi()
+        toast.success('解绑成功')
+        userInfo.isBoundStudent = 0
+        userInfo.boundStudentInfo = null
+        syncCachedUserInfo({
+          isBoundStudent: 0,
+          boundStudentInfo: null
+        })
+        showStudentDetailPopup.value = false
+        setTimeout(() => {
+          uni.redirectTo({ url: '/pages/auth/bind-student' })
+        }, 1000)
+      } catch (error: any) {
+        toast.error(error?.msg || error?.message || '解绑失败')
+      }
+    }
+  })
+}
+
 const handleCheckUpdate = () => {
   toast.loading('正在检查更新...')
   setTimeout(() => {
@@ -342,146 +411,28 @@ const handleCheckUpdate = () => {
   }, 1000)
 }
 
-// 退出登录
 const handleLogout = () => {
   uni.showModal({
     title: '提示',
     content: '确定要退出登录吗？',
     success: async (res) => {
-      if (res.confirm) {
-        try {
-          await logoutApi()
-        } catch (e) {}
-        uni.clearStorageSync()
-        uni.reLaunch({
-          url: '/pages/login/index'
-        })
+      if (!res.confirm) {
+        return
       }
+
+      try {
+        await logoutApi()
+      } catch (error) {
+        console.error('logout failed', error)
+      }
+
+      uni.clearStorageSync()
+      uni.reLaunch({
+        url: '/pages/login/index'
+      })
     }
   })
 }
 </script>
 
-<style lang="scss" scoped>
-.settings-container {
-  min-height: 100vh;
-  background-color: #f8f9fa;
-  padding: 20rpx 0;
-}
-
-.section-group {
-  margin-bottom: 30rpx;
-  
-  .section-header {
-    padding: 20rpx 32rpx;
-    font-size: 26rpx;
-    color: #999;
-    background-color: #f8f9fa;
-  }
-}
-
-.logout-btn-container {
-  margin: 60rpx 0;
-  background-color: #fff;
-  height: 100rpx;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.logout-text {
-  color: #fa4350;
-  font-size: 32rpx;
-}
-
-.popup-content {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  
-  .popup-title {
-    font-size: 36rpx;
-    font-weight: bold;
-    color: #333;
-    text-align: center;
-    margin-bottom: 60rpx;
-  }
-
-  .detail-list {
-    flex: 1;
-    .detail-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 30rpx 0;
-      border-bottom: 1rpx solid #f5f5f5;
-      
-      .label {
-        font-size: 30rpx;
-        color: #666;
-      }
-      
-      .value {
-        font-size: 30rpx;
-        color: #333;
-        font-weight: 500;
-      }
-    }
-  }
-  
-  .input-group {
-    background: #f5f6f7;
-    border-radius: 24rpx;
-    padding: 10rpx 20rpx;
-    margin-bottom: 24rpx;
-    
-    :deep(.wd-input) {
-      background: transparent;
-      padding: 30rpx 10rpx;
-    }
-    
-    .code-wrapper {
-      border-top: 1rpx solid #eee;
-      
-      .code-btn-text {
-        font-size: 28rpx;
-        color: #1a5f8e;
-        padding: 0 20rpx;
-        
-        &.disabled {
-          color: #999;
-        }
-      }
-    }
-  }
-
-  .form-error-tip {
-    margin-bottom: 36rpx;
-    padding: 18rpx 22rpx;
-    border-radius: 18rpx;
-    background: rgba(250, 67, 80, 0.08);
-    color: #e34d59;
-    font-size: 24rpx;
-    line-height: 1.5;
-  }
-  
-  .action-btn {
-    margin-top: auto;
-    padding: 40rpx 0;
-  }
-}
-
-:deep(.wd-cell) {
-  padding: 32rpx !important;
-}
-
-:deep(.wd-cell__title) {
-  font-size: 30rpx;
-  color: #333;
-}
-
-:deep(.wd-cell__value) {
-  font-size: 28rpx;
-  color: #999;
-}
-</style>
+<style src="./index.scss" lang="scss" scoped></style>

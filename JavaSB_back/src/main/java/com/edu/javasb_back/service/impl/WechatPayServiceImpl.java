@@ -10,6 +10,8 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.TreeMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -18,9 +20,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.util.StringUtils;
 
+import com.edu.javasb_back.common.WechatBindRequiredException;
 import com.edu.javasb_back.config.WechatPayProperties;
+import com.edu.javasb_back.model.entity.Course;
 import com.edu.javasb_back.model.entity.SysAccount;
+import com.edu.javasb_back.model.entity.VipPricing;
+import com.edu.javasb_back.repository.CourseRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
+import com.edu.javasb_back.repository.VipPricingRepository;
 import com.edu.javasb_back.service.WechatPayService;
 import com.edu.javasb_back.utils.VirtualPaymentSignatureUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,6 +53,12 @@ public class WechatPayServiceImpl implements WechatPayService {
     private SysAccountRepository accountRepository;
 
     @Autowired
+    private VipPricingRepository vipPricingRepository;
+
+    @Autowired
+    private CourseRepository courseRepository;
+
+    @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -64,7 +77,7 @@ public class WechatPayServiceImpl implements WechatPayService {
             throw new IllegalArgumentException("支付金额必须大于 0");
         }
         if (!StringUtils.hasText(openid)) {
-            throw new IllegalArgumentException("微信 OpenID 未绑定");
+            throw new WechatBindRequiredException("微信 OpenID 未绑定");
         }
 
         ensureInitialized();
@@ -111,40 +124,79 @@ public class WechatPayServiceImpl implements WechatPayService {
         if (!StringUtils.hasText(goodsId)) {
             throw new IllegalArgumentException("虚拟商品标识不能为空");
         }
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("支付金额必须大于 0");
-        }
         if (userUid == null) {
             throw new IllegalArgumentException("用户未登录");
         }
-        if (!wechatPayProperties.isVirtualPaymentConfigured()) {
-            throw new IllegalStateException("微信虚拟支付配置不完整，请检查 wechat.pay.virtual-payment.* 配置");
+
+        String midasProductId = goodsId;
+        BigDecimal finalAmount = amount;
+
+        if (orderNo.startsWith("VOD")) {
+            Optional<VipPricing> pricingOpt = vipPricingRepository.findById(Integer.valueOf(goodsId));
+            if (pricingOpt.isPresent()) {
+                VipPricing pricing = pricingOpt.get();
+                if (StringUtils.hasText(pricing.getMidasProductId())) {
+                    midasProductId = pricing.getMidasProductId();
+                }
+                finalAmount = pricing.getCurrentPrice();
+            }
+        } else if (orderNo.startsWith("C")) {
+            Optional<Course> courseOpt = courseRepository.findById(goodsId);
+            if (courseOpt.isPresent()) {
+                Course course = courseOpt.get();
+                if (StringUtils.hasText(course.getMidasProductId())) {
+                    midasProductId = course.getMidasProductId();
+                }
+                finalAmount = course.getPrice();
+            }
         }
 
-        // 1. 获取用户信息及 session_key
+        if (finalAmount == null || finalAmount.compareTo(BigDecimal.ZERO) == 0) {
+            long timestamp = Instant.now().getEpochSecond();
+            String nonceStr = VirtualPaymentSignatureUtils.buildNonceStr();
+            String securityPayload = buildVirtualPayload(orderNo, goodsId, BigDecimal.ZERO, userUid, timestamp, nonceStr);
+            String securityToken = VirtualPaymentSignatureUtils.sign(
+                    securityPayload,
+                    wechatPayProperties.getVirtualPayment().getSecurityKey());
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("paymentType", "FREE");
+            result.put("message", "免费商品直接下单");
+            result.put("security", Map.of(
+                    "timestamp", String.valueOf(timestamp),
+                    "nonceStr", nonceStr,
+                    "signature", securityToken,
+                    "confirmSignature", securityToken
+            ));
+            return result;
+        }
+
+        if (!wechatPayProperties.isVirtualPaymentConfigured()) {
+            throw new IllegalStateException("微信虚拟支付配置不完整，请检查 wechat.pay.virtual-payment.*");
+        }
+
         SysAccount account = accountRepository.findById(userUid)
                 .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
         String openid = account.getWxid();
         if (!StringUtils.hasText(openid)) {
-            throw new IllegalStateException("用户未绑定微信，无法发起虚拟支付");
-        }
-        String sessionKey = stringRedisTemplate.opsForValue().get("wechat:session_key:" + openid);
-        if (!StringUtils.hasText(sessionKey)) {
-            // 如果 session_key 过期，提示前端重新登录
-            throw new IllegalStateException("微信登录态已过期，请重新登录后再支付");
+            throw new WechatBindRequiredException("用户未绑定微信，无法发起虚拟支付");
         }
 
-        // 2. 构造 signData (Midas 道具直购模式)
-        Map<String, Object> signDataMap = new HashMap<>();
+        String sessionKey = stringRedisTemplate.opsForValue().get("wechat:session_key:" + openid);
+        if (!StringUtils.hasText(sessionKey)) {
+            throw new WechatBindRequiredException("用户未绑定微信会话密钥，无法发起虚拟支付");
+        }
+
+        Map<String, Object> signDataMap = new TreeMap<>();
         signDataMap.put("offerId", wechatPayProperties.getVirtualPayment().getOfferId());
         signDataMap.put("buyQuantity", 1);
         signDataMap.put("env", wechatPayProperties.getVirtualPayment().getEnv());
         signDataMap.put("currencyType", "CNY");
-        signDataMap.put("productId", goodsId);
-        signDataMap.put("goodsPrice", convertToFen(amount));
+        signDataMap.put("productId", midasProductId);
+        signDataMap.put("goodsPrice", convertToFen(finalAmount));
         signDataMap.put("outTradeNo", orderNo);
         signDataMap.put("attach", "userUid=" + userUid);
-        signDataMap.put("mode", "short_series_goods");
+        String mode = "short_series_goods";
 
         String signData;
         try {
@@ -153,20 +205,14 @@ public class WechatPayServiceImpl implements WechatPayService {
             throw new IllegalStateException("序列化 signData 失败", e);
         }
 
-        // 3. 生成签名
-        // paySig = hmac_sha256(app_key, signData + "&" + uri)
         String paySig = VirtualPaymentSignatureUtils.midasPaySig(
                 signData,
-                "/v3/mini-app-pay/virtual-orders",
                 wechatPayProperties.getVirtualPayment().getAppSecret());
-
-        // signature = hmac_sha256(session_key, signData)
         String signature = VirtualPaymentSignatureUtils.midasSignature(signData, sessionKey);
 
-        // 4. 生成用于确认逻辑的 security 令牌 (可选，作为双重保障)
         long timestamp = Instant.now().getEpochSecond();
         String nonceStr = VirtualPaymentSignatureUtils.buildNonceStr();
-        String securityPayload = buildVirtualPayload(orderNo, goodsId, amount, userUid, timestamp, nonceStr);
+        String securityPayload = buildVirtualPayload(orderNo, goodsId, finalAmount, userUid, timestamp, nonceStr);
         String securityToken = VirtualPaymentSignatureUtils.sign(
                 securityPayload,
                 wechatPayProperties.getVirtualPayment().getSecurityKey());
@@ -176,12 +222,14 @@ public class WechatPayServiceImpl implements WechatPayService {
         result.put("payParams", Map.of(
                 "signData", signData,
                 "paySig", paySig,
-                "signature", signature
+                "signature", signature,
+                "mode", mode
         ));
         result.put("security", Map.of(
                 "timestamp", String.valueOf(timestamp),
                 "nonceStr", nonceStr,
-                "signature", securityToken
+                "signature", securityToken,
+                "confirmSignature", securityToken
         ));
         return result;
     }
@@ -246,7 +294,7 @@ public class WechatPayServiceImpl implements WechatPayService {
                 return;
             }
             if (!wechatPayProperties.isConfigured()) {
-                throw new IllegalStateException("微信支付配置不完整，请检查 wechat.pay.* 配置");
+                throw new IllegalStateException("微信支付配置不完整，请检查 wechat.pay.*");
             }
 
             try {

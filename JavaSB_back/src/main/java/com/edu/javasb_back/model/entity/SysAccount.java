@@ -75,6 +75,9 @@ public class SysAccount {
     @Column(name = "last_login_time")
     private LocalDateTime lastLoginTime;
 
+    @Column(name = "read_notification_ids")
+    private String readNotificationIds;
+
     @CreationTimestamp
     @Column(name = "create_time", updatable = false)
     private LocalDateTime createTime;
@@ -171,6 +174,9 @@ public class SysAccount {
 
     public LocalDateTime getLastLoginTime() { return lastLoginTime; }
     public void setLastLoginTime(LocalDateTime lastLoginTime) { this.lastLoginTime = lastLoginTime; }
+
+    public String getReadNotificationIds() { return readNotificationIds; }
+    public void setReadNotificationIds(String readNotificationIds) { this.readNotificationIds = readNotificationIds; }
 
     public LocalDateTime getCreateTime() { return createTime; }
     public void setCreateTime(LocalDateTime createTime) { this.createTime = createTime; }

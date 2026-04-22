@@ -36,6 +36,9 @@ public class VipPricing {
     @Column(name = "sort_order")
     private Integer sortOrder = 0;
 
+    @Column(name = "midas_product_id", length = 100)
+    private String midasProductId;
+
     // Getters and Setters
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
@@ -55,4 +58,6 @@ public class VipPricing {
     public void setIsBestValue(Integer isBestValue) { this.isBestValue = isBestValue; }
     public Integer getSortOrder() { return sortOrder; }
     public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
+    public String getMidasProductId() { return midasProductId; }
+    public void setMidasProductId(String midasProductId) { this.midasProductId = midasProductId; }
 }

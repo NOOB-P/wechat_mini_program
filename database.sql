@@ -1,4 +1,4 @@
-﻿DROP DATABASE IF EXISTS edu_data;
+DROP DATABASE IF EXISTS edu_data;
 CREATE DATABASE edu_data CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE edu_data;
 
@@ -41,6 +41,7 @@ CREATE TABLE `sys_accounts` (
     `is_bound_student` TINYINT DEFAULT 0 COMMENT '是否已绑定学生: 1-是, 0-否',
     `is_enabled` TINYINT DEFAULT 1 COMMENT '是否启用: 1-启用, 0-禁用',
     `last_login_time` DATETIME COMMENT '最后登录时间',
+    `read_notification_ids` LONGTEXT COMMENT '已读通知ID列表 (JSON数组, 包含成绩、订单等动态通知)',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建日期',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     CONSTRAINT `fk_account_role` FOREIGN KEY (`role_id`) REFERENCES `sys_roles` (`id`)
@@ -85,6 +86,7 @@ CREATE TABLE `sys_vip_pricing` (
     `duration_months` INT NOT NULL COMMENT '有效时长(月)',
     `is_best_value` TINYINT DEFAULT 0 COMMENT '是否为营销推荐',
     `sort_order` INT DEFAULT 0 COMMENT '排序',
+    `midas_product_id` VARCHAR(100) DEFAULT NULL COMMENT '微信米大师道具ID',
     CONSTRAINT `fk_vip_pricing_vip_id` FOREIGN KEY (`vip_id`) REFERENCES `sys_vip_config` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB COMMENT='会员价格套餐表';
 
@@ -94,13 +96,13 @@ INSERT INTO `sys_vip_config` (`id`, `tier_code`, `title`, `sub_title`, `benefits
 (2, 'SVIP', 'SVIP 专业版', '全能学习助手，解锁所有高级分析与名师课程', '["全站题库无限制访问", "AI 智能解析", "名师精讲视频", "专属客服优先响应"]', 1, 2);
 
 -- 初始化会员价格数据
-INSERT INTO `sys_vip_pricing` (`vip_id`, `pkg_name`, `pkg_desc`, `current_price`, `original_price`, `duration_months`, `is_best_value`, `sort_order`) VALUES 
-(1, '月包', '', 29.00, 39.00, 1, 0, 1),
-(1, '季包', '一学期', 99.00, 129.00, 4, 1, 2),
-(1, '年包', '', 299.00, 399.00, 12, 0, 3),
-(2, '月包', '', 59.00, 79.00, 1, 0, 1),
-(2, '季包', '一学期', 199.00, 249.00, 4, 1, 2),
-(2, '年包', '', 599.00, 799.00, 12, 0, 3);
+INSERT INTO `sys_vip_pricing` (`vip_id`, `pkg_name`, `pkg_desc`, `current_price`, `original_price`, `duration_months`, `is_best_value`, `sort_order`, `midas_product_id`) VALUES 
+(1, '月包', '', 29.00, 39.00, 1, 0, 1, 'vip_1m'),
+(1, '季包', '一学期', 99.00, 129.00, 4, 1, 2, 'vip_4m'),
+(1, '年包', '', 299.00, 399.00, 12, 0, 3, 'vip_12m'),
+(2, '月包', '', 59.00, 79.00, 1, 0, 1, 'svip_1m'),
+(2, '季包', '一学期', 199.00, 249.00, 4, 1, 2, 'svip_4m'),
+(2, '年包', '', 599.00, 799.00, 12, 0, 3, 'svip_12m');
 
 
 -- ---------------------------------------------------------
@@ -305,6 +307,7 @@ CREATE TABLE `courses` (
     `episodes` INT DEFAULT 0 COMMENT '总节数',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 1-上架, 0-下架',
     `is_recommend` TINYINT(1) DEFAULT 0 COMMENT '是否今日推荐: 0-否, 1-是',
+    `midas_product_id` VARCHAR(100) DEFAULT NULL COMMENT '微信米大师道具ID',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='课程与学习资源表';
@@ -503,6 +506,7 @@ CREATE TABLE `vip_orders` (
     `package_type` VARCHAR(50) NOT NULL COMMENT '套餐类型(VIP基础版/SVIP专业版)',
     `period` VARCHAR(50) NOT NULL COMMENT '时长(月包/季包/年包)',
     `price` DECIMAL(10,2) NOT NULL COMMENT '支付金额',
+    `pricing_id` INT DEFAULT NULL COMMENT '关联 sys_vip_pricing.id',
     `payment_status` TINYINT DEFAULT 0 COMMENT '支付状态: 0-待支付, 1-已支付, 2-已退款',
     `payment_method` VARCHAR(50) COMMENT '支付方式(微信/支付宝)',
     `source_type` VARCHAR(50) NOT NULL DEFAULT 'ONLINE_PURCHASE' COMMENT '订单来源: ONLINE_PURCHASE-在线购买, SCHOOL_GIFT-校讯通赠送',
@@ -721,41 +725,34 @@ INSERT INTO `exams` (`id`, `name`, `school`, `grade`, `class_name`, `exam_date`,
 ('EXAM005', '2024年春季月考二', '北京四中', '初一', '2班', '2024-04-15', '已解析', 50, 0);
 
 -- 6. 成绩与错题明细表数据
-INSERT INTO `exam_results` (`exam_id`, `student_no`, `student_name`, `school`, `grade`, `class_name`, `total_score`, `question_scores`) VALUES
-('EXAM001', '20230001', '张三', '第一中学', '初一', '1班', 95.5, '{"q1": 5, "q2": 10, "q3": 0}'),
-('EXAM002', '20230002', '李四', '实验小学', '六年级', '2班', 88.0, '{"q1": 5, "q2": 5, "q3": 5}'),
-('EXAM001', '20230005', '孙七', '南京外国语学校', '初三', '英语强化班', 76.5, '{"q1": 5, "q2": 0, "q3": 5}'),
-('EXAM002', '20230004', '赵六', '杭州高级中学', '高二', '理科班', 92.0, '{"q1": 10, "q2": 10, "q3": 5}'),
-('EXAM005', '20230006', '周八', '北京四中', '初一', '2班', 98.0, '{"q1": 10, "q2": 10, "q3": 10}'),
-('EXAM001', '20230009', '张小三', '第一中学', '初三', '1班', 85.0, '{"q1": 5, "q2": 5, "q3": 5}');
 
 -- 7. 课程资源表数据
-INSERT INTO `courses` (`id`, `title`, `cover`, `video_url`, `content`, `type`, `subject`, `grade`, `status`, `price`, `is_svip_only`, `author`, `buy_count`, `episodes`, `is_recommend`) VALUES
-('CRS001', '初中数学基础巩固', 'https://example.com/cover1.jpg', 'https://example.com/video1.mp4', '<p>这是初中数学基础巩固课程的详细介绍...</p>', 'general', NULL, NULL, 1, 0.00, 0, '教研组', 1200, 24, 1),
-('CRS002', '中考物理冲刺班', 'https://example.com/cover2.jpg', 'https://example.com/video2.mp4', '<p>这是中考物理冲刺冲刺班的详细介绍...</p>', 'general', NULL, NULL, 1, 99.00, 1, '张老师', 850, 12, 1),
-('CRS003', '小学英语启蒙课', 'https://example.com/cover3.jpg', 'https://example.com/video3.mp4', '<p>英语启蒙...</p>', 'general', NULL, NULL, 1, 0.00, 0, 'Emma', 3000, 30, 0),
-('CRS004', '高中化学难点解析', 'https://example.com/cover4.jpg', 'https://example.com/video4.mp4', '<p>化学难点...</p>', 'general', NULL, NULL, 1, 199.00, 1, '李博士', 420, 15, 0),
-('CRS005', '初中生物实验视频', 'https://example.com/cover5.jpg', 'https://example.com/video5.mp4', '<p>生物实验...</p>', 'general', NULL, NULL, 1, 0.00, 0, '王老师', 1500, 10, 0),
-('CRS006', '公益课程：趣味数学', 'https://example.com/cover6.jpg', 'https://example.com/video6.mp4', '<p>趣味数学公益讲座...</p>', 'general', '数学', '全级', 1, 0.00, 0, '陈教授', 5000, 1, 0),
-('CRS007', '公益课程：文学鉴赏', 'https://example.com/cover7.jpg', 'https://example.com/video7.mp4', '<p>经典文学名著鉴赏公益课...</p>', 'general', '语文', '全级', 1, 0.00, 0, '林博士', 2800, 5, 0),
-('SYNC001', '七年级上册数学同步', 'https://example.com/sync1.jpg', 'https://example.com/video3.mp4', '<p>七年级数学同步讲解...</p>', 'sync', '数学', '七年级', 1, 0.00, 0, '张老师', 12000, 48, 1),
-('SYNC002', '八年级下册物理同步', 'https://example.com/sync2.jpg', 'https://example.com/video_sync2.mp4', '<p>八年级物理同步辅导...</p>', 'sync', '物理', '八年级', 1, 0.00, 0, '王老师', 8000, 36, 0),
-('SYNC003', '九年级英语中考总复习', 'https://example.com/sync3.jpg', 'https://example.com/video_sync3.mp4', '<p>中考英语重点难点突破...</p>', 'sync', '英语', '九年级', 1, 0.00, 0, 'Sarah', 15000, 60, 0),
-('SYNC004', '小学五年级语文同步', 'https://example.com/sync4.jpg', 'https://example.com/video_sync4.mp4', '<p>小学语文阅读与写作...</p>', 'sync', '语文', '五年级', 1, 0.00, 0, '林老师', 5000, 40, 0),
-('SYNC005', '高一数学必修一精品课', 'https://example.com/sync5.jpg', 'https://example.com/video_sync5.mp4', '<p>高中数学衔接与提高...</p>', 'sync', '数学', '高一', 1, 0.00, 0, '陈教授', 9000, 52, 0),
-('FAM001', '如何与青春期孩子沟通', 'https://example.com/fam1.jpg', 'https://example.com/video4.mp4', '<p>家庭教育讲座...</p>', 'family', NULL, NULL, 1, 0.00, 0, '心连心工作室', 6000, 8, 1),
-('FAM002', '考前家长心理疏导指南', 'https://example.com/fam2.jpg', 'https://example.com/video_fam2.mp4', '<p>如何陪伴孩子度过备考期...</p>', 'family', NULL, NULL, 1, 0.00, 0, '心理专家李老师', 4500, 5, 0),
-('FAM003', '小学生行为习惯养成方案', 'https://example.com/fam3.jpg', 'https://example.com/video_fam3.mp4', '<p>从小培养良好的学习习惯...</p>', 'family', NULL, NULL, 1, 0.00, 0, '资深教育者张老师', 3200, 12, 0),
-('SVIP001', 'SVIP 特权课程：奥数思维突破', 'https://example.com/svip1.jpg', 'https://example.com/video_svip1.mp4', '<p>高级奥数解题技巧...</p>', 'general', '数学', '初中', 1, 0.00, 1, '金牌教练', 150, 20, 0),
-('SVIP002', 'SVIP 特权课程：英语口语大师课', 'https://example.com/svip2.jpg', 'https://example.com/video_svip2.mp4', '<p>外教母语级口语训练...</p>', 'general', '英语', '全级', 1, 0.00, 1, 'Steven', 300, 10, 0),
-('SVIP003', 'SVIP 特权课程：物理竞赛培优', 'https://example.com/svip3.jpg', 'https://example.com/video_svip3.mp4', '<p>全国物理竞赛重难点解析...</p>', 'general', '物理', '高中', 1, 0.00, 1, '物理特级教师', 100, 15, 0),
-('SVIP004', 'SVIP 特权课程：考研数学提分营', 'https://example.com/svip4.jpg', 'https://example.com/video_svip4.mp4', '<p>考研数学核心考点串讲...</p>', 'general', '数学', '考研', 1, 0.00, 1, '数学名师', 80, 45, 0),
-('TALK001', '清华学霸分享：我的高效学习法', 'https://example.com/talk1.jpg', 'https://example.com/video_talk1.mp4', '<p>如何制定计划，如何保持专注...</p>', 'talk', NULL, NULL, 1, 0.00, 0, '张学霸', 15000, 1, 1),
-('TALK002', '北大才女谈：语文阅读理解提分秘籍', 'https://example.com/talk2.jpg', 'https://example.com/video_talk2.mp4', '<p>阅读理解不丢分的技巧分享...</p>', 'talk', NULL, NULL, 1, 9.90, 0, '李学霸', 8000, 3, 0),
-('TALK003', '中考状元：物理考前冲刺心态调节', 'https://example.com/talk3.jpg', 'https://example.com/video_talk3.mp4', '<p>考前如何调整心态，发挥超常...</p>', 'talk', NULL, NULL, 1, 0.00, 1, '王学霸', 5000, 1, 0),
-('TALK004', '学霸笔记展示：数学错题本怎么做', 'https://example.com/talk4.jpg', 'https://example.com/video_talk4.mp4', '<p>手把手教你整理最高效的错题本...</p>', 'talk', NULL, NULL, 1, 0.00, 0, '刘学霸', 12000, 2, 0),
-('TALK005', '英语大神：如何在一个月内词汇量翻倍', 'https://example.com/talk5.jpg', 'https://example.com/video_talk5.mp4', '<p>科学背单词法，告别死记硬背...</p>', 'talk', NULL, NULL, 1, 19.90, 0, '陈学霸', 6500, 5, 0),
-('TALK006', '浙大学霸：理综解题套路大公开', 'https://example.com/talk6.jpg', 'https://example.com/video_talk6.mp4', '<p>物理化学生物联动的解题思路...</p>', 'talk', NULL, NULL, 1, 0.00, 1, '赵学霸', 4000, 10, 0);
+INSERT INTO `courses` (`id`, `title`, `cover`, `video_url`, `content`, `type`, `subject`, `grade`, `status`, `price`, `is_svip_only`, `author`, `buy_count`, `episodes`, `is_recommend`, `midas_product_id`) VALUES
+('CRS001', '初中数学基础巩固', 'https://example.com/cover1.jpg', 'https://example.com/video1.mp4', '<p>这是初中数学基础巩固课程的详细介绍...</p>', 'general', NULL, NULL, 1, 0.00, 0, '教研组', 1200, 24, 1, NULL),
+('CRS002', '中考物理冲刺班', 'https://example.com/cover2.jpg', 'https://example.com/video2.mp4', '<p>这是中考物理冲刺冲刺班的详细介绍...</p>', 'general', NULL, NULL, 1, 99.00, 1, '张老师', 850, 12, 1, 'crs_002_phy'),
+('CRS003', '小学英语启蒙课', 'https://example.com/cover3.jpg', 'https://example.com/video3.mp4', '<p>英语启蒙...</p>', 'general', NULL, NULL, 1, 0.00, 0, 'Emma', 3000, 30, 0, NULL),
+('CRS004', '高中化学难点解析', 'https://example.com/cover4.jpg', 'https://example.com/video4.mp4', '<p>化学难点...</p>', 'general', NULL, NULL, 1, 199.00, 1, '李博士', 420, 15, 0, 'crs_004_che'),
+('CRS005', '初中生物实验视频', 'https://example.com/cover5.jpg', 'https://example.com/video5.mp4', '<p>生物实验...</p>', 'general', NULL, NULL, 1, 0.00, 0, '王老师', 1500, 10, 0, NULL),
+('CRS006', '公益课程：趣味数学', 'https://example.com/cover6.jpg', 'https://example.com/video6.mp4', '<p>趣味数学公益讲座...</p>', 'general', '数学', '全级', 1, 0.00, 0, '陈教授', 5000, 1, 0, NULL),
+('CRS007', '公益课程：文学鉴赏', 'https://example.com/cover7.jpg', 'https://example.com/video7.mp4', '<p>经典文学名著鉴赏公益课...</p>', 'general', '语文', '全级', 1, 0.00, 0, '林博士', 2800, 5, 0, NULL),
+('SYNC001', '七年级上册数学同步', 'https://example.com/sync1.jpg', 'https://example.com/video3.mp4', '<p>七年级数学同步讲解...</p>', 'sync', '数学', '七年级', 1, 0.00, 0, '张老师', 12000, 48, 1, NULL),
+('SYNC002', '八年级下册物理同步', 'https://example.com/sync2.jpg', 'https://example.com/video_sync2.mp4', '<p>八年级物理同步辅导...</p>', 'sync', '物理', '八年级', 1, 0.00, 0, '王老师', 8000, 36, 0, NULL),
+('SYNC003', '九年级英语中考总复习', 'https://example.com/sync3.jpg', 'https://example.com/video_sync3.mp4', '<p>中考英语重点难点突破...</p>', 'sync', '英语', '九年级', 1, 0.00, 0, 'Sarah', 15000, 60, 0, NULL),
+('SYNC004', '小学五年级语文同步', 'https://example.com/sync4.jpg', 'https://example.com/video_sync4.mp4', '<p>小学语文阅读与写作...</p>', 'sync', '语文', '五年级', 1, 0.00, 0, '林老师', 5000, 40, 0, NULL),
+('SYNC005', '高一数学必修一精品课', 'https://example.com/sync5.jpg', 'https://example.com/video_sync5.mp4', '<p>高中数学衔接与提高...</p>', 'sync', '数学', '高一', 1, 0.00, 0, '陈教授', 9000, 52, 0, NULL),
+('FAM001', '如何与青春期孩子沟通', 'https://example.com/fam1.jpg', 'https://example.com/video4.mp4', '<p>家庭教育讲座...</p>', 'family', NULL, NULL, 1, 0.00, 0, '心连心工作室', 6000, 8, 1, NULL),
+('FAM002', '考前家长心理疏导指南', 'https://example.com/fam2.jpg', 'https://example.com/video_fam2.mp4', '<p>如何陪伴孩子度过备考期...</p>', 'family', NULL, NULL, 1, 0.00, 0, '心理专家李老师', 4500, 5, 0, NULL),
+('FAM003', '小学生行为习惯养成方案', 'https://example.com/fam3.jpg', 'https://example.com/video_fam3.mp4', '<p>从小培养良好的学习习惯...</p>', 'family', NULL, NULL, 1, 0.00, 0, '资深教育者张老师', 3200, 12, 0, NULL),
+('SVIP001', 'SVIP 特权课程：奥数思维突破', 'https://example.com/svip1.jpg', 'https://example.com/video_svip1.mp4', '<p>高级奥数解题技巧...</p>', 'general', '数学', '初中', 1, 0.00, 1, '金牌教练', 150, 20, 0, NULL),
+('SVIP002', 'SVIP 特权课程：英语口语大师课', 'https://example.com/svip2.jpg', 'https://example.com/video_svip2.mp4', '<p>外教母语级口语训练...</p>', 'general', '英语', '全级', 1, 0.00, 1, 'Steven', 300, 10, 0, NULL),
+('SVIP003', 'SVIP 特权课程：物理竞赛培优', 'https://example.com/svip3.jpg', 'https://example.com/video_svip3.mp4', '<p>全国物理竞赛重难点解析...</p>', 'general', '物理', '高中', 1, 0.00, 1, '物理特级教师', 100, 15, 0, NULL),
+('SVIP004', 'SVIP 特权课程：考研数学提分营', 'https://example.com/svip4.jpg', 'https://example.com/video_svip4.mp4', '<p>考研数学核心考点串讲...</p>', 'general', '数学', '考研', 1, 0.00, 1, '数学名师', 80, 45, 0, NULL),
+('TALK001', '清华学霸分享：我的高效学习法', 'https://example.com/talk1.jpg', 'https://example.com/video_talk1.mp4', '<p>如何制定计划，如何保持专注...</p>', 'talk', NULL, NULL, 1, 0.00, 0, '张学霸', 15000, 1, 1, NULL),
+('TALK002', '北大才女谈：语文阅读理解提分秘籍', 'https://example.com/talk2.jpg', 'https://example.com/video_talk2.mp4', '<p>阅读理解不丢分的技巧分享...</p>', 'talk', NULL, NULL, 1, 9.90, 0, '李学霸', 8000, 3, 0, 'talk_002_chi'),
+('TALK003', '中考状元：物理考前冲刺心态调节', 'https://example.com/talk3.jpg', 'https://example.com/video_talk3.mp4', '<p>考前如何调整心态，发挥超常...</p>', 'talk', NULL, NULL, 1, 0.00, 1, '王学霸', 5000, 1, 0, NULL),
+('TALK004', '学霸笔记展示：数学错题本怎么做', 'https://example.com/talk4.jpg', 'https://example.com/video_talk4.mp4', '<p>手把手教你整理最高效的错题本...</p>', 'talk', NULL, NULL, 1, 0.00, 0, '刘学霸', 12000, 2, 0, NULL),
+('TALK005', '英语大神：如何在一个月内词汇量翻倍', 'https://example.com/talk5.jpg', 'https://example.com/video_talk5.mp4', '<p>科学背单词法，告别死记硬背...</p>', 'talk', NULL, NULL, 1, 19.90, 0, '陈学霸', 6500, 5, 0, 'talk_005_eng'),
+('TALK006', '浙大学霸：理综解题套路大公开', 'https://example.com/talk6.jpg', 'https://example.com/video_talk6.mp4', '<p>物理化学生物联动的解题思路...</p>', 'talk', NULL, NULL, 1, 0.00, 1, '赵学霸', 4000, 10, 0, NULL);
 
 -- 8. AI 自习室报名表数据
 INSERT INTO `study_room_enrollments` (`id`, `parent_name`, `student_name`, `phone`, `status`, `apply_time`) VALUES
@@ -787,26 +784,10 @@ INSERT INTO `wechat_configs` (`group_name`, `corp_id`, `customer_service_url`, `
 ('备用企微客服', 'wwfedcba0987654321', 'https://work.weixin.qq.com/kfid/kfc0987654321fedcba', 0, 'NONE');
 
 -- 12. 错题打印订单表数据
-INSERT INTO `print_orders` (`order_no`, `user_name`, `user_phone`, `document_name`, `pages`, `print_type`, `delivery_method`, `total_price`, `order_status`) VALUES
-('POD202310010001', '张三爸爸', '13800000002', '张三数学错题本_10月', 15, '黑白双面', '快递配送', 12.50, 4),
-('POD202310050002', '李四妈妈', '13800000003', '李四英语复习资料', 30, '彩色单面', '门店自提', 45.00, 1),
-('POD202311020003', '王五妈妈', '13800000004', '王五物理错题集', 10, '黑白单面', '快递配送', 8.00, 2),
-('POD202404010004', '吴九妈妈', '13800000009', '吴九化学重点', 20, '彩色双面', '标准快递', 30.00, 1);
 
 -- 13. VIP套餐订单表数据
-INSERT INTO `vip_orders` (`order_no`, `user_uid`, `user_name`, `user_phone`, `package_type`, `period`, `price`, `payment_status`, `payment_method`, `source_type`, `school_name`) VALUES
-('VOD202309010001', 3, '张三爸爸', '13800000002', 'SVIP专业版', '年包', 365.00, 1, '微信支付', 'ONLINE_PURCHASE', '第一中学'),
-('VOD202309150002', 4, '李四妈妈', '13800000003', 'VIP基础版', '季包', 99.00, 1, '支付宝', 'ONLINE_PURCHASE', '第一中学'),
-('VOD202310010003', 5, '王五妈妈', '13800000004', 'SVIP专业版', '月包', 39.00, 1, '微信支付', 'SCHOOL_GIFT', '第二中学'),
-('VOD202404010004', 10, '吴九妈妈', '13800000009', 'SVIP专业版', '年包', 365.00, 1, '微信支付', 'ONLINE_PURCHASE', '实验中学');
 
 -- 14. 系统操作日志表数据
-INSERT INTO `sys_logs` (`uid`, `user_name`, `nick_name`, `operation`, `method`, `url`, `ip`, `location`, `status`) VALUES
-(1, 'admin', '超级管理员', '登录系统', 'POST', '/api/auth/login/password', '192.168.1.100', '局域网', 200),
-(2, 'manager', '运营人员', '查询学生列表', 'GET', '/api/students/list', '192.168.1.101', '局域网', 200),
-(1, 'admin', '超级管理员', '新增学校', 'POST', '/api/school/add', '192.168.1.100', '局域网', 200),
-(3, 'parent01', '张三爸爸', '查看错题', 'GET', '/api/exams/mistakes', '10.0.0.1', '外网', 200),
-(10, 'parent07', '吴九妈妈', '报名自习室', 'POST', '/api/study-room/enroll', '172.16.0.1', '外网', 200);
 
 -- 11. 试卷科目表
 CREATE TABLE IF NOT EXISTS `paper_subjects` (
@@ -860,12 +841,6 @@ CREATE TABLE IF NOT EXISTS `course_orders` (
     INDEX `idx_user_course` (`user_uid`, `course_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 16. 初始化课程数据 (仅保留结构，不使用外部链接)
-INSERT IGNORE INTO `courses` (`id`, `title`, `type`, `status`, `is_recommend`, `price`) VALUES
-('CRS001', '初中数学基础巩固', 'general', 1, 1, 0.00),
-('CRS002', '中考物理冲刺班', 'general', 1, 1, 99.00),
-('CRS003', '小学英语启蒙课', 'general', 1, 0, 0.00);
-
 -- 17. 系统通知表
 DROP TABLE IF EXISTS `sys_notifications`;
 CREATE TABLE `sys_notifications` (
@@ -879,6 +854,8 @@ CREATE TABLE `sys_notifications` (
     `action_text` VARCHAR(50) COMMENT '跳转按钮文字',
     `action_path` VARCHAR(255) COMMENT '跳转路径',
     `is_published` TINYINT DEFAULT 1 COMMENT '是否发布: 1-已发布, 0-草稿',
+    `read_uids` LONGTEXT COMMENT '已读用户UID列表 (JSON数组, 针对全部用户通知)',
+    `is_read` TINYINT DEFAULT 0 COMMENT '是否已读 (仅针对指定用户通知有效): 0-未读, 1-已读',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX `idx_target_uid` (`target_uid`)
@@ -892,26 +869,6 @@ INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `
 ('2023年西安西工大附中初一入学摸底测试', '语文', '初一', '2023', 'FAMOUS', '摸底,语文,PDF版', 2100, 0, '/uploads/papers/demo.pdf', 1),
 ('2024年成都七中高二联考物理压轴卷', '物理', '高二', '2024', 'JOINT', '联考,名校,物理,解析', 1560, 1, '/uploads/papers/demo.pdf', 1);
 
--- ---------------------------------------------------------
--- 数据修正与同步 (Merged from update_students.sql)
--- ---------------------------------------------------------
--- 将李四和王五的学校、年级、班级信息修改为与张三（STU001）一致
--- 张三信息：学校 SCH001 (第一中学), 班级 CLS001 (初一 1班)
 
--- 更新 students 表
-UPDATE students 
-SET school_id = 'SCH001', 
-    class_id = 'CLS001', 
-    school = '第一中学', 
-    grade = '初一', 
-    class_name = '1班' 
-WHERE student_no IN ('20230002', '20230003');
-
--- 更新 exam_results 表（冗余数据同步）
-UPDATE exam_results 
-SET school = '第一中学', 
-    grade = '初一', 
-    class_name = '1班' 
-WHERE student_no IN ('20230002', '20230003');
 
 SET FOREIGN_KEY_CHECKS = 1;

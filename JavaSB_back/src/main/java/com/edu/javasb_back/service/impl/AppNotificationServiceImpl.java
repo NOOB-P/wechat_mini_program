@@ -1,5 +1,26 @@
 package com.edu.javasb_back.service.impl;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
 import com.edu.javasb_back.model.entity.Course;
 import com.edu.javasb_back.model.entity.CourseOrder;
 import com.edu.javasb_back.model.entity.ExamStudentScore;
@@ -22,25 +43,8 @@ import com.edu.javasb_back.repository.SysNotificationRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.repository.VipOrderRepository;
 import com.edu.javasb_back.service.AppNotificationService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class AppNotificationServiceImpl implements AppNotificationService {
@@ -81,6 +85,9 @@ public class AppNotificationServiceImpl implements AppNotificationService {
     @Autowired
     private SysNotificationRepository sysNotificationRepository;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Override
     public List<AppNotificationVO> getUserNotifications(Long uid, Integer limit) {
         if (uid == null) {
@@ -95,11 +102,21 @@ public class AppNotificationServiceImpl implements AppNotificationService {
         SysAccount account = accountOptional.get();
         List<NotificationWrapper> notifications = new ArrayList<>();
 
-        appendScoreNotifications(uid, notifications);
-        appendCourseNotifications(uid, notifications);
-        appendVipNotifications(uid, notifications);
-        appendVipExpireNotification(account, notifications);
-        appendPrintNotifications(account, notifications);
+        // 获取动态已读ID
+        Set<String> dynamicReadIds = new HashSet<>();
+        if (StringUtils.hasText(account.getReadNotificationIds())) {
+            try {
+                dynamicReadIds = objectMapper.readValue(account.getReadNotificationIds(), new TypeReference<Set<String>>() {});
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        appendScoreNotifications(uid, notifications, dynamicReadIds);
+        appendCourseNotifications(uid, notifications, dynamicReadIds);
+        appendVipNotifications(uid, notifications, dynamicReadIds);
+        appendVipExpireNotification(account, notifications, dynamicReadIds);
+        appendPrintNotifications(account, notifications, dynamicReadIds);
         appendSystemNotifications(uid, notifications);
 
         notifications.sort(Comparator.comparing(NotificationWrapper::time, Comparator.nullsLast(Comparator.naturalOrder())).reversed());
@@ -113,6 +130,20 @@ public class AppNotificationServiceImpl implements AppNotificationService {
     private void appendSystemNotifications(Long uid, List<NotificationWrapper> notifications) {
         List<SysNotification> sysNotifications = sysNotificationRepository.findPublishedByUid(uid);
         for (SysNotification sys : sysNotifications) {
+            boolean isNew = true;
+            if (sys.getTargetType() == 1) {
+                isNew = sys.getIsRead() == null || sys.getIsRead() == 0;
+            } else if (StringUtils.hasText(sys.getReadUids())) {
+                try {
+                    Set<Long> readUids = objectMapper.readValue(sys.getReadUids(), new TypeReference<Set<Long>>() {});
+                    if (readUids.contains(uid)) {
+                        isNew = false;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
             addNotification(
                     notifications,
                     "sys-" + sys.getId(),
@@ -122,12 +153,13 @@ public class AppNotificationServiceImpl implements AppNotificationService {
                     sys.getContent(),
                     sys.getCreateTime() != null ? sys.getCreateTime() : LocalDateTime.now(),
                     sys.getActionText(),
-                    sys.getActionPath()
+                    sys.getActionPath(),
+                    isNew
             );
         }
     }
 
-    private void appendScoreNotifications(Long uid, List<NotificationWrapper> notifications) {
+    private void appendScoreNotifications(Long uid, List<NotificationWrapper> notifications, Set<String> dynamicReadIds) {
         List<StudentParentBinding> bindings = studentParentBindingRepository.findByParentUid(uid);
         if (bindings.isEmpty()) {
             return;
@@ -180,21 +212,23 @@ public class AppNotificationServiceImpl implements AppNotificationService {
             String studentName = firstNonEmpty(score.getStudentName(), student == null ? null : student.getName(), "学生");
             String subjectName = subject == null ? "考试" : firstNonEmpty(subject.getSubjectName(), "考试");
 
+            String notificationId = "score-" + score.getId();
             addNotification(
                     notifications,
-                    "score-" + score.getId(),
+                    notificationId,
                     "score",
                     "primary",
                     studentName + "的" + subjectName + "成绩已发布",
                     "本次成绩为 " + formatDecimal(score.getTotalScore()) + " 分，快去查看最新学情分析和试卷报告。",
                     fallbackTime(score.getUpdateTime(), score.getCreateTime()),
                     "立即查看",
-                    "/subpkg_analysis/pages/score/index"
+                    "/subpkg_analysis/pages/score/index",
+                    !dynamicReadIds.contains(notificationId)
             );
         }
     }
 
-    private void appendCourseNotifications(Long uid, List<NotificationWrapper> notifications) {
+    private void appendCourseNotifications(Long uid, List<NotificationWrapper> notifications, Set<String> dynamicReadIds) {
         List<CourseOrder> orders = courseOrderRepository.findByUserUidAndPaymentStatus(uid, 1).stream()
                 .sorted(Comparator.comparing(CourseOrder::getCreateTime, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
                 .limit(ORDER_NOTICE_LIMIT)
@@ -218,21 +252,23 @@ public class AppNotificationServiceImpl implements AppNotificationService {
                     ? "/subpkg_mine/pages/mine/order-list?tab=course"
                     : "/subpkg_course/pages/course/detail?id=" + order.getCourseId();
 
+            String notificationId = "course-" + order.getId();
             addNotification(
                     notifications,
-                    "course-" + order.getId(),
+                    notificationId,
                     "course",
                     "success",
                     "课程购买成功",
                     "《" + courseTitle + "》已加入你的课程列表，现在就可以开始学习了。",
                     fallbackTime(order.getUpdateTime(), order.getCreateTime()),
                     "去学习",
-                    actionPath
+                    actionPath,
+                    !dynamicReadIds.contains(notificationId)
             );
         }
     }
 
-    private void appendVipNotifications(Long uid, List<NotificationWrapper> notifications) {
+    private void appendVipNotifications(Long uid, List<NotificationWrapper> notifications, Set<String> dynamicReadIds) {
         List<VipOrder> orders = vipOrderRepository.findByUserUidOrderByCreateTimeDesc(uid).stream()
                 .filter(order -> Objects.equals(order.getPaymentStatus(), 1))
                 .limit(ORDER_NOTICE_LIMIT)
@@ -243,21 +279,23 @@ public class AppNotificationServiceImpl implements AppNotificationService {
             String roleName = svip ? "SVIP" : "VIP";
             String period = StringUtils.hasText(order.getPeriod()) ? order.getPeriod() : "当前周期";
 
+            String notificationId = "vip-" + order.getId();
             addNotification(
                     notifications,
-                    "vip-" + order.getId(),
+                    notificationId,
                     "vip",
                     svip ? "warning" : "success",
                     roleName + "开通成功",
                     roleName + "权益已生效，本次开通周期为" + period + "，可前往会员页查看完整权益。",
                     fallbackTime(order.getUpdateTime(), order.getCreateTime()),
                     "查看权益",
-                    "/subpkg_course/pages/vip/recharge"
+                    "/subpkg_course/pages/vip/recharge",
+                    !dynamicReadIds.contains(notificationId)
             );
         }
     }
 
-    private void appendVipExpireNotification(SysAccount account, List<NotificationWrapper> notifications) {
+    private void appendVipExpireNotification(SysAccount account, List<NotificationWrapper> notifications, Set<String> dynamicReadIds) {
         boolean svipActive = Objects.equals(account.getIsSvip(), 1)
                 && account.getSvipExpireTime() != null
                 && !account.getSvipExpireTime().isBefore(LocalDateTime.now());
@@ -280,20 +318,22 @@ public class AppNotificationServiceImpl implements AppNotificationService {
         String title = days < 0 ? roleName + "已到期" : roleName + "即将到期";
         String actionText = days < 0 ? "立即续费" : "去续费";
 
+        String notificationId = "vip-expire-" + account.getUid();
         addNotification(
                 notifications,
-                "vip-expire-" + account.getUid(),
+                notificationId,
                 "expire",
                 days <= 3 ? "danger" : "warning",
                 title,
                 "你的" + roleName + "权益" + contentPrefix + " " + formatTime(expireTime) + " 到期，建议及时续费，避免权益中断。",
                 LocalDateTime.now(),
                 actionText,
-                "/subpkg_course/pages/vip/recharge"
+                "/subpkg_course/pages/vip/recharge",
+                !dynamicReadIds.contains(notificationId)
         );
     }
 
-    private void appendPrintNotifications(SysAccount account, List<NotificationWrapper> notifications) {
+    private void appendPrintNotifications(SysAccount account, List<NotificationWrapper> notifications, Set<String> dynamicReadIds) {
         Map<Long, PrintOrder> orderMap = new LinkedHashMap<>();
 
         if (StringUtils.hasText(account.getPhone())) {
@@ -314,44 +354,50 @@ public class AppNotificationServiceImpl implements AppNotificationService {
 
         for (PrintOrder order : orders) {
             if (order.getOrderStatus() != null && order.getOrderStatus() >= 2) {
+                String notificationId = "print-created-" + order.getId();
                 addNotification(
                         notifications,
-                        "print-created-" + order.getId(),
+                        notificationId,
                         "print",
                         "primary",
                         "打印下单成功",
                         "订单 " + firstNonEmpty(order.getOrderNo(), "") + " 已提交，文档《" + firstNonEmpty(order.getDocumentName(), "资料") + "》正在进入打印流程。",
                         fallbackTime(order.getCreateTime(), order.getUpdateTime()),
                         "查看订单",
-                        "/subpkg_mine/pages/mine/order-list?tab=print"
+                        "/subpkg_mine/pages/mine/order-list?tab=print",
+                        !dynamicReadIds.contains(notificationId)
                 );
             }
 
             if (Objects.equals(order.getOrderStatus(), 3)) {
+                String notificationId = "print-delivery-" + order.getId();
                 addNotification(
                         notifications,
-                        "print-delivery-" + order.getId(),
+                        notificationId,
                         "delivery",
                         "warning",
                         "打印订单配送中",
                         "订单 " + firstNonEmpty(order.getOrderNo(), "") + " 已完成打印，当前正在配送途中，请注意查收。",
                         fallbackTime(order.getUpdateTime(), order.getCreateTime()),
                         "查看订单",
-                        "/subpkg_mine/pages/mine/order-list?tab=print"
+                        "/subpkg_mine/pages/mine/order-list?tab=print",
+                        !dynamicReadIds.contains(notificationId)
                 );
             }
 
             if (Objects.equals(order.getOrderStatus(), 4)) {
+                String notificationId = "print-arrived-" + order.getId();
                 addNotification(
                         notifications,
-                        "print-arrived-" + order.getId(),
+                        notificationId,
                         "delivery",
                         "success",
                         "打印订单已送达",
                         "订单 " + firstNonEmpty(order.getOrderNo(), "") + " 已完成配送，如已收到请及时查阅资料。",
                         fallbackTime(order.getUpdateTime(), order.getCreateTime()),
                         "查看订单",
-                        "/subpkg_mine/pages/mine/order-list?tab=print"
+                        "/subpkg_mine/pages/mine/order-list?tab=print",
+                        !dynamicReadIds.contains(notificationId)
                 );
             }
         }
@@ -366,7 +412,8 @@ public class AppNotificationServiceImpl implements AppNotificationService {
             String content,
             LocalDateTime time,
             String actionText,
-            String actionPath
+            String actionPath,
+            Boolean isNew
     ) {
         AppNotificationVO notification = new AppNotificationVO();
         notification.setId(id);
@@ -377,6 +424,7 @@ public class AppNotificationServiceImpl implements AppNotificationService {
         notification.setTime(formatTime(time));
         notification.setActionText(actionText);
         notification.setActionPath(actionPath);
+        notification.setIsNew(isNew);
         notifications.add(new NotificationWrapper(time, notification));
     }
 

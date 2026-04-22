@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -20,17 +19,18 @@ import org.springframework.util.StringUtils;
 
 import com.baomidou.dynamic.datasource.annotation.DS;
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.common.WechatBindRequiredException;
 import com.edu.javasb_back.config.WechatPayProperties;
 import com.edu.javasb_back.config.datasource.DataSourceName;
 import com.edu.javasb_back.model.entity.Course;
 import com.edu.javasb_back.model.entity.CourseOrder;
-import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.SysNotification;
 import com.edu.javasb_back.repository.CourseOrderRepository;
 import com.edu.javasb_back.repository.CourseRepository;
 import com.edu.javasb_back.service.CourseOrderService;
 import com.edu.javasb_back.service.SysNotificationService;
 import com.edu.javasb_back.service.WechatPayService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @Transactional(readOnly = true)
@@ -54,18 +54,33 @@ public class CourseOrderServiceImpl implements CourseOrderService {
     @Autowired
     private SysNotificationService notificationService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Override
     @Transactional
-    public CourseOrder createOrder(Long userUid, String courseId) {
-        if (isCoursePurchased(userUid, courseId)) {
-            throw new RuntimeException("该课程已购买，无需重复下单");
+    public Result<CourseOrder> createOrder(Long userUid, String courseId) {
+        // 校验是否已购买或存在待支付订单
+        List<CourseOrder> existingOrders = orderRepository.findByUserUidAndCourseId(userUid, courseId);
+        for (CourseOrder order : existingOrders) {
+            if (order.getPaymentStatus() != null && order.getPaymentStatus() == 1) {
+                return Result.error(400, "该课程已购买，无需重复下单");
+            }
+            if (order.getPaymentStatus() != null && order.getPaymentStatus() == 0) {
+                // 检查是否在10分钟有效期内
+                if (order.getCreateTime() != null && order.getCreateTime().plusMinutes(10).isAfter(LocalDateTime.now())) {
+                    return Result.error(400, "该课程已有一个待支付订单，请先支付或取消原订单");
+                }
+            }
         }
 
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new RuntimeException("课程不存在"));
+        Course course = courseRepository.findById(courseId).orElse(null);
+        if (course == null) {
+            return Result.error(404, "课程不存在");
+        }
 
         if (course.getPrice() == null || course.getPrice().compareTo(java.math.BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("免费课程无需购买，请直接学习");
+            return Result.error(400, "免费课程无需购买，请直接学习");
         }
 
         CourseOrder order = new CourseOrder();
@@ -84,9 +99,26 @@ public class CourseOrderServiceImpl implements CourseOrderService {
         notification.setTargetUid(userUid);
         notification.setIsPublished(1);
         notification.setCreateTime(LocalDateTime.now());
+        notification.setActionText("立即支付");
+
+        // 构建前端跳转所需的订单对象
+        Map<String, Object> orderObj = new HashMap<>();
+        orderObj.put("orderNo", savedOrder.getOrderNo());
+        orderObj.put("price", savedOrder.getPrice());
+        orderObj.put("createTime", savedOrder.getCreateTime());
+        orderObj.put("courseId", savedOrder.getCourseId());
+        orderObj.put("type", "COURSE");
+
+        try {
+            String orderJson = objectMapper.writeValueAsString(orderObj);
+            notification.setActionPath("/subpkg_course/pages/course/pay?order=" + java.net.URLEncoder.encode(orderJson, "UTF-8"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         notificationService.saveNotification(notification);
 
-        return savedOrder;
+        return Result.success(savedOrder);
     }
 
     @Override
@@ -147,6 +179,8 @@ public class CourseOrderServiceImpl implements CourseOrderService {
             result.put("security", payPackage.get("security"));
             result.put("courseTitle", course.getTitle());
             return Result.success("获取支付参数成功", result);
+        } catch (WechatBindRequiredException e) {
+            return Result.wechatBindRequired(e.getMessage());
         } catch (IllegalArgumentException | IllegalStateException e) {
             return Result.error(e.getMessage());
         } catch (Exception e) {
@@ -179,7 +213,7 @@ public class CourseOrderServiceImpl implements CourseOrderService {
                 userUid,
                 asString(securityData == null ? null : securityData.get("timestamp")),
                 asString(securityData == null ? null : securityData.get("nonceStr")),
-                asString(securityData == null ? null : securityData.get("signature")));
+                resolveSecuritySignature(securityData));
         if (!valid) {
             return Result.error(400, "虚拟支付校验失败");
         }
@@ -221,6 +255,7 @@ public class CourseOrderServiceImpl implements CourseOrderService {
                     }
                 }
             }
+            // 已取消/已过期订单在小程序端不显示，此处不再放入 validOrderMap
         }
 
         if (courseIds.isEmpty()) {
@@ -248,6 +283,22 @@ public class CourseOrderServiceImpl implements CourseOrderService {
         courses.sort((a, b) -> b.getOrderCreateTime().compareTo(a.getOrderCreateTime()));
 
         return courses;
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> cancelOrder(Long userUid, String orderNo) {
+        Optional<CourseOrder> orderOptional = orderRepository.findByOrderNoAndUserUid(orderNo, userUid);
+        if (orderOptional.isEmpty()) {
+            return Result.error("订单不存在");
+        }
+        CourseOrder order = orderOptional.get();
+        if (order.getPaymentStatus() != 0) {
+            return Result.error("只能取消待支付订单");
+        }
+        order.setPaymentStatus(2); // 2-已取消
+        orderRepository.save(order);
+        return Result.success("订单已取消", null);
     }
 
     @Override
@@ -365,5 +416,16 @@ public class CourseOrderServiceImpl implements CourseOrderService {
 
     private String asString(Object value) {
         return value == null ? "" : value.toString();
+    }
+
+    private String resolveSecuritySignature(Map<String, Object> securityData) {
+        if (securityData == null) {
+            return "";
+        }
+        Object confirmSignature = securityData.get("confirmSignature");
+        if (confirmSignature != null && StringUtils.hasText(confirmSignature.toString())) {
+            return confirmSignature.toString();
+        }
+        return asString(securityData.get("signature"));
     }
 }

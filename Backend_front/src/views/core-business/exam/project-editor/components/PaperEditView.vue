@@ -899,6 +899,69 @@
     }
   }
 
+  /**
+   * 对于数学学科，自动将非中文部分用 $$ 包裹（排除题号）
+   */
+  function formatMathOcrText(text: string) {
+    if (!text) return text
+    // 1. 提取题号 (例如 "20." 或 "第20题")
+    const qNoMatch = text.match(/^(\d+[\.、\s]|第\d+题)/)
+    let qNo = ''
+    let rest = text
+    if (qNoMatch) {
+      qNo = qNoMatch[0]
+      rest = text.substring(qNo.length)
+    }
+
+    // 2. 处理剩余文本：将非中文字段用 $$ 包裹
+    // 匹配中文作为分隔符（不包括标点）
+    const chineseRegex = /([\u4e00-\u9fa5]+)/
+    const parts = rest.split(chineseRegex)
+
+    const processedRest = parts
+      .map((part) => {
+        if (!part) return ''
+        // 如果不是中文，且包含非空白内容
+        if (!/[\u4e00-\u9fa5]/.test(part) && part.trim()) {
+          const trimmed = part.trim()
+          
+          // 如果只是单纯的标点符号（中英文标点），不进行 $$ 包裹
+          if (/^[，。？！；：、《》…（）(),.?;:!\"']+$/.test(trimmed)) {
+            return part
+          }
+
+          // 自动转换常见的希腊字母为 LaTeX 指令，防止渲染失败
+          let mathContent = trimmed
+            .replace(/α/g, '\\alpha')
+            .replace(/β/g, '\\beta')
+            .replace(/γ/g, '\\gamma')
+            .replace(/δ/g, '\\delta')
+            .replace(/θ/g, '\\theta')
+            .replace(/π/g, '\\pi')
+            .replace(/Π/g, '\\Pi')
+            .replace(/ω/g, '\\omega')
+            .replace(/φ/g, '\\phi')
+            .replace(/ε/g, '\\epsilon')
+            .replace(/σ/g, '\\sigma')
+            .replace(/λ/g, '\\lambda')
+            .replace(/μ/g, '\\mu')
+
+          // 避免重复包裹
+          if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
+            return part
+          }
+          // 保持原有的前后空格，仅包裹内容
+          const leadingSpace = part.match(/^\s*/)?.[0] || ''
+          const trailingSpace = part.match(/\s*$/)?.[0] || ''
+          return `${leadingSpace}$$${mathContent}$$${trailingSpace}`
+        }
+        return part
+      })
+      .join('')
+
+    return qNo + processedRest
+  }
+
   async function handleRegionOcr(region: PaperRegionItem) {
     if (questionOcrLoading.value) {
       return
@@ -915,8 +978,15 @@
         width: region.width,
         height: region.height
       })
+
+      let questionText = res.questionText
+      // 只有数学学科才进行 LaTeX 自动包裹处理
+      if (props.subjectName === '数学' && questionText) {
+        questionText = formatMathOcrText(questionText)
+      }
+
       regionEditorRef.value?.applyOcrRegionMeta({
-        questionText: res.questionText,
+        questionText: questionText,
         questionType: res.questionType,
         score: res.score
       })
