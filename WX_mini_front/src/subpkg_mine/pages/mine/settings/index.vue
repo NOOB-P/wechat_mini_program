@@ -365,6 +365,7 @@ const handleCancelAccount = () => {
   })
 }
 
+// 跳转至绑定页面
 const handleGoToBind = () => {
   const phone = userInfo.phone || uni.getStorageSync('userInfo')?.phone || ''
   uni.navigateTo({
