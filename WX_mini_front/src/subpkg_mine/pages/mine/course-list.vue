@@ -1,43 +1,57 @@
 <template>
-  <view class="course-list-container">
+  <view class="course-list-page">
     <wd-toast id="wd-toast" />
     
-    <view class="course-list" v-if="courses.length > 0">
-      <view v-for="item in courses" :key="item.id" class="course-card" @click="goToDetail(item.id)">
-        <view class="card-inner">
-          <image 
-            :src="item.cover || 'https://img.yzcdn.cn/vant/cat.jpeg'" 
-            mode="aspectFill"
-            class="course-img" 
-          />
-          <view class="course-info">
-            <view class="top-section">
-              <text class="course-name">{{ item.title }}</text>
-              <view class="course-tag">{{ getTypeName(item.type) }}</view>
-            </view>
-            
-            <view class="bottom-section">
-              <view class="progress-wrap" v-if="currentType === 'record'">
-                <view class="progress-text">已学 {{ item.progress || 0 }}%</view>
-                <view class="progress-bar">
-                  <view class="progress-inner" :style="{ width: (item.progress || 0) + '%' }"></view>
-                </view>
+    <!-- 顶部固定搜索区域 -->
+    <view class="fixed-header">
+      <view class="search-section">
+        <wd-search 
+          v-model="keyword" 
+          placeholder="搜索课程名称" 
+          hide-cancel 
+        />
+      </view>
+    </view>
+
+    <!-- 列表滚动区域 -->
+    <scroll-view scroll-y class="list-scroll">
+      <view class="course-list" v-if="filteredCourses.length > 0">
+        <view v-for="item in filteredCourses" :key="item.id" class="course-card" @click="goToDetail(item.id)">
+          <view class="card-inner">
+            <image 
+              :src="item.cover || 'https://img.yzcdn.cn/vant/cat.jpeg'" 
+              mode="aspectFill"
+              class="course-img" 
+            />
+            <view class="course-info">
+              <view class="top-section">
+                <text class="course-name">{{ item.title }}</text>
+                <view class="course-tag">{{ getTypeName(item.type) }}</view>
               </view>
-              <view class="action-btn">
-                <text>{{ currentType === 'record' ? '继续学习' : '查看详情' }}</text>
-                <wd-icon name="arrow-right" size="14px" />
+              
+              <view class="bottom-section">
+                <view class="progress-wrap" v-if="currentType === 'record'">
+                  <view class="progress-text">已学 {{ item.progress || 0 }}%</view>
+                  <view class="progress-bar">
+                    <view class="progress-inner" :style="{ width: (item.progress || 0) + '%' }"></view>
+                  </view>
+                </view>
+                <view class="action-btn">
+                  <text>{{ currentType === 'record' ? '继续学习' : '查看详情' }}</text>
+                  <wd-icon name="arrow-right" size="14px" />
+                </view>
               </view>
             </view>
           </view>
         </view>
       </view>
-    </view>
-    
-    <view class="empty-state" v-else>
-      <wd-icon name="info-circle" size="64px" color="#e0e5ed" />
-      <text class="empty-text">暂时还没有相关课程哦~</text>
-      <wd-button type="primary" size="small" plain custom-class="go-study-btn" @click="goToResource">去发现好课</wd-button>
-    </view>
+      
+      <view class="empty-state" v-else>
+        <wd-icon name="info-circle" size="64px" color="#e0e5ed" />
+        <text class="empty-text">{{ keyword ? '未找到相关课程' : '暂时还没有相关课程哦~' }}</text>
+        <wd-button v-if="!keyword" type="primary" size="small" plain custom-class="go-study-btn" @click="goToResource">去发现好课</wd-button>
+      </view>
+    </scroll-view>
   </view>
 </template>
 
@@ -50,6 +64,7 @@ import { useToast } from 'wot-design-uni'
 const toast = useToast()
 const courses = ref<any[]>([])
 const currentType = ref('')
+const keyword = ref('')
 
 const pageTitle = computed(() => {
   switch (currentType.value) {
@@ -59,6 +74,14 @@ const pageTitle = computed(() => {
     case 'purchased': return '已购课程'
     default: return '课程列表'
   }
+})
+
+const filteredCourses = computed(() => {
+  if (!keyword.value) return courses.value
+  const kw = keyword.value.toLowerCase()
+  return courses.value.filter(item => 
+    item.title?.toLowerCase().includes(kw)
+  )
 })
 
 const getTypeName = (type: string) => {
@@ -120,24 +143,62 @@ const goToResource = () => {
 </script>
 
 <style lang="scss" scoped>
-.course-list-container {
-  min-height: 100vh;
-  background-color: #f7f8fa;
-  padding: 20rpx 30rpx;
-  box-sizing: border-box;
+.course-list-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8f9fa;
+}
+
+.fixed-header {
+  background-color: #fff;
+  z-index: 10;
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.05);
+}
+
+.search-section {
+  padding: 16rpx 30rpx;
+  
+  :deep(.wd-search) {
+    background-color: transparent !important;
+    padding: 0;
+  }
+  
+  :deep(.wd-search__field) {
+    background-color: #f5f7f9 !important;
+    border: 2rpx solid #e8eef3 !important;
+    border-radius: 40rpx !important;
+    transition: all 0.2s ease;
+    
+    &:focus-within {
+      background-color: #ffffff !important;
+      border-color: #1a5f8e !important;
+      box-shadow: 0 4rpx 12rpx rgba(26, 95, 142, 0.08);
+    }
+  }
+
+  :deep(.wd-search__input) {
+    font-size: 28rpx;
+  }
+}
+
+.list-scroll {
+  flex: 1;
+  height: 0;
 }
 
 .course-list {
-  position: relative;
-  z-index: 1;
+  padding: 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
 }
 
 .course-card {
   background-color: #fff;
-  border-radius: 24rpx;
-  margin-bottom: 24rpx;
+  border-radius: 20rpx;
   overflow: hidden;
-  box-shadow: 0 8rpx 24rpx rgba(26, 95, 142, 0.04);
+  box-shadow: 0 4rpx 16rpx rgba(26, 95, 142, 0.04);
   transition: all 0.3s;
 
   &:active {
@@ -147,8 +208,8 @@ const goToResource = () => {
 
   .card-inner {
     display: flex;
-    padding: 24rpx;
-    gap: 24rpx;
+    padding: 20rpx;
+    gap: 20rpx;
   }
 
   .course-img {
@@ -168,7 +229,7 @@ const goToResource = () => {
 
     .top-section {
       .course-name {
-        font-size: 30rpx;
+        font-size: 28rpx;
         font-weight: 600;
         color: #2c3e50;
         line-height: 1.4;
@@ -176,7 +237,7 @@ const goToResource = () => {
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 1;
         overflow: hidden;
-        margin-bottom: 12rpx;
+        margin-bottom: 8rpx;
       }
 
       .course-tag {
@@ -194,7 +255,7 @@ const goToResource = () => {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      margin-top: 10rpx;
+      margin-top: 8rpx;
 
       .progress-wrap {
         flex: 1;
@@ -203,7 +264,7 @@ const goToResource = () => {
         .progress-text {
           font-size: 22rpx;
           color: #7a8ba6;
-          margin-bottom: 8rpx;
+          margin-bottom: 6rpx;
         }
 
         .progress-bar {

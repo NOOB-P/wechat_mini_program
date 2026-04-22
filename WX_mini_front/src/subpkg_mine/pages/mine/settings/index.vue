@@ -6,8 +6,8 @@
         <wd-cell title="手机号" :value="userInfo.phone || '未设置'" is-link @click="showChangePhonePopup = true" />
         <wd-cell title="微信绑定" is-link @click="handleWechatBindingClick">
           <view class="wechat-bind-value" :class="{ bound: isWechatLinked }">
-            <text>{{ wechatBindText }}</text>
-            <wd-icon v-if="!isWechatLinked" name="wechat" size="18px" color="#07c160" />
+            <text class="bind-text">{{ wechatBindText }}</text>
+            <wd-icon name="wechat" size="18px" />
           </view>
         </wd-cell>
         <wd-cell title="修改密码" is-link @click="showChangePasswordPopup = true" />
@@ -137,7 +137,12 @@ import {
   updateMineInfoApi,
   updatePasswordApi
 } from '@/api/mine'
-import { ensureWechatBound, isWechatBound, maskWechatIdentifier } from '@/utils/wechat-bind'
+import {
+  ensureWechatBound,
+  isWechatBound,
+  maskWechatIdentifier,
+  unbindWechatAccount
+} from '@/utils/wechat-bind'
 
 const toast = useToast()
 const bottomPopupStyle = 'height: 60%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;'
@@ -306,11 +311,22 @@ const handleChangePhone = async () => {
 const handleWechatBindingClick = async () => {
   if (isWechatLinked.value) {
     uni.showModal({
-      title: '微信绑定信息',
+      title: '解绑确认',
       content: maskedWechatId.value
-        ? `当前账号已绑定微信标识：${maskedWechatId.value}`
-        : '当前账号已完成微信绑定',
-      showCancel: false
+        ? `确定要解除与微信 [${maskedWechatId.value}] 的绑定吗？解绑后将无法使用微信登录。`
+        : '确定要解除微信绑定吗？解绑后将无法使用微信登录。',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            toast.loading('正在解绑...')
+            const latestUserInfo = await unbindWechatAccount()
+            toast.success('解绑成功')
+            assignUserInfo(latestUserInfo || {})
+          } catch (error: any) {
+            toast.error(error?.msg || error?.message || '解绑失败')
+          }
+        }
+      }
     })
     return
   }
@@ -395,7 +411,8 @@ const handleUnbindStudent = () => {
         })
         showStudentDetailPopup.value = false
         setTimeout(() => {
-          uni.redirectTo({ url: '/pages/auth/bind-student' })
+          const phone = userInfo.phone || uni.getStorageSync('userInfo')?.phone || ''
+          uni.redirectTo({ url: `/pages/auth/bind-student?phone=${phone}` })
         }, 1000)
       } catch (error: any) {
         toast.error(error?.msg || error?.message || '解绑失败')

@@ -112,7 +112,7 @@
           <text class="status-text">当前开放中 (08:00-23:00)</text>
         </view>
         <view class="join-btn" @click="joinStudyRoom">
-          <text class="btn-text">一键报名进入自习室</text>
+          <text class="btn-text">一键报名自习室</text>
         </view>
       </view>
     </view>

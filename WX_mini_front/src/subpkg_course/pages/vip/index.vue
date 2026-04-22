@@ -67,7 +67,7 @@
                 <view class="status">
                   <view class="dot"></view> 当前开放中 (08:00 - 23:00)
                 </view>
-                <wd-button type="primary" block size="small" @click="joinRoom">一键报名进入自习室</wd-button>
+                <wd-button type="primary" block size="small" @click="joinRoom">一键报名自习室</wd-button>
               </view>
             </view>
 

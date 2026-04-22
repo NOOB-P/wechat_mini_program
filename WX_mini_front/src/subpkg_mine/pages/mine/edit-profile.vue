@@ -4,7 +4,11 @@
     
     <!-- 头部头像区域 -->
     <view class="avatar-card">
-      <view class="avatar-wrapper" @click="chooseAvatar">
+      <button 
+        class="avatar-wrapper" 
+        open-type="chooseAvatar" 
+        @chooseavatar="onChooseAvatar"
+      >
         <image
           :key="avatarRenderKey"
           class="avatar-image"
@@ -14,7 +18,7 @@
         <view class="camera-icon">
           <wd-icon name="camera" size="20px" color="#fff" />
         </view>
-      </view>
+      </button>
       <text class="avatar-hint">点击更换头像</text>
     </view>
 
@@ -28,10 +32,12 @@
         <view class="item-content">
           <wd-input
             v-model="profileForm.nickname"
+            type="nickname"
             placeholder="请输入您的昵称"
             no-border
             clearable
             custom-style="padding: 0;"
+            @blur="onNicknameBlur"
           />
         </view>
       </view>
@@ -97,38 +103,38 @@ const fetchProfile = async () => {
 }
 
 // 选择并上传头像
-const chooseAvatar = () => {
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
-    success: async (res) => {
-      const previousAvatar = profileForm.avatar
-      const previousAvatarPreview = profileForm.avatarPreview
-      const tempFilePath = res.tempFilePaths[0]
-      profileForm.avatarPreview = tempFilePath
+const onChooseAvatar = async (e: any) => {
+  const { avatarUrl } = e.detail
+  const previousAvatar = profileForm.avatar
+  const previousAvatarPreview = profileForm.avatarPreview
+  
+  profileForm.avatarPreview = avatarUrl
+  avatarRenderKey.value += 1
+  
+  try {
+    toast.loading('上传中...')
+    const uploadRes: any = await uploadAvatarApi(avatarUrl)
+    if (uploadRes.code === 200) {
+      profileForm.avatar = getAvatarPath(uploadRes.data)
+      toast.success('头像上传成功')
+    } else {
+      profileForm.avatar = previousAvatar
+      profileForm.avatarPreview = previousAvatarPreview
       avatarRenderKey.value += 1
-      try {
-        toast.loading('上传中...')
-        const uploadRes: any = await uploadAvatarApi(tempFilePath)
-        if (uploadRes.code === 200) {
-          profileForm.avatar = getAvatarPath(uploadRes.data)
-          toast.success('头像上传成功')
-        } else {
-          profileForm.avatar = previousAvatar
-          profileForm.avatarPreview = previousAvatarPreview
-          avatarRenderKey.value += 1
-          toast.error(uploadRes.msg || '头像上传失败')
-        }
-      } catch (error) {
-        profileForm.avatar = previousAvatar
-        profileForm.avatarPreview = previousAvatarPreview
-        avatarRenderKey.value += 1
-        console.error('上传头像错误:', error)
-        toast.error('网络错误')
-      }
+      toast.error(uploadRes.msg || '头像上传失败')
     }
-  })
+  } catch (error) {
+    profileForm.avatar = previousAvatar
+    profileForm.avatarPreview = previousAvatarPreview
+    avatarRenderKey.value += 1
+    console.error('上传头像错误:', error)
+    toast.error('网络错误')
+  }
+}
+
+// 昵称失去焦点
+const onNicknameBlur = (e: any) => {
+  profileForm.nickname = e.detail.value
 }
 
 onMounted(() => {
@@ -204,6 +210,15 @@ const handleSave = async () => {
     border-radius: 50%;
     border: 6rpx solid #fff;
     box-shadow: 0 8rpx 32rpx rgba(26, 95, 142, 0.12);
+    padding: 0;
+    margin: 0;
+    background: none;
+    line-height: normal;
+    overflow: visible;
+
+    &::after {
+      border: none;
+    }
     
     .avatar-image {
       width: 100%;

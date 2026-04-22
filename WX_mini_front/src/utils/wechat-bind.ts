@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 
-import { bindWechatOpenidApi } from '@/api/login'
+import { bindWechatOpenidApi, unbindWechatApi } from '@/api/login'
 import { getUserInfoApi } from '@/api/mine'
 
 export type EnsureWechatBindOptions = {
@@ -30,11 +30,7 @@ type PendingHandlers = {
   reject: (reason?: any) => void
 }
 
-const DEFAULT_REASONS = [
-  '接收课程提醒，重要消息不错过',
-  '同步多端学习进度，换设备也能接着学',
-  '保障支付安全，减少订单和账号风险'
-]
+
 
 const popupState = reactive({
   visible: false,
@@ -42,8 +38,7 @@ const popupState = reactive({
   rebind: false,
   loading: false,
   title: '绑定微信',
-  subtitle: '绑定后可接收课程提醒、同步多端学习进度，并提升支付安全。',
-  reasons: [...DEFAULT_REASONS],
+  reasons: [],
   confirmText: '立即绑定',
   cancelText: '暂不绑定',
   successMessage: '微信绑定成功'
@@ -52,7 +47,7 @@ const popupState = reactive({
 export const PAYMENT_WECHAT_BIND_OPTIONS: EnsureWechatBindOptions = {
   force: true,
   title: '支付前请先绑定微信',
-  subtitle: '为了接收课程提醒、同步多端进度，并保障支付安全，请先完成微信绑定。',
+  subtitle: '为了保障支付安全，请先完成微信绑定。',
   successMessage: '微信绑定成功'
 }
 
@@ -84,20 +79,18 @@ const normalizeUserInfo = (userInfo?: Record<string, any> | null) => {
 
 const getDefaultSubtitle = (options: EnsureWechatBindOptions = {}) => {
   if (options.rebind) {
-    return '当前操作需要重新校验微信身份，请重新完成微信绑定后再继续。'
+    return '请重新完成微信绑定以继续操作。'
   }
   if (options.force) {
-    return '当前操作需要先完成微信绑定，绑定后可接收课程提醒、同步进度，并保障支付安全。'
+    return '当前操作需要先完成微信绑定。'
   }
-  return '绑定后可接收课程提醒、同步多端学习进度，并提升支付安全。'
+  return '绑定微信后，即可享受更便捷的服务与支付体验。'
 }
 
 const applyPopupOptions = (options: EnsureWechatBindOptions = {}) => {
   popupState.force = Boolean(options.force)
   popupState.rebind = Boolean(options.rebind)
   popupState.title = options.title || '绑定微信'
-  popupState.subtitle = options.subtitle || getDefaultSubtitle(options)
-  popupState.reasons = [...(options.reasons?.length ? options.reasons : DEFAULT_REASONS)]
   popupState.confirmText = options.confirmText || '立即绑定'
   popupState.cancelText = options.cancelText || '暂不绑定'
   popupState.successMessage = options.successMessage || '微信绑定成功'
@@ -194,6 +187,15 @@ export const bindWechatAccount = async (successMessage = '微信绑定成功') =
   })
 
   return bindPromise
+}
+
+export const unbindWechatAccount = async () => {
+  try {
+    await unbindWechatApi()
+    return await refreshWechatUserInfo()
+  } catch (error: any) {
+    throw createWechatBindError('WECHAT_BIND_FAILED', error?.msg || error?.message || '微信解绑失败')
+  }
 }
 
 export const ensureWechatBound = async (options: EnsureWechatBindOptions = {}) => {

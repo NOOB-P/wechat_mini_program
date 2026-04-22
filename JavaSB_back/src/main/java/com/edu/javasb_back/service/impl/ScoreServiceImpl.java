@@ -52,6 +52,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.imageio.ImageIO;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import java.io.ByteArrayOutputStream;
 
 record QuestionScoreContext(
         String classId,
@@ -295,7 +302,12 @@ public class ScoreServiceImpl implements ScoreService {
         ExamStudentScore studentScore = studentScoreOpt.get();
         double fullScore = resolveFullScore(snapshot.benchmarks(), targetSubject);
         List<ExamStudentScore> scoreList = findProjectSubjectScores(snapshot, targetSubject);
-        SegmentAnalysis segmentAnalysis = buildSegmentAnalysis(targetSubject, parseQuestionScores(studentScore.getQuestionScores()), fullScore);
+        
+        Map<String, Object> paperLayouts = parseJsonMap(snapshot.project().getPaperLayouts());
+        List<Map<String, Object>> regions = resolveSubjectRegions(paperLayouts, targetSubject, "original");
+        List<Double> bestScores = resolveBestQuestionScores(scoreList);
+        
+        SegmentAnalysis segmentAnalysis = buildSegmentAnalysis(targetSubject, parseQuestionScores(studentScore.getQuestionScores()), bestScores, regions);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("examId", snapshot.project().getId());
@@ -463,6 +475,108 @@ public class ScoreServiceImpl implements ScoreService {
         data.put("questionScores", answers);
         data.put("downloadUrl", ossStorageService.toCdnUrl(StringUtils.hasText(studentScore.getAnswerSheetUrl()) ? studentScore.getAnswerSheetUrl() : classSubject.getPaperUrl()));
         return Result.success(data);
+    }
+
+    @Override
+    public Result<String> exportWrongBook(Long uid, String examId, String subject) {
+        Optional<SysStudent> studentOpt = getBoundStudent(uid);
+        if (studentOpt.isEmpty()) return Result.error("未绑定学生账号");
+
+        SysStudent student = studentOpt.get();
+        List<ProjectSnapshot> snapshots = buildProjectSnapshots(student);
+        ProjectSnapshot snapshot = resolveSnapshot(snapshots, examId);
+        if (snapshot == null) return Result.error("暂无试卷详情数据");
+
+        String onlySubject = "all".equals(subject) ? null : subject;
+        List<Map<String, Object>> wrongQuestions = buildWrongQuestionRows(snapshot, student, onlySubject);
+        if (wrongQuestions.isEmpty()) return Result.error("当前筛选条件下暂无错题，无需导出");
+
+        // 按科目分组，保持科目顺序
+        Map<String, List<Map<String, Object>>> groupedQuestions = wrongQuestions.stream()
+                .collect(Collectors.groupingBy(q -> (String) q.get("subject"), LinkedHashMap::new, Collectors.toList()));
+
+        try (PDDocument document = new PDDocument()) {
+            PDPage currentPage = null;
+            PDPageContentStream contentStream = null;
+            float pageWidth = PDRectangle.A4.getWidth();
+            float pageHeight = PDRectangle.A4.getHeight();
+            float margin = 50;
+            float gap = 30; // 题目之间的间距
+            float currentY = 0; // 当前页面剩余高度的起始 Y 坐标
+
+            for (Map.Entry<String, List<Map<String, Object>>> entry : groupedQuestions.entrySet()) {
+                List<Map<String, Object>> questions = entry.getValue();
+
+                for (Map<String, Object> q : questions) {
+                    String sliceUrl = (String) q.get("sliceImageUrl");
+                    if (!StringUtils.hasText(sliceUrl)) continue;
+
+                    Path imgPath = ossStorageService.downloadToTempFile(sliceUrl);
+                    if (imgPath == null || !Files.exists(imgPath)) continue;
+
+                    try {
+                        BufferedImage bimg = ImageIO.read(imgPath.toFile());
+                        if (bimg == null) continue;
+
+                        PDImageXObject pdImage = LosslessFactory.createFromImage(document, bimg);
+                        
+                        // 计算缩放后的尺寸
+                        float imgWidth = pdImage.getWidth();
+                        float imgHeight = pdImage.getHeight();
+                        float maxWidth = pageWidth - 2 * margin;
+                        float scale = Math.min(maxWidth / imgWidth, 1.0f); // 仅缩小不放大
+                        
+                        float drawWidth = imgWidth * scale;
+                        float drawHeight = imgHeight * scale;
+
+                        // 检查当前页面是否放得下
+                        if (currentPage == null || (currentY - drawHeight) < margin) {
+                            if (contentStream != null) {
+                                contentStream.close();
+                            }
+                            currentPage = new PDPage(PDRectangle.A4);
+                            document.addPage(currentPage);
+                            contentStream = new PDPageContentStream(document, currentPage);
+                            currentY = pageHeight - margin;
+                        }
+
+                        float x = (pageWidth - drawWidth) / 2;
+                        float y = currentY - drawHeight;
+                        
+                        contentStream.drawImage(pdImage, x, y, drawWidth, drawHeight);
+                        currentY = y - gap; // 更新下一个题目的起始高度
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    } finally {
+                        try { Files.deleteIfExists(imgPath); } catch (Exception ignored) {}
+                    }
+                }
+                
+                // 不同科目之间增加更大的间距
+                currentY -= gap; 
+            }
+
+            if (contentStream != null) {
+                contentStream.close();
+            }
+
+            if (document.getNumberOfPages() == 0) {
+                return Result.error("导出失败：无法处理错题图片");
+            }
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            document.save(baos);
+            
+            String fileName = "wrongbook_" + student.getStudentNo() + "_" + (onlySubject != null ? safePathSegment(onlySubject) : "all") + "_" + System.currentTimeMillis() + ".pdf";
+            String objectKey = "exports/wrongbooks/" + fileName;
+            String url = ossStorageService.uploadBytes(baos.toByteArray(), objectKey, "application/pdf");
+            
+            return Result.success("导出成功", url);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("导出失败：" + e.getMessage());
+        }
     }
 
     private ProjectAggregate buildFastProjectAggregate(ProjectSnapshot snapshot, SysStudent student, List<ExamSubject> classSubjects) {
@@ -758,76 +872,126 @@ public class ScoreServiceImpl implements ScoreService {
         return Result.success(data);
     }
 
-    private SegmentAnalysis buildSegmentAnalysis(String subject, List<Double> questionScores, double fullScore) {
-        List<String> names = KNOWLEDGE_POINT_MAP.getOrDefault(subject, List.of("基础掌握", "能力理解", "综合运用", "提升突破"));
-        List<Double> percentages = splitToPercentages(questionScores, fullScore);
-        List<Map<String, Object>> composition = new ArrayList<>();
-        List<Map<String, Object>> knowledgePoints = new ArrayList<>();
-        double weakest = 100D;
-        String weakestName = names.get(0);
+    private SegmentAnalysis buildSegmentAnalysis(String subject, List<Double> personalScores, List<Double> bestScores, List<Map<String, Object>> regions) {
+        Map<String, double[]> typeStats = new LinkedHashMap<>(); // [myScore, maxScore]
+        Map<String, double[]> kpStats = new LinkedHashMap<>();   // [myScore, maxScore]
 
-        for (int i = 0; i < names.size(); i++) {
-            double percent = percentages.get(i);
+        int count = Math.min(personalScores.size(), bestScores.size());
+        for (int i = 0; i < count; i++) {
+            double personal = personalScores.get(i) == null ? 0D : personalScores.get(i);
+            double best = bestScores.get(i) == null ? 0D : bestScores.get(i);
+            
+            Map<String, Object> region = i < regions.size() ? regions.get(i) : Collections.emptyMap();
+            String type = stringValue(region.get("questionType"));
+            String kp = stringValue(region.get("knowledgePoint"));
+
+            if (StringUtils.hasText(type)) {
+                double[] stats = typeStats.computeIfAbsent(type, k -> new double[2]);
+                stats[0] += personal;
+                stats[1] += best;
+            }
+            if (StringUtils.hasText(kp)) {
+                double[] stats = kpStats.computeIfAbsent(kp, k -> new double[2]);
+                stats[0] += personal;
+                stats[1] += best;
+            }
+        }
+
+        List<Map<String, Object>> composition = new ArrayList<>();
+        double weakest = 100D;
+        String weakestName = "综合表现";
+
+        for (Map.Entry<String, double[]> entry : typeStats.entrySet()) {
+            double my = entry.getValue()[0];
+            double max = entry.getValue()[1];
+            double percent = max <= 0 ? 0D : (my / max) * 100D;
+            percent = Math.max(0D, Math.min(100D, roundScore(percent)));
+
             if (percent < weakest) {
                 weakest = percent;
-                weakestName = names.get(i);
+                weakestName = entry.getKey();
             }
 
-            Map<String, Object> compItem = new LinkedHashMap<>();
-            compItem.put("name", names.get(i));
-            compItem.put("value", roundScore(percent));
-            compItem.put("level", masteryLevel(percent));
-            compItem.put("color", masteryColor(percent));
-            composition.add(compItem);
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", entry.getKey());
+            item.put("value", percent);
+            item.put("level", masteryLevel(percent));
+            item.put("color", masteryColor(percent));
+            composition.add(item);
+        }
 
-            Map<String, Object> kpItem = new LinkedHashMap<>();
-            kpItem.put("name", names.get(i));
-            kpItem.put("mastery", roundScore(percent));
-            kpItem.put("status", masteryStatus(percent));
-            knowledgePoints.add(kpItem);
+        List<Map<String, Object>> knowledgePoints = new ArrayList<>();
+        for (Map.Entry<String, double[]> entry : kpStats.entrySet()) {
+            double my = entry.getValue()[0];
+            double max = entry.getValue()[1];
+            double percent = max <= 0 ? 0D : (my / max) * 100D;
+            percent = Math.max(0D, Math.min(100D, roundScore(percent)));
+
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", entry.getKey());
+            item.put("mastery", percent);
+            item.put("status", masteryStatus(percent));
+            knowledgePoints.add(item);
+        }
+
+        // 如果没有题型数据，回退到默认分段（以防万一）
+        if (composition.isEmpty()) {
+            return fallbackSegmentAnalysis(subject, personalScores, bestScores);
         }
 
         return new SegmentAnalysis(composition, knowledgePoints, weakestName, weakest);
     }
 
-    private List<Double> splitToPercentages(List<Double> questionScores, double fullScore) {
-        if (questionScores == null || questionScores.isEmpty()) {
-            return List.of(88D, 82D, 76D, 68D);
+    private SegmentAnalysis fallbackSegmentAnalysis(String subject, List<Double> personalScores, List<Double> bestScores) {
+        List<String> names = List.of("基础掌握", "能力理解", "综合运用", "提升突破");
+        List<Map<String, Object>> composition = new ArrayList<>();
+        
+        int chunkSize = (int) Math.ceil(personalScores.size() / 4.0);
+        for (int i = 0; i < 4; i++) {
+            int start = i * chunkSize;
+            int end = Math.min(start + chunkSize, personalScores.size());
+            if (start >= personalScores.size()) break;
+
+            double my = personalScores.subList(start, end).stream().mapToDouble(d -> d == null ? 0D : d).sum();
+            double max = bestScores.subList(start, end).stream().mapToDouble(d -> d == null ? 0D : d).sum();
+            double percent = max <= 0 ? 60D : (my / max) * 100D;
+            percent = Math.max(0D, Math.min(100D, roundScore(percent)));
+
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", names.get(i));
+            item.put("value", percent);
+            item.put("level", masteryLevel(percent));
+            item.put("color", masteryColor(percent));
+            composition.add(item);
         }
 
-        int chunkCount = 4;
-        int chunkSize = (int) Math.ceil(questionScores.size() / (double) chunkCount);
-        double chunkFullScore = fullScore / chunkCount;
-        List<Double> values = new ArrayList<>();
-        for (int i = 0; i < chunkCount; i++) {
-            int fromIndex = i * chunkSize;
-            int toIndex = Math.min(fromIndex + chunkSize, questionScores.size());
-            if (fromIndex >= toIndex) {
-                values.add(60D);
-                continue;
-            }
-            double chunkScore = questionScores.subList(fromIndex, toIndex).stream().mapToDouble(item -> item == null ? 0D : item).sum();
-            double percent = chunkFullScore <= 0 ? 0D : (chunkScore / chunkFullScore) * 100D;
-            values.add(Math.max(0D, Math.min(100D, roundScore(percent))));
-        }
-        while (values.size() < 4) {
-            values.add(values.get(values.size() - 1));
-        }
-        return values;
+        return new SegmentAnalysis(composition, Collections.emptyList(), "基础掌握", 60D);
     }
 
     private String buildCompositionAnalysis(String subject, SegmentAnalysis analysis) {
-        return String.format(Locale.ROOT,
-                "本次%s成绩整体表现稳定，其中“%s”是当前最需要加强的环节。建议优先围绕该模块做专题训练，并结合错题回顾提升解题稳定性。",
-                subject, analysis.weakestName());
+        if (analysis.weakestValue() >= 90) {
+            return String.format("本次%s考试表现极其出色，各维度掌握非常均衡。目前在“%s”维度仍保持领先优势，建议继续保持现有的学习节奏。", subject, analysis.weakestName());
+        } else if (analysis.weakestValue() >= 75) {
+            return String.format("本次%s成绩整体表现稳健，其中“%s”是相对薄弱的环节。建议在后续学习中加强该模块的专项练习，进一步提升稳定性。", subject, analysis.weakestName());
+        } else {
+            return String.format("本次%s考试反映出在“%s”方面存在较大提升空间。该环节的失分直接影响了整体表现，建议优先围绕该模块进行系统性的知识梳理。", subject, analysis.weakestName());
+        }
     }
 
     private List<String> buildCompositionAdvice(String subject, SegmentAnalysis analysis) {
-        return List.of(
-                "优先补强「" + analysis.weakestName() + "」，建议连续 7 天进行同类题专项训练。",
-                "将本次 " + subject + " 试卷中的失分题整理进错题本，重点复盘失分原因与解题步骤。",
-                "保持优势模块的日常巩固，每周至少完成 2 次限时练习，避免知识点回落。"
-        );
+        List<String> advice = new ArrayList<>();
+        String weakest = analysis.weakestName();
+        
+        advice.add(String.format("优先补强「%s」相关题型，建议连续7天进行同类题专项训练。", weakest));
+        advice.add(String.format("将本次%s试卷中的失分题整理进错题本，重点复盘失分原因与解题步骤。", subject));
+        
+        if (analysis.weakestValue() < 60) {
+            advice.add(String.format("针对「%s」模块的基础定义和公式进行重新梳理，确保不留知识盲点。", weakest));
+        } else {
+            advice.add("保持优势模块的日常巩固，每周至少完成2次限时练习，避免知识点回落。");
+        }
+        
+        return advice;
     }
 
     private List<Map<String, Object>> buildDistributionLevels(List<ExamStudentScore> scores, double fullScore) {

@@ -412,6 +412,34 @@ public class SysAccountServiceImpl implements SysAccountService {
     }
 
     @Override
+    @Transactional
+    public Result<Void> unbindWechat(Long uid) {
+        if (uid == null) {
+            return Result.error(401, "请先登录");
+        }
+
+        Optional<SysAccount> accountOptional = accountRepository.findById(uid);
+        if (accountOptional.isEmpty()) {
+            return Result.error("用户不存在");
+        }
+
+        SysAccount account = accountOptional.get();
+        if (!StringUtils.hasText(account.getWxid())) {
+            return Result.error("当前账号未绑定微信");
+        }
+
+        // 安全检查：如果解绑微信后没有其他登录方式（手机号和密码都为空），则不允许解绑
+        if (!StringUtils.hasText(account.getPhone()) && !StringUtils.hasText(account.getPassword())) {
+            return Result.error("请先绑定手机号或设置密码，以确保账号可以正常登录");
+        }
+
+        account.setWxid(null);
+        accountRepository.save(account);
+
+        return Result.success("微信解绑成功", null);
+    }
+
+    @Override
     public Result<SysAccount> getUserInfo(Long uid) {
         Optional<SysAccount> accountOpt = accountRepository.findByUidSql(uid);
         if (accountOpt.isEmpty()) {

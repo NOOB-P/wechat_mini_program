@@ -191,6 +191,28 @@ export default {
 
 .search-section {
   padding: 20rpx 30rpx;
+  
+  :deep(.wd-search) {
+    background-color: transparent !important;
+    padding: 0;
+  }
+  
+  :deep(.wd-search__field) {
+    background-color: #f5f7f9 !important;
+    border: 2rpx solid #e8eef3 !important;
+    border-radius: 40rpx !important;
+    transition: all 0.2s ease;
+    
+    &:focus-within {
+      background-color: #ffffff !important;
+      border-color: #4d80f0 !important;
+      box-shadow: 0 4rpx 12rpx rgba(77, 128, 240, 0.08);
+    }
+  }
+
+  :deep(.wd-search__input) {
+    font-size: 28rpx;
+  }
 }
 
 .tab-section {

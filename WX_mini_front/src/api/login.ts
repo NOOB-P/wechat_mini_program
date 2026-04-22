@@ -88,6 +88,13 @@ export const bindWechatOpenidApi = (code: string) => {
   })
 }
 
+export const unbindWechatApi = () => {
+  return request({
+    url: '/api/app/auth/wechat/unbind',
+    method: 'POST'
+  })
+}
+
 export const logout = () => {
   return request({
     url: '/api/auth/logout',
