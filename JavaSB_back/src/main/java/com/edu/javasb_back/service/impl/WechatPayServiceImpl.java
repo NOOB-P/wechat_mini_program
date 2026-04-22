@@ -9,6 +9,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -40,9 +41,13 @@ import com.wechat.pay.java.service.payments.jsapi.model.Payer;
 import com.wechat.pay.java.service.payments.jsapi.model.PrepayRequest;
 import com.wechat.pay.java.service.payments.jsapi.model.PrepayWithRequestPaymentResponse;
 import com.wechat.pay.java.service.payments.model.Transaction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class WechatPayServiceImpl implements WechatPayService {
+
+    private static final Logger log = LoggerFactory.getLogger(WechatPayServiceImpl.class);
 
     private final Object initLock = new Object();
 
@@ -62,6 +67,11 @@ public class WechatPayServiceImpl implements WechatPayService {
     private StringRedisTemplate stringRedisTemplate;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    {
+        // 确保生成紧凑的 JSON 字符串，没有多余的空格
+        objectMapper.getFactory().configure(com.fasterxml.jackson.core.JsonGenerator.Feature.ESCAPE_NON_ASCII, false);
+    }
 
     private volatile RSAPublicKeyConfig config;
     private volatile JsapiServiceExtension jsapiServiceExtension;
@@ -187,7 +197,8 @@ public class WechatPayServiceImpl implements WechatPayService {
             throw new WechatBindRequiredException("用户未绑定微信会话密钥，无法发起虚拟支付");
         }
 
-        Map<String, Object> signDataMap = new TreeMap<>();
+        // 使用 LinkedHashMap 确保 signData 字段顺序严格按照：offerId, buyQuantity, env, currencyType, productId, goodsPrice, outTradeNo, attach
+        Map<String, Object> signDataMap = new LinkedHashMap<>();
         signDataMap.put("offerId", wechatPayProperties.getVirtualPayment().getOfferId());
         signDataMap.put("buyQuantity", 1);
         signDataMap.put("env", wechatPayProperties.getVirtualPayment().getEnv());
@@ -205,10 +216,21 @@ public class WechatPayServiceImpl implements WechatPayService {
             throw new IllegalStateException("序列化 signData 失败", e);
         }
 
-        String paySig = VirtualPaymentSignatureUtils.midasPaySig(
-                signData,
-                wechatPayProperties.getVirtualPayment().getAppSecret());
+        String currentAppKey = wechatPayProperties.getVirtualPayment().getAppSecret();
+
+        String paySig = VirtualPaymentSignatureUtils.midasPaySig(signData, currentAppKey);
         String signature = VirtualPaymentSignatureUtils.midasSignature(signData, sessionKey);
+
+        log.info("--- 微信虚拟支付参数生成详情 ---");
+        log.info("订单号: {}", orderNo);
+        log.info("商品ID: {}", goodsId);
+        log.info("支付金额: {} 元", finalAmount);
+        log.info("signData (紧凑JSON): {}", signData);
+        log.info("HMAC-SHA256 AppKey (用于签名): {}", currentAppKey);
+        log.info("HMAC-SHA256 SessionKey: {}", sessionKey);
+        log.info("生成的 paySig: {}", paySig);
+        log.info("生成的 signature: {}", signature);
+        log.info("------------------------------");
 
         long timestamp = Instant.now().getEpochSecond();
         String nonceStr = VirtualPaymentSignatureUtils.buildNonceStr();

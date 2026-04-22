@@ -23,7 +23,7 @@ public final class VirtualPaymentSignatureUtils {
     }
 
     public static String buildPayload(Map<String, ?> data) {
-        return new TreeMap<>(data).entrySet().stream()
+        return data.entrySet().stream()
                 .filter(entry -> entry.getValue() != null && !String.valueOf(entry.getValue()).isEmpty())
                 .map(entry -> entry.getKey() + "=" + String.valueOf(entry.getValue()))
                 .collect(Collectors.joining("&"));

@@ -1,7 +1,9 @@
 package com.edu.javasb_back.controller;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,7 @@ import com.edu.javasb_back.model.vo.AppNotificationVO;
 import com.edu.javasb_back.service.AppNotificationService;
 import com.edu.javasb_back.service.OssStorageService;
 import com.edu.javasb_back.service.SysAccountService;
+import com.edu.javasb_back.service.WechatPayService;
 import com.edu.javasb_back.service.SysNotificationService;
 
 /**
@@ -45,6 +48,9 @@ public class AppMineController {
 
     @Autowired
     private OssStorageService ossStorageService;
+
+    @Autowired
+    private WechatPayService wechatPayService;
 
     // 辅助方法：获取当前用户的 UID
     private Long getCurrentUid() {
