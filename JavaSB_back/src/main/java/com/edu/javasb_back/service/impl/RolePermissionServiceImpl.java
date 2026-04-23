@@ -48,6 +48,11 @@ public class RolePermissionServiceImpl implements RolePermissionService {
             return List.of();
         }
 
+        // 超级管理员默认拥有所有权限
+        if ("super_admin".equals(getRoleCode(roleId).orElse(""))) {
+            return new ArrayList<>(PermissionCatalog.getAllPermissionCodes());
+        }
+
         String cacheKey = ROLE_PERMISSION_CACHE_PREFIX + roleId;
         String cachedValue = null;
         try {
