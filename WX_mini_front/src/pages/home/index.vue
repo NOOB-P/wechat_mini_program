@@ -8,9 +8,6 @@ import BannerSwiper from './components/BannerSwiper.vue'
 import EvalSection from './components/EvalSection.vue'
 import RecommendList from './components/RecommendList.vue'
 import {
-  getHomeStatsApi,
-  getHomeBannersApi,
-  getHomePublicCoursesApi,
   getWechatCustomerServiceByLocationApi
 } from '@/api/index'
 import { getCourseListApi } from '@/api/course'
@@ -19,14 +16,6 @@ import { openEnterpriseCustomerServiceChat } from '@/utils/customer-service'
 
 const toast = useToast()
 
-const stats = ref({
-  paperCount: 0,
-  wrongCount: 0,
-  analysisProgress: 0
-})
-
-const banners = ref<any[]>([])
-const publicCourses = ref<any[]>([])
 const recommendCourses = ref<any[]>([])
 const isSVIPUser = ref(false)
 const userInfo = ref<any>({})
@@ -54,18 +43,14 @@ const handleBannerClick = async () => {
 
 const loadData = async () => {
   try {
-    const [statsRes, bannersRes, publicRes, coursesRes, userRes] = await Promise.all([
-      getHomeStatsApi(),
-      getHomeBannersApi(),
-      getHomePublicCoursesApi(),
+    const [coursesResult, userResult] = await Promise.allSettled([
       getCourseListApi({ isRecommend: 1 }),
       getUserInfoApi()
     ])
-    if (statsRes.code === 200) stats.value = statsRes.data
-    if (bannersRes.code === 200) banners.value = bannersRes.data
-    if (publicRes.code === 200) publicCourses.value = publicRes.data
-    if (coursesRes.code === 200) {
-      recommendCourses.value = coursesRes.data.map((item: any) => ({
+
+    if (coursesResult.status === 'fulfilled' && coursesResult.value.code === 200) {
+      const courseList = Array.isArray(coursesResult.value.data) ? coursesResult.value.data : []
+      recommendCourses.value = courseList.map((item: any) => ({
         ...item,
         name: item.title,
         image:
@@ -74,10 +59,11 @@ const loadData = async () => {
             : item.cover
       }))
     }
-    if (userRes.code === 200) {
-      isSVIPUser.value = userRes.data.isSvip === 1
-      userInfo.value = userRes.data
-      uni.setStorageSync('userInfo', userRes.data)
+
+    if (userResult.status === 'fulfilled' && userResult.value.code === 200) {
+      isSVIPUser.value = userResult.value.data.isSvip === 1
+      userInfo.value = userResult.value.data
+      uni.setStorageSync('userInfo', userResult.value.data)
     }
   } catch (error) {
     console.error('Failed to load home data:', error)
@@ -110,10 +96,7 @@ const goToRecharge = () => {
 }
 
 const joinRoom = () => {
-  toast.loading('正在分配座位...')
-  setTimeout(() => {
-    toast.success('加入成功')
-  }, 1500)
+  // 移除了模拟的加入成功提示
 }
 
 const handleCourseClick = (course: any) => {

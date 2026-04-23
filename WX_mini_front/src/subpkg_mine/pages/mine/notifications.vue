@@ -52,9 +52,9 @@
                 <text class="msg-time">{{ formatTimeOnly(item.time) }}</text>
               </view>
               <text class="msg-body">{{ item.content }}</text>
-              <view class="msg-footer" v-if="item.actionText">
-                <view class="action-btn">
-                  <text>{{ item.actionText }}</text>
+              <view class="msg-footer">
+                <view class="action-btn" @click.stop="handleViewDetail(item)">
+                  <text>查看详细</text>
                   <wd-icon name="arrow-right" size="12px" />
                 </view>
               </view>
@@ -90,6 +90,8 @@ interface NotificationItem {
   isNew?: boolean
 }
 
+const NOTIFICATION_DETAIL_STORAGE_KEY = 'mine_notification_detail'
+const DETAIL_PAGE_URL = '/subpkg_mine/pages/mine/notification-detail'
 const notifications = ref<NotificationItem[]>([])
 const currentUid = ref<string | number>('guest')
 const currentCategory = ref('all')
@@ -130,7 +132,11 @@ const loadNotifications = async () => {
     if (userRes.code === 200) {
       currentUid.value = userRes.data?.uid || 'guest'
     }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+  }
 
+  try {
     const notificationRes = await getMineNotificationsApi(50)
 
     if (notificationRes.code === 200) {
@@ -138,9 +144,12 @@ const loadNotifications = async () => {
         ...item,
         isNew: !!item.isNew
       }))
+    } else {
+      notifications.value = []
     }
   } catch (error) {
     console.error('获取通知失败:', error)
+    notifications.value = []
   }
 }
 
@@ -156,12 +165,10 @@ const handleMarkAllRead = async () => {
   }
 }
 
-const handleNotificationClick = async (item: NotificationItem) => {
+const markNotificationAsRead = async (item: NotificationItem) => {
   if (item.isNew) {
-    // 立即消除红点，提升响应速度
     item.isNew = false
     try {
-      // 异步调用后台标记已读，不阻塞跳转逻辑
       markNotificationReadApi(item.id).catch(err => {
         console.error('标记已读失败:', err)
       })
@@ -169,22 +176,20 @@ const handleNotificationClick = async (item: NotificationItem) => {
       console.error('处理已读逻辑出错:', error)
     }
   }
-  
-  if (item.actionPath) {
-    uni.navigateTo({ url: item.actionPath })
-  }
 }
 
-const getCategoryIcon = (category: string) => {
-  switch (category) {
-    case 'score': return 'chart-bar'
-    case 'course': return 'play-circle'
-    case 'vip':
-    case 'expire': return 'member'
-    case 'print':
-    case 'delivery': return 'transport'
-    default: return 'notification'
-  }
+const openNotificationDetail = async (item: NotificationItem) => {
+  await markNotificationAsRead(item)
+  uni.setStorageSync(NOTIFICATION_DETAIL_STORAGE_KEY, item)
+  uni.navigateTo({ url: DETAIL_PAGE_URL as any })
+}
+
+const handleNotificationClick = async (item: NotificationItem) => {
+  await openNotificationDetail(item)
+}
+
+const handleViewDetail = async (item: NotificationItem) => {
+  await openNotificationDetail(item)
 }
 
 const formatGroupDate = (dateStr: string) => {
@@ -200,9 +205,6 @@ const formatTimeOnly = (timeStr: string) => {
   if (!timeStr) return ''
   return timeStr.split(' ')[1]?.slice(0, 5) || ''
 }
-
-const parseTimeToMs = (time?: string) => time ? new Date(time.replace(/-/g, '/')).getTime() || 0 : 0
-
 onShow(() => {
   loadNotifications()
 })

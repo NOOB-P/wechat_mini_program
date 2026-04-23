@@ -25,21 +25,22 @@ public class SysNotificationController {
     @Autowired
     private SysNotificationService sysNotificationService;
 
-    @LogOperation("后台获取通知列表")
+    @LogOperation("后台获取系统通知列表")
     @PreAuthorize("hasAuthority('system:notification:list')")
     @GetMapping("/list")
     public Result<List<SysNotification>> list(@RequestParam(required = false) String title) {
         return Result.success("获取成功", sysNotificationService.getAllNotifications(title));
     }
 
-    @LogOperation("后台保存通知")
+    @LogOperation("后台保存系统通知")
     @PreAuthorize("hasAuthority('system:notification:save')")
     @PostMapping("/save")
     public Result<SysNotification> save(@RequestBody SysNotification notification) {
+        notification.setCategory("system");
         return Result.success("保存成功", sysNotificationService.saveNotification(notification));
     }
 
-    @LogOperation("后台删除通知")
+    @LogOperation("后台删除系统通知")
     @PreAuthorize("hasAuthority('system:notification:delete')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {

@@ -37,7 +37,7 @@
       <!-- 通知弹窗 -->
       <ElDialog
         v-model="dialogVisible"
-        :title="dialogType === 'add' ? '新增通知' : '编辑通知'"
+        :title="dialogType === 'add' ? '新增系统通知' : '编辑系统通知'"
         width="600px"
         destroy-on-close
       >
@@ -52,14 +52,6 @@
               :rows="4"
               placeholder="请输入通知详细内容"
             />
-          </ElFormItem>
-          <ElFormItem label="分类" prop="category">
-            <ElSelect v-model="formData.category" placeholder="请选择分类" class="w-full">
-              <ElOption label="系统消息" value="system" />
-              <ElOption label="学习提醒" value="study" />
-              <ElOption label="订单消息" value="order" />
-              <ElOption label="会员特权" value="vip" />
-            </ElSelect>
           </ElFormItem>
           <ElFormItem label="通知级别" prop="level">
             <ElSelect v-model="formData.level" placeholder="请选择级别" class="w-full">
@@ -77,12 +69,6 @@
           </ElFormItem>
           <ElFormItem label="用户UID" v-if="formData.targetType === 1" prop="targetUid">
             <ElInput v-model.number="formData.targetUid" placeholder="请输入接收用户UID" />
-          </ElFormItem>
-          <ElFormItem label="按钮文字">
-            <ElInput v-model="formData.actionText" placeholder="跳转按钮文字 (选填)" />
-          </ElFormItem>
-          <ElFormItem label="跳转路径">
-            <ElInput v-model="formData.actionPath" placeholder="小程序跳转路径 (选填)" />
           </ElFormItem>
           <ElFormItem label="发布状态">
             <ElSwitch v-model="formData.isPublished" :active-value="1" :inactive-value="0" />
@@ -124,15 +110,12 @@
     level: 'info',
     targetType: 0,
     targetUid: null,
-    actionText: '',
-    actionPath: '',
     isPublished: 1
   })
 
   const rules = {
     title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
     content: [{ required: true, message: '请输入内容', trigger: 'blur' }],
-    category: [{ required: true, message: '请选择分类', trigger: 'change' }],
     level: [{ required: true, message: '请选择级别', trigger: 'change' }]
   }
 
@@ -160,21 +143,6 @@
         { type: 'index', width: 60, label: '序号' },
         { prop: 'title', label: '标题', minWidth: 150 },
         { prop: 'content', label: '内容', minWidth: 250, showOverflowTooltip: true },
-        {
-          prop: 'category',
-          label: '分类',
-          width: 100,
-          formatter: (row: any) => {
-            const maps: any = {
-              system: { text: '系统消息', type: 'info' },
-              study: { text: '学习提醒', type: 'primary' },
-              order: { text: '订单消息', type: 'success' },
-              vip: { text: '会员特权', type: 'warning' }
-            }
-            const item = maps[row.category] || { text: row.category, type: '' }
-            return h(ElTag, { type: item.type }, () => item.text)
-          }
-        },
         {
           prop: 'level',
           label: '级别',
@@ -255,8 +223,6 @@
         level: 'info',
         targetType: 0,
         targetUid: null,
-        actionText: '',
-        actionPath: '',
         isPublished: 1
       }
     }
@@ -279,7 +245,13 @@
       if (valid) {
         submitLoading.value = true
         try {
-          await fetchSaveNotification(formData.value)
+          const payload = {
+            ...formData.value,
+            category: 'system',
+            actionText: null,
+            actionPath: null
+          }
+          await fetchSaveNotification(payload)
           ElMessage.success('保存成功')
           dialogVisible.value = false
           refreshData()

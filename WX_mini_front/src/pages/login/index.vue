@@ -357,7 +357,7 @@ const handleLoginSuccess = (
     uni.setStorageSync('token', res.data.token)
   }
 
-  toast.success(options?.successMessage || '登录成功')
+  // 移除了登录成功的弹窗提示
   navigateAfterLogin(res.data?.isBoundStudent, options?.bindPhone)
 }
 

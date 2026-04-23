@@ -217,6 +217,12 @@ export default defineUniPages({
           },
         },
         {
+          path: 'pages/mine/notification-detail',
+          style: {
+            navigationBarTitleText: '通知详情',
+          },
+        },
+        {
           path: 'pages/mine/settings/index',
           style: {
             navigationBarTitleText: '个人设置',

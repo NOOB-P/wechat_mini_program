@@ -34,6 +34,7 @@ interface NavigateToOptions {
        "/subpkg_mine/pages/mine/edit-profile" |
        "/subpkg_mine/pages/mine/order-list" |
        "/subpkg_mine/pages/mine/notifications" |
+       "/subpkg_mine/pages/mine/notification-detail" |
        "/subpkg_mine/pages/mine/settings/index" |
        "/subpkg_mine/pages/service/index";
 }

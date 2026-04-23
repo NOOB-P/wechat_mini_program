@@ -30,10 +30,7 @@ public class SysNotificationServiceImpl implements SysNotificationService {
 
     @Override
     public List<SysNotification> getAllNotifications(String title) {
-        if (StringUtils.hasText(title)) {
-            return sysNotificationRepository.findByTitleContainingOrderByCreateTimeDesc(title);
-        }
-        return sysNotificationRepository.findAll();
+        return sysNotificationRepository.searchAdminSystemNotifications(StringUtils.hasText(title) ? title.trim() : null);
     }
 
     @Override
@@ -47,11 +44,18 @@ public class SysNotificationServiceImpl implements SysNotificationService {
         if (notification.getTargetType() == null) {
             notification.setTargetType(0);
         }
+        if (notification.getTargetType() == 0) {
+            notification.setTargetUid(null);
+        }
         if (notification.getIsPublished() == null) {
             notification.setIsPublished(1);
         }
         if (notification.getIsRead() == null) {
             notification.setIsRead(0);
+        }
+        if ("system".equals(notification.getCategory())) {
+            notification.setActionText(null);
+            notification.setActionPath(null);
         }
         return sysNotificationRepository.save(notification);
     }

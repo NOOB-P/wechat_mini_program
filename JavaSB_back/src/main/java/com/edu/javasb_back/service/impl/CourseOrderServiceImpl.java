@@ -30,7 +30,6 @@ import com.edu.javasb_back.repository.CourseRepository;
 import com.edu.javasb_back.service.CourseOrderService;
 import com.edu.javasb_back.service.SysNotificationService;
 import com.edu.javasb_back.service.WechatPayService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @Transactional(readOnly = true)
@@ -53,9 +52,6 @@ public class CourseOrderServiceImpl implements CourseOrderService {
 
     @Autowired
     private SysNotificationService notificationService;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -95,26 +91,15 @@ public class CourseOrderServiceImpl implements CourseOrderService {
         SysNotification notification = new SysNotification();
         notification.setTitle("课程待支付提醒");
         notification.setContent("您的孩子发起了课程《" + course.getTitle() + "》的购买申请，请在10分钟内完成支付。");
+        notification.setCategory("course");
+        notification.setLevel("warning");
         notification.setPublisher("系统通知");
         notification.setTargetUid(userUid);
         notification.setIsPublished(1);
         notification.setCreateTime(LocalDateTime.now());
         notification.setActionText("立即支付");
 
-        // 构建前端跳转所需的订单对象
-        Map<String, Object> orderObj = new HashMap<>();
-        orderObj.put("orderNo", savedOrder.getOrderNo());
-        orderObj.put("price", savedOrder.getPrice());
-        orderObj.put("createTime", savedOrder.getCreateTime());
-        orderObj.put("courseId", savedOrder.getCourseId());
-        orderObj.put("type", "COURSE");
-
-        try {
-            String orderJson = objectMapper.writeValueAsString(orderObj);
-            notification.setActionPath("/subpkg_course/pages/course/pay?order=" + java.net.URLEncoder.encode(orderJson, "UTF-8"));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        notification.setActionPath("/subpkg_mine/pages/mine/order-list?tab=course");
 
         notificationService.saveNotification(notification);
 
