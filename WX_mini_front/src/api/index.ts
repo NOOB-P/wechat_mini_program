@@ -37,7 +37,7 @@ export const getWechatCustomerServiceByLocationApi = (location: string) => {
   return request({
     url: '/api/customer/wechat/get-by-location',
     method: 'GET',
-    data: { location }
+    params: { location }
   })
 }
 

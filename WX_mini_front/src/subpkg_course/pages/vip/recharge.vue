@@ -278,14 +278,22 @@ const handlePay = async () => {
         price: selectedPlan.price,
         pricingId: selectedPlan.id
       })
-      const payRes = await createVipPayApi(createRes.data.orderNo)
+      const orderNo = createRes?.data?.orderNo
+      if (!orderNo) {
+        throw new Error(createRes?.msg || '会员订单创建失败')
+      }
+      const payRes = await createVipPayApi(orderNo)
       return { createRes, payRes }
     }, PAYMENT_WECHAT_BIND_OPTIONS)
+    const orderNo = createRes?.data?.orderNo
+    if (!orderNo) {
+      throw new Error(createRes?.msg || '会员订单创建失败')
+    }
     await requestWechatPaymentByType(payRes.data?.paymentType, payRes.data?.payParams || {})
 
     if (payRes.data?.paymentType === 'VIRTUAL' || payRes.data?.paymentType === 'FREE') {
       try {
-        await confirmVipVirtualPayWithRetry(createRes.data.orderNo, payRes.data?.security || {})
+        await confirmVipVirtualPayWithRetry(orderNo, payRes.data?.security || {})
       } catch (confirmError) {
         console.warn('Payment confirm failed, relying on backend notify', confirmError)
         toast.show('支付已提交，会员状态更新中...')

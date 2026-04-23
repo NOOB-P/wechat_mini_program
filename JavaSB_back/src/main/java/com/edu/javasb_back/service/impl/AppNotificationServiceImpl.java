@@ -17,6 +17,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -54,6 +56,7 @@ public class AppNotificationServiceImpl implements AppNotificationService {
     private static final int MAX_LIMIT = 50;
     private static final int SCORE_NOTICE_LIMIT = 8;
     private static final int ORDER_NOTICE_LIMIT = 8;
+    private static final Logger log = LoggerFactory.getLogger(AppNotificationServiceImpl.class);
 
     @Autowired
     private SysAccountRepository sysAccountRepository;
@@ -111,13 +114,15 @@ public class AppNotificationServiceImpl implements AppNotificationService {
                 e.printStackTrace();
             }
         }
+        final Set<String> finalDynamicReadIds = dynamicReadIds;
+        final SysAccount finalAccount = account;
 
-        appendScoreNotifications(uid, notifications, dynamicReadIds);
-        appendCourseNotifications(uid, notifications, dynamicReadIds);
-        appendVipNotifications(uid, notifications, dynamicReadIds);
-        appendVipExpireNotification(account, notifications, dynamicReadIds);
-        appendPrintNotifications(account, notifications, dynamicReadIds);
-        appendSystemNotifications(uid, notifications);
+        appendSafely("system", () -> appendSystemNotifications(uid, notifications));
+        appendSafely("score", () -> appendScoreNotifications(uid, notifications, finalDynamicReadIds));
+        appendSafely("course", () -> appendCourseNotifications(uid, notifications, finalDynamicReadIds));
+        appendSafely("vip", () -> appendVipNotifications(uid, notifications, finalDynamicReadIds));
+        appendSafely("vip-expire", () -> appendVipExpireNotification(finalAccount, notifications, finalDynamicReadIds));
+        appendSafely("print", () -> appendPrintNotifications(finalAccount, notifications, finalDynamicReadIds));
 
         notifications.sort(Comparator.comparing(NotificationWrapper::time, Comparator.nullsLast(Comparator.naturalOrder())).reversed());
 
@@ -426,6 +431,14 @@ public class AppNotificationServiceImpl implements AppNotificationService {
         notification.setActionPath(actionPath);
         notification.setIsNew(isNew);
         notifications.add(new NotificationWrapper(time, notification));
+    }
+
+    private void appendSafely(String source, Runnable task) {
+        try {
+            task.run();
+        } catch (Exception ex) {
+            log.warn("Load {} notifications failed, skip current source", source, ex);
+        }
     }
 
     private String firstNonEmpty(String... values) {

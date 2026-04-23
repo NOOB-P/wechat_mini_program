@@ -1,11 +1,11 @@
 import request from '@/utils/request'
 
 export const getCourseListApi = (params?: any) => {
-  return request({ url: '/api/app/course/list', method: 'GET', data: params })
+  return request({ url: '/api/app/course/list', method: 'GET', params })
 }
 
 export const getCourseDetailApi = (id: string) => {
-  return request({ url: '/api/app/course/detail', method: 'GET', data: { id } })
+  return request({ url: '/api/app/course/detail', method: 'GET', params: { id } })
 }
 
 export const collectCourseApi = (data: { courseId: string; isCollect: boolean }) => {

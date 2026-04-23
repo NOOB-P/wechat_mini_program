@@ -2,13 +2,12 @@ import type { requestOptions } from '@/types/request'
 import { getMockData } from '@/mock/index'
 
 // 是否开启 mock (通常只在开发环境下开启)
-const USE_MOCK = import.meta.env.DEV
+const USE_MOCK = import.meta.env.DEV && String(import.meta.env.VITE_USE_MOCK).toLowerCase() === 'true'
 const MOCK_BYPASS_URLS = [
     '/api/app/auth/sendCode',
     '/api/app/auth/login/phone',
     '/api/app/auth/login/wechat/bind-phone'
 ]
-
 // 封装 toast 提示，兼容非组件环境
 const showToast = (options: UniApp.ShowToastOptions) => {
     uni.showToast({
@@ -57,9 +56,7 @@ const requestInterceptor = (options: requestOptions) => {
 }
 
 export default (options:requestOptions): Promise<any> => {
-    if (!options.silent) {
-        showLoading('加载中...')
-    }
+    // 移除了全局的 showLoading，避免页面加载时频繁闪烁
     
     // 如果开启 mock，则尝试拦截并返回模拟数据
     if (USE_MOCK && !MOCK_BYPASS_URLS.includes(options.url)) {
@@ -68,12 +65,8 @@ export default (options:requestOptions): Promise<any> => {
             console.log('拦截到 Mock 数据:', mockResponse);
             return new Promise((resolve, reject) => {
                 setTimeout(() => {
-                    hideLoading()
                     if (mockResponse.code === 200) {
                         resolve(mockResponse);
-                        if (!options.silent) {
-                            showToast({ title: mockResponse.msg, icon: 'success' });
-                        }
                     } else {
                         reject(mockResponse);
                         if (!options.silent) {
@@ -90,14 +83,24 @@ export default (options:requestOptions): Promise<any> => {
         uni.request({
             ...options,
             success(res:UniApp.RequestSuccessCallbackResult) {
-                hideLoading()
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    const errorMessage = typeof res.data === 'object' && res.data && 'msg' in res.data
+                        ? String((res.data as any).msg)
+                        : `HTTP ${res.statusCode}`
+                    const errorResult = typeof res.data === 'object' && res.data
+                        ? res.data
+                        : { code: res.statusCode, msg: errorMessage, data: res.data }
+                    reject(errorResult)
+                    if (!options.silent) {
+                        showToast({ title: errorMessage })
+                    }
+                    return
+                }
                 // 判断返回data是否为object，请求返回值可能不是object
                 if(typeof res.data === 'object' && 'code' in res.data) {
                     if(res.data.code === 200) {
                         resolve(res.data)
-                        if (!options.silent) {
-                            showToast({ title: res.data.msg, icon: 'success' })
-                        }
+                        // 彻底移除全局成功提示逻辑
                     } else {
                         reject(res.data)
                         if (!options.silent) {
@@ -106,13 +109,9 @@ export default (options:requestOptions): Promise<any> => {
                     }
                 } else {
                     resolve(res.data)
-                    if (!options.silent) {
-                        showToast({ title: '请求成功', icon: 'success' })
-                    }
                 }
             },
             fail(error) {
-                hideLoading()
                 reject(error)
                 if (!options.silent) {
                     showToast({ title: `Error: ${error.errMsg}` })

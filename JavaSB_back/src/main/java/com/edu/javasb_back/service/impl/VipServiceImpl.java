@@ -380,6 +380,8 @@ public class VipServiceImpl implements VipService {
         com.edu.javasb_back.model.entity.SysNotification notification = new com.edu.javasb_back.model.entity.SysNotification();
         notification.setTitle("打印订单待支付提醒");
         notification.setContent("您的孩子发起了试卷打印申请（" + order.getDocumentName() + "），共 " + order.getPages() + " 页，请在10分钟内完成支付。");
+        notification.setCategory("print");
+        notification.setLevel("warning");
         notification.setPublisher("系统通知");
         notification.setTargetUid(uid);
         notification.setIsPublished(1);

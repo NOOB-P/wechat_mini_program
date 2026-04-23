@@ -15,11 +15,11 @@ const emit = defineEmits(['click'])
       </view>
       <view class="eval-item" @click="emit('click', 'character')">
         <image class="eval-icon" :src="staticBaseUrl + '/home/character_eval.png'" mode="widthFix" />
-        <text class="eval-text">个人档案</text>
+        <text class="eval-text">性格测评</text>
       </view>
       <view class="eval-item" @click="emit('click', 'homework')">
         <image class="eval-icon" :src="staticBaseUrl + '/home/homework_check.png'" mode="widthFix" />
-        <text class="eval-text">作业检查</text>
+        <text class="eval-text">作业批改</text>
       </view>
     </view>
   </view>

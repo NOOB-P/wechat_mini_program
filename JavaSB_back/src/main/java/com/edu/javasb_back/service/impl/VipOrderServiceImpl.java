@@ -55,7 +55,6 @@ import com.edu.javasb_back.repository.VipPricingRepository;
 import com.edu.javasb_back.service.SysNotificationService;
 import com.edu.javasb_back.service.VipOrderService;
 import com.edu.javasb_back.service.WechatPayService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @Transactional(readOnly = true)
@@ -91,9 +90,6 @@ public class VipOrderServiceImpl implements VipOrderService {
     
     @Autowired
     private SysNotificationService notificationService;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -149,27 +145,15 @@ public class VipOrderServiceImpl implements VipOrderService {
         SysNotification notification = new SysNotification();
         notification.setTitle("会员充值待支付提醒");
         notification.setContent("您的孩子发起了会员充值申请（" + order.getPackageType() + " " + order.getPeriod() + "），请在10分钟内完成支付。");
+        notification.setCategory("vip");
+        notification.setLevel("warning");
         notification.setPublisher("系统通知");
         notification.setTargetUid(userUid);
         notification.setIsPublished(1);
         notification.setCreateTime(LocalDateTime.now());
         notification.setActionText("立即支付");
 
-        // 构建前端跳转所需的订单对象
-        Map<String, Object> orderObj = new HashMap<>();
-        orderObj.put("orderNo", savedOrder.getOrderNo());
-        orderObj.put("price", savedOrder.getPrice());
-        orderObj.put("createTime", savedOrder.getCreateTime());
-        orderObj.put("tierCode", tierCode);
-        orderObj.put("packageType", title);
-        orderObj.put("type", "VIP");
-
-        try {
-            String orderJson = objectMapper.writeValueAsString(orderObj);
-            notification.setActionPath("/subpkg_course/pages/course/pay?order=" + java.net.URLEncoder.encode(orderJson, "UTF-8"));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        notification.setActionPath("/subpkg_mine/pages/mine/order-list?tab=vip");
 
         notificationService.saveNotification(notification);
 

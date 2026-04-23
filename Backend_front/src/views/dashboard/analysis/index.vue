@@ -34,6 +34,9 @@
       <ElCol :xs="24" :lg="8">
         <UserDistribution :data="analysisData.userDistribution" />
         
+        <!-- 最近系统日志 -->
+        <SystemLogs />
+
         <!-- 系统公告 -->
         <div class="art-card p-5 rounded-xl bg-white shadow-sm mb-5 max-sm:mb-4">
           <div class="flex justify-between items-center mb-4">
@@ -50,56 +53,6 @@
             </div>
           </div>
         </div>
-
-        <!-- 快速入口 (参考工作台风格) -->
-        <div class="art-card p-5 rounded-xl bg-white shadow-sm mb-5 max-sm:mb-4 h-80">
-          <div class="flex justify-between items-center mb-6">
-            <span class="font-bold text-lg">常用操作</span>
-            <el-tag type="info" plain>快捷方式</el-tag>
-          </div>
-          <div class="grid grid-cols-2 gap-4">
-            <el-button
-              type="primary"
-              size="large"
-              class="!h-12 w-full"
-              plain
-              @click="goPage('VipOrderManage')"
-            >
-              <template #icon><ArtSvgIcon icon="ri:file-list-3-line" /></template>
-              VIP订单管理
-            </el-button>
-            <el-button
-              type="success"
-              size="large"
-              class="!h-12 w-full"
-              plain
-              @click="goPage('CourseOrderManage')"
-            >
-              <template #icon><ArtSvgIcon icon="ri:book-read-line" /></template>
-              课程订单管理
-            </el-button>
-            <el-button
-              type="warning"
-              size="large"
-              class="!h-12 w-full"
-              plain
-              @click="goPage('PrintOrderManage')"
-            >
-              <template #icon><ArtSvgIcon icon="ri:printer-line" /></template>
-              打印订单管理
-            </el-button>
-            <el-button
-              type="info"
-              size="large"
-              class="!h-12 w-full"
-              plain
-              @click="goPage('SchoolOrg')"
-            >
-              <template #icon><ArtSvgIcon icon="ri:building-line" /></template>
-              学校档案管理
-            </el-button>
-          </div>
-        </div>
       </ElCol>
     </ElRow>
   </div>
@@ -113,6 +66,7 @@
   import SystemMonitor from './modules/SystemMonitor.vue'
   import GrowthChart from './modules/GrowthChart.vue'
   import UserDistribution from './modules/UserDistribution.vue'
+  import SystemLogs from './modules/SystemLogs.vue'
 
   defineOptions({ name: 'Analysis' })
 
