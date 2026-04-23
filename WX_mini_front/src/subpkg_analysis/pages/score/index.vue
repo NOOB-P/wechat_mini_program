@@ -269,7 +269,7 @@
 import { ref, computed, watch } from 'vue'
 import { onShow, onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { getStudentScoresApi, getSemesterListApi, getAiExamReportApi } from '@/subpkg_analysis/api/score'
+import { getStudentScoresApi, getSemesterListApi, getAiExamReportApi, exportWrongBookApi } from '@/subpkg_analysis/api/score'
 import { submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
 import { getUserInfoApi } from '@/api/mine'
 import AiReportPanel from '@/subpkg_analysis/components/AiReportPanel.vue'
@@ -643,11 +643,42 @@ const goToRecharge = (type: string = 'VIP') => {
   uni.navigateTo({ url: `/subpkg_course/pages/vip/recharge?type=${type}&redirect=score` })
 }
 
-const handleExport = () => {
-  toast.loading('正在生成...')
-  setTimeout(() => {
-    toast.success('导出成功，请查看通知')
-  }, 1500)
+const handleExport = async () => {
+  const examId = scoreData.value?.examId || pickerValue.value?.[1]
+  if (!examId) return toast.show('未选择考试')
+
+  try {
+    toast.loading('正在生成PDF...')
+    const res = await exportWrongBookApi({
+      examId,
+      subject: selectedWrongSubject.value
+    })
+
+    if (res.code === 200 && res.data) {
+      toast.success('生成成功')
+      
+      // 使用下载并打开文档的方式
+      uni.downloadFile({
+        url: res.data,
+        success: (downloadRes) => {
+          if (downloadRes.statusCode === 200) {
+            uni.openDocument({
+              filePath: downloadRes.tempFilePath,
+              showMenu: true,
+              success: () => console.log('打开文档成功'),
+              fail: () => toast.error('打开文档失败')
+            })
+          }
+        },
+        fail: () => toast.error('下载文件失败')
+      })
+    } else {
+      toast.error(res.msg || '生成失败')
+    }
+  } catch (e) {
+    console.error('导出错题失败:', e)
+    toast.error('网络错误，导出失败')
+  }
 }
 
 const submitPrint = async () => {

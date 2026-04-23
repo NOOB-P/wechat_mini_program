@@ -28,6 +28,8 @@ public interface SysAccountService {
 
     Result<java.util.Map<String, Object>> bindWechat(Long uid, String code);
 
+    Result<Void> unbindWechat(Long uid);
+
     Result<SysAccount> getUserInfo(Long uid);
 
     Result<SysAccount> getUserInfoByUsername(String username);

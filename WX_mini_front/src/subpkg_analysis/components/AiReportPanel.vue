@@ -1,8 +1,8 @@
 <template>
   <view class="ai-report-panel">
     <view v-if="!hasAccess" class="svip-lock">
-      <view class="lock-icon-wrapper">
-        <image class="lock-img" :src="staticBaseUrl + '/images/svip-lock.png'" mode="aspectFit" />
+      <view class="lock-icon-wrapper svip-badge">
+        <text class="svip-badge-text">SVIP</text>
       </view>
       <view class="lock-text">此专区为 SVIP 专属功能</view>
       <wd-button custom-class="upgrade-btn" @click="$emit('upgrade')">立即升级 SVIP</wd-button>
@@ -125,28 +125,57 @@ defineEmits<{
 }
 
 .svip-lock {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(4px);
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16rpx;
+  justify-content: center;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
 }
 
 .lock-icon-wrapper {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 48rpx;
-  background: #f2f6ff;
+  width: 160rpx;
+  height: 160rpx;
+  background: linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%);
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(92, 107, 192, 0.25);
+  border: 4rpx solid #fff;
+
+  &.svip-badge {
+    background: linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%);
+  }
+
+  .svip-badge-text {
+    font-size: 36rpx;
+    font-weight: 900;
+    background: linear-gradient(135deg, #5c6bc0 0%, #7986cb 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2rpx;
+  }
 }
 
-.lock-img {
-  width: 56rpx;
-  height: 56rpx;
+.lock-text {
+  font-size: 32rpx;
+  color: #333;
+  font-weight: 600;
+  margin-bottom: 40rpx;
+  letter-spacing: 2rpx;
 }
 
-.lock-text,
 .loading-desc,
 .empty-desc,
 .card-subtitle,
@@ -154,6 +183,26 @@ defineEmits<{
 .wrong-knowledge {
   font-size: 24rpx;
   color: #8b94a7;
+}
+
+.upgrade-btn {
+  width: 320rpx !important;
+  height: 88rpx !important;
+  background: linear-gradient(135deg, #4d80f0 0%, #6a9df8 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 44rpx !important;
+  font-size: 30rpx !important;
+  font-weight: bold !important;
+  box-shadow: 0 8rpx 20rpx rgba(77, 128, 240, 0.3) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
 }
 
 .loading-title,

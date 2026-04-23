@@ -33,4 +33,9 @@ public interface ScoreService {
      * 获取试卷报告详情
      */
     Result<Map<String, Object>> getPaperDetail(Long uid, String examId, String subject);
+
+    /**
+     * 导出错题集 PDF
+     */
+    Result<String> exportWrongBook(Long uid, String examId, String subject);
 }

@@ -18,8 +18,13 @@
 .wechat-bind-value {
   display: flex;
   align-items: center;
-  gap: 10rpx;
-  color: #07c160;
+  justify-content: flex-end;
+  gap: 12rpx;
+  color: #1a5f8e;
+
+  .bind-text {
+    font-size: 28rpx;
+  }
 }
 
 .wechat-bind-value.bound {

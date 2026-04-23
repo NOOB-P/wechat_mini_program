@@ -36,10 +36,11 @@
         <wd-tab title="账号登录" name="password">
           <view class="input-group">
             <view class="input-item">
-              <wd-input v-model="phone" placeholder="请输入账号" type="text" :maxlength="11" no-border />
+              <text class="prefix">+86</text>
+              <wd-input v-model="phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
             </view>
             <view class="input-item">
-              <wd-input v-model="password" placeholder="请输入密码" show-password type="text" :maxlength="20" no-border />
+              <wd-input v-model="password" placeholder="请输入密码" show-password type="password" :maxlength="20" no-border />
             </view>
           </view>
         </wd-tab>
@@ -406,13 +407,10 @@ const handleLogin = async () => {
     return toast.show('请先勾选同意用户协议和隐私政策')
   }
   if (!phone.value) {
-    return toast.show(loginType.value === 'phone' ? '请输入手机号' : '请输入账号')
+    return toast.show('请输入手机号')
   }
-  if (loginType.value === 'phone' && phone.value.length !== 11) {
+  if (phone.value.length !== 11) {
     return toast.show('请输入正确的11位手机号')
-  }
-  if (loginType.value === 'password' && (phone.value.length < 3 || phone.value.length > 20)) {
-    return toast.show('账号长度应在3-20位之间')
   }
   if (loginType.value === 'phone' && !code.value) {
     return toast.show('请输入验证码')
@@ -736,13 +734,33 @@ const mockThirdPartyLogin = async (type: string) => {
         height: 100rpx;
         display: flex;
         align-items: center;
+        transition: all 0.2s ease;
+        border: 2rpx solid transparent;
+        
+        &:focus-within {
+          background-color: #ffffff;
+          border-color: #4d80f0;
+        }
         
         .prefix {
           font-size: 30rpx;
           color: #333;
           margin-right: 20rpx;
           padding-right: 20rpx;
-          border-right: 1rpx solid #ddd;
+          position: relative;
+          display: flex;
+          align-items: center;
+          
+          &::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 2rpx;
+            height: 30rpx;
+            background-color: #ddd;
+          }
         }
 
         :deep(.wd-input) {
@@ -750,11 +768,13 @@ const mockThirdPartyLogin = async (type: string) => {
           background-color: transparent;
           height: 100rpx;
           padding: 0;
-        }
-
-        :deep(.wd-input__inner) {
-          height: 100rpx;
-          font-size: 30rpx;
+          
+          .wd-input__inner {
+            height: 100rpx;
+            font-size: 30rpx;
+            padding: 0;
+            background-color: transparent;
+          }
         }
       }
     }

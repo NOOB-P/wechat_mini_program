@@ -69,7 +69,7 @@
       </view>
 
       <!-- 知识点掌握卡片 -->
-      <view class="analysis-card">
+      <view class="analysis-card" v-if="compositionData.knowledgePoints && compositionData.knowledgePoints.length > 0">
         <view class="card-header">
           <text class="card-title">核心知识点掌握度</text>
         </view>

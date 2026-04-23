@@ -69,3 +69,15 @@ export const getAiExamReportApi = (params: any) => {
     data: params
   })
 }
+
+/**
+ * @Description: 导出错题集 PDF
+ * @param {object} params 查询参数 (examId, subject)
+ */
+export const exportWrongBookApi = (params: any) => {
+  return request({
+    url: '/api/app/score/wrong-book/export',
+    method: 'GET',
+    data: params
+  })
+}

@@ -128,7 +128,10 @@ const confirmVipVirtualPayWithRetry = async (orderNo: string, security: Record<s
 
 const fetchPayParams = async () => {
   const payApi = order.value.type === 'VIP' ? createVipPayApi : createCoursePayApi
-  return runWithWechatBindGuard(() => payApi(order.value.orderNo), PAYMENT_WECHAT_BIND_OPTIONS)
+  return runWithWechatBindGuard(async () => {
+    loading.value = true
+    return await payApi(order.value.orderNo)
+  }, PAYMENT_WECHAT_BIND_OPTIONS)
 }
 
 const refreshUserInfo = async () => {
@@ -145,9 +148,7 @@ const handlePay = async () => {
     return
   }
 
-  loading.value = true
   try {
-    toast.loading('正在准备支付...')
     const payRes = await fetchPayParams()
     const paymentType = payRes.data?.paymentType
     const payParams = payRes.data?.payParams || {}

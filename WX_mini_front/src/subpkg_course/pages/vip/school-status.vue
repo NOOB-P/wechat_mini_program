@@ -136,7 +136,9 @@
   })
 
   const goBindStudent = () => {
-    uni.navigateTo({ url: '/pages/auth/bind-student' })
+    const userInfo = uni.getStorageSync('userInfo')
+    const phone = userInfo?.phone || ''
+    uni.navigateTo({ url: `/pages/auth/bind-student?phone=${phone}` })
   }
 
   const goBack = () => {

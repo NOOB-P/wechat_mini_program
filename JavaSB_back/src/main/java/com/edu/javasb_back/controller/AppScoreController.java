@@ -111,4 +111,17 @@ public class AppScoreController {
         if (uid == null) return Result.error(401, "请先登录");
         return scoreAiReportService.getExamAiReport(uid, examId);
     }
+
+    /**
+     * 导出错题集 PDF
+     */
+    @LogOperation("导出错题集")
+    @GetMapping("/wrong-book/export")
+    public Result<String> exportWrongBook(
+            @RequestParam(required = false) String examId,
+            @RequestParam(required = false, defaultValue = "all") String subject) {
+        Long uid = getCurrentUid();
+        if (uid == null) return Result.error(401, "请先登录");
+        return scoreService.exportWrongBook(uid, examId, subject);
+    }
 }
