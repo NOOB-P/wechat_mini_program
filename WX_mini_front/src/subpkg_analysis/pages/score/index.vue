@@ -423,8 +423,8 @@ const estimatedPrice = computed(() => {
     p.color === printForm.value.color
   )
   
-  // 假设默认打印 20 页（这个在实际业务中应该是根据错题数量或者用户输入决定的，这里作为 mock 展示计算逻辑）
-  const pageCount = 20
+  // 根据当前筛选的错题数量计算页数（假设两道错题占一页）
+  const pageCount = Math.ceil(filteredWrongBookData.value.length / 2) || 1
   let paperCost = paperConfig ? paperConfig.price * pageCount : 0
   
   // 加上装订费
@@ -681,13 +681,33 @@ const handleExport = async () => {
   }
 }
 
+// 监听 scoreData 变化，预填手机号
+watch(scoreData, (newVal) => {
+  if (newVal?.userInfo?.phone && !printForm.value.phone) {
+    printForm.value.phone = newVal.userInfo.phone
+  }
+}, { immediate: true })
+
 const submitPrint = async () => {
   if (!printForm.value.address || !printForm.value.phone) {
     return toast.show('请填写完整信息')
   }
   try {
     toast.loading('提交中...')
-    const res = await submitPrintOrderApi(printForm.value)
+    
+    // 获取当前用户信息
+    const userInfo = uni.getStorageSync('userInfo')
+    
+    // 构造更真实的订单数据
+    const orderData = {
+      ...printForm.value,
+      userName: userInfo?.name || userInfo?.nickname || '微信用户',
+      userPhone: printForm.value.phone || userInfo?.phone,
+      documentName: `${scoreData.value?.examName || '错题集'}-${selectedWrongSubject.value === 'all' ? '全部科目' : selectedWrongSubject.value}`,
+      pages: Math.ceil(filteredWrongBookData.value.length / 2) || 1 // 假设两道错题占一页
+    }
+    
+    const res = await submitPrintOrderApi(orderData)
     if (res.code === 200) {
       toast.success(res.msg || '下单成功')
       showPrintDialog.value = false
