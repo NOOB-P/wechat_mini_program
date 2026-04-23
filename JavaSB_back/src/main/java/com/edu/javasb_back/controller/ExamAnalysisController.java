@@ -42,6 +42,14 @@ public class ExamAnalysisController {
         return examAnalysisService.getClassDashboard(projectId, classId);
     }
 
+    @LogOperation("获取单科报表")
+    @GetMapping("/subject-report")
+    public Result<Map<String, Object>> getSubjectReport(
+            @RequestParam String projectId,
+            @RequestParam(required = false) String subjectName) {
+        return examAnalysisService.getSubjectReport(projectId, subjectName);
+    }
+
     @LogOperation("获取学生分析报告")
     @GetMapping("/student-report")
     public Result<Map<String, Object>> getStudentReport(

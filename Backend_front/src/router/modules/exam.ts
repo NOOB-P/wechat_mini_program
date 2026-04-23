@@ -71,6 +71,16 @@ export const examRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'analysis-subject-report',
+      name: 'ExamAnalysisSubjectReport',
+      component: '/core-business/exam/analysis/subject-report',
+      meta: {
+        title: '单科报表',
+        isHide: true,
+        activePath: '/exam-hub/analysis-list'
+      }
+    },
+    {
       path: 'analysis-student-report',
       name: 'ExamAnalysisStudentReport',
       component: '/core-business/exam/analysis/student-report',

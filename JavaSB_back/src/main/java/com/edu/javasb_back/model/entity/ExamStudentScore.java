@@ -33,6 +33,9 @@ public class ExamStudentScore {
     @Column(name = "answer_sheet_url", length = 500)
     private String answerSheetUrl;
 
+    @Column(name = "answer_merge_info", columnDefinition = "TEXT")
+    private String answerMergeInfo;
+
     @Column(name = "score_entered")
     private Boolean scoreEntered;
 
@@ -79,6 +82,9 @@ public class ExamStudentScore {
 
     public String getAnswerSheetUrl() { return answerSheetUrl; }
     public void setAnswerSheetUrl(String answerSheetUrl) { this.answerSheetUrl = answerSheetUrl; }
+
+    public String getAnswerMergeInfo() { return answerMergeInfo; }
+    public void setAnswerMergeInfo(String answerMergeInfo) { this.answerMergeInfo = answerMergeInfo; }
 
     public Boolean getScoreEntered() { return scoreEntered; }
     public void setScoreEntered(Boolean scoreEntered) { this.scoreEntered = scoreEntered; }

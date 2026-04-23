@@ -367,6 +367,31 @@
 | --- | --- | --- | --- |
 | projectId | string | 是 | 项目ID |
 
+## 13.1 获取单科报表
+
+- 方法：`GET`
+- 地址：`/api/system/exam-analysis/subject-report`
+- 请求参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| projectId | string | 是 | 项目ID |
+| subjectName | string | 否 | 学科名称，不传默认返回项目第一个学科 |
+
+- `data` 返回字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| project | object | 项目基础信息 |
+| subjects | array | 学科切换列表，含均分、及格率、参考人数 |
+| currentSubject | string | 当前学科 |
+| overviewCards | array | 单科核心指标卡片 |
+| scoreDistribution | array | 单科分数段分布 |
+| schoolRanking | array | 各学校单科对比 |
+| classRanking | array | 各班级单科对比 |
+| questionAnalysis | array | 小题分对比与薄弱题分析 |
+| wrongQuestionFocus | array | 高频失分题聚焦列表 |
+
 ## 14. 小程序获取考试 AI 成绩报告
 
 - 方法：`GET`

@@ -9,12 +9,14 @@ import com.edu.javasb_back.service.SmsService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
 public class SmsServiceImpl implements SmsService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SmsServiceImpl.class);
 
     private static final String SMS_CODE_CACHE_PREFIX = "sms:code:";
     private static final String SMS_SEND_LOCK_PREFIX = "sms:send:lock:";
@@ -24,18 +26,20 @@ public class SmsServiceImpl implements SmsService {
     private GlobalConfigProperties globalConfigProperties;
 
     @Autowired
-    private RedisTemplate<Object, Object> redisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
 
     @Override
     public void sendVerificationCode(String phone) {
         validateSmsConfig();
 
         String sendLockKey = buildSendLockKey(phone);
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(sendLockKey))) {
+        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(sendLockKey))) {
+            log.warn("手机号 {} 发送频率过快", phone);
             throw new IllegalStateException("验证码发送过于频繁，请稍后再试");
         }
 
         String code = generateVerificationCode();
+        log.info("准备为手机号 {} 发送验证码: {}", phone, code);
         try {
             SendSmsRequest request = new SendSmsRequest();
             request.setPhoneNumbers(phone);
@@ -43,23 +47,29 @@ public class SmsServiceImpl implements SmsService {
             request.setTemplateCode(globalConfigProperties.getAliyunSmsTemplateCode());
             request.setTemplateParam(String.format("{\"code\":\"%s\"}", code));
 
+            log.info("调用阿里云短信接口: SignName={}, TemplateCode={}", request.getSignName(), request.getTemplateCode());
             SendSmsResponse response = createClient().sendSms(request);
             if (response == null || response.getBody() == null) {
+                log.error("阿里云短信接口返回空响应");
                 throw new IllegalStateException("短信服务未返回有效结果");
             }
 
             String responseCode = response.getBody().getCode();
+            String message = response.getBody().getMessage();
+            log.info("阿里云短信接口返回: Code={}, Message={}", responseCode, message);
+
             if (!"OK".equalsIgnoreCase(responseCode)) {
-                String message = response.getBody().getMessage();
                 throw new IllegalStateException(StringUtils.hasText(message) ? message : "短信发送失败");
             }
 
             long expireMinutes = resolveCodeExpirationMinutes();
-            redisTemplate.opsForValue().set(buildCodeCacheKey(phone), code, expireMinutes, TimeUnit.MINUTES);
-            redisTemplate.opsForValue().set(sendLockKey, "1", SMS_SEND_LOCK_SECONDS, TimeUnit.SECONDS);
+            stringRedisTemplate.opsForValue().set(buildCodeCacheKey(phone), code, expireMinutes, TimeUnit.MINUTES);
+            stringRedisTemplate.opsForValue().set(sendLockKey, "1", SMS_SEND_LOCK_SECONDS, TimeUnit.SECONDS);
+            log.info("验证码 {} 已保存到 Redis，手机号: {}", code, phone);
         } catch (IllegalStateException ex) {
             throw ex;
         } catch (Exception ex) {
+            log.error("短信发送异常", ex);
             throw new IllegalStateException("短信发送失败: " + ex.getMessage(), ex);
         }
     }
@@ -69,8 +79,8 @@ public class SmsServiceImpl implements SmsService {
         if (!StringUtils.hasText(phone) || !StringUtils.hasText(code)) {
             return false;
         }
-        Object cachedCode = redisTemplate.opsForValue().get(buildCodeCacheKey(phone));
-        return code.equals(cachedCode == null ? null : cachedCode.toString());
+        String cachedCode = stringRedisTemplate.opsForValue().get(buildCodeCacheKey(phone));
+        return code.equals(cachedCode);
     }
 
     @Override
@@ -78,7 +88,7 @@ public class SmsServiceImpl implements SmsService {
         if (!StringUtils.hasText(phone)) {
             return;
         }
-        redisTemplate.delete(buildCodeCacheKey(phone));
+        stringRedisTemplate.delete(buildCodeCacheKey(phone));
     }
 
     private Client createClient() throws Exception {

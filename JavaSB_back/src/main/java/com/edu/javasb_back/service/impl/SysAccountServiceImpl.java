@@ -131,15 +131,17 @@ public class SysAccountServiceImpl implements SysAccountService {
     @Override
     public Result<String> sendSmsCode(String phone) {
         if (!isValidPhone(phone)) {
+            log.warn("手机号格式不正确: {}", phone);
             return Result.error("手机号格式不正确");
         }
         try {
             smsService.sendVerificationCode(phone);
             return Result.success("验证码已发送", null);
         } catch (IllegalStateException e) {
+            log.warn("发送验证码失败: {}", e.getMessage());
             return Result.error(e.getMessage());
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("发送验证码系统异常", e);
             return Result.error("短信发送失败，请稍后重试");
         }
     }
