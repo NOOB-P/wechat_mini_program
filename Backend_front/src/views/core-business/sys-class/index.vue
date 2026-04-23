@@ -1,5 +1,8 @@
 <template>
   <div class="page-container">
+    <div class="mb-4">
+      <el-button @click="goBackToSchool" :icon="ArrowLeft">返回学校</el-button>
+    </div>
     <!-- 搜索栏 -->
     <el-card shadow="never" class="search-card mb-4">
       <el-form :inline="true" :model="searchForm" class="search-form-inline">
@@ -292,7 +295,8 @@ import {
   Delete,
   Upload,
   Document,
-  InfoFilled
+  InfoFilled,
+  ArrowLeft
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -337,6 +341,10 @@ const importVisible = ref(false)
 const importLoading = ref(false)
 const fileList = ref<any[]>([])
 const uploadRef = ref<any>()
+
+const goBackToSchool = () => {
+  router.push('/core-business/school')
+}
 
 const gradeOptions = [
   '一年级', '二年级', '三年级', '四年级', '五年级', '六年级',

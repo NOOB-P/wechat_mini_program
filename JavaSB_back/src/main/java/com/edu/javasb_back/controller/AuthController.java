@@ -27,12 +27,16 @@ public class AuthController {
     @LogOperation("获取当前用户信息")
     @GetMapping("/info")
     public Result<SysAccount> getCurrentUserInfo() {
-        // 从 SecurityContext 获取用户ID (String形式存入的uid)
-        String uidStr = SecurityContextHolder.getContext().getAuthentication().getName();
-        if (uidStr == null || "anonymousUser".equals(uidStr)) {
-            return Result.error(401, "未登录");
+        try {
+            // 从 SecurityContext 获取用户ID (String形式存入的uid)
+            String uidStr = SecurityContextHolder.getContext().getAuthentication().getName();
+            if (uidStr == null || "anonymousUser".equals(uidStr)) {
+                return Result.error(401, "未登录");
+            }
+            return sysAccountService.getUserInfo(Long.parseLong(uidStr));
+        } catch (Exception e) {
+            return Result.error(500, "获取用户信息异常，请检查数据库字段是否完整: " + e.getMessage());
         }
-        return sysAccountService.getUserInfo(Long.parseLong(uidStr));
     }
 
     /**

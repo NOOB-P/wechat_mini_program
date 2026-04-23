@@ -72,11 +72,15 @@ public class AppMineController {
     @LogOperation("小程序获取个人信息")
     @GetMapping("/info")
     public Result<SysAccount> getMineInfo() {
-        Long uid = getCurrentUid();
-        if (uid == null) {
-            return Result.error(401, "未登录");
+        try {
+            Long uid = getCurrentUid();
+            if (uid == null) {
+                return Result.error(401, "未登录");
+            }
+            return sysAccountService.getUserInfo(uid);
+        } catch (Exception e) {
+            return Result.error(500, "获取个人信息异常，请检查数据库字段是否完整: " + e.getMessage());
         }
-        return sysAccountService.getUserInfo(uid);
     }
 
     /**

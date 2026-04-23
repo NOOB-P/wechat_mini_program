@@ -1,5 +1,8 @@
 <template>
   <div class="page-container">
+    <div class="mb-4">
+      <el-button @click="goBackToClass" :icon="ArrowLeft">返回班级</el-button>
+    </div>
     <el-card shadow="never" class="main-card">
       <template #header>
         <div class="flex justify-between items-center">
@@ -250,19 +253,21 @@ import {
 import { fetchGetSchoolList } from '@/api/core-business/school/index'
 import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
 import { 
-  UploadFilled, 
-  Check, 
-  Close, 
-  Loading as LoadingIcon, 
-  Delete,
-  Upload,
-  Document,
-  InfoFilled,
-  Plus
-} from '@element-plus/icons-vue'
+    UploadFilled, 
+    Check, 
+    Close, 
+    Loading as LoadingIcon, 
+    Delete,
+    Upload,
+    Document,
+    InfoFilled,
+    Plus,
+    ArrowLeft
+  } from '@element-plus/icons-vue'
 import BindingStatus from './components/BindingStatus.vue'
 
 const route = useRoute()
+const router = useRouter()
 
 // 表格数据相关
 const loading = ref(false)
@@ -311,6 +316,17 @@ const importLoading = ref(false)
 const fileList = ref<any[]>([])
 const activeNames = ref(['1'])
 const uploadRef = ref<any>()
+
+const goBackToClass = () => {
+  const query: any = {}
+  if (route.query.schoolId) query.schoolId = route.query.schoolId
+  if (route.query.schoolName) query.schoolName = route.query.schoolName
+  
+  router.push({
+    path: '/core-business/sys-class',
+    query
+  })
+}
 
 const loadData = async () => {
   loading.value = true

@@ -8,9 +8,6 @@
           <ElButton type="primary" size="large" @click="backHome" v-ripple>{{
             data.btnText
           }}</ElButton>
-          <ElButton size="large" @click="refreshPage" v-ripple class="ml-4">
-            刷新页面
-          </ElButton>
         </div>
       </div>
     </div>
@@ -62,10 +59,5 @@
     }
 
     router.replace(targetHomePath)
-  }
-
-  const refreshPage = () => {
-    // 执行真正的页面刷新
-    window.location.reload()
   }
 </script>

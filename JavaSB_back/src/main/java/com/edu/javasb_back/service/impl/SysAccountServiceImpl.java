@@ -52,6 +52,8 @@ import com.edu.javasb_back.service.SmsService;
 import com.edu.javasb_back.service.SysAccountService;
 import com.edu.javasb_back.utils.JwtUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -82,6 +84,8 @@ import java.util.*;
 
 @Service
 public class SysAccountServiceImpl implements SysAccountService {
+
+    private static final Logger log = LoggerFactory.getLogger(SysAccountServiceImpl.class);
 
     private static final int PARENT_ROLE_ID = 3;
 
@@ -441,37 +445,42 @@ public class SysAccountServiceImpl implements SysAccountService {
 
     @Override
     public Result<SysAccount> getUserInfo(Long uid) {
-        Optional<SysAccount> accountOpt = accountRepository.findByUidSql(uid);
-        if (accountOpt.isEmpty()) {
-            return Result.error("用户不存在");
-        }
+        try {
+            Optional<SysAccount> accountOpt = accountRepository.findByUidSql(uid);
+            if (accountOpt.isEmpty()) {
+                return Result.error("用户不存在");
+            }
 
-        SysAccount account = accountOpt.get();
-        checkVipExpiration(account);
+            SysAccount account = accountOpt.get();
+            checkVipExpiration(account);
 
-        if (account.getRoleId() != null && account.getRoleId() == 3) {
-            List<StudentParentBinding> bindings = bindingRepository.findByParentUid(account.getUid());
-            if (!bindings.isEmpty()) {
-                StudentParentBinding binding = bindings.get(0);
-                Optional<SysStudent> studentOpt = studentRepository.findById(binding.getStudentId());
-                if (studentOpt.isPresent()) {
-                    SysStudent student = studentOpt.get();
-                    Map<String, Object> studentMap = new java.util.HashMap<>();
-                    studentMap.put("id", student.getId());
-                    studentMap.put("name", student.getName());
-                    studentMap.put("school", student.getSchool());
-                    studentMap.put("grade", student.getGrade());
-                    studentMap.put("className", student.getClassName());
-                    studentMap.put("studentNo", student.getStudentNo());
-                    account.setBoundStudentInfo(studentMap);
-                    account.setGrade(student.getGrade());
+            if (account.getRoleId() != null && account.getRoleId() == 3) {
+                List<StudentParentBinding> bindings = bindingRepository.findByParentUid(account.getUid());
+                if (!bindings.isEmpty()) {
+                    StudentParentBinding binding = bindings.get(0);
+                    Optional<SysStudent> studentOpt = studentRepository.findById(binding.getStudentId());
+                    if (studentOpt.isPresent()) {
+                        SysStudent student = studentOpt.get();
+                        Map<String, Object> studentMap = new java.util.HashMap<>();
+                        studentMap.put("id", student.getId());
+                        studentMap.put("name", student.getName());
+                        studentMap.put("school", student.getSchool());
+                        studentMap.put("grade", student.getGrade());
+                        studentMap.put("className", student.getClassName());
+                        studentMap.put("studentNo", student.getStudentNo());
+                        account.setBoundStudentInfo(studentMap);
+                        account.setGrade(student.getGrade());
+                    }
                 }
             }
+
+            enrichAccountSecurityInfo(account);
+
+            return Result.success("获取成功", account);
+        } catch (Exception e) {
+            log.error("获取用户信息失败, uid: {}, error: {}", uid, e.getMessage());
+            throw e; // 抛出由 Controller 捕获
         }
-
-        enrichAccountSecurityInfo(account);
-
-        return Result.success("获取成功", account);
     }
 
     @Override
