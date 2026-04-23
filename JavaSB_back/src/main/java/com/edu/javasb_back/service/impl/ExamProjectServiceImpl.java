@@ -31,6 +31,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.persistence.criteria.Predicate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
@@ -146,6 +148,8 @@ record FileMatch(boolean ok, boolean skipped, SysStudent student, String msg) {
 
 @Service
 public class ExamProjectServiceImpl implements ExamProjectService {
+
+    private static final Logger log = LoggerFactory.getLogger(ExamProjectServiceImpl.class);
 
     private static final String NORMAL = "NORMAL";
     private static final int PDF_RENDER_DPI = 144;
@@ -2468,7 +2472,12 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             String cutType) throws Exception {
         List<Map<String, Object>> pages = mapList(mergeInfo.get("pages"));
         int pageCount = pages.isEmpty() ? 1 : pages.size();
-        if (pageCount <= 1) {
+        String sourceType = asString(mergeInfo.get("sourceType"));
+        boolean isPdfSource = "pdf".equalsIgnoreCase(sourceType);
+
+        // 如果是多页试卷（特别是 PDF），强制执行切片扫描并识别整合
+        if (pageCount <= 1 && !isPdfSource) {
+            log.info("--- 单页试卷识别 (Source: {}) ---", sourceType);
             AliyunPaperOcrService.SegmentResult ocrResult = aliyunPaperOcrService.segmentPaper(paperPath, subjectName, imageType, cutType);
             List<Map<String, Object>> regions = normalizeOcrRegions(regionList(ocrResult.getRegions()));
             Map<String, Object> pageResult = new LinkedHashMap<>();
@@ -2484,6 +2493,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             return new OcrExecutionResult(ocrResult.getRequestId(), ocrResult.getOcrSubject(), ocrResult.getImageType(), ocrResult.getCutType(), 1, regions, List.of(pageResult));
         }
 
+        log.info("--- PDF/多页试卷切片扫描识别整合 (Source: {}, Pages: {}) ---", sourceType, pageCount);
         List<Map<String, Object>> pageResults = new ArrayList<>();
         List<Map<String, Object>> mergedRegions = new ArrayList<>();
         String requestId = "";
@@ -2491,6 +2501,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         String resolvedImageType = "";
         String resolvedCutType = cutType;
         for (int pageIndex = 1; pageIndex <= pageCount; pageIndex++) {
+            log.info("正在识别第 {}/{} 页...", pageIndex, pageCount);
             Map<String, Object> pageResult = runSinglePaperOcrPage(paperPath, previewUrl, mergeInfo, pageIndex, subjectName, imageType, cutType);
             pageResults.add(pageResult);
             mergedRegions.addAll(mapList(pageResult.get("regions")));
@@ -2499,7 +2510,11 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             if (!StringUtils.hasText(resolvedImageType)) resolvedImageType = asString(pageResult.get("imageType"));
             if (!StringUtils.hasText(resolvedCutType)) resolvedCutType = asString(pageResult.get("cutType"));
         }
-        return new OcrExecutionResult(requestId, ocrSubject, resolvedImageType, resolvedCutType, pageCount, normalizeOcrRegions(mergedRegions), pageResults);
+        
+        List<Map<String, Object>> normalizedMerged = normalizeOcrRegions(mergedRegions);
+        log.info("切片扫描识别整合完成，共识别题目数量: {}", normalizedMerged.size());
+        
+        return new OcrExecutionResult(requestId, ocrSubject, resolvedImageType, resolvedCutType, pageCount, normalizedMerged, pageResults);
     }
 
     private Map<String, Object> runSinglePaperOcrPage(
@@ -2512,8 +2527,13 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             String cutType) throws Exception {
         List<Map<String, Object>> pages = mapList(mergeInfo.get("pages"));
         int pageCount = pages.isEmpty() ? 1 : pages.size();
+        String sourceType = asString(mergeInfo.get("sourceType"));
+        boolean isPdfSource = "pdf".equalsIgnoreCase(sourceType);
+
         if (pageIndex > pageCount) throw new IllegalArgumentException("页码超出范围，当前共有 " + pageCount + " 页");
-        if (pageCount <= 1) {
+        
+        // 如果是普通图片单页，直接识别
+        if (pageCount <= 1 && !isPdfSource) {
             AliyunPaperOcrService.SegmentResult ocrResult = aliyunPaperOcrService.segmentPaper(paperPath, subjectName, imageType, cutType);
             List<Map<String, Object>> regions = normalizeOcrRegions(regionList(ocrResult.getRegions()));
             Map<String, Object> result = new LinkedHashMap<>();
@@ -2529,6 +2549,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             return result;
         }
 
+        // PDF 每一页都必须经过切割后再识别，以保证坐标映射准确
         Map<String, Object> pageInfo = pages.get(pageIndex - 1);
         Path tempPath = null;
         try {
