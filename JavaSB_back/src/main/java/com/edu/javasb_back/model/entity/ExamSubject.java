@@ -31,6 +31,12 @@ public class ExamSubject {
     @Column(name = "answer_url", length = 500)
     private String answerUrl;
 
+    @Column(name = "paper_merge_info", columnDefinition = "TEXT")
+    private String paperMergeInfo;
+
+    @Column(name = "answer_merge_info", columnDefinition = "TEXT")
+    private String answerMergeInfo;
+
     @Column(name = "score_uploaded")
     private Boolean scoreUploaded;
 
@@ -68,6 +74,12 @@ public class ExamSubject {
 
     public String getAnswerUrl() { return answerUrl; }
     public void setAnswerUrl(String answerUrl) { this.answerUrl = answerUrl; }
+
+    public String getPaperMergeInfo() { return paperMergeInfo; }
+    public void setPaperMergeInfo(String paperMergeInfo) { this.paperMergeInfo = paperMergeInfo; }
+
+    public String getAnswerMergeInfo() { return answerMergeInfo; }
+    public void setAnswerMergeInfo(String answerMergeInfo) { this.answerMergeInfo = answerMergeInfo; }
 
     public Boolean getScoreUploaded() { return scoreUploaded; }
     public void setScoreUploaded(Boolean scoreUploaded) { this.scoreUploaded = scoreUploaded; }

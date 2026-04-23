@@ -8,7 +8,12 @@
       </template>
       <el-form :inline="true" :model="searchForm" class="search-form-inline">
         <el-form-item label="考试项目">
-          <el-input v-model="searchForm.name" placeholder="请输入考试项目名称" clearable @keyup.enter="handleSearch" />
+          <el-input
+            v-model="searchForm.name"
+            placeholder="请输入考试项目名称"
+            clearable
+            @keyup.enter="handleSearch"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
@@ -41,6 +46,9 @@
             </div>
           </div>
           <div class="mt-4 text-right flex justify-end gap-2">
+            <el-button type="warning" plain size="small" @click.stop="handleSubjectReport(item)">
+              单科报表
+            </el-button>
             <el-button type="primary" plain size="small" @click.stop="handleEnter(item)">
               分析大屏
             </el-button>
@@ -55,83 +63,90 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { fetchAnalysisProjects } from '@/api/core-business/exam/analysis/list'
+  import { onMounted, ref } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { ElMessage } from 'element-plus'
+  import { fetchAnalysisProjects } from '@/api/core-business/exam/analysis/list'
 
-const router = useRouter()
-const searchForm = ref({
-  name: ''
-})
+  const router = useRouter()
+  const searchForm = ref({
+    name: ''
+  })
 
-const tableData = ref<any[]>([])
+  const tableData = ref<any[]>([])
 
-const loadData = async () => {
-  try {
-    const res = await fetchAnalysisProjects({ name: searchForm.value.name || undefined })
-    tableData.value = res.records || []
-  } catch (error: any) {
-    ElMessage.error(error.message || '加载分析项目失败')
+  const loadData = async () => {
+    try {
+      const res = await fetchAnalysisProjects({ name: searchForm.value.name || undefined })
+      tableData.value = res.records || []
+    } catch (error: any) {
+      ElMessage.error(error.message || '加载分析项目失败')
+    }
   }
-}
 
-const handleSearch = () => {
-  loadData()
-}
+  const handleSearch = () => {
+    loadData()
+  }
 
-const resetSearch = () => {
-  searchForm.value.name = ''
-  loadData()
-}
+  const resetSearch = () => {
+    searchForm.value.name = ''
+    loadData()
+  }
 
-const handleEnter = (item: any) => {
-  router.push({
-    name: 'ExamAnalysisDashboard',
-    query: { projectId: item.id, projectName: item.name }
+  const handleEnter = (item: any) => {
+    router.push({
+      name: 'ExamAnalysisDashboard',
+      query: { projectId: item.id, projectName: item.name }
+    })
+  }
+
+  const handleSelectClass = (item: any) => {
+    router.push({
+      name: 'ExamAnalysisClassSelect',
+      query: { projectId: item.id, projectName: item.name }
+    })
+  }
+
+  const handleSubjectReport = (item: any) => {
+    router.push({
+      name: 'ExamAnalysisSubjectReport',
+      query: { projectId: item.id, projectName: item.name }
+    })
+  }
+
+  onMounted(() => {
+    loadData()
   })
-}
-
-const handleSelectClass = (item: any) => {
-  router.push({
-    name: 'ExamAnalysisClassSelect',
-    query: { projectId: item.id, projectName: item.name }
-  })
-}
-
-onMounted(() => {
-  loadData()
-})
 </script>
 
 <style scoped>
-.page-container {
-  padding: 20px;
-}
-.project-card {
-  cursor: pointer;
-  transition: transform 0.3s;
-}
-.project-card:hover {
-  transform: translateY(-5px);
-}
-.project-name {
-  font-size: 16px;
-  font-bold: bold;
-  margin-bottom: 10px;
-  color: var(--el-text-color-primary);
-}
-.project-meta {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-.stat-value {
-  font-size: 18px;
-  font-weight: bold;
-  color: var(--el-color-primary);
-}
-.stat-label {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
+  .page-container {
+    padding: 20px;
+  }
+  .project-card {
+    cursor: pointer;
+    transition: transform 0.3s;
+  }
+  .project-card:hover {
+    transform: translateY(-5px);
+  }
+  .project-name {
+    font-size: 16px;
+    font-bold: bold;
+    margin-bottom: 10px;
+    color: var(--el-text-color-primary);
+  }
+  .project-meta {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+  .stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--el-color-primary);
+  }
+  .stat-label {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
 </style>

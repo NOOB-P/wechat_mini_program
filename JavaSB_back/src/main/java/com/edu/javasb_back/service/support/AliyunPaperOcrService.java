@@ -11,11 +11,14 @@ import com.aliyun.teaopenapi.models.Config;
 import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.io.InputStream;
+import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -28,6 +31,8 @@ import java.util.regex.Pattern;
 
 @Service
 public class AliyunPaperOcrService {
+
+    private static final Logger log = LoggerFactory.getLogger(AliyunPaperOcrService.class);
 
     private static final Pattern QUESTION_NUMBER_PATTERN = Pattern.compile("(\\d+)");
     private static final Pattern SCORE_PATTERN = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*分");
@@ -128,7 +133,7 @@ public class AliyunPaperOcrService {
     }
 
     private <T> T executeWithRetry(OcrCallable<T> callable) throws Exception {
-        int maxRetries = 3;
+        int maxRetries = 5; // 增加重试次数
         int retryCount = 0;
         Exception lastException = null;
 
@@ -138,11 +143,25 @@ public class AliyunPaperOcrService {
             } catch (Exception e) {
                 retryCount++;
                 lastException = e;
+                
+                String errorMsg = e.getMessage();
+                boolean isSocketError = e instanceof SocketException || (errorMsg != null && errorMsg.contains("Connection reset"));
+                
+                if (isSocketError) {
+                    log.warn("检测到网络连接重置 (Connection reset)，正在进行第 {}/{} 次重试...", retryCount, maxRetries);
+                } else {
+                    log.warn("阿里云 OCR 调用异常 ({})，正在进行第 {}/{} 次重试...", e.getClass().getSimpleName(), retryCount, maxRetries);
+                }
+
                 if (retryCount >= maxRetries) {
+                    log.error("阿里云 OCR 调用在重试 {} 次后依然失败: {}", maxRetries, e.getMessage());
                     break;
                 }
+                
+                // 指数退避重试延迟
+                long delay = (long) Math.pow(2, retryCount) * 1000L;
                 try {
-                    Thread.sleep(2000); // OCR retries might need longer delay
+                    Thread.sleep(delay); 
                 } catch (InterruptedException ignored) {
                     Thread.currentThread().interrupt();
                 }

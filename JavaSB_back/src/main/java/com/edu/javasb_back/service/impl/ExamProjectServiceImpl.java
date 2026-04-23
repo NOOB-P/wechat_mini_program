@@ -756,7 +756,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     continue;
                 }
 
-                String storedUrl = storePaperFile(
+                StoredPaperAsset asset = storePaperFile(
                         new ByteArrayInputStream(paperEntry.content()),
                         projectId,
                         subjectName,
@@ -764,7 +764,13 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                         entryName
                 );
                 ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), subject, student);
-                score.setAnswerSheetUrl(storedUrl);
+                score.setAnswerSheetUrl(asset.url());
+
+                // 如果上传的是 PDF 或有分页信息，保存分页信息
+                if (hasValidPaperMergeInfo(asset.mergeInfo())) {
+                    score.setAnswerMergeInfo(jsonMap(asset.mergeInfo()));
+                }
+
                 scoresToSave.add(score);
                 uploadCtx.existingScoreMap().put(scoreKey, score);
                 successCount++;
@@ -822,11 +828,17 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
         String scoreKey = subject.getId() + "_" + student.getStudentNo();
         try {
-            String storedUrl = storePaperFile(file.getInputStream(), projectId, subjectName, student.getStudentNo(), originalFilename);
+            StoredPaperAsset asset = storePaperFile(file.getInputStream(), projectId, subjectName, student.getStudentNo(), originalFilename);
             ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), subject, student);
-            score.setAnswerSheetUrl(storedUrl);
+            score.setAnswerSheetUrl(asset.url());
+
+            // 如果上传的是 PDF 或有分页信息，保存分页信息
+            if (hasValidPaperMergeInfo(asset.mergeInfo())) {
+                score.setAnswerMergeInfo(jsonMap(asset.mergeInfo()));
+            }
+
             examStudentScoreRepository.saveAndFlush(score);
-            return Result.success("试卷上传成功", storedUrl);
+            return Result.success("试卷上传成功", asset.url());
         } catch (Exception e) {
             return Result.error("试卷上传失败: " + e.getMessage());
         }
@@ -1195,7 +1207,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         return FileMatch.ok(students.get(0));
     }
 
-    private String storePaperFile(InputStream inputStream, String projectId, String subjectName, String studentNo, String originalFilename) throws Exception {
+    private StoredPaperAsset storePaperFile(InputStream inputStream, String projectId, String subjectName, String studentNo, String originalFilename) throws Exception {
         String storedNamePrefix = safePathSegment(studentNo) + "_" + System.currentTimeMillis() + "_" +
                 UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         return storePaperAsset(
@@ -1203,7 +1215,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 "papers/exam-projects/" + safePathSegment(projectId) + "/" + safePathSegment(subjectName) + "/",
                 storedNamePrefix,
                 originalFilename
-        ).url();
+        );
     }
 
     private boolean isZipFile(String fileName) {
@@ -1555,7 +1567,8 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     .filter(StringUtils::hasText)
                     .collect(Collectors.toCollection(LinkedHashSet::new));
 
-            String storedUrl = storePublicPaperFile(file.getInputStream(), projectId, subjectName, type, originalFilename);
+            StoredPaperAsset asset = storePublicPaperFile(file.getInputStream(), projectId, subjectName, type, originalFilename);
+            String storedUrl = asset.url();
 
             for (ExamSubject subject : subjects) {
                 if ("template".equals(type)) {
@@ -1569,6 +1582,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             ExamProject project = examProjectRepository.findById(projectId).orElse(null);
             if (project != null) {
                 clearPaperLayout(project, subjectName, type);
+                savePaperMergeInfo(project, subjectName, type, asset.mergeInfo());
                 examProjectRepository.saveAndFlush(project);
             }
 
@@ -1627,6 +1641,22 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 config.put("templateMergeInfo", templateContext == null ? Collections.emptyMap() : templateContext.mergeInfo());
                 config.put("originalMergeInfo", originalContext == null ? Collections.emptyMap() : originalContext.mergeInfo());
                 
+                // 同步更新 ExamSubject 中的分页信息 (如果 context 中生成了新的 mergeInfo)
+                if (templateContext != null && templateContext.mergeInfoChanged()) {
+                    String info = jsonMap(templateContext.mergeInfo());
+                    for (ExamSubject item : subjectRows) {
+                        item.setAnswerMergeInfo(info);
+                    }
+                    examSubjectRepository.saveAllAndFlush(subjectRows);
+                }
+                if (originalContext != null && originalContext.mergeInfoChanged()) {
+                    String info = jsonMap(originalContext.mergeInfo());
+                    for (ExamSubject item : subjectRows) {
+                        item.setPaperMergeInfo(info);
+                    }
+                    examSubjectRepository.saveAllAndFlush(subjectRows);
+                }
+
                 if ((templateContext != null && templateContext.mergeInfoChanged())
                         || (originalContext != null && originalContext.mergeInfoChanged())) {
                     examProjectRepository.saveAndFlush(project);
@@ -1831,7 +1861,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 .toList();
     }
 
-    private String storePublicPaperFile(InputStream inputStream, String projectId, String subjectName, String type, String originalFilename) throws Exception {
+    private StoredPaperAsset storePublicPaperFile(InputStream inputStream, String projectId, String subjectName, String type, String originalFilename) throws Exception {
         String storedNamePrefix = type + "_" + System.currentTimeMillis();
         return storePaperAsset(
                 inputStream,
@@ -1839,7 +1869,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                         safePathSegment(subjectName) + "/public/",
                 storedNamePrefix,
                 originalFilename
-        ).url();
+        );
     }
 
     private Map<String, Object> buildSingleImageMergeInfo(byte[] fileBytes) throws Exception {
@@ -2393,6 +2423,18 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     private Map<String, Object> resolveStoredPaperMergeInfo(ExamProject project, String subjectName, String type) {
         if (project == null || !StringUtils.hasText(subjectName) || !StringUtils.hasText(type)) return Collections.emptyMap();
+        
+        // 1. 优先从 ExamSubject 表字段中读取
+        List<ExamSubject> subjects = findProjectSubjectsByName(project.getId(), subjectName);
+        if (!subjects.isEmpty()) {
+            ExamSubject subject = subjects.get(0);
+            String mergeInfoJson = "template".equals(type) ? subject.getAnswerMergeInfo() : subject.getPaperMergeInfo();
+            if (StringUtils.hasText(mergeInfoJson)) {
+                return map(mergeInfoJson);
+            }
+        }
+
+        // 2. 兜底从 ExamProject 的 JSON 字段中读取
         Map<String, Object> mergeInfoRoot = map(project.getPaperMergeInfo());
         Map<String, Object> subjectMergeInfo = nestedMap(mergeInfoRoot.get(subjectName));
         return nestedMap(subjectMergeInfo.get(type));
@@ -2413,11 +2455,27 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     private void savePaperMergeInfo(ExamProject project, String subjectName, String type, Map<String, Object> mergeInfo) {
         if (project == null || !StringUtils.hasText(subjectName) || !StringUtils.hasText(type)) return;
+        
+        // 1. 保存到 ExamProject (项目级冗余)
         Map<String, Object> mergeInfoRoot = new LinkedHashMap<>(map(project.getPaperMergeInfo()));
         Map<String, Object> subjectMergeInfo = new LinkedHashMap<>(nestedMap(mergeInfoRoot.get(subjectName)));
         subjectMergeInfo.put(type, mergeInfo == null ? Collections.emptyMap() : mergeInfo);
         mergeInfoRoot.put(subjectName, subjectMergeInfo);
         project.setPaperMergeInfo(jsonMap(mergeInfoRoot));
+
+        // 2. 同步保存到具体的 ExamSubject 表字段中
+        List<ExamSubject> subjects = findProjectSubjectsByName(project.getId(), subjectName);
+        if (!subjects.isEmpty()) {
+            String mergeInfoJson = jsonMap(mergeInfo);
+            for (ExamSubject subject : subjects) {
+                if ("template".equals(type)) {
+                    subject.setAnswerMergeInfo(mergeInfoJson);
+                } else if ("original".equals(type)) {
+                    subject.setPaperMergeInfo(mergeInfoJson);
+                }
+            }
+            examSubjectRepository.saveAllAndFlush(subjects);
+        }
     }
 
     private void mergePagedLayoutResult(

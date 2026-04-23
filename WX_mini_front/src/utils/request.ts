@@ -1,8 +1,5 @@
 import type { requestOptions } from '@/types/request'
-import { useToast } from 'wot-design-uni'
 import { getMockData } from '@/mock/index'
-
-const toast = useToast()
 
 // 是否开启 mock (通常只在开发环境下开启)
 const USE_MOCK = import.meta.env.DEV
@@ -11,6 +8,25 @@ const MOCK_BYPASS_URLS = [
     '/api/app/auth/login/phone',
     '/api/app/auth/login/wechat/bind-phone'
 ]
+
+// 封装 toast 提示，兼容非组件环境
+const showToast = (options: UniApp.ShowToastOptions) => {
+    uni.showToast({
+        ...options,
+        icon: options.icon || 'none'
+    })
+}
+
+const showLoading = (title: string) => {
+    uni.showLoading({
+        title,
+        mask: true
+    })
+}
+
+const hideLoading = () => {
+    uni.hideLoading()
+}
 
 // 请求拦截
 const requestInterceptor = (options: requestOptions) => {
@@ -42,7 +58,7 @@ const requestInterceptor = (options: requestOptions) => {
 
 export default (options:requestOptions): Promise<any> => {
     if (!options.silent) {
-        toast.loading('加载中...')
+        showLoading('加载中...')
     }
     
     // 如果开启 mock，则尝试拦截并返回模拟数据
@@ -52,15 +68,16 @@ export default (options:requestOptions): Promise<any> => {
             console.log('拦截到 Mock 数据:', mockResponse);
             return new Promise((resolve, reject) => {
                 setTimeout(() => {
+                    hideLoading()
                     if (mockResponse.code === 200) {
                         resolve(mockResponse);
                         if (!options.silent) {
-                            toast.success(mockResponse.msg);
+                            showToast({ title: mockResponse.msg, icon: 'success' });
                         }
                     } else {
                         reject(mockResponse);
                         if (!options.silent) {
-                            toast.error(`Mock Error ${mockResponse.code}:${mockResponse.msg}`);
+                            showToast({ title: `Mock Error ${mockResponse.code}:${mockResponse.msg}` });
                         }
                     }
                 }, 500); // 模拟网络延迟
@@ -73,30 +90,32 @@ export default (options:requestOptions): Promise<any> => {
         uni.request({
             ...options,
             success(res:UniApp.RequestSuccessCallbackResult) {
+                hideLoading()
                 // 判断返回data是否为object，请求返回值可能不是object
                 if(typeof res.data === 'object' && 'code' in res.data) {
                     if(res.data.code === 200) {
                         resolve(res.data)
                         if (!options.silent) {
-                            toast.success(res.data.msg)
+                            showToast({ title: res.data.msg, icon: 'success' })
                         }
                     } else {
                         reject(res.data)
                         if (!options.silent) {
-                            toast.error(`Error ${res.data.code}:${res.data.msg}`)
+                            showToast({ title: `Error ${res.data.code}:${res.data.msg}` })
                         }
                     }
                 } else {
                     resolve(res.data)
                     if (!options.silent) {
-                        toast.success('请求成功')
+                        showToast({ title: '请求成功', icon: 'success' })
                     }
                 }
             },
             fail(error) {
+                hideLoading()
                 reject(error)
                 if (!options.silent) {
-                    toast.error(`Error: ${error.errMsg}`)
+                    showToast({ title: `Error: ${error.errMsg}` })
                 }
             },
             complete() {}

@@ -43,6 +43,13 @@ spring:
     multipart:
       max-file-size: 500MB
       max-request-size: 500MB
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: ${SPRING_REDIS_PORT:6379}
+      password: ${SPRING_REDIS_PASSWORD:}
+      database: ${SPRING_REDIS_DATABASE:0}
+      timeout: 5000ms
 
 server:
   port: 8082

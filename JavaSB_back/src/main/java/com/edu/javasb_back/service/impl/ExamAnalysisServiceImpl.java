@@ -201,6 +201,95 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
     }
 
     @Override
+    public Result<Map<String, Object>> getSubjectReport(String projectId, String subjectName) {
+        AnalysisCtx ctx = buildCtx(projectId);
+        if (!ctx.ok()) return Result.error(ctx.msg());
+        if (ctx.subjectNames().isEmpty()) return Result.error("项目下暂无学科数据");
+
+        String selectedSubject = StringUtils.hasText(subjectName) ? subjectName : ctx.subjectNames().iterator().next();
+        if (!ctx.subjectNames().contains(selectedSubject)) return Result.error("项目中不存在学科: " + selectedSubject);
+
+        List<ExamStudentScore> projectScores = ctx.scoresBySubjectName().getOrDefault(selectedSubject, Collections.emptyList());
+        if (projectScores.isEmpty()) return Result.error("当前学科暂无已录入成绩");
+
+        double fullScore = subjectFullScore(ctx, selectedSubject, projectScores);
+        SubjectMetricSnapshot projectMetric = subjectMetricSnapshot(projectScores, fullScore);
+        List<Map<String, Object>> questionAnalysis = buildProjectQuestionAnalysis(ctx, selectedSubject);
+
+        List<Map<String, Object>> subjects = ctx.subjectNames().stream().map(name -> {
+            List<ExamStudentScore> scores = ctx.scoresBySubjectName().getOrDefault(name, Collections.emptyList());
+            double subjectFullScore = subjectFullScore(ctx, name, scores);
+            SubjectMetricSnapshot metric = subjectMetricSnapshot(scores, subjectFullScore);
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("name", name);
+            row.put("fullScore", round(subjectFullScore));
+            row.put("participantCount", metric.participantCount());
+            row.put("avgScore", round(metric.avgScore()));
+            row.put("passRate", round(metric.passRate()));
+            return row;
+        }).toList();
+
+        List<Map<String, Object>> schoolRanking = ctx.classes().stream()
+                .collect(Collectors.groupingBy(ExamClass::getSchoolId, LinkedHashMap::new, Collectors.toList()))
+                .values().stream()
+                .map(items -> {
+                    ExamClass first = items.get(0);
+                    List<ExamStudentScore> schoolScores = ctx.subjectsBySchoolAndName(first.getSchoolId(), selectedSubject);
+                    SubjectMetricSnapshot metric = subjectMetricSnapshot(schoolScores, fullScore);
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("schoolId", first.getSchoolId());
+                    row.put("schoolName", first.getSchool());
+                    row.put("participantCount", metric.participantCount());
+                    row.put("avgScore", round(metric.avgScore()));
+                    row.put("passRate", round(metric.passRate()));
+                    row.put("excellentRate", round(metric.excellentRate()));
+                    row.put("lowRate", round(metric.lowRate()));
+                    return row;
+                })
+                .filter(row -> asDouble(row.get("participantCount")) > 0)
+                .sorted(Comparator.comparing((Map<String, Object> item) -> asDouble(item.get("avgScore"))).reversed())
+                .toList();
+
+        List<Map<String, Object>> classRanking = ctx.classes().stream()
+                .map(item -> {
+                    List<ExamStudentScore> classScores = ctx.subjectsByClassAndName(item.getId(), selectedSubject);
+                    SubjectMetricSnapshot metric = subjectMetricSnapshot(classScores, fullScore);
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("classId", item.getId());
+                    row.put("schoolName", item.getSchool());
+                    row.put("className", item.getGrade() + item.getClassName());
+                    row.put("participantCount", metric.participantCount());
+                    row.put("avgScore", round(metric.avgScore()));
+                    row.put("passRate", round(metric.passRate()));
+                    row.put("excellentRate", round(metric.excellentRate()));
+                    row.put("lowRate", round(metric.lowRate()));
+                    return row;
+                })
+                .filter(row -> asDouble(row.get("participantCount")) > 0)
+                .sorted(Comparator.comparing((Map<String, Object> item) -> asDouble(item.get("avgScore"))).reversed())
+                .toList();
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("project", projectBase(ctx.project()));
+        data.put("subjects", subjects);
+        data.put("currentSubject", selectedSubject);
+        data.put("overviewCards", List.of(
+                subjectMetricCard("参考人数", projectMetric.participantCount(), "人", "当前学科已录入成绩人数", "#409EFF"),
+                subjectMetricCard("学科均分", round(projectMetric.avgScore()), "分", "项目整体平均水平", "#36CFC9"),
+                subjectMetricCard("及格率", round(projectMetric.passRate()), "%", "达到及格线学生占比", "#E6A23C"),
+                subjectMetricCard("优秀率", round(projectMetric.excellentRate()), "%", "达到优秀线学生占比", "#67C23A"),
+                subjectMetricCard("低分率", round(projectMetric.lowRate()), "%", "低于40%得分线学生占比", "#F56C6C"),
+                subjectMetricCard("学科满分", round(fullScore), "分", "用于单科对比的满分基准", "#8B5CF6")
+        ));
+        data.put("scoreDistribution", buildDistributionRows(projectScores.stream().map(this::scoreValue).toList(), 6));
+        data.put("schoolRanking", schoolRanking);
+        data.put("classRanking", classRanking);
+        data.put("questionAnalysis", questionAnalysis);
+        data.put("wrongQuestionFocus", buildProjectWrongQuestionFocus(questionAnalysis, selectedSubject));
+        return Result.success("获取成功", data);
+    }
+
+    @Override
     public Result<Map<String, Object>> getStudentReport(String projectId, String classId, String studentNo) {
         AnalysisCtx ctx = buildCtx(projectId);
         if (!ctx.ok()) return Result.error(ctx.msg());
@@ -463,6 +552,96 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
         return rows;
     }
 
+    private List<Map<String, Object>> buildProjectQuestionAnalysis(AnalysisCtx ctx, String subjectName) {
+        List<ExamStudentScore> projectScores = ctx.scoresBySubjectName().getOrDefault(subjectName, Collections.emptyList());
+        if (projectScores.isEmpty()) return Collections.emptyList();
+
+        List<Double> questionFullScores = resolveQuestionFullScores(projectScores, ctx.benchmarks().get(subjectName));
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (int i = 0; i < questionFullScores.size(); i++) {
+            final int index = i;
+            double questionFullScore = questionFullScores.get(index);
+            if (questionFullScore <= 0) continue;
+
+            List<Double> projectQuestionScores = projectScores.stream()
+                    .map(item -> parseQuestionScores(item.getQuestionScores()))
+                    .filter(list -> list.size() > index)
+                    .map(list -> list.get(index))
+                    .toList();
+            if (projectQuestionScores.isEmpty()) continue;
+
+            List<Map<String, Object>> classQuestionRows = ctx.classes().stream()
+                    .map(item -> {
+                        List<Double> classQuestionScores = ctx.subjectsByClassAndName(item.getId(), subjectName).stream()
+                                .map(score -> parseQuestionScores(score.getQuestionScores()))
+                                .filter(list -> list.size() > index)
+                                .map(list -> list.get(index))
+                                .toList();
+                        if (classQuestionScores.isEmpty()) return null;
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("classId", item.getId());
+                        row.put("className", item.getGrade() + item.getClassName());
+                        row.put("schoolName", item.getSchool());
+                        row.put("avgScore", round(average(classQuestionScores)));
+                        row.put("scoreRate", round(average(classQuestionScores) / questionFullScore * 100D));
+                        return row;
+                    })
+                    .filter(item -> item != null)
+                    .sorted(Comparator.comparing((Map<String, Object> item) -> asDouble(item.get("scoreRate"))))
+                    .toList();
+
+            Map<String, Object> weakestClass = classQuestionRows.isEmpty() ? null : classQuestionRows.get(0);
+            Map<String, Object> strongestClass = classQuestionRows.isEmpty() ? null : classQuestionRows.get(classQuestionRows.size() - 1);
+            double avgScore = average(projectQuestionScores);
+            double scoreRate = round(avgScore / questionFullScore * 100D);
+            double zeroRate = round(projectQuestionScores.stream().filter(score -> score <= 0D).count() * 100D / projectQuestionScores.size());
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("questionNo", String.valueOf(index + 1));
+            row.put("questionLabel", questionLabel(index));
+            row.put("type", questionType(index));
+            row.put("fullScore", round(questionFullScore));
+            row.put("avgScore", round(avgScore));
+            row.put("scoreRate", scoreRate);
+            row.put("lossRate", round(100D - scoreRate));
+            row.put("zeroRate", zeroRate);
+            row.put("difficulty", projectDifficultyLabel(scoreRate));
+            row.put("weakestClassName", weakestClass == null ? "-" : weakestClass.get("schoolName") + " " + weakestClass.get("className"));
+            row.put("weakestClassRate", weakestClass == null ? 0D : asDouble(weakestClass.get("scoreRate")));
+            row.put("strongestClassName", strongestClass == null ? "-" : strongestClass.get("schoolName") + " " + strongestClass.get("className"));
+            row.put("strongestClassRate", strongestClass == null ? 0D : asDouble(strongestClass.get("scoreRate")));
+            row.put("classGap", weakestClass == null || strongestClass == null ? 0D : round(asDouble(strongestClass.get("scoreRate")) - asDouble(weakestClass.get("scoreRate"))));
+            row.put("explanation", buildProjectQuestionExplanation(subjectName, index, scoreRate, zeroRate, weakestClass, strongestClass));
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    private List<Map<String, Object>> buildProjectWrongQuestionFocus(List<Map<String, Object>> questionAnalysis, String subjectName) {
+        return questionAnalysis.stream()
+                .sorted(Comparator
+                        .comparing((Map<String, Object> item) -> asDouble(item.get("lossRate")) + asDouble(item.get("zeroRate")))
+                        .reversed())
+                .limit(8)
+                .map(item -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("subject", subjectName);
+                    row.put("questionNo", item.get("questionNo"));
+                    row.put("type", item.get("type"));
+                    row.put("fullScore", item.get("fullScore"));
+                    row.put("avgScore", item.get("avgScore"));
+                    row.put("scoreRate", item.get("scoreRate"));
+                    row.put("lossRate", item.get("lossRate"));
+                    row.put("zeroRate", item.get("zeroRate"));
+                    row.put("difficulty", item.get("difficulty"));
+                    row.put("weakestClassName", item.get("weakestClassName"));
+                    row.put("strongestClassName", item.get("strongestClassName"));
+                    row.put("suggestion", item.get("explanation"));
+                    return row;
+                })
+                .toList();
+    }
+
     private MetricSnapshot metricSnapshot(List<StudentSummary> students, double passRate, double excellentRate, double lowRate, double highRate) {
         if (students.isEmpty()) return new MetricSnapshot(0D, 0D, 0D, 0D, 0D);
         List<Double> totals = students.stream().map(StudentSummary::totalScore).toList();
@@ -472,6 +651,18 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
                 studentRate(students, passRate),
                 lowRate > 0 ? studentRateBelow(students, lowRate) : 0D,
                 highRate > 0 ? studentRate(students, highRate) : 0D
+        );
+    }
+
+    private SubjectMetricSnapshot subjectMetricSnapshot(List<ExamStudentScore> scores, double fullScore) {
+        if (scores == null || scores.isEmpty() || fullScore <= 0) return new SubjectMetricSnapshot(0D, 0D, 0D, 0D, 0);
+        List<Double> values = scores.stream().map(this::scoreValue).toList();
+        return new SubjectMetricSnapshot(
+                average(values),
+                rateCount(values, fullScore * PROJECT_PASS_RATE),
+                rateCount(values, fullScore * PROJECT_EXCELLENT_RATE),
+                rateCountBelow(values, fullScore * PROJECT_LOW_RATE),
+                values.size()
         );
     }
 
@@ -506,6 +697,16 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
         item.put("rank", rank);
         item.put("trend", 0D);
         item.put("type", type);
+        return item;
+    }
+
+    private Map<String, Object> subjectMetricCard(String label, Object value, String unit, String desc, String color) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("label", label);
+        item.put("value", value);
+        item.put("unit", unit);
+        item.put("desc", desc);
+        item.put("color", color);
         return item;
     }
 
@@ -622,6 +823,11 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
         return values.stream().filter(value -> value >= threshold).count() * 100D / values.size();
     }
 
+    private double rateCountBelow(List<Double> values, double threshold) {
+        if (values == null || values.isEmpty()) return 0D;
+        return values.stream().filter(value -> value < threshold).count() * 100D / values.size();
+    }
+
     private String subjectAnalysis(double score, double classAvg, double schoolAvg, int classRank) {
         if (score >= classAvg + 10) return "学科表现突出，显著高于班级均值";
         if (score >= schoolAvg) return "学科表现稳定，整体高于校级均值";
@@ -666,10 +872,23 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
         return subjectName + questionLabel(index) + "失分" + round(lostScore) + "分，" + classCompare + "，" + schoolCompare + "。" + difficultyDesc;
     }
 
+    private String buildProjectQuestionExplanation(String subjectName, int index, double scoreRate, double zeroRate, Map<String, Object> weakestClass, Map<String, Object> strongestClass) {
+        String weakest = weakestClass == null ? "暂无班级对比" : weakestClass.get("schoolName") + " " + weakestClass.get("className") + "得分率" + weakestClass.get("scoreRate") + "%";
+        String strongest = strongestClass == null ? "" : "，最佳班级为" + strongestClass.get("schoolName") + " " + strongestClass.get("className") + " " + strongestClass.get("scoreRate") + "%";
+        String level = scoreRate < 60 ? "属于项目共性难题" : scoreRate < 80 ? "存在明显分层" : "整体掌握较好";
+        return subjectName + questionLabel(index) + "项目平均得分率" + scoreRate + "%，零分率" + zeroRate + "%，" + weakest + strongest + "，" + level + "。";
+    }
+
     private double difficultyRate(double scoreRate) {
         if (scoreRate < 60) return 3;
         if (scoreRate < 80) return 2;
         return 1;
+    }
+
+    private String projectDifficultyLabel(double scoreRate) {
+        if (scoreRate < 60) return "难";
+        if (scoreRate < 80) return "中";
+        return "易";
     }
 
     private List<Double> resolveQuestionFullScores(List<ExamStudentScore> scores, SubjectBenchmark benchmark) {
@@ -784,6 +1003,8 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
     }
 
     private record MetricSnapshot(double avgScore, double excellentRate, double passRate, double lowRate, double highRate) {}
+
+    private record SubjectMetricSnapshot(double avgScore, double passRate, double excellentRate, double lowRate, int participantCount) {}
 
     private record AnalysisCtx(
             boolean ok,

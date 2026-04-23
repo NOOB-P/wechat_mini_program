@@ -93,12 +93,24 @@ public class OssStorageService {
     }
 
     public Path downloadToTempFile(String url) throws IOException {
-        byte[] bytes = download(url);
+        String objectKey = extractObjectKey(url);
+        if (!StringUtils.hasText(objectKey)) {
+            throw new IllegalArgumentException("当前 URL 不是可识别的 OSS 地址");
+        }
+
         String suffix = getFileSuffix(url);
         Path tempDir = Paths.get(globalConfigProperties.getUploadTempDir()).toAbsolutePath().normalize();
         Files.createDirectories(tempDir);
         Path tempFile = Files.createTempFile(tempDir, "oss_", suffix);
-        Files.write(tempFile, bytes);
+
+        execute(client -> {
+            try (OSSObject object = client.getObject(bucket, objectKey);
+                 InputStream inputStream = object.getObjectContent()) {
+                Files.copy(inputStream, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                return null;
+            }
+        });
+
         return tempFile;
     }
 
