@@ -155,7 +155,6 @@ import { Plus, VideoPlay } from '@element-plus/icons-vue'
 import '@wangeditor/editor/dist/css/style.css'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import { ElMessage } from 'element-plus'
-import { useUserStore } from '@/store/modules/user'
 import { uploadCourseVideo } from '@/api/course-study/course'
 
 const props = defineProps({
@@ -171,10 +170,7 @@ const dialogVisible = computed({
   set: (val) => emit('update:visible', val)
 })
 
-const userStore = useUserStore()
-const uploadHeaders = computed(() => ({
-  Authorization: `Bearer ${userStore.accessToken}`
-}))
+const uploadHeaders = computed(() => ({}))
 
 const formRef = ref()
 const editorRef = shallowRef()

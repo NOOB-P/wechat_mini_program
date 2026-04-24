@@ -223,7 +223,6 @@ import CourseDialog from './modules/course-dialog.vue'
 import EpisodeDialog from './modules/episode-dialog.vue'
 import VideoDialog from './modules/video-dialog.vue'
 import { ArrowLeft, VideoPlay } from '@element-plus/icons-vue'
-import { useUserStore } from '@/store/modules/user'
 
 const loading = ref(false)
 const tableData = ref<any[]>([])
@@ -266,10 +265,7 @@ const videoDialogVisible = ref(false)
 const isVideoEdit = ref(false)
 const videoEditData = ref<Record<string, any> | undefined>(undefined)
 
-const userStore = useUserStore()
-const uploadHeaders = computed(() => ({
-  Authorization: `Bearer ${userStore.accessToken}`
-}))
+const uploadHeaders = computed(() => ({}))
 
 // --- 视频管理逻辑 ---
 const enterEpisodeVideoManagement = (row: any) => {

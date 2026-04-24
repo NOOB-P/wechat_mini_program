@@ -54,8 +54,16 @@ public class JwtUtils {
         claims.put("uid", uid);
         claims.put("username", username);
         // Refresh token 有效期设为普通的 7 倍 (例如普通一天，refresh 就是七天)
-        long refreshExpiration = globalConfigProperties.getJwtExpiration() * 7;
+        long refreshExpiration = getRefreshTokenExpiration();
         return createToken(claims, username, refreshExpiration);
+    }
+
+    public long getAccessTokenExpiration() {
+        return globalConfigProperties.getJwtExpiration();
+    }
+
+    public long getRefreshTokenExpiration() {
+        return globalConfigProperties.getJwtExpiration() * 7;
     }
 
     private String createToken(Map<String, Object> claims, String subject, long expirationTime) {

@@ -237,18 +237,7 @@
         roleId: selectedAccount?.roleId
       })
 
-      // 提取后端的 token 和 refreshToken（从后端的 LoginVO 对象中获取）
-      // 注意，这里我们的 axios 拦截器可能会返回 res 或者 res.data，如果是 res.data.data 则取 data
-      const token = res.data?.token || res.token
-      const refreshToken = res.data?.refreshToken || res.refreshToken
-
-      // 验证token
-      if (!token) {
-        throw new Error('Login failed - no token received')
-      }
-
-      // 存储 token 和登录状态
-      userStore.setToken(token, refreshToken)
+      // 后端会将后台 token 写入 HttpOnly Cookie，前端只保留登录态
       userStore.setLoginStatus(true)
 
       // 登录成功处理

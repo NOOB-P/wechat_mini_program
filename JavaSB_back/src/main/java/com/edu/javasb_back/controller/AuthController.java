@@ -6,10 +6,12 @@ import com.edu.javasb_back.model.dto.AccountUpdateDTO;
 import com.edu.javasb_back.model.dto.PasswordUpdateDTO;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.service.SysAccountService;
+import com.edu.javasb_back.utils.AuthCookieUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * 认证及当前用户通用接口
@@ -20,6 +22,9 @@ public class AuthController {
 
     @Autowired
     private SysAccountService sysAccountService;
+
+    @Autowired
+    private AuthCookieUtils authCookieUtils;
 
     /**
      * 获取当前登录用户信息（无需传UID，根据Token解析）
@@ -75,12 +80,16 @@ public class AuthController {
      */
     @LogOperation("退出登录")
     @PostMapping("/logout")
-    public Result<Void> logout(HttpServletRequest request) {
+    public Result<Void> logout(HttpServletRequest request, HttpServletResponse response) {
         String authHeader = request.getHeader("Authorization");
         String token = null;
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
         }
+        if (token == null || token.isBlank()) {
+            token = authCookieUtils.resolveAccessToken(request);
+        }
+        authCookieUtils.clearAuthCookies(request, response);
         return sysAccountService.logout(token);
     }
 }

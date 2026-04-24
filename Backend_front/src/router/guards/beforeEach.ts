@@ -116,7 +116,7 @@ export function setupBeforeEachGuard(router: Router): void {
       } catch (error) {
         console.error('[RouteGuard] 路由守卫处理失败:', error)
         closeLoading()
-        next({ name: 'Exception500' })
+        next({ name: 'Login' })
       }
     }
   )
@@ -162,8 +162,8 @@ async function handleRouteGuard(
     if (to.matched.length > 0) {
       next()
     } else {
-      // 未匹配到路由，跳转到 500 页面
-      next({ name: 'Exception500', replace: true })
+      // 未匹配到路由，跳转到登录页面
+      next({ name: 'Login', replace: true })
     }
     return
   }
@@ -211,11 +211,10 @@ function handleLoginStatus(
     return true
   }
 
-  // 未登录且访问需要权限的页面，跳转到登录页并携带 redirect 参数
+  // 未登录且访问需要权限的页面，跳转到登录页
   userStore.logOut()
   next({
-    name: 'Login',
-    query: { redirect: to.fullPath }
+    name: 'Login'
   })
   return false
 }
@@ -359,8 +358,8 @@ async function handleDynamicRoutes(
       console.error(`[RouteGuard] 错误码: ${error.code}, 消息: ${error.message}`)
     }
 
-    // 跳转到 500 页面，使用 replace 避免产生历史记录
-    next({ name: 'Exception500', replace: true })
+    // 跳转到登录页面，使用 replace 避免产生历史记录
+    next({ name: 'Login', replace: true })
   }
 }
 

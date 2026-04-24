@@ -83,12 +83,9 @@ export function fetchImportExcel(file: File) {
   })
 }
 
-import { useUserStore } from '@/store/modules/user'
-
 /** 下载导入模板 */
 export function fetchDownloadSchoolTemplate() {
-  const token = useUserStore().accessToken || ''
   // 修正下载链接
   const baseUrl = import.meta.env.VITE_API_URL === '/' ? '' : import.meta.env.VITE_API_URL || ''
-  window.open(`${baseUrl}/api/system/school/download-template?token=${token}`, '_blank')
+  window.open(`${baseUrl}/api/system/school/download-template`, '_blank')
 }

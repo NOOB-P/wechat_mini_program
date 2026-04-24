@@ -1,5 +1,4 @@
 import api from '@/utils/http'
-import { useUserStore } from '@/store/modules/user'
 
 export const getClassList = (params?: any) => {
   return api.get<any>({
@@ -66,7 +65,6 @@ export function fetchImportClass(file: File, schoolId?: string) {
 }
 
 export function fetchDownloadClassTemplate() {
-  const token = useUserStore().accessToken || ''
   const baseUrl = import.meta.env.VITE_API_URL === '/' ? '' : import.meta.env.VITE_API_URL || ''
-  window.open(`${baseUrl}/api/system/class/download-template?token=${token}`, '_blank')
+  window.open(`${baseUrl}/api/system/class/download-template`, '_blank')
 }
