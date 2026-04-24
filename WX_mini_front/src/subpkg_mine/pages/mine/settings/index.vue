@@ -41,8 +41,8 @@
       </wd-cell-group>
     </view>
 
-    <view class="logout-btn-container">
-      <text class="logout-text" @click="handleLogout">退出登录</text>
+    <view class="logout-btn-container" hover-class="button-hover" @click="handleLogout">
+      <text class="logout-text">退出登录</text>
     </view>
 
     <wd-popup v-model="showStudentDetailPopup" position="bottom" :custom-style="bottomPopupStyle">

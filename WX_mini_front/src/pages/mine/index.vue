@@ -170,35 +170,41 @@ onHide(() => {
 
     <view class="menu-content">
       <view class="menu-card">
-        <wd-cell-group border="false">
-          <wd-cell
+        <view class="menu-list">
+          <view
             v-for="(item, index) in menuGroup1"
             :key="index"
-            :title="item.label"
-            is-link
+            class="menu-item"
+            hover-class="menu-item--hover"
+            hover-stay-time="70"
             @click="handleMenuClick(item)"
           >
-            <template #icon>
-              <wd-icon :name="item.icon" size="20px" class="menu-icon" />
-            </template>
-          </wd-cell>
-        </wd-cell-group>
+            <view class="menu-item__left">
+              <wd-icon :name="item.icon" size="22px" class="menu-icon" />
+              <text class="menu-item__title">{{ item.label }}</text>
+            </view>
+            <wd-icon name="arrow-right" size="16px" class="menu-item__arrow" />
+          </view>
+        </view>
       </view>
 
       <view class="menu-card">
-        <wd-cell-group border="false">
-          <wd-cell
+        <view class="menu-list">
+          <view
             v-for="(item, index) in menuGroup2"
             :key="index"
-            :title="item.label"
-            is-link
+            class="menu-item"
+            hover-class="menu-item--hover"
+            hover-stay-time="70"
             @click="handleMenuClick(item)"
           >
-            <template #icon>
-              <wd-icon :name="item.icon" size="20px" class="menu-icon" />
-            </template>
-          </wd-cell>
-        </wd-cell-group>
+            <view class="menu-item__left">
+              <wd-icon :name="item.icon" size="22px" class="menu-icon" />
+              <text class="menu-item__title">{{ item.label }}</text>
+            </view>
+            <wd-icon name="arrow-right" size="16px" class="menu-item__arrow" />
+          </view>
+        </view>
       </view>
     </view>
   </view>
@@ -224,7 +230,7 @@ onHide(() => {
 .header-content {
   position: relative;
   z-index: 1;
-  padding: 0 40rpx 40rpx;
+  padding: 0 30rpx 30rpx; // 统一水平内边距为 30rpx
 
   .nav-bar {
     height: 88rpx;
@@ -343,45 +349,85 @@ onHide(() => {
 }
 
 .menu-content {
-  padding: 0 30rpx 40rpx;
+  padding: 0 30rpx 30rpx; // 底部间距统一为 30rpx
 
   .menu-card {
     background: #fff;
     border-radius: 24rpx;
     overflow: hidden;
-    margin-bottom: 30rpx;
+    margin-bottom: 30rpx; // 两个卡片之间的间距
     box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.02);
-    border: 1rpx solid rgba(0, 0, 0, 0.04); // 微弱边框增强质感
+    border: 1rpx solid rgba(0, 0, 0, 0.04);
+  }
 
-    .menu-icon {
-      margin-right: 24rpx;
-      color: #1a5f8e;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40rpx; // 固定图标容器宽度
+  .menu-list {
+    background: #fff;
+  }
+
+  .menu-item {
+    position: relative;
+    height: 120rpx;
+    padding: 0 32rpx;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    transition: background-color 0.2s;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 96rpx;
+      right: 0;
+      bottom: 0;
+      height: 1rpx;
+      background: #f0f1f5;
+      transform: scaleY(0.5);
+      transform-origin: center bottom;
     }
 
-    :deep(.wd-cell) {
-      padding: 32rpx 30rpx; // 稍微增大点击区域
-      background-color: #fff;
-      transition: all 0.2s;
-      
-      &::after {
-        left: 94rpx !important; // 边框对齐文字开始位置，更美观
-        right: 0 !important;
-      }
+    &:last-child::after {
+      display: none;
     }
 
-    :deep(.wd-cell__title) {
-      font-size: 28rpx;
-      color: #333;
-      font-weight: 500;
+    &:active {
+      background: #f5f5f5;
     }
+  }
 
-    :deep(.wd-cell--hover) {
-      background-color: #f5f7fa !important; // 统一点击背景色
-    }
+  .menu-item--hover {
+    background: #f5f5f5;
+  }
+
+  .menu-item__left {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+
+  .menu-icon {
+    margin-right: 24rpx;
+    color: #1a5f8e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40rpx;
+    height: 40rpx;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .menu-item__title {
+    font-size: 30rpx;
+    color: #333;
+    font-weight: 500;
+    line-height: 40rpx;
+  }
+
+  .menu-item__arrow {
+    color: #c7c9cf;
+    flex-shrink: 0;
   }
 }
 </style>
