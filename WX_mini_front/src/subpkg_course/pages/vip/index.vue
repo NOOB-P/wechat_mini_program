@@ -259,17 +259,17 @@ const estimatedPrice = computed(() => {
 
 const loadData = async () => {
   try {
-    toast.loading('加载中...')
+    uni.showLoading({ title: '加载中...', mask: true })
     const [wrongRes, printRes] = await Promise.all([
       getVipWrongBookApi({}),
       getPrintConfigApi()
     ])
     
+    uni.hideLoading()
     if (wrongRes.code === 200) wrongBookData.value = wrongRes.data
     if (printRes.code === 200) printConfig.value = printRes.data
-    
-    toast.close()
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error.msg || '获取数据失败')
   }
 }
@@ -279,8 +279,9 @@ onMounted(() => {
 })
 
 const handleExport = () => {
-  toast.loading('正在生成...')
+  uni.showLoading({ title: '正在生成...', mask: true })
   setTimeout(() => {
+    uni.hideLoading()
     toast.success('导出成功，请查看通知')
   }, 1500)
 }
@@ -290,8 +291,9 @@ const goToRecharge = (type: string = 'VIP') => {
 }
 
 const joinRoom = () => {
-  toast.loading('正在为您分配座位...')
+  uni.showLoading({ title: '正在为您分配座位...', mask: true })
   setTimeout(() => {
+    uni.hideLoading()
     toast.success('报名成功，即将进入自习室')
   }, 1500)
 }
@@ -301,21 +303,23 @@ const submitPrint = async () => {
     return toast.show('请填写完整信息')
   }
   try {
-    toast.loading('提交中...')
+    uni.showLoading({ title: '提交中...', mask: true })
     // 自动生成一个文档名称
     const docName = `错题本_${new Date().toLocaleDateString().replace(/\//g, '')}_${printForm.value.paperSize}`
     const res = await submitPrintOrderApi({
       ...printForm.value,
       documentName: docName
     })
+    uni.hideLoading()
     if (res.code === 200) {
       toast.success(res.msg || '下单成功')
       showPrintDialog.value = false
     } else {
-      toast.error('下单失败')
+      toast.error(res.msg || '下单失败')
     }
   } catch (e: any) {
-    toast.error('下单失败')
+    uni.hideLoading()
+    toast.error(e.msg || '下单失败')
   }
 }
 </script>

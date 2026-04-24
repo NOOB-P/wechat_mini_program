@@ -648,13 +648,14 @@ const handleExport = async () => {
   if (!examId) return toast.show('未选择考试')
 
   try {
-    toast.loading('正在生成PDF...')
+    uni.showLoading({ title: '正在生成PDF...', mask: true })
     const res = await exportWrongBookApi({
       examId,
       subject: selectedWrongSubject.value
     })
 
     if (res.code === 200 && res.data) {
+      uni.hideLoading()
       toast.success('生成成功')
       
       // 使用下载并打开文档的方式
@@ -673,9 +674,11 @@ const handleExport = async () => {
         fail: () => toast.error('下载文件失败')
       })
     } else {
+      uni.hideLoading()
       toast.error(res.msg || '生成失败')
     }
   } catch (e) {
+    uni.hideLoading()
     console.error('导出错题失败:', e)
     toast.error('网络错误，导出失败')
   }
@@ -693,7 +696,7 @@ const submitPrint = async () => {
     return toast.show('请填写完整信息')
   }
   try {
-    toast.loading('提交中...')
+    uni.showLoading({ title: '提交中...', mask: true })
     
     // 获取当前用户信息
     const userInfo = uni.getStorageSync('userInfo')
@@ -708,6 +711,7 @@ const submitPrint = async () => {
     }
     
     const res = await submitPrintOrderApi(orderData)
+    uni.hideLoading()
     if (res.code === 200) {
       toast.success(res.msg || '下单成功')
       showPrintDialog.value = false
@@ -715,6 +719,7 @@ const submitPrint = async () => {
       toast.error('下单失败')
     }
   } catch (e: any) {
+    uni.hideLoading()
     toast.error('下单失败')
   }
 }

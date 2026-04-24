@@ -50,17 +50,19 @@ const goBack = () => uni.navigateBack()
 
 const sendCode = async () => {
   if (!form.phone) return toast.show('手机号不存在')
+  uni.showLoading({ title: '发送中...', mask: true })
   try {
-    toast.loading('发送中...')
     await sendForgotPasswordCode(form.phone)
+    uni.hideLoading()
     toast.success('验证码已发送')
     countdown.value = 60
     const timer = setInterval(() => {
       countdown.value--
       if (countdown.value <= 0) clearInterval(timer)
     }, 1000)
-  } catch (error) {
-    toast.error('发送失败')
+  } catch (error: any) {
+    uni.hideLoading()
+    toast.error(error?.msg || '发送失败')
   }
 }
 
@@ -69,16 +71,21 @@ const handleReset = async () => {
   if (!code || !password) {
     return toast.show('请填写完整信息')
   }
+  uni.showLoading({ title: '正在重置...', mask: true })
   try {
-    toast.loading('正在重置...')
     const res = await resetPassword({ phone, code, password })
     if (res.code === 200) {
       toast.success('密码重置成功')
-      setTimeout(() => uni.navigateTo({ url: '/pages/login/index' }), 1500)
+      setTimeout(() => {
+        uni.hideLoading()
+        uni.navigateTo({ url: '/pages/login/index' })
+      }, 1500)
     } else {
+      uni.hideLoading()
       toast.error(res.msg || '重置失败')
     }
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error.msg || '网络错误')
   }
 }

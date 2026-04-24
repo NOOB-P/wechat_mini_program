@@ -49,6 +49,7 @@ import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.service.RolePermissionService;
 import com.edu.javasb_back.service.SmsService;
+import com.edu.javasb_back.service.LoginAsyncService;
 import com.edu.javasb_back.service.SysAccountService;
 import com.edu.javasb_back.utils.JwtUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -109,6 +110,9 @@ public class SysAccountServiceImpl implements SysAccountService {
 
     @Autowired
     private RolePermissionService rolePermissionService;
+
+    @Autowired
+    private LoginAsyncService loginAsyncService;
 
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
@@ -1457,8 +1461,8 @@ public class SysAccountServiceImpl implements SysAccountService {
     }
 
     private Result<LoginVO> generateLoginResult(SysAccount account) {
-        checkVipExpiration(account);
-        accountRepository.updateLoginStatusSql(account.getUid(), "online");
+        // 异步处理非核心逻辑：更新登录状态和检查会员过期
+        loginAsyncService.asyncUpdateLoginInfo(account.getUid());
 
         enrichAccountSecurityInfo(account);
 

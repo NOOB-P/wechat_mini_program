@@ -105,11 +105,12 @@ const routeParams = ref({
 
 const loadData = async () => {
   try {
-    toast.loading('加载中...')
+    uni.showLoading({ title: '加载中...', mask: true })
     const res = await getPaperDetailApi({
       examId: routeParams.value.examId,
       subject: routeParams.value.subject
     })
+    uni.hideLoading()
     if (res.code === 200) {
       const myPaperImages = ((res.data?.myPaperImages || res.data?.originalPaperImages || []) as string[])
         .map(resolveAssetUrl)
@@ -124,11 +125,11 @@ const loadData = async () => {
         questionScores: res.data?.questionScores || res.data?.answers || [],
         downloadUrl: resolveAssetUrl(res.data?.downloadUrl)
       }
-      toast.close()
     } else {
       toast.error(res.msg || '获取试卷失败')
     }
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error.msg || '网络错误')
   }
 }
@@ -180,7 +181,7 @@ const downloadPaper = () => {
     return toast.show('暂无下载链接')
   }
   
-  toast.loading('下载中...')
+  uni.showLoading({ title: '下载中...', mask: true })
   
   uni.downloadFile({
     url: paperData.value.downloadUrl,
@@ -192,18 +193,21 @@ const downloadPaper = () => {
           filePath: filePath,
           showMenu: true, // 允许转发/保存
           success: () => {
-            toast.close()
+            uni.hideLoading()
           },
           fail: (err) => {
+            uni.hideLoading()
             console.error('打开文件失败:', err)
             toast.error('无法打开该类型文件')
           }
         })
       } else {
+        uni.hideLoading()
         toast.error('下载失败')
       }
     },
     fail: (err) => {
+      uni.hideLoading()
       console.error('下载文件错误:', err)
       toast.error('网络错误，下载失败')
     }

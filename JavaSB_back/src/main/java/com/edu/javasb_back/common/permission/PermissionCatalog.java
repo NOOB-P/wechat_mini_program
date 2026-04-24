@@ -107,6 +107,7 @@ public final class PermissionCatalog {
     public static final String SYSTEM_PERMISSION_EDIT = "system:permission:edit";
     public static final String SYSTEM_PERMISSION_OPTIONS = "system:permission:options";
 
+
     public static final String SYSTEM_NOTIFICATION_LIST = "system:notification:list";
     public static final String SYSTEM_NOTIFICATION_SAVE = "system:notification:save";
     public static final String SYSTEM_NOTIFICATION_DELETE = "system:notification:delete";
