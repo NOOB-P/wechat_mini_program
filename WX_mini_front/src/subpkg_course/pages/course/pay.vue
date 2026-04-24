@@ -192,10 +192,10 @@ const handlePay = async () => {
       return
     }
     if (error?.code === 'PAY_CONFIRM_FAILED') {
-      toast.error(error.msg)
+      uni.showToast({ title: error.msg, icon: 'none' })
       return
     }
-    toast.error(error?.msg || error?.message || '支付失败，请稍后重试')
+    // API 错误已在 request.ts 中通过 uni.showToast 提示，此处不再重复使用 toast.error
   } finally {
     loading.value = false
   }

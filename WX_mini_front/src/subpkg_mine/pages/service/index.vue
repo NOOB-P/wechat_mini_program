@@ -16,18 +16,18 @@ const isLoading = ref(false)
 
 const handleContactClick = async () => {
   try {
-    toast.loading('加载中...')
+    uni.showLoading({ title: '加载中...', mask: true })
     const res = await getWechatCustomerServiceByLocationApi('HELP_SERVICE')
+    uni.hideLoading()
     if (res.code !== 200 || !res.data) {
       toast.show(res.msg || '客服暂不可用')
       return
     }
     await openEnterpriseCustomerServiceChat(res.data)
   } catch (error) {
+    uni.hideLoading()
     console.error('Failed to open customer service chat:', error)
     toast.error((error as any)?.msg || '无法打开客服会话')
-  } finally {
-    toast.close()
   }
 }
 

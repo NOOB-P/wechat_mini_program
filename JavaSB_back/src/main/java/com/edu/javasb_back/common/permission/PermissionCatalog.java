@@ -110,9 +110,6 @@ public final class PermissionCatalog {
     public static final String SYSTEM_NOTIFICATION_SAVE = "system:notification:save";
     public static final String SYSTEM_NOTIFICATION_DELETE = "system:notification:delete";
 
-    public static final String SYSTEM_NOTIFICATION_LIST = "system:notification:list";
-    public static final String SYSTEM_NOTIFICATION_SAVE = "system:notification:save";
-    public static final String SYSTEM_NOTIFICATION_DELETE = "system:notification:delete";
 
     public static final String SYSTEM_LOG_LIST = "system:log:list";
     public static final String SYSTEM_LOG_DELETE = "system:log:delete";

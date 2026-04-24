@@ -334,6 +334,7 @@ const startCountdown = (target: typeof countdown, setter: (value: ReturnType<typ
 
 const navigateAfterLogin = (isBoundStudent?: boolean, bindPhone?: string) => {
   setTimeout(() => {
+    uni.hideLoading()
     if (isBoundStudent) {
       uni.switchTab({ url: '/pages/home/index' })
       return
@@ -385,14 +386,17 @@ const sendCode = async () => {
     return
   }
 
+  uni.showLoading({ title: '发送中...', mask: true })
   try {
     await sendSmsCode(phone.value)
+    uni.hideLoading()
     toast.success('验证码已发送')
     clearTimer(timer)
     startCountdown(countdown, (value) => {
       timer = value
     })
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error?.msg || '验证码发送失败，请稍后重试')
     console.error('发送验证码失败', error)
   }
@@ -419,6 +423,7 @@ const handleLogin = async () => {
     return toast.show('密码长度应在6-20位之间')
   }
 
+  uni.showLoading({ title: '登录中...', mask: true })
   try {
     const res =
       loginType.value === 'phone'
@@ -430,8 +435,10 @@ const handleLogin = async () => {
       return
     }
 
+    uni.hideLoading()
     toast.error(res.msg || '登录失败')
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error.msg || '网络错误，请稍后重试')
   }
 }
@@ -447,6 +454,7 @@ const handleWechatPhoneLogin = async (event: any) => {
     return
   }
 
+  uni.showLoading({ title: '登录中...', mask: true })
   try {
     const wxCode = await getWechatLoginCode()
     const res = await loginByWechatPhone({
@@ -462,8 +470,10 @@ const handleWechatPhoneLogin = async (event: any) => {
       return
     }
 
+    uni.hideLoading()
     toast.error(res.msg || '手机号授权登录失败')
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error.msg || error.message || '手机号授权登录失败')
   }
 }
@@ -482,14 +492,17 @@ const sendRegisterCode = async () => {
     return
   }
 
+  uni.showLoading({ title: '发送中...', mask: true })
   try {
     await sendSmsCode(registerForm.value.phone)
+    uni.hideLoading()
     toast.success('验证码已发送')
     clearTimer(registerTimer)
     startCountdown(registerCountdown, (value) => {
       registerTimer = value
     })
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error?.msg || '验证码发送失败，请稍后重试')
     console.error('发送注册验证码失败', error)
   }
@@ -500,8 +513,10 @@ const handleRegister = async () => {
     return toast.show('请填写完整注册信息')
   }
 
+  uni.showLoading({ title: '注册中...', mask: true })
   try {
     const res = await register(registerForm.value)
+    uni.hideLoading()
     if (res.code === 200) {
       toast.success('注册成功')
       showRegisterPopup.value = false
@@ -510,6 +525,7 @@ const handleRegister = async () => {
 
     toast.error(res.msg || '注册失败')
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error.msg || '网络错误')
   }
 }
@@ -520,14 +536,17 @@ const sendForgotCode = async () => {
     return
   }
 
+  uni.showLoading({ title: '发送中...', mask: true })
   try {
     await sendSmsCode(forgotForm.value.phone)
+    uni.hideLoading()
     toast.success('验证码已发送')
     clearTimer(forgotTimer)
     startCountdown(forgotCountdown, (value) => {
       forgotTimer = value
     })
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error?.msg || '验证码发送失败，请稍后重试')
     console.error('发送找回密码验证码失败', error)
   }
@@ -538,8 +557,10 @@ const handleForgot = async () => {
     return toast.show('请填写完整信息')
   }
 
+  uni.showLoading({ title: '提交中...', mask: true })
   try {
     const res = await forgotPassword(forgotForm.value)
+    uni.hideLoading()
     if (res.code === 200) {
       toast.success('密码重置成功')
       showForgotPopup.value = false
@@ -548,6 +569,7 @@ const handleForgot = async () => {
 
     toast.error(res.msg || '重置失败')
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error.msg || '网络错误')
   }
 }
@@ -558,14 +580,17 @@ const sendBindPhoneCode = async () => {
     return
   }
 
+  uni.showLoading({ title: '发送中...', mask: true })
   try {
     await sendSmsCode(bindPhoneForm.value.phone)
+    uni.hideLoading()
     toast.success('验证码已发送')
     clearTimer(bindPhoneTimer)
     startCountdown(bindPhoneCountdown, (value) => {
       bindPhoneTimer = value
     })
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error?.msg || '验证码发送失败，请稍后重试')
     console.error('发送绑定手机号验证码失败', error)
   }
@@ -576,6 +601,7 @@ const handleBindPhone = async () => {
     return toast.show('请填写完整信息')
   }
 
+  uni.showLoading({ title: '绑定中...', mask: true })
   try {
     const res = await bindThirdPartyPhone(bindPhoneForm.value)
     if (res.code === 200) {
@@ -587,14 +613,17 @@ const handleBindPhone = async () => {
       return
     }
 
+    uni.hideLoading()
     toast.error(res.msg || '绑定失败')
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error.msg || '网络错误')
   }
 }
 
 const handleThirdPartySuccess = (res: any, type: string) => {
   if (res.data?.needBind) {
+    uni.hideLoading()
     toast.show('请先绑定手机号')
     bindPhoneForm.value.openid = res.data.openid
     bindPhoneForm.value.type = type
@@ -614,11 +643,14 @@ const thirdPartyLogin = (type: string) => {
   if (!isAgreed.value) {
     return toast.show('请先勾选同意用户协议和隐私政策')
   }
+
+  uni.showLoading({ title: '登录中...', mask: true })
   if (type === 'wechat') {
     uni.login({
       provider: 'weixin',
       success: async (loginRes) => {
         if (!loginRes.code) {
+          uni.hideLoading()
           toast.error('获取微信登录凭证失败')
           return
         }
@@ -629,12 +661,15 @@ const thirdPartyLogin = (type: string) => {
             handleThirdPartySuccess(res, 'wechat')
             return
           }
+          uni.hideLoading()
           toast.error(res.msg || '微信登录失败')
         } catch (error: any) {
+          uni.hideLoading()
           toast.error(error.msg || '微信登录异常')
         }
       },
       fail: () => {
+        uni.hideLoading()
         toast.show('微信授权失败')
       }
     })
@@ -648,21 +683,24 @@ const thirdPartyLogin = (type: string) => {
         const res = await thirdPartyLoginApi('qq', 'mock_qq_openid')
         handleThirdPartySuccess(res, 'qq')
       } catch (error) {
+        uni.hideLoading()
         console.error('QQ 登录失败', error)
       }
     },
     fail: () => {
+      uni.hideLoading()
       mockThirdPartyLogin('qq')
     }
   })
 }
 
 const mockThirdPartyLogin = async (type: string) => {
-  toast.success(`正在模拟${type === 'wechat' ? '微信' : 'QQ'}登录...`)
+  uni.showLoading({ title: `正在模拟${type === 'wechat' ? '微信' : 'QQ'}登录...`, mask: true })
   try {
     const res = await thirdPartyLoginApi(type, `mock_${type}_openid_123`)
     handleThirdPartySuccess(res, type)
   } catch (error) {
+    uni.hideLoading()
     console.error('模拟第三方登录失败', error)
   }
 }

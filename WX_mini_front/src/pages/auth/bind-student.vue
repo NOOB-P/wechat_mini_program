@@ -273,9 +273,10 @@ const skipBinding = () => {
 const sendCode = async () => {
   if (!form.phone) return toast.show('手机号不能为空')
   
+  uni.showLoading({ title: '发送中...', mask: true })
   try {
-    toast.loading('发送中...')
     const res = await sendBindStudentCode(form.phone)
+    uni.hideLoading()
     if (res.code === 200) {
       toast.success('验证码已发送')
       countdown.value = 60
@@ -287,6 +288,7 @@ const sendCode = async () => {
       toast.error(res.msg || '发送失败')
     }
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error.msg || '发送失败')
   }
 }
@@ -299,8 +301,8 @@ const handleBind = async () => {
     return toast.show('请选择学生并输入验证码')
   }
   
+  uni.showLoading({ title: '绑定中...', mask: true })
   try {
-    toast.loading('绑定中...')
     const res = await bindStudentAccount({
       studentId,
       phone,
@@ -311,12 +313,15 @@ const handleBind = async () => {
       toast.success('绑定成功')
       // 绑定成功后，销毁当前页进入首页
       setTimeout(() => {
+        uni.hideLoading()
         uni.switchTab({ url: '/pages/home/index' })
       }, 1500)
     } else {
+      uni.hideLoading()
       toast.error(res.msg || '绑定失败')
     }
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error.msg || '绑定失败')
   }
 }

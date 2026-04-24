@@ -14,6 +14,7 @@ spring:
           password: root123
           driver-class-name: com.mysql.cj.jdbc.Driver
           hikari:
+            initialization-fail-timeout: -1 # 启动时尝试连接
             max-lifetime: 600000
             idle-timeout: 300000
             minimum-idle: 5
@@ -26,6 +27,7 @@ spring:
           password: root123
           driver-class-name: com.mysql.cj.jdbc.Driver
           hikari:
+            initialization-fail-timeout: -1 # 启动时尝试连接
             max-lifetime: 600000
             idle-timeout: 300000
             minimum-idle: 5
@@ -98,7 +100,7 @@ wechat:
     publicKeyPath: ${WECHAT_PAY_PUBLIC_KEY_PATH:pub_key.pem}
     publicKeyId: ${WECHAT_PAY_PUBLIC_KEY_ID:PUB_KEY_ID_0117443838972026041800381657002000}
     merchantSerialNumber: ${WECHAT_PAY_MERCHANT_SERIAL_NUMBER:64D622036126915C5930E5EDD8D27CC0A9FAEB7F}
-    notifyUrl: ${WECHAT_PAY_NOTIFY_URL:http://10.62.61.71:8082/api/pay/wechat/notify}
+    notifyUrl: ${WECHAT_PAY_NOTIFY_URL:http://youtihui.com/api/pay/wechat/notify}
     virtual-payment:
       offerId: ${WECHAT_PAY_VIRTUAL_OFFER_ID:1450516117}
       appSecret: ${WECHAT_PAY_VIRTUAL_APP_SECRET:laP7esl71JZchpLX3cXuEVsBxrUzL6N0}

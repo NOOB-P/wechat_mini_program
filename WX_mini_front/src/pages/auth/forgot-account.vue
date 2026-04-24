@@ -69,8 +69,8 @@ const handleNext = async () => {
     return
   }
   
+  uni.showLoading({ title: '正在查询...', mask: true })
   try {
-    toast.loading('正在查询...')
     const res = await findAccountByStudentInfo({
       studentName: studentName.value,
       schoolId: school.value
@@ -78,11 +78,16 @@ const handleNext = async () => {
     
     if (res.code === 200) {
       toast.success(res.msg || '查询成功，账号已通过短信发送')
-      setTimeout(() => uni.navigateBack(), 1500)
+      setTimeout(() => {
+        uni.hideLoading()
+        uni.navigateBack()
+      }, 1500)
     } else {
+      uni.hideLoading()
       toast.error(res.msg || '查询失败')
     }
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error.msg || '查询失败')
   }
 }
