@@ -112,8 +112,9 @@ const onChooseAvatar = async (e: any) => {
   avatarRenderKey.value += 1
   
   try {
-    toast.loading('上传中...')
+    uni.showLoading({ title: '上传中...', mask: true })
     const uploadRes: any = await uploadAvatarApi(avatarUrl)
+    uni.hideLoading()
     if (uploadRes.code === 200) {
       profileForm.avatar = getAvatarPath(uploadRes.data)
       toast.success('头像上传成功')
@@ -124,6 +125,7 @@ const onChooseAvatar = async (e: any) => {
       toast.error(uploadRes.msg || '头像上传失败')
     }
   } catch (error) {
+    uni.hideLoading()
     profileForm.avatar = previousAvatar
     profileForm.avatarPreview = previousAvatarPreview
     avatarRenderKey.value += 1
@@ -150,9 +152,8 @@ const handleSave = async () => {
     return
   }
   
+  uni.showLoading({ title: '保存中...', mask: true })
   try {
-    toast.loading('保存中...')
-
     const avatarPath = getAvatarPath(profileForm.avatar)
 
     const res = await updateMineInfoApi({
@@ -171,12 +172,15 @@ const handleSave = async () => {
       })
       toast.success('保存成功')
       setTimeout(() => {
+        uni.hideLoading()
         uni.navigateBack()
       }, 1500)
     } else {
+      uni.hideLoading()
       toast.error(res.msg || '保存失败')
     }
   } catch (error) {
+    uni.hideLoading()
     console.error('保存失败:', error)
     toast.error('网络错误，请稍后重试')
   }

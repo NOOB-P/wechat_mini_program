@@ -372,6 +372,7 @@
   const latestAutoCutRegionCount = ref(0)
   const PAPER_RESULT_CONFIRM_INTERVAL = 2000
   const PAPER_RESULT_CONFIRM_ATTEMPTS = 15
+  const studentsLoaded = ref(false)
 
   // 搜索和分页
   const searchKeyword = ref('')
@@ -613,6 +614,7 @@
     () => [props.projectId, props.subjectName],
     () => {
       selectedStudent.value = null
+      studentsLoaded.value = false
       reloadCurrentView()
     }
   )
@@ -699,7 +701,11 @@
     })
   }
 
-  async function loadStudents() {
+  async function loadStudents(options: { force?: boolean } = {}) {
+    if (!options.force && studentsLoaded.value) {
+      syncSelectedStudent()
+      return
+    }
     loading.value = true
     try {
       const res = await fetchProjectScoreList({
@@ -711,6 +717,7 @@
       })
       studentList.value = res.records
       totalStudents.value = res.total
+      studentsLoaded.value = true
       syncSelectedStudent()
     } catch (e: any) {
       console.error(e)
@@ -722,18 +729,18 @@
 
   function handleSearch() {
     currentPage.value = 1
-    loadStudents()
+    loadStudents({ force: true })
   }
 
   function handleSizeChange(val: number) {
     pageSize.value = val
     currentPage.value = 1
-    loadStudents()
+    loadStudents({ force: true })
   }
 
   function handleCurrentChange(val: number) {
     currentPage.value = val
-    loadStudents()
+    loadStudents({ force: true })
   }
 
   function hasFile(tab: string) {
@@ -809,7 +816,10 @@
   }
 
   async function reloadCurrentView() {
-    await Promise.all([loadConfig(), loadStudents()])
+    await loadConfig()
+    if (activeTab.value === 'student') {
+      await loadStudents({ force: true })
+    }
   }
 
   async function handleFileUpload(type: string, file: any) {
@@ -889,7 +899,7 @@
       ElMessage.success('上传成功')
       selectedStudent.value.hasAnswerSheet = true
       selectedStudent.value.answerSheetUrl = url
-      await loadStudents()
+      await loadStudents({ force: true })
       emit('saved')
     } catch (e: any) {
       console.error(e)

@@ -3,8 +3,6 @@
     <!-- 顶部 Logo 区域 -->
     <view class="logo-section">
       <image class="logo" :src="staticBaseUrl + '/tabbar/logo.png'" mode="aspectFit" />
-      <text class="app-name">优题慧</text>
-      <text class="version">v1.0.0</text>
     </view>
 
     <!-- 产品简介 -->
@@ -30,7 +28,7 @@
       <view class="section-title">联系我们</view>
       <wd-cell-group border>
         <wd-cell title="官方客服" value="15555616622" is-link @click="copyText('15555616622')" />
-        <wd-cell title="商务合作" value="youtihui@qq.com" is-link @click="copyText('youtihui@qq.com')" />
+        <wd-cell title="商务合作" value="youtihui@163.com" is-link @click="copyText('youtihui@163.com')" />
       </wd-cell-group>
     </view>
 
@@ -48,7 +46,7 @@ const copyText = (text: string) => {
   uni.setClipboardData({
     data: text,
     success: () => {
-      // 移除自定义 toast，仅保留系统默认提示或完全不提示
+      // 仅保留系统默认提示
     }
   })
 }

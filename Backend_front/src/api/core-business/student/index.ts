@@ -79,12 +79,9 @@ export function fetchImportStudents(file: File, schoolId?: string, classId?: str
   })
 }
 
-import { useUserStore } from '@/store/modules/user'
-
 /** 下载导入模板 */
 export function fetchDownloadTemplate() {
-  const token = useUserStore().accessToken || ''
   // 修正下载链接
   const baseUrl = import.meta.env.VITE_API_URL === '/' ? '' : import.meta.env.VITE_API_URL || ''
-  window.open(`${baseUrl}/api/students/download-template?token=${token}`, '_blank')
+  window.open(`${baseUrl}/api/students/download-template`, '_blank')
 }

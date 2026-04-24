@@ -57,8 +57,10 @@ const sendCode = async () => {
     return
   }
   
+  uni.showLoading({ title: '发送中...', mask: true })
   try {
     const res = await sendSmsCode(phone.value)
+    uni.hideLoading()
     toast.success('验证码已发送')
     countdown.value = 60
     timer = setInterval(() => {
@@ -67,7 +69,9 @@ const sendCode = async () => {
         clearInterval(timer!)
       }
     }, 1000)
-  } catch (error) {
+  } catch (error: any) {
+    uni.hideLoading()
+    toast.error(error?.msg || '发送验证码失败，请稍后重试')
     console.error('发送验证码失败', error)
   }
 }
@@ -94,6 +98,7 @@ const handleRegister = async () => {
     return
   }
   
+  uni.showLoading({ title: '注册中...', mask: true })
   try {
     const res = await register({
       phone: phone.value,
@@ -106,11 +111,16 @@ const handleRegister = async () => {
       toast.success('注册成功')
       // 注册成功后自动登录或跳转到登录页
       setTimeout(() => {
+        uni.hideLoading()
         uni.navigateTo({ url: '/pages/login/index' })
       }, 1500)
+    } else {
+      uni.hideLoading()
+      toast.error(res.msg || '注册失败')
     }
   } catch (error: any) {
-    toast.show(error.msg || '注册失败')
+    uni.hideLoading()
+    toast.error(error.msg || '注册失败')
   }
 }
 

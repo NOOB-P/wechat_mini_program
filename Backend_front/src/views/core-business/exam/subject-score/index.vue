@@ -277,14 +277,13 @@
 </template>
 
 <script setup lang="ts">
-  import { onMounted, reactive, ref, computed } from 'vue'
+  import { defineAsyncComponent, onMounted, reactive, ref, computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { 
     Back, Search, Refresh, Upload, Download,
     InfoFilled, UploadFilled, Delete, Plus, Document, Loading as LoadingIcon
   } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
-  import ScoreEditDialog from './components/ScoreEditDialog.vue'
   import { 
     fetchProjectScoreList,
     fetchDownloadScoreTemplate,
@@ -300,6 +299,7 @@
     ScoreImportResult
   } from '@/api/core-business/exam/project-editor'
   import { fetchProjectOptions, fetchProjectDetail } from '@/api/core-business/exam/project'
+  const ScoreEditDialog = defineAsyncComponent(() => import('./components/ScoreEditDialog.vue'))
 
   const route = useRoute()
   const router = useRouter()

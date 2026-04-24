@@ -169,13 +169,14 @@
     }
 
     submitting.value = true
-    toast.loading(text.loading)
+    uni.showLoading({ title: text.loading, mask: true })
 
     try {
       const res = await openSchoolVipApi({
         months: Number(selectedMonth.value)
       })
 
+      uni.hideLoading()
       if (res.code !== 200) {
         toast.error(res.msg || text.openFailed)
         return
@@ -185,9 +186,10 @@
       toast.success(`${text.openSuccessPrefix}${selectedMonthText.value} VIP`)
 
       setTimeout(() => {
-        goVipPage()
+        goBack()
       }, 1500)
     } catch (error: any) {
+      uni.hideLoading()
       console.error('open school vip failed', error)
       toast.error(error?.msg || text.networkError)
     } finally {

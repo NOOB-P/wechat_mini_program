@@ -52,6 +52,14 @@ public interface SysAccountRepository extends JpaRepository<SysAccount, Long> {
     @Query(value = "UPDATE sys_accounts SET last_login_time = NOW(), online_status = :status WHERE uid = :uid", nativeQuery = true)
     int updateLoginStatusSql(@Param("uid") Long uid, @Param("status") String status);
 
+    /**
+     * 批量更新用户在线状态
+     */
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE sys_accounts SET online_status = :status, last_login_time = CASE WHEN :status = 'online' THEN NOW() ELSE last_login_time END WHERE uid IN (:uids)", nativeQuery = true)
+    int batchUpdateLoginStatus(@Param("uids") List<Long> uids, @Param("status") String status);
+
     Page<SysAccount> findByRoleId(Integer roleId, Pageable pageable);
     Page<SysAccount> findByRoleIdAndUsernameContaining(Integer roleId, String username, Pageable pageable);
 

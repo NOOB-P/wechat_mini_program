@@ -122,7 +122,7 @@
 <script setup lang="ts">
   import { ref, onMounted, onUnmounted, nextTick } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import * as echarts from 'echarts'
+  import { echarts } from '@/plugins/echarts'
   import { ElMessage } from 'element-plus'
   import { fetchAnalysisStudentSubjectReport } from '@/api/core-business/exam/analysis/student-subject-report'
 

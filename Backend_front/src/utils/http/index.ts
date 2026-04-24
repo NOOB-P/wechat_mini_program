@@ -32,6 +32,10 @@ const UNAUTHORIZED_DEBOUNCE_TIME = 3000
 let isUnauthorizedErrorShown = false
 let unauthorizedTimer: NodeJS.Timeout | null = null
 
+/** 500系列错误防抖状态 */
+let isInternalErrorShown = false
+let internalErrorTimer: NodeJS.Timeout | null = null
+
 /** 扩展 AxiosRequestConfig */
 interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
   showErrorMessage?: boolean
@@ -44,7 +48,7 @@ const { VITE_API_URL, VITE_WITH_CREDENTIALS } = import.meta.env
 const axiosInstance = axios.create({
   timeout: REQUEST_TIMEOUT,
   baseURL: VITE_API_URL,
-  withCredentials: VITE_WITH_CREDENTIALS === 'true',
+  withCredentials: VITE_WITH_CREDENTIALS !== 'false',
   validateStatus: (status) => status >= 200 && status < 300,
   transformResponse: [
     (data, headers) => {
@@ -64,12 +68,6 @@ const axiosInstance = axios.create({
 /** 请求拦截器 */
 axiosInstance.interceptors.request.use(
   (request: InternalAxiosRequestConfig) => {
-    const { accessToken } = useUserStore()
-    if (accessToken) {
-      // 携带真实 Token 时增加 Bearer 前缀
-      request.headers.set('Authorization', `Bearer ${accessToken}`)
-    }
-
     if (request.data && !(request.data instanceof FormData) && !request.headers['Content-Type']) {
       request.headers.set('Content-Type', 'application/json')
       request.data = JSON.stringify(request.data)
@@ -93,10 +91,12 @@ axiosInstance.interceptors.response.use(
     const { code, msg } = response.data
     if (code === ApiStatus.success) return response
     if (code === ApiStatus.unauthorized) handleUnauthorizedError(msg)
+    if (code >= 500) handleInternalServerError(msg)
     throw createHttpError(msg || $t('httpMsg.requestFailed'), code)
   },
   (error) => {
     if (error.response?.status === ApiStatus.unauthorized) handleUnauthorizedError()
+    if (error.response && error.response.status >= 500) handleInternalServerError()
     return Promise.reject(handleError(error))
   }
 )
@@ -128,6 +128,23 @@ function resetUnauthorizedError() {
   isUnauthorizedErrorShown = false
   if (unauthorizedTimer) clearTimeout(unauthorizedTimer)
   unauthorizedTimer = null
+}
+
+/** 处理500系列错误（带防抖） */
+function handleInternalServerError(message?: string): void {
+  if (!isInternalErrorShown) {
+    isInternalErrorShown = true
+    logOut()
+
+    internalErrorTimer = setTimeout(() => {
+      isInternalErrorShown = false
+      if (internalErrorTimer) clearTimeout(internalErrorTimer)
+      internalErrorTimer = null
+    }, UNAUTHORIZED_DEBOUNCE_TIME)
+
+    const error = createHttpError(message || $t('httpMsg.internalServerError'), ApiStatus.internalServerError)
+    showError(error, true)
+  }
 }
 
 /** 退出登录函数 */

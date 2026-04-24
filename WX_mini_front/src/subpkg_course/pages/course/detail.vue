@@ -138,8 +138,9 @@ const currentVideoIndex = ref(-1)
 
 const loadCourseDetail = async (id: string) => {
   try {
-    toast.loading('加载中...')
+    uni.showLoading({ title: '加载中...', mask: true })
     const res = await getCourseDetailApi(id)
+    uni.hideLoading()
     if (res.code === 200) {
       const data = res.data
       
@@ -182,8 +183,8 @@ const loadCourseDetail = async (id: string) => {
       if (!courseInfo.value.studentCount) courseInfo.value.studentCount = data.buyers || 0
       courseInfo.value.chapterCount = chapters.value.length
     }
-    toast.close()
   } catch (e) {
+    uni.hideLoading()
     toast.error('获取课程详情失败')
   }
 }
@@ -251,21 +252,23 @@ const handleAction = async () => {
   if (courseInfo.value.price > 0 && !isPurchased.value) {
     // 需要购买
     try {
-      toast.loading('正在下单...')
+      uni.showLoading({ title: '正在下单...', mask: true })
       const res = await buyCourseApi(courseInfo.value.id)
-        if (res.code === 200) {
-          // 跳转到支付页面
-          const orderData = encodeURIComponent(JSON.stringify(res.data))
-          uni.navigateTo({
-            url: `/subpkg_course/pages/course/pay?order=${orderData}`
-          })
-        } else {
-          toast.error(res.msg || '下单失败')
-        }
-      } catch (e: any) {
-        toast.error(e.msg || e.message || '网络错误')
+      uni.hideLoading()
+      if (res.code === 200) {
+        // 跳转到支付页面
+        const orderData = encodeURIComponent(JSON.stringify(res.data))
+        uni.navigateTo({
+          url: `/subpkg_course/pages/course/pay?order=${orderData}`
+        })
+      } else {
+        toast.error(res.msg || '下单失败')
       }
-    } else {
+    } catch (e: any) {
+      uni.hideLoading()
+      toast.error(e.msg || e.message || '网络错误')
+    }
+  } else {
     // 直接学习
     startLearning()
   }

@@ -41,16 +41,18 @@ const handleNext = async () => {
     return
   }
   
+  uni.showLoading({ title: '验证中...', mask: true })
   try {
-    toast.loading('验证中...')
     const res = await verifyPhoneAccountApi(phone.value)
     if (res.code === 200) {
-      toast.close()
+      uni.hideLoading()
       uni.navigateTo({ url: `/pages/auth/reset-password?phone=${phone.value}` })
     } else {
+      uni.hideLoading()
       toast.error(res.msg || '手机号未注册')
     }
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error.msg || '验证失败')
   }
 }

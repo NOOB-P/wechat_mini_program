@@ -219,7 +219,7 @@ const fetchConfigs = async () => {
       }
     }
   } catch (error: any) {
-    toast.error(error?.msg || '获取会员配置失败')
+    // API 错误已在 request.ts 中通过 uni.showToast 提示，此处不再重复使用 toast.error
   } finally {
     if (!redirecting.value) {
       isLoaded.value = true
@@ -313,11 +313,11 @@ const handlePay = async () => {
       return
     }
     if (error?.code === 'PAY_CONFIRM_FAILED') {
-      toast.error(error.msg)
+      uni.showToast({ title: error.msg, icon: 'none' })
       return
     }
     console.error('pay vip failed', error)
-    toast.error(error?.msg || error?.message || '支付失败，请稍后重试')
+    // API 错误已在 request.ts 中通过 uni.showToast 提示，此处不再重复使用 toast.error
   } finally {
     submitting.value = false
   }

@@ -42,13 +42,22 @@
  */
 
 import { App, Directive } from 'vue'
-import hljs from 'highlight.js'
+
+let highlightPromise: Promise<typeof import('highlight.js')> | null = null
+
+function getHighlightLib() {
+  if (!highlightPromise) {
+    highlightPromise = import('highlight.js')
+  }
+  return highlightPromise
+}
 
 export type HighlightDirective = Directive<HTMLElement>
 
 // 高亮代码
-function highlightCode(block: HTMLElement) {
-  hljs.highlightElement(block)
+async function highlightCode(block: HTMLElement) {
+  const hljs = await getHighlightLib()
+  hljs.default.highlightElement(block)
 }
 
 // 插入行号
@@ -108,13 +117,13 @@ function markBlockAsProcessed(block: HTMLElement) {
 }
 
 // 处理单个代码块
-function processBlock(block: HTMLElement) {
+async function processBlock(block: HTMLElement) {
   if (isBlockProcessed(block)) {
     return
   }
 
   try {
-    highlightCode(block)
+    await highlightCode(block)
     insertLineNumbers(block)
     addCopyButton(block)
     markBlockAsProcessed(block)
@@ -134,7 +143,7 @@ function processAllCodeBlocks(el: HTMLElement) {
 
   if (unprocessedBlocks.length <= 10) {
     // 如果代码块数量少于等于10，直接处理所有代码块
-    unprocessedBlocks.forEach((block) => processBlock(block))
+    void Promise.all(unprocessedBlocks.map((block) => processBlock(block)))
   } else {
     // 定义每次处理的代码块数
     const batchSize = 10
@@ -143,9 +152,7 @@ function processAllCodeBlocks(el: HTMLElement) {
     const processBatch = () => {
       const batch = unprocessedBlocks.slice(currentIndex, currentIndex + batchSize)
 
-      batch.forEach((block) => {
-        processBlock(block)
-      })
+      void Promise.all(batch.map((block) => processBlock(block)))
 
       // 更新索引并继续处理下一批
       currentIndex += batchSize

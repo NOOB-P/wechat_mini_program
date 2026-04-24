@@ -788,7 +788,7 @@ INSERT INTO `faqs` (`id`, `category_name`, `category_id`, `question`, `answer`, 
 INSERT INTO `wechat_configs` (`group_name`, `corp_id`, `customer_service_url`, `status`, `display_location`) VALUES
 ('首页企微客服', 'ww1234567890abcdef', 'https://work.weixin.qq.com/kfid/kfc1234567890abcdef', 1, 'HOME_BANNER'),
 ('帮助中心企微客服', 'ww1234567890abcdef', 'https://work.weixin.qq.com/kfid/kfcabcdef1234567890', 1, 'HELP_SERVICE'),
-('备用企微客服', 'wwfedcba0987654321', 'https://work.weixin.qq.com/kfid/kfc0987654321fedcba', 0, 'NONE');
+('自习室报名客服', 'wwfedcba0987654321', 'https://work.weixin.qq.com/kfid/kfc0987654321fedcba', 1, 'STUDY_ROOM');
 
 -- 12. 错题打印订单表数据
 

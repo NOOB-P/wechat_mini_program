@@ -142,7 +142,8 @@ public class WechatConfigServiceImpl implements WechatConfigService {
         if (StringUtils.hasText(displayLocation)
                 && !"NONE".equals(displayLocation.trim())
                 && !"HOME_BANNER".equals(displayLocation.trim())
-                && !"HELP_SERVICE".equals(displayLocation.trim())) {
+                && !"HELP_SERVICE".equals(displayLocation.trim())
+                && !"STUDY_ROOM".equals(displayLocation.trim())) {
             return Result.error("展示位置不合法");
         }
         return null;

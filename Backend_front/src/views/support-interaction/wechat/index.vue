@@ -28,6 +28,7 @@
           <template #default="{ row }">
             <el-tag v-if="row.displayLocation === 'HOME_BANNER'" type="warning">首页横幅</el-tag>
             <el-tag v-else-if="row.displayLocation === 'HELP_SERVICE'" type="success">帮助中心</el-tag>
+            <el-tag v-else-if="row.displayLocation === 'STUDY_ROOM'" type="primary">自习室客服</el-tag>
             <el-tag v-else type="info">不展示</el-tag>
           </template>
         </el-table-column>
@@ -69,7 +70,7 @@
 
         <el-form-item label="展示位置" prop="displayLocation">
           <el-select v-model="form.displayLocation" placeholder="请选择展示位置" class="w-full">
-            <el-option label="不展示" value="NONE" />
+            <el-option label="自习室客服" value="STUDY_ROOM" />
             <el-option label="首页横幅" value="HOME_BANNER" />
             <el-option label="帮助中心" value="HELP_SERVICE" />
           </el-select>
@@ -111,7 +112,7 @@ interface WechatConfigForm {
   groupName: string
   corpId: string
   customerServiceUrl: string
-  displayLocation: 'NONE' | 'HOME_BANNER' | 'HELP_SERVICE'
+  displayLocation: 'NONE' | 'HOME_BANNER' | 'HELP_SERVICE' | 'STUDY_ROOM'
   status: 0 | 1
 }
 
@@ -120,7 +121,7 @@ const createDefaultForm = (): WechatConfigForm => ({
   groupName: '',
   corpId: '',
   customerServiceUrl: '',
-  displayLocation: 'NONE',
+  displayLocation: 'STUDY_ROOM',
   status: 1
 })
 

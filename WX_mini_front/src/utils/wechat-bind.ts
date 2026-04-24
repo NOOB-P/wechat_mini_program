@@ -148,15 +148,44 @@ export const maskWechatIdentifier = (identifier?: string) => {
   return `${identifier.slice(0, 3)}***${identifier.slice(-3)}`
 }
 
-export const refreshWechatUserInfo = async () => {
+export const mergeWechatBindingFields = (cachedData: any, newData: any) => {
+  const data = newData || {}
+  const cached = cachedData || {}
+  
+  // 显式处理微信相关字段，防止合并旧缓存中的 openid/wxid
+  // 规则：
+  // 1. 如果新数据中有值，用新值
+  // 2. 如果新数据中明确没有这些字段（比如解绑后的刷新），置空
+  // 3. 否则保留缓存值
+  const openid = data.openid || (data.wxid ? '' : (data.hasOwnProperty('openid') ? '' : cached.openid)) || ''
+  const wxid = data.wxid || (data.openid ? '' : (data.hasOwnProperty('wxid') ? '' : cached.wxid)) || ''
+  
+  return {
+    openid,
+    wxid: wxid || openid
+  }
+}
+
+export const refreshWechatUserInfo = async (partialData?: Record<string, any>) => {
   try {
     const res = await getUserInfoApi()
     const currentUserInfo = normalizeUserInfo(res.data || {})
     const cachedUserInfo = uni.getStorageSync('userInfo') || {}
+    
+    // 合并逻辑：接口数据 + 手动传入的 partialData
+    const updateData = {
+      ...currentUserInfo,
+      ...partialData
+    }
+    
+    const wechatFields = mergeWechatBindingFields(cachedUserInfo, updateData)
+    
     const mergedUserInfo = {
       ...cachedUserInfo,
-      ...currentUserInfo
+      ...updateData,
+      ...wechatFields
     }
+    
     uni.setStorageSync('userInfo', mergedUserInfo)
     return mergedUserInfo
   } catch (error: any) {
@@ -171,8 +200,8 @@ export const bindWechatAccount = async (successMessage = '微信绑定成功') =
 
   bindPromise = (async () => {
     const code = await getWechatLoginCode()
-    await bindWechatOpenidApi(code)
-    const userInfo = await refreshWechatUserInfo()
+    const bindRes = await bindWechatOpenidApi(code)
+    const userInfo = await refreshWechatUserInfo(bindRes.data || {})
     if (successMessage) {
       uni.showToast({
         title: successMessage,

@@ -21,7 +21,6 @@
   import '@wangeditor/editor/dist/css/style.css'
   import { onBeforeUnmount, onMounted, shallowRef, computed } from 'vue'
   import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
-  import { useUserStore } from '@/store/modules/user'
   import EmojiText from '@/utils/ui/emojo'
   import { IDomEditor, IToolbarConfig, IEditorConfig } from '@wangeditor/editor'
   import request from '@/utils/http'
@@ -68,8 +67,6 @@
 
   // 编辑器实例
   const editorRef = shallowRef<IDomEditor>()
-  const userStore = useUserStore()
-
   // 常量配置
   const DEFAULT_UPLOAD_CONFIG = {
     maxFileSize: 3 * 1024 * 1024, // 3MB
@@ -121,9 +118,7 @@
         maxNumberOfFiles: mergedUploadConfig.value.maxNumberOfFiles,
         allowedFileTypes: mergedUploadConfig.value.allowedFileTypes,
         server: uploadServer.value,
-        headers: {
-          Authorization: `Bearer ${userStore.accessToken}`
-        },
+        withCredentials: true,
         onSuccess() {
           ElMessage.success(`图片上传成功 ${EmojiText[200]}`)
         },
@@ -146,8 +141,7 @@
           url: props.uploadConfig?.server,
           data: formData,
           headers: {
-            'Content-Type':'multipart/form-data',
-            Authorization: `Bearer ${userStore.accessToken}`
+            'Content-Type':'multipart/form-data'
           }
         })
 

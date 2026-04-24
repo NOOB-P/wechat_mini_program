@@ -4,6 +4,7 @@ import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysRoleRepository;
 import com.edu.javasb_back.service.RolePermissionService;
+import com.edu.javasb_back.utils.AuthCookieUtils;
 import com.edu.javasb_back.utils.JwtUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -39,6 +40,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Autowired
     private RolePermissionService rolePermissionService;
+
+    @Autowired
+    private AuthCookieUtils authCookieUtils;
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -59,6 +63,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } else {
             // 如果请求头没有，尝试从查询参数获取
             jwt = request.getParameter("token");
+            if (jwt == null || jwt.isBlank()) {
+                jwt = authCookieUtils.resolveAccessToken(request);
+            }
         }
 
         if (jwt != null && !jwt.isEmpty()) {

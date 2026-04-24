@@ -152,6 +152,7 @@ import { ElMessage } from 'element-plus'
 import ImgCutter from 'vue-img-cutter'
 import { uploadCourseCover } from '@/api/course-study/course'
 import { DEFAULT_COURSE_COVER, resolveUploadUrl } from '@/utils/upload-url'
+import { uploadCourseVideo } from '@/api/course-study/course'
 
 const props = defineProps({
   visible: Boolean,
@@ -165,6 +166,8 @@ const dialogVisible = computed({
   get: () => props.visible,
   set: (val) => emit('update:visible', val)
 })
+
+const uploadHeaders = computed(() => ({}))
 
 const formRef = ref()
 const coverCutterRef = ref()

@@ -111,23 +111,42 @@
       <view class="popup-content">
         <view class="popup-title">修改密码</view>
         <view class="input-group">
-          <wd-input v-model="passwordForm.oldPassword" placeholder="请输入旧密码" show-password type="text" no-border />
-          <wd-input v-model="passwordForm.newPassword" placeholder="请输入新密码" show-password type="text" no-border />
-          <wd-input v-model="passwordForm.confirmPassword" placeholder="请再次输入新密码" show-password type="text" no-border />
+          <wd-input
+            v-model="passwordForm.oldPassword"
+            placeholder="请输入原密码"
+            type="password"
+            no-border
+          />
+          <wd-input
+            v-model="passwordForm.newPassword"
+            placeholder="请输入新密码"
+            type="password"
+            no-border
+          />
+          <wd-input
+            v-model="passwordForm.confirmPassword"
+            placeholder="请再次输入新密码"
+            type="password"
+            no-border
+          />
         </view>
         <view class="action-btn">
-          <wd-button type="primary" block @click="handleChangePassword">确认修改</wd-button>
+          <wd-button type="primary" block @click="handleChangePassword">确定修改</wd-button>
         </view>
       </view>
     </wd-popup>
+
+    <WechatBindDialog />
 
     <wd-toast id="wd-toast" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onUnmounted, reactive, ref, watch } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
+import WechatBindDialog from '@/components/WechatBindDialog/index.vue'
 
 import { sendSmsCode } from '@/api/login'
 import {
@@ -140,6 +159,7 @@ import {
 import {
   ensureWechatBound,
   isWechatBound,
+  mergeWechatBindingFields,
   maskWechatIdentifier,
   unbindWechatAccount
 } from '@/utils/wechat-bind'
@@ -185,9 +205,12 @@ const maskedWechatId = computed(() => maskWechatIdentifier(userInfo.wxid))
 
 const syncCachedUserInfo = (data: Record<string, any>) => {
   const cachedUserInfo = uni.getStorageSync('userInfo') || {}
+  const wechatBindingFields = mergeWechatBindingFields(cachedUserInfo, data)
+
   uni.setStorageSync('userInfo', {
     ...cachedUserInfo,
-    ...data
+    ...data,
+    ...wechatBindingFields
   })
 }
 
@@ -195,17 +218,18 @@ const assignUserInfo = (data: Record<string, any> = {}) => {
   const cachedUserInfo = uni.getStorageSync('userInfo') || {}
   const mergedUserInfo = {
     ...cachedUserInfo,
-    ...data
+    ...data,
+    ...mergeWechatBindingFields(cachedUserInfo, data)
   }
 
   userInfo.phone = mergedUserInfo.phone || ''
   userInfo.nickname = mergedUserInfo.nickname || ''
   userInfo.email = mergedUserInfo.email || ''
-  userInfo.wxid = mergedUserInfo.wxid || mergedUserInfo.openid || ''
+  userInfo.wxid = mergedUserInfo.wxid || ''
   userInfo.isBoundStudent = Number(mergedUserInfo.isBoundStudent || 0)
   userInfo.boundStudentInfo = mergedUserInfo.boundStudentInfo || null
 
-  syncCachedUserInfo(mergedUserInfo)
+  syncCachedUserInfo(data)
 }
 
 const fetchData = async () => {
@@ -250,7 +274,8 @@ watch(
   }
 )
 
-onMounted(() => {
+onShow(() => {
+  assignUserInfo()
   fetchData()
 })
 
@@ -267,8 +292,10 @@ const sendPhoneCode = async () => {
     return
   }
 
+  uni.showLoading({ title: '发送中...', mask: true })
   try {
     await sendSmsCode(phoneForm.newPhone)
+    uni.hideLoading()
     toast.success('验证码已发送')
     phoneCountdown.value = 60
     phoneTimer = setInterval(() => {
@@ -279,6 +306,7 @@ const sendPhoneCode = async () => {
       }
     }, 1000)
   } catch (error: any) {
+    uni.hideLoading()
     phoneErrorMessage.value = error?.msg || '验证码发送失败，请稍后重试'
     toast.error(phoneErrorMessage.value)
   }
@@ -294,15 +322,18 @@ const handleChangePhone = async () => {
     return
   }
 
+  uni.showLoading({ title: '正在修改...', mask: true })
   try {
     await updateMineInfoApi({
       phone: phoneForm.newPhone,
       code: phoneForm.code
     })
+    uni.hideLoading()
     toast.success('修改成功')
     await fetchData()
     showChangePhonePopup.value = false
   } catch (error: any) {
+    uni.hideLoading()
     phoneErrorMessage.value = error?.msg || '修改手机号失败，请稍后重试'
     toast.error(phoneErrorMessage.value)
   }
@@ -317,12 +348,14 @@ const handleWechatBindingClick = async () => {
         : '确定要解除微信绑定吗？解绑后将无法使用微信登录。',
       success: async (res) => {
         if (res.confirm) {
+          uni.showLoading({ title: '正在解绑...', mask: true })
           try {
-            toast.loading('正在解绑...')
             const latestUserInfo = await unbindWechatAccount()
+            uni.hideLoading()
             toast.success('解绑成功')
             assignUserInfo(latestUserInfo || {})
           } catch (error: any) {
+            uni.hideLoading()
             toast.error(error?.msg || error?.message || '解绑失败')
           }
         }
@@ -356,14 +389,17 @@ const handleChangePassword = async () => {
     return
   }
 
+  uni.showLoading({ title: '正在修改...', mask: true })
   try {
     await updatePasswordApi({
       oldPassword: passwordForm.oldPassword,
       newPassword: passwordForm.newPassword
     })
+    uni.hideLoading()
     toast.success('修改成功')
     showChangePasswordPopup.value = false
   } catch (error: any) {
+    uni.hideLoading()
     toast.error(error?.msg || error?.message || '修改密码失败')
   }
 }
@@ -399,8 +435,8 @@ const handleUnbindStudent = () => {
         return
       }
 
+      uni.showLoading({ title: '正在解绑...', mask: true })
       try {
-        toast.loading('正在解绑...')
         await unbindStudentApi()
         toast.success('解绑成功')
         userInfo.isBoundStudent = 0
@@ -411,10 +447,12 @@ const handleUnbindStudent = () => {
         })
         showStudentDetailPopup.value = false
         setTimeout(() => {
+          uni.hideLoading()
           const phone = userInfo.phone || uni.getStorageSync('userInfo')?.phone || ''
           uni.redirectTo({ url: `/pages/auth/bind-student?phone=${phone}` })
         }, 1000)
       } catch (error: any) {
+        uni.hideLoading()
         toast.error(error?.msg || error?.message || '解绑失败')
       }
     }
@@ -422,8 +460,9 @@ const handleUnbindStudent = () => {
 }
 
 const handleCheckUpdate = () => {
-  toast.loading('正在检查更新...')
+  uni.showLoading({ title: '正在检查更新...', mask: true })
   setTimeout(() => {
+    uni.hideLoading()
     toast.show('当前已是最新版本')
   }, 1000)
 }

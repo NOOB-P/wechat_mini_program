@@ -101,7 +101,7 @@
 <script setup lang="ts">
   import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import * as echarts from 'echarts'
+  import { echarts } from '@/plugins/echarts'
   import { ElMessage } from 'element-plus'
   import { fetchAnalysisClassDashboard } from '@/api/core-business/exam/analysis/class-dashboard'
 

@@ -1,8 +1,10 @@
 package com.edu.javasb_back.repository;
 
 import com.edu.javasb_back.model.entity.ExamProject;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.stereotype.Repository;
 
 @Repository

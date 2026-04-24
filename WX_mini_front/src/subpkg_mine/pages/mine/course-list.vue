@@ -95,7 +95,7 @@ const getTypeName = (type: string) => {
 
 const loadData = async () => {
   try {
-    toast.loading('加载中...')
+    uni.showLoading({ title: '加载中...', mask: true })
     let res: any
     if (currentType.value === 'course') {
       res = await getMyCoursesApi()
@@ -107,11 +107,12 @@ const loadData = async () => {
       res = await getPurchasedCoursesApi()
     }
     
+    uni.hideLoading()
     if (res && res.code === 200) {
       courses.value = res.data
     }
-    toast.close()
   } catch (e) {
+    uni.hideLoading()
     toast.error('加载失败')
   }
 }

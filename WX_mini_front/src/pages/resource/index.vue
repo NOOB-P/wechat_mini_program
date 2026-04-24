@@ -61,11 +61,11 @@
         </view>
       </view>
       <view class="recommend-grid">
-        <view class="recommend-item">
+        <view class="recommend-item" @click="showNotOpenTip">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_ai.png'" mode="aspectFill" />
           <text class="recommend-text">精选AI</text>
         </view>
-        <view class="recommend-item">
+        <view class="recommend-item" @click="showNotOpenTip">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_tutor.png'" mode="aspectFill" />
           <text class="recommend-text">精选家教</text>
         </view>
@@ -146,11 +146,15 @@ const toast = useToast()
 const showQrPopup = ref(false)
 const currentQrCode = ref('')
 const qrGroupName = ref('')
+const showNotOpenTip = () => {
+  toast.show('该功能暂未开放')
+}
 
 const joinStudyRoom = async () => {
   try {
-    toast.loading('正在获取自习室二维码...')
+    uni.showLoading({ title: '正在获取自习室二维码...', mask: true })
     const res = await getWechatCustomerServiceByLocationApi('HELP_SERVICE')
+    uni.hideLoading()
     if (res.code === 200 && res.data) {
       // keep legacy local state harmlessly initialized
       qrGroupName.value = res.data.groupName || '自习室报名群'
@@ -159,10 +163,9 @@ const joinStudyRoom = async () => {
       toast.show(res.msg || '暂无自习室二维码')
     }
   } catch (error) {
+    uni.hideLoading()
     console.error('获取自习室二维码失败:', error)
     toast.error('获取二维码失败')
-  } finally {
-    toast.close()
   }
 }
 

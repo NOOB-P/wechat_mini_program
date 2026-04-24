@@ -15,6 +15,7 @@ export default ({ mode }: { mode: string }) => {
   const root = process.cwd()
   const env = loadEnv(mode, root)
   const { VITE_VERSION, VITE_PORT, VITE_BASE_URL, VITE_API_URL, VITE_API_PROXY_URL } = env
+  const isDev = mode === 'development'
 
   console.log(`🚀 API_URL = ${VITE_API_URL}`)
   console.log(`🚀 VERSION = ${VITE_VERSION}`)
@@ -55,6 +56,39 @@ export default ({ mode }: { mode: string }) => {
       outDir: 'dist',
       chunkSizeWarningLimit: 2000,
       minify: 'terser',
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return
+
+            if (id.includes('echarts')) return 'vendor-echarts'
+            if (id.includes('xlsx')) return 'vendor-xlsx'
+            if (id.includes('@wangeditor')) return 'vendor-editor'
+            if (id.includes('xgplayer')) return 'vendor-player'
+            if (id.includes('katex') || id.includes('marked') || id.includes('highlight.js')) {
+              return 'vendor-markdown'
+            }
+            if (
+              id.includes('element-plus') ||
+              id.includes('@element-plus') ||
+              id.includes('icons-vue')
+            ) {
+              return 'vendor-element'
+            }
+            if (id.includes('vue-img-cutter')) return 'vendor-image-tools'
+            if (
+              id.includes('/vue/') ||
+              id.includes('/vue-router/') ||
+              id.includes('/pinia/') ||
+              id.includes('@vueuse/core')
+            ) {
+              return 'vendor-core'
+            }
+
+            return 'vendor-misc'
+          }
+        }
+      },
       terserOptions: {
         compress: {
           // 生产环境去除 console
@@ -101,7 +135,7 @@ export default ({ mode }: { mode: string }) => {
         threshold: 10240, // 只有大小大于该值的资源会被处理 10240B = 10KB
         deleteOriginFile: false // 压缩后是否删除原文件
       }),
-      vueDevTools()
+      ...(isDev ? [vueDevTools()] : [])
       // 打包分析
       // visualizer({
       //   open: true,
