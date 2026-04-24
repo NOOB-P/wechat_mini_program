@@ -9,6 +9,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.Course;
@@ -20,6 +21,7 @@ import com.edu.javasb_back.repository.CourseRepository;
 import com.edu.javasb_back.repository.CourseVideoRepository;
 import com.edu.javasb_back.service.CourseOrderService;
 import com.edu.javasb_back.service.CourseService;
+import com.edu.javasb_back.service.OssStorageService;
 
 @Service
 @Transactional(readOnly = true)
@@ -40,9 +42,12 @@ public class CourseServiceImpl implements CourseService {
     @Autowired
     private CourseOrderService orderService;
 
+    @Autowired
+    private OssStorageService ossStorageService;
+
     @Override
     public Result<List<Course>> getGeneralCourseList() {
-        return Result.success(courseRepository.findAllGeneralCoursesSql());
+        return Result.success(normalizeCourses(courseRepository.findAllGeneralCoursesSql()));
     }
 
     @Override
@@ -64,8 +69,10 @@ public class CourseServiceImpl implements CourseService {
             List<CourseEpisode> episodes = episodeRepository.findByCourseIdOrderBySortOrderAscCreateTimeAsc(courseId);
             for (CourseEpisode episode : episodes) {
                 episode.setVideoList(videoRepository.findByEpisodeIdOrderBySortOrderAscCreateTimeAsc(episode.getId()));
+                normalizeEpisodeMedia(episode);
             }
             course.setEpisodeList(episodes);
+            normalizeCourseMedia(course);
             return Result.success(course);
         }
         return Result.error("课程不存在");
@@ -73,7 +80,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Result<List<Course>> getSyncCourseList(String subject, String grade) {
-        return Result.success(courseRepository.findSyncCoursesSql(subject, grade));
+        return Result.success(normalizeCourses(courseRepository.findSyncCoursesSql(subject, grade)));
     }
 
     @Override
@@ -81,13 +88,13 @@ public class CourseServiceImpl implements CourseService {
         String normalizedKeyword = normalizeKeyword(keyword);
         if ("purchased".equals(filter)) {
             if (uid == null) return Result.error(401, "请先登录");
-            return Result.success(courseRepository.findPurchasedCoursesByTypeSql(uid, "family", normalizedKeyword));
+            return Result.success(normalizeCourses(courseRepository.findPurchasedCoursesByTypeSql(uid, "family", normalizedKeyword)));
         }
         Boolean isFree = null;
         if ("free".equals(filter)) isFree = true;
         else if ("paid".equals(filter)) isFree = false;
         
-        return Result.success(courseRepository.findFamilyEduListSql(normalizedKeyword, isFree));
+        return Result.success(normalizeCourses(courseRepository.findFamilyEduListSql(normalizedKeyword, isFree)));
     }
 
     @Override
@@ -95,13 +102,13 @@ public class CourseServiceImpl implements CourseService {
         String normalizedKeyword = normalizeKeyword(keyword);
         if ("purchased".equals(filter)) {
             if (uid == null) return Result.error(401, "请先登录");
-            return Result.success(courseRepository.findPurchasedCoursesByTypeSql(uid, "talk", normalizedKeyword));
+            return Result.success(normalizeCourses(courseRepository.findPurchasedCoursesByTypeSql(uid, "talk", normalizedKeyword)));
         }
         Boolean isFree = null;
         if ("free".equals(filter)) isFree = true;
         else if ("paid".equals(filter)) isFree = false;
         
-        return Result.success(courseRepository.findStudentTalkListSql(normalizedKeyword, isFree));
+        return Result.success(normalizeCourses(courseRepository.findStudentTalkListSql(normalizedKeyword, isFree)));
     }
 
     private String normalizeKeyword(String keyword) {
@@ -136,22 +143,29 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Result<List<Course>> getMyCourses(Long uid) {
-        return Result.success(courseRepository.findMyCoursesSql(uid));
+        return Result.success(normalizeCourses(courseRepository.findMyCoursesSql(uid)));
     }
 
     @Override
     public Result<List<Course>> getMyCollections(Long uid) {
-        return Result.success(courseRepository.findMyCollectionsSql(uid));
+        return Result.success(normalizeCourses(courseRepository.findMyCollectionsSql(uid)));
     }
 
     @Override
     public Result<List<Map<String, Object>>> getMyStudyRecords(Long uid) {
-        return Result.success(courseRepository.findStudyRecordsSql(uid));
+        List<Map<String, Object>> records = courseRepository.findStudyRecordsSql(uid);
+        for (Map<String, Object> item : records) {
+            Object cover = item.get("cover");
+            if (cover instanceof String coverUrl) {
+                item.put("cover", normalizeMediaUrl(coverUrl));
+            }
+        }
+        return Result.success(records);
     }
 
     @Override
     public Result<List<Course>> getAllCourses(String type, Boolean isSvipOnly, Boolean isFree, Integer isRecommend) {
-        return Result.success(courseRepository.findAllCoursesFilteredSql(type, isSvipOnly, isFree, isRecommend));
+        return Result.success(normalizeCourses(courseRepository.findAllCoursesFilteredSql(type, isSvipOnly, isFree, isRecommend)));
     }
 
     @Override
@@ -160,6 +174,8 @@ public class CourseServiceImpl implements CourseService {
         if (course.getId() == null || course.getId().isEmpty()) {
             course.setId("CRS" + System.currentTimeMillis());
         }
+        course.setCover(normalizeMediaUrl(course.getCover()));
+        course.setVideoUrl(normalizeMediaUrl(course.getVideoUrl()));
         courseRepository.save(course);
         return Result.success("添加成功", null);
     }
@@ -170,6 +186,8 @@ public class CourseServiceImpl implements CourseService {
         if (course.getId() == null || !courseRepository.existsById(course.getId())) {
             return Result.error("课程不存在");
         }
+        course.setCover(normalizeMediaUrl(course.getCover()));
+        course.setVideoUrl(normalizeMediaUrl(course.getVideoUrl()));
         courseRepository.save(course);
         return Result.success("更新成功", null);
     }
@@ -196,7 +214,9 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Result<List<CourseEpisode>> getCourseEpisodes(String courseId) {
-        return Result.success(episodeRepository.findByCourseIdOrderBySortOrderAscCreateTimeAsc(courseId));
+        List<CourseEpisode> episodes = episodeRepository.findByCourseIdOrderBySortOrderAscCreateTimeAsc(courseId);
+        episodes.forEach(this::normalizeEpisodeMedia);
+        return Result.success(episodes);
     }
 
     @Override
@@ -303,7 +323,9 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Result<List<CourseVideo>> getEpisodeVideos(String episodeId) {
-        return Result.success(videoRepository.findByEpisodeIdOrderBySortOrderAscCreateTimeAsc(episodeId));
+        List<CourseVideo> videos = videoRepository.findByEpisodeIdOrderBySortOrderAscCreateTimeAsc(episodeId);
+        videos.forEach(this::normalizeVideoMedia);
+        return Result.success(videos);
     }
 
     @Override
@@ -314,6 +336,7 @@ public class CourseServiceImpl implements CourseService {
         }
         video.setCreateTime(LocalDateTime.now());
         video.setUpdateTime(LocalDateTime.now());
+        video.setVideoUrl(normalizeMediaUrl(video.getVideoUrl()));
         
         // 优化视频排序
         optimizeVideoSort(video.getEpisodeId(), video.getSortOrder(), null);
@@ -338,6 +361,7 @@ public class CourseServiceImpl implements CourseService {
             optimizeVideoSort(video.getEpisodeId(), video.getSortOrder(), video.getId());
         }
         
+        video.setVideoUrl(normalizeMediaUrl(video.getVideoUrl()));
         video.setUpdateTime(LocalDateTime.now());
         videoRepository.save(video);
         
@@ -392,5 +416,46 @@ public class CourseServiceImpl implements CourseService {
             return Result.success("删除视频成功", null);
         }
         return Result.error("视频不存在");
+    }
+
+    private List<Course> normalizeCourses(List<Course> courses) {
+        courses.forEach(this::normalizeCourseMedia);
+        return courses;
+    }
+
+    private void normalizeCourseMedia(Course course) {
+        if (course == null) {
+            return;
+        }
+        course.setCover(normalizeMediaUrl(course.getCover()));
+        course.setVideoUrl(normalizeMediaUrl(course.getVideoUrl()));
+        if (course.getEpisodeList() != null) {
+            course.getEpisodeList().forEach(this::normalizeEpisodeMedia);
+        }
+    }
+
+    private void normalizeEpisodeMedia(CourseEpisode episode) {
+        if (episode == null || episode.getVideoList() == null) {
+            return;
+        }
+        episode.getVideoList().forEach(this::normalizeVideoMedia);
+    }
+
+    private void normalizeVideoMedia(CourseVideo video) {
+        if (video == null) {
+            return;
+        }
+        video.setVideoUrl(normalizeMediaUrl(video.getVideoUrl()));
+    }
+
+    private String normalizeMediaUrl(String url) {
+        if (!StringUtils.hasText(url)) {
+            return url;
+        }
+        String objectKey = ossStorageService.extractObjectKey(url);
+        if (StringUtils.hasText(objectKey)) {
+            return ossStorageService.buildUrl(objectKey);
+        }
+        return url.trim();
     }
 }

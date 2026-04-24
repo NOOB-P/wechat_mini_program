@@ -7,6 +7,7 @@ import FunctionBanner from './components/FunctionBanner.vue'
 import BannerSwiper from './components/BannerSwiper.vue'
 import EvalSection from './components/EvalSection.vue'
 import RecommendList from './components/RecommendList.vue'
+import { resolveUploadSrc } from '@/utils/upload'
 import {
   getWechatCustomerServiceByLocationApi
 } from '@/api/index'
@@ -54,10 +55,7 @@ const loadData = async () => {
       recommendCourses.value = courseList.map((item: any) => ({
         ...item,
         name: item.title,
-        image:
-          item.cover && !item.cover.startsWith('http')
-            ? __VITE_SERVER_BASEURL__ + item.cover
-            : item.cover
+        image: resolveUploadSrc(item.cover)
       }))
     }
 

@@ -64,7 +64,13 @@
           </el-table-column>
           <el-table-column label="封面" width="120">
             <template #default="{ row }">
-              <el-image :src="row.cover" class="w-20 h-12 rounded" fit="cover" />
+              <el-image :src="row.coverPreview" class="w-20 h-12 rounded" fit="cover">
+                <template #error>
+                  <div class="w-20 h-12 rounded bg-gray-100 text-gray-400 text-xs flex items-center justify-center">
+                    暂无封面
+                  </div>
+                </template>
+              </el-image>
             </template>
           </el-table-column>
           <el-table-column prop="isRecommend" label="今日推荐" width="100">
@@ -202,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import {
   getCourseList,
   addCourse,
@@ -223,6 +229,7 @@ import CourseDialog from './modules/course-dialog.vue'
 import EpisodeDialog from './modules/episode-dialog.vue'
 import VideoDialog from './modules/video-dialog.vue'
 import { ArrowLeft, VideoPlay } from '@element-plus/icons-vue'
+import { DEFAULT_COURSE_COVER, resolveUploadUrl } from '@/utils/upload-url'
 
 const loading = ref(false)
 const tableData = ref<any[]>([])
@@ -265,7 +272,10 @@ const videoDialogVisible = ref(false)
 const isVideoEdit = ref(false)
 const videoEditData = ref<Record<string, any> | undefined>(undefined)
 
-const uploadHeaders = computed(() => ({}))
+const normalizeCourseRow = (row: any) => ({
+  ...row,
+  coverPreview: resolveUploadUrl(row?.cover) || DEFAULT_COURSE_COVER
+})
 
 // --- 视频管理逻辑 ---
 const enterEpisodeVideoManagement = (row: any) => {
@@ -417,10 +427,10 @@ const loadData = async () => {
     const data = await getCourseList(queryParams.value)
     if (data) {
       if (Array.isArray(data)) {
-        tableData.value = data
+        tableData.value = data.map(normalizeCourseRow)
         total.value = data.length
       } else if (Array.isArray(data.list)) {
-        tableData.value = data.list
+        tableData.value = data.list.map(normalizeCourseRow)
         total.value = data.total || data.list.length
       }
     }
