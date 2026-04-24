@@ -111,23 +111,42 @@
       <view class="popup-content">
         <view class="popup-title">修改密码</view>
         <view class="input-group">
-          <wd-input v-model="passwordForm.oldPassword" placeholder="请输入旧密码" show-password type="text" no-border />
-          <wd-input v-model="passwordForm.newPassword" placeholder="请输入新密码" show-password type="text" no-border />
-          <wd-input v-model="passwordForm.confirmPassword" placeholder="请再次输入新密码" show-password type="text" no-border />
+          <wd-input
+            v-model="passwordForm.oldPassword"
+            placeholder="请输入原密码"
+            type="password"
+            no-border
+          />
+          <wd-input
+            v-model="passwordForm.newPassword"
+            placeholder="请输入新密码"
+            type="password"
+            no-border
+          />
+          <wd-input
+            v-model="passwordForm.confirmPassword"
+            placeholder="请再次输入新密码"
+            type="password"
+            no-border
+          />
         </view>
         <view class="action-btn">
-          <wd-button type="primary" block @click="handleChangePassword">确认修改</wd-button>
+          <wd-button type="primary" block @click="handleChangePassword">确定修改</wd-button>
         </view>
       </view>
     </wd-popup>
+
+    <WechatBindDialog />
 
     <wd-toast id="wd-toast" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onUnmounted, reactive, ref, watch } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
+import WechatBindDialog from '@/components/WechatBindDialog/index.vue'
 
 import { sendSmsCode } from '@/api/login'
 import {
@@ -140,6 +159,7 @@ import {
 import {
   ensureWechatBound,
   isWechatBound,
+  mergeWechatBindingFields,
   maskWechatIdentifier,
   unbindWechatAccount
 } from '@/utils/wechat-bind'
@@ -185,9 +205,12 @@ const maskedWechatId = computed(() => maskWechatIdentifier(userInfo.wxid))
 
 const syncCachedUserInfo = (data: Record<string, any>) => {
   const cachedUserInfo = uni.getStorageSync('userInfo') || {}
+  const wechatBindingFields = mergeWechatBindingFields(cachedUserInfo, data)
+
   uni.setStorageSync('userInfo', {
     ...cachedUserInfo,
-    ...data
+    ...data,
+    ...wechatBindingFields
   })
 }
 
@@ -195,17 +218,18 @@ const assignUserInfo = (data: Record<string, any> = {}) => {
   const cachedUserInfo = uni.getStorageSync('userInfo') || {}
   const mergedUserInfo = {
     ...cachedUserInfo,
-    ...data
+    ...data,
+    ...mergeWechatBindingFields(cachedUserInfo, data)
   }
 
   userInfo.phone = mergedUserInfo.phone || ''
   userInfo.nickname = mergedUserInfo.nickname || ''
   userInfo.email = mergedUserInfo.email || ''
-  userInfo.wxid = mergedUserInfo.wxid || mergedUserInfo.openid || ''
+  userInfo.wxid = mergedUserInfo.wxid || ''
   userInfo.isBoundStudent = Number(mergedUserInfo.isBoundStudent || 0)
   userInfo.boundStudentInfo = mergedUserInfo.boundStudentInfo || null
 
-  syncCachedUserInfo(mergedUserInfo)
+  syncCachedUserInfo(data)
 }
 
 const fetchData = async () => {
@@ -250,7 +274,8 @@ watch(
   }
 )
 
-onMounted(() => {
+onShow(() => {
+  assignUserInfo()
   fetchData()
 })
 

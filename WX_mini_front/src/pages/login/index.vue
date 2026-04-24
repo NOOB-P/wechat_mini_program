@@ -57,12 +57,14 @@
         <wd-button type="primary" block custom-class="submit-btn" @click="handleLogin">登录</wd-button>
       </view>
 
-      <view class="agreement-row">
-        <wd-checkbox v-model="isAgreed" custom-class="agreement-checkbox" />
+      <view class="agreement-row" @click="isAgreed = !isAgreed">
+        <view @click.stop>
+          <wd-checkbox v-model="isAgreed" custom-class="agreement-checkbox" />
+        </view>
         <view class="agreement-text">
           请阅读并勾选
-          <text class="link" @click="openAgreement('user')">《用户服务协议》</text>
-          <text class="link" @click="openAgreement('privacy')">《隐私政策》</text>
+          <text class="link" @click.stop="openAgreement('user')">《用户服务协议》</text>
+          <text class="link" @click.stop="openAgreement('privacy')">《隐私政策》</text>
         </view>
       </view>
 
@@ -887,11 +889,11 @@ const mockThirdPartyLogin = async (type: string) => {
     }
 
     .agreement-row {
-      margin-top: 40rpx;
+      margin-top: 20rpx;
       display: flex;
       align-items: center;
       gap: 12rpx;
-      padding: 0 10rpx;
+      padding: 20rpx 10rpx;
 
       .agreement-checkbox {
         transform: scale(0.8);
