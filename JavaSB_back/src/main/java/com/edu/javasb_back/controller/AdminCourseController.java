@@ -1,7 +1,10 @@
 package com.edu.javasb_back.controller;
 
+import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,20 +17,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.Course;
-import com.edu.javasb_back.service.CourseService;
-import com.edu.javasb_back.service.OssStorageService;
-
 import com.edu.javasb_back.model.entity.CourseEpisode;
 import com.edu.javasb_back.model.entity.CourseVideo;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.UUID;
+import com.edu.javasb_back.service.CourseService;
+import com.edu.javasb_back.service.OssStorageService;
 
 /**
  * 后台管理端：课程管理控制器

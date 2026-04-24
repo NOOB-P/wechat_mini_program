@@ -85,37 +85,43 @@
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="课程封面" prop="cover">
-            <el-upload
-              class="cover-uploader"
-              action="/api/system/course/upload-cover"
-              :headers="uploadHeaders"
-              :show-file-list="false"
-              :on-success="handleUploadSuccess"
-              :before-upload="beforeUpload"
+            <ImgCutter
+              ref="coverCutterRef"
+              class="cover-cutter"
+              :isModal="true"
+              :tool="true"
+              :boxWidth="860"
+              :boxHeight="520"
+              :cutWidth="400"
+              :cutHeight="240"
+              :sizeChange="false"
+              :moveAble="true"
+              :imgMove="true"
+              :scaleAble="true"
+              fileType="jpeg"
+              :quality="0.92"
+              @cutDown="handleCoverCutDown"
             >
-              <img v-if="form.cover" :src="form.cover" class="cover-img" />
-              <el-icon v-else class="uploader-icon"><Plus /></el-icon>
-            </el-upload>
-            <div class="text-xs text-gray-400 mt-1">建议尺寸 400x240，支持 jpg/png</div>
+              <template #choose>
+                <div class="cover-uploader" v-loading="coverUploading">
+                  <img
+                    v-if="form.cover || localCoverPreview || coverPreviewFallback"
+                    :src="coverPreviewUrl"
+                    class="cover-img"
+                    @error="handleCoverPreviewError"
+                  />
+                  <div v-else class="cover-empty">
+                    <el-icon class="uploader-icon"><Plus /></el-icon>
+                    <span class="cover-empty-text">点击上传并裁剪</span>
+                  </div>
+                  <div class="cover-overlay">重新选择</div>
+                </div>
+              </template>
+            </ImgCutter>
+            <div class="text-xs text-gray-400 mt-1">建议尺寸 400x240，支持 jpg/png，选图后可裁剪</div>
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="课程视频" prop="videoUrl">
-            <el-upload
-              class="video-uploader"
-              :show-file-list="false"
-              :http-request="handleVideoUploadRequest"
-              :before-upload="beforeVideoUpload"
-              v-loading="videoUploading"
-            >
-              <div v-if="form.videoUrl" class="video-preview">
-                <el-icon class="text-green-500 mr-1"><VideoPlay /></el-icon>
-                <span class="text-xs truncate max-w-[150px]">{{ form.videoUrl }}</span>
-              </div>
-              <el-button v-else type="primary" size="small">上传视频</el-button>
-            </el-upload>
-            <div class="text-xs text-gray-400 mt-1">文件大小建议不超过 500MB</div>
-          </el-form-item>
           <el-form-item label="总节数" prop="episodes">
             <el-input-number v-model="form.episodes" :min="0" class="w-full" />
           </el-form-item>
@@ -123,21 +129,12 @@
       </el-row>
 
       <el-form-item label="课程内容" prop="content">
-        <div style="border: 1px solid #ccc; width: 100%">
-          <Toolbar
-            style="border-bottom: 1px solid #ccc"
-            :editor="editorRef"
-            :defaultConfig="toolbarConfig"
-            mode="default"
-          />
-          <Editor
-            style="height: 300px; overflow-y: hidden;"
-            v-model="form.content"
-            :defaultConfig="editorConfig"
-            mode="default"
-            @onCreated="handleCreated"
-          />
-        </div>
+        <el-input
+          v-model="form.content"
+          type="textarea"
+          :rows="10"
+          placeholder="请输入课程详情内容..."
+        />
       </el-form-item>
     </el-form>
 
@@ -149,14 +146,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, shallowRef, onBeforeUnmount, computed, nextTick } from 'vue'
-import type { UploadRequestOptions } from 'element-plus'
-import { Plus, VideoPlay } from '@element-plus/icons-vue'
-import '@wangeditor/editor/dist/css/style.css'
-import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
+import { ref, watch, computed } from 'vue'
+import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { useUserStore } from '@/store/modules/user'
-import { uploadCourseVideo } from '@/api/course-study/course'
+import ImgCutter from 'vue-img-cutter'
+import { uploadCourseCover } from '@/api/course-study/course'
+import { DEFAULT_COURSE_COVER, resolveUploadUrl } from '@/utils/upload-url'
 
 const props = defineProps({
   visible: Boolean,
@@ -171,16 +166,38 @@ const dialogVisible = computed({
   set: (val) => emit('update:visible', val)
 })
 
-const userStore = useUserStore()
-const uploadHeaders = computed(() => ({
-  Authorization: `Bearer ${userStore.accessToken}`
-}))
-
 const formRef = ref()
-const editorRef = shallowRef()
-const videoUploading = ref(false)
+const coverCutterRef = ref()
+const coverPreviewFallback = ref(false)
+const localCoverPreview = ref('')
+const coverUploading = ref(false)
 
-const buildDefaultForm = () => ({
+type CutterResult = {
+  file?: File
+  blob?: Blob
+  dataURL?: string
+  fileName?: string
+}
+
+type CourseForm = {
+  id: string
+  title: string
+  type: string
+  isRecommend: number
+  subject: string
+  grade: string
+  price: number
+  isSvipOnly: boolean
+  author: string
+  buyers: number
+  studentCount: number
+  episodes: number
+  midasProductId: string
+  cover: string
+  content: string
+}
+
+const buildDefaultForm = (): CourseForm => ({
   id: '',
   title: '',
   type: 'general',
@@ -195,11 +212,35 @@ const buildDefaultForm = () => ({
   episodes: 0,
   midasProductId: '',
   cover: '',
-  videoUrl: '',
   content: ''
 })
 
-const form = ref(buildDefaultForm())
+const buildFormFromData = (data?: Record<string, any>): CourseForm => {
+  const defaultForm = buildDefaultForm()
+  if (!data) {
+    return defaultForm
+  }
+
+  return {
+    id: data.id ?? defaultForm.id,
+    title: data.title ?? defaultForm.title,
+    type: data.type ?? defaultForm.type,
+    isRecommend: data.isRecommend ?? defaultForm.isRecommend,
+    subject: data.subject ?? defaultForm.subject,
+    grade: data.grade ?? defaultForm.grade,
+    price: data.price ?? defaultForm.price,
+    isSvipOnly: data.isSvipOnly ?? defaultForm.isSvipOnly,
+    author: data.author ?? defaultForm.author,
+    buyers: data.buyers ?? defaultForm.buyers,
+    studentCount: data.studentCount ?? defaultForm.studentCount,
+    episodes: data.episodes ?? defaultForm.episodes,
+    midasProductId: data.midasProductId ?? defaultForm.midasProductId,
+    cover: data.cover ?? defaultForm.cover,
+    content: data.content ?? defaultForm.content
+  }
+}
+
+const form = ref<CourseForm>(buildDefaultForm())
 
 const rules = {
   title: [{ required: true, message: '请输入课程名称', trigger: 'blur' }],
@@ -207,27 +248,11 @@ const rules = {
   content: [{ required: true, message: '请输入课程内容', trigger: 'blur' }]
 }
 
-const toolbarConfig = {}
-const editorConfig = { placeholder: '请输入课程详情内容...' }
-
-const handleCreated = (editor: any) => {
-  editorRef.value = editor
-}
-onBeforeUnmount(() => {
-  const editor = editorRef.value
-  if (editor == null) return
-  editor.destroy()
-})
-
 const syncFromProps = async () => {
   if (!props.visible) return
-  const merged = props.data ? { ...buildDefaultForm(), ...props.data } : buildDefaultForm()
-  form.value = merged
-
-  await nextTick()
-  if (editorRef.value) {
-    editorRef.value.setHtml(form.value.content || '')
-  }
+  form.value = buildFormFromData(props.data as Record<string, any> | undefined)
+  coverPreviewFallback.value = false
+  localCoverPreview.value = ''
 }
 
 watch(() => props.visible, () => {
@@ -238,57 +263,62 @@ watch(() => props.data, () => {
   syncFromProps()
 })
 
-const handleUploadSuccess = (res: any) => {
-  if (res.code === 200) {
-    form.value.cover = res.data
-    ElMessage.success('封面上传成功')
+const coverPreviewUrl = computed(() => {
+  if (coverPreviewFallback.value) {
+    return DEFAULT_COURSE_COVER
   }
+  if (localCoverPreview.value) {
+    return localCoverPreview.value
+  }
+  return resolveUploadUrl(form.value.cover) || DEFAULT_COURSE_COVER
+})
+
+const handleCoverPreviewError = () => {
+  coverPreviewFallback.value = true
 }
 
-const beforeUpload = (file: File) => {
-  const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png'
-  if (!isJpgOrPng) {
-    ElMessage.error('上传头像图片只能是 JPG 或 PNG 格式!')
-    return false
+const isAllowedCoverFile = (file?: File | Blob | null) => {
+  if (!file) return false
+  const fileType = file.type || ''
+  return ['image/jpeg', 'image/png', 'image/jpg'].includes(fileType)
+}
+
+const buildUploadFile = (result: CutterResult) => {
+  if (result.file && isAllowedCoverFile(result.file)) {
+    return result.file
   }
-  const isLt2M = file.size / 1024 / 1024 < 2
+  if (result.blob && isAllowedCoverFile(result.blob)) {
+    const fileName = result.fileName || `course-cover-${Date.now()}.jpg`
+    return new File([result.blob], fileName, { type: result.blob.type || 'image/jpeg' })
+  }
+  return null
+}
+
+const handleCoverCutDown = async (result: CutterResult) => {
+  const uploadFile = buildUploadFile(result)
+  if (!uploadFile) {
+    ElMessage.error('裁剪结果无效，请重新选择 JPG/PNG 图片')
+    return
+  }
+
+  const isLt2M = uploadFile.size / 1024 / 1024 < 2
   if (!isLt2M) {
-    ElMessage.error('上传头像图片大小不能超过 2MB!')
-    return false
+    ElMessage.error('裁剪后的图片大小不能超过 2MB')
+    return
   }
-  return true
-}
 
-const beforeVideoUpload = (file: File) => {
-  const isMp4 = file.type === 'video/mp4'
-  if (!isMp4) {
-    ElMessage.error('上传视频只能是 MP4 格式!')
-    return false
-  }
-  const isLt500M = file.size / 1024 / 1024 < 500
-  if (!isLt500M) {
-    ElMessage.error('上传视频大小不能超过 500MB!')
-    return false
-  }
-  videoUploading.value = true
-  return isMp4 && isLt500M
-}
-
-const handleVideoUploadRequest = async (options: UploadRequestOptions) => {
   try {
-    const file = options.file as File
-    const videoUrl = await uploadCourseVideo(file)
-    options.onProgress?.({ percent: 100 } as any)
-    form.value.videoUrl = videoUrl
-    formRef.value?.validateField('videoUrl')
-    ElMessage.success('视频上传成功')
-    options.onSuccess?.({ url: videoUrl } as any)
-  } catch (error: any) {
-    console.error('上传失败:', error)
-    ElMessage.error(error.message || '视频上传失败，可能是文件过大或网络问题')
-    options.onError?.(error)
+    coverUploading.value = true
+    localCoverPreview.value = result.dataURL || ''
+    const url = await uploadCourseCover(uploadFile)
+    form.value.cover = url
+    coverPreviewFallback.value = false
+    localCoverPreview.value = ''
+    ElMessage.success('封面上传成功')
+  } catch (error) {
+    ElMessage.error((error as any)?.message || '封面上传失败')
   } finally {
-    videoUploading.value = false
+    coverUploading.value = false
   }
 }
 
@@ -304,14 +334,16 @@ const handleSubmit = async () => {
 
 const handleClosed = () => {
   form.value = buildDefaultForm()
-  if (editorRef.value) {
-    editorRef.value.setHtml('')
-  }
-  videoUploading.value = false
+  coverPreviewFallback.value = false
+  localCoverPreview.value = ''
+  coverUploading.value = false
 }
 </script>
 
 <style scoped>
+.cover-cutter {
+  display: inline-block;
+}
 .cover-uploader {
   border: 1px dashed #d9d9d9;
   border-radius: 6px;
@@ -323,38 +355,41 @@ const handleClosed = () => {
   display: flex;
   justify-content: center;
   align-items: center;
+  background: #fafafa;
 }
-.cover-uploader:hover {
-  border-color: #409eff;
+.cover-uploader:hover .cover-overlay {
+  opacity: 1;
+}
+.cover-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #8c939d;
+}
+.cover-empty-text {
+  font-size: 12px;
 }
 .uploader-icon {
   font-size: 28px;
   color: #8c939d;
 }
+.cover-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
 .cover-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-.video-uploader {
-  border: 1px dashed #d9d9d9;
-  border-radius: 6px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  width: 200px;
-  min-height: 32px;
-  display: flex;
-  align-items: center;
-  padding: 0 10px;
-}
-.video-uploader:hover {
-  border-color: #409eff;
-}
-.video-preview {
-  display: flex;
-  align-items: center;
-  color: #606266;
 }
 .w-full {
   width: 100%;

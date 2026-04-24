@@ -22,7 +22,7 @@ const emit = defineEmits(['click', 'more'])
         @click="emit('click', course)"
       >
         <view class="img-wrap">
-          <wd-img :src="course.image" :width="160" :height="100" round class="item-img" />
+          <image :src="course.image" mode="aspectFill" class="item-img" />
           <view class="svip-tag" v-if="!isSVIPUser">SVIP</view>
         </view>
         <view class="item-info">
@@ -69,14 +69,25 @@ const emit = defineEmits(['click', 'more'])
   .recommend-item {
     background-color: #fff;
     border-radius: 20rpx;
-    padding: 20rpx;
+    padding: 24rpx;
     margin-bottom: 20rpx;
     display: flex;
-    gap: 20rpx;
+    gap: 24rpx;
     box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.02);
 
     .img-wrap {
       position: relative;
+      width: 220rpx;
+      height: 132rpx;
+      border-radius: 16rpx;
+      overflow: hidden;
+      flex-shrink: 0;
+
+      .item-img {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
 
       .svip-tag {
         position: absolute;
@@ -96,17 +107,23 @@ const emit = defineEmits(['click', 'more'])
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      min-height: 132rpx;
 
       .name-wrap {
         display: flex;
-        align-items: center;
-        margin-bottom: 8rpx;
+        align-items: flex-start;
+        margin-bottom: 12rpx;
       }
 
       .item-name {
         font-size: 30rpx;
         font-weight: 500;
         color: #333;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
       }
 
       .item-bottom {
