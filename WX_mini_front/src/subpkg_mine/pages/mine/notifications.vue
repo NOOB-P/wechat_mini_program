@@ -43,12 +43,15 @@
             v-for="item in group"
             :key="item.id"
             class="msg-card"
-            :class="{ 'is-new': item.isNew }"
+            :class="['level-' + (item.level || 'info'), { 'is-new': item.isNew }]"
             @click="handleNotificationClick(item)"
           >
             <view class="msg-content">
               <view class="msg-top">
-                <text class="msg-title">{{ item.title }}</text>
+                <view class="title-wrap">
+                  <text class="level-tag" v-if="item.level && item.level !== 'info'">{{ getLevelText(item.level) }}</text>
+                  <text class="msg-title">{{ item.title }}</text>
+                </view>
                 <text class="msg-time">{{ formatTimeOnly(item.time) }}</text>
               </view>
               <text class="msg-body">{{ item.content }}</text>
@@ -204,6 +207,14 @@ const formatGroupDate = (dateStr: string) => {
 const formatTimeOnly = (timeStr: string) => {
   if (!timeStr) return ''
   return timeStr.split(' ')[1]?.slice(0, 5) || ''
+}
+
+const getLevelText = (level: string) => {
+  switch (level) {
+    case 'warning': return '警告'
+    case 'error': return '紧急'
+    default: return '普通'
+  }
 }
 onShow(() => {
   loadNotifications()
@@ -378,12 +389,32 @@ onShow(() => {
     align-items: flex-start;
     margin-bottom: 12rpx;
 
+    .title-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 12rpx;
+      min-width: 0;
+    }
+
+    .level-tag {
+      font-size: 20rpx;
+      padding: 2rpx 10rpx;
+      border-radius: 6rpx;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
     .msg-title {
       font-size: 36rpx;
       font-weight: 700;
       color: #1a1a1a;
       line-height: 1.3;
       padding-right: 20rpx;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 1;
+      overflow: hidden;
     }
 
     .msg-time {
@@ -392,6 +423,27 @@ onShow(() => {
       white-space: nowrap;
       margin-top: 8rpx;
     }
+  }
+
+  // 不同级别的配色
+  &.level-warning {
+    border-left: 8rpx solid #faad14;
+    .level-tag {
+      background: rgba(250, 173, 20, 0.1);
+      color: #faad14;
+    }
+  }
+
+  &.level-error {
+    border-left: 8rpx solid #ff4d4f;
+    .level-tag {
+      background: rgba(255, 77, 79, 0.1);
+      color: #ff4d4f;
+    }
+  }
+
+  &.level-info {
+    border-left: 8rpx solid #2f54eb;
   }
 
   .msg-body {

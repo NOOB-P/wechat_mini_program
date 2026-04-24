@@ -30,7 +30,7 @@
       <view class="section-title">联系我们</view>
       <wd-cell-group border>
         <wd-cell title="官方客服" value="15555616622" is-link @click="copyText('15555616622')" />
-        <wd-cell title="商务合作" value="youtihui@qq.com" is-link @click="copyText('[邮箱地址')" />
+        <wd-cell title="商务合作" value="youtihui@qq.com" is-link @click="copyText('youtihui@qq.com')" />
       </wd-cell-group>
     </view>
 
@@ -38,22 +38,17 @@
     <view class="footer">
       <text>© 2026-2027 优题慧 版权所有</text>
     </view>
-    
-    <wd-toast />
   </view>
 </template>
 
 <script setup lang="ts">
-import { useToast } from 'wot-design-uni'
-
 const staticBaseUrl = __VITE_STATIC_BASEURL__
-const toast = useToast()
 
 const copyText = (text: string) => {
   uni.setClipboardData({
     data: text,
     success: () => {
-      toast.success('已复制到剪贴板')
+      // 移除自定义 toast，仅保留系统默认提示或完全不提示
     }
   })
 }

@@ -655,6 +655,9 @@ INSERT INTO `sys_role_menu` (`role_id`, `permission_code`) VALUES
 (1, 'system:permission:list'),
 (1, 'system:permission:edit'),
 (1, 'system:permission:options'),
+(1, 'system:notification:list'),
+(1, 'system:notification:save'),
+(1, 'system:notification:delete'),
 (1, 'system:log:list'),
 (1, 'system:log:delete');
 
@@ -851,7 +854,7 @@ CREATE TABLE `sys_notifications` (
     `title` VARCHAR(200) NOT NULL COMMENT '通知标题',
     `content` TEXT NOT NULL COMMENT '通知内容',
     `category` VARCHAR(50) DEFAULT 'system' COMMENT '通知分类 (system, score, course, vip, etc.)',
-    `level` VARCHAR(20) DEFAULT 'info' COMMENT '通知级别 (info, warning, success, error)',
+    `level` VARCHAR(20) DEFAULT 'info' COMMENT '通知级别 (info, warning, error)',
     `target_type` TINYINT DEFAULT 0 COMMENT '发送目标类型: 0-全部用户, 1-指定用户',
     `target_uid` BIGINT DEFAULT NULL COMMENT '指定接收用户UID',
     `action_text` VARCHAR(50) COMMENT '跳转按钮文字',
