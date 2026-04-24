@@ -2,9 +2,12 @@
   <view class="detail-page" v-if="detail">
     <view class="status-bar"></view>
 
-    <view class="detail-card">
+    <view class="detail-card" :class="'level-' + (detail.level || 'info')">
       <view class="detail-meta">
-        <text class="detail-tag">{{ getCategoryLabel(detail.category) }}</text>
+        <view class="meta-left">
+          <text class="detail-tag">{{ getCategoryLabel(detail.category) }}</text>
+          <text class="level-badge" v-if="detail.level && detail.level !== 'info'">{{ getLevelText(detail.level) }}</text>
+        </view>
         <text class="detail-time">{{ detail.time }}</text>
       </view>
 
@@ -69,6 +72,14 @@ const getCategoryLabel = (category?: string) => {
   }
 }
 
+const getLevelText = (level: string) => {
+  switch (level) {
+    case 'warning': return '警告'
+    case 'error': return '紧急'
+    default: return '普通'
+  }
+}
+
 const handleBack = () => {
   uni.navigateBack()
 }
@@ -121,6 +132,12 @@ onLoad(() => {
   align-items: center;
   gap: 20rpx;
   margin-bottom: 24rpx;
+
+  .meta-left {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+  }
 }
 
 .detail-tag {
@@ -130,6 +147,38 @@ onLoad(() => {
   color: #2f54eb;
   font-size: 24rpx;
   font-weight: 600;
+}
+
+.level-badge {
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  font-weight: bold;
+}
+
+// 详情页配色
+.detail-card {
+  border-left: 10rpx solid transparent;
+  
+  &.level-warning {
+    border-left-color: #faad14;
+    .level-badge {
+      background: rgba(250, 173, 20, 0.1);
+      color: #faad14;
+    }
+  }
+
+  &.level-error {
+    border-left-color: #ff4d4f;
+    .level-badge {
+      background: rgba(255, 77, 79, 0.1);
+      color: #ff4d4f;
+    }
+  }
+
+  &.level-info {
+    border-left-color: #2f54eb;
+  }
 }
 
 .detail-time {

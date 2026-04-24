@@ -55,11 +55,23 @@
           </ElFormItem>
           <ElFormItem label="通知级别" prop="level">
             <ElSelect v-model="formData.level" placeholder="请选择级别" class="w-full">
-              <ElOption label="普通" value="info" />
-              <ElOption label="警告" value="warning" />
-              <ElOption label="成功" value="success" />
-              <ElOption label="紧急" value="error" />
+              <ElOption label="普通 (蓝色)" value="info" />
+              <ElOption label="警告 (橙色)" value="warning" />
+              <ElOption label="紧急 (红色)" value="error" />
             </ElSelect>
+          </ElFormItem>
+          <ElFormItem label="通知分类" prop="category">
+            <ElSelect v-model="formData.category" placeholder="请选择分类" class="w-full">
+              <ElOption label="系统通知" value="system" />
+              <ElOption label="学习相关" value="score" />
+              <ElOption label="订单相关" value="order" />
+            </ElSelect>
+          </ElFormItem>
+          <ElFormItem label="跳转文字" prop="actionText">
+            <ElInput v-model="formData.actionText" placeholder="如：立即查看 (不填则无按钮)" />
+          </ElFormItem>
+          <ElFormItem label="跳转路径" prop="actionPath">
+            <ElInput v-model="formData.actionPath" placeholder="如：/pages/mine/index" />
           </ElFormItem>
           <ElFormItem label="目标用户" prop="targetType">
             <ElRadioGroup v-model="formData.targetType">
@@ -144,6 +156,20 @@
         { prop: 'title', label: '标题', minWidth: 150 },
         { prop: 'content', label: '内容', minWidth: 250, showOverflowTooltip: true },
         {
+          prop: 'category',
+          label: '分类',
+          width: 100,
+          formatter: (row: any) => {
+            const maps: any = {
+              system: { text: '系统通知', type: 'info' },
+              score: { text: '学习相关', type: 'primary' },
+              order: { text: '订单相关', type: 'warning' }
+            }
+            const config = maps[row.category] || { text: row.category, type: 'info' }
+            return h(ElTag, { type: config.type }, () => config.text)
+          }
+        },
+        {
           prop: 'level',
           label: '级别',
           width: 80,
@@ -151,7 +177,6 @@
             const maps: any = {
               info: 'info',
               warning: 'warning',
-              success: 'success',
               error: 'danger'
             }
             return h(ElTag, { type: maps[row.level] || 'info' }, () => row.level)
@@ -223,7 +248,9 @@
         level: 'info',
         targetType: 0,
         targetUid: null,
-        isPublished: 1
+        isPublished: 1,
+        actionText: null,
+        actionPath: null
       }
     }
     dialogVisible.value = true
@@ -245,13 +272,7 @@
       if (valid) {
         submitLoading.value = true
         try {
-          const payload = {
-            ...formData.value,
-            category: 'system',
-            actionText: null,
-            actionPath: null
-          }
-          await fetchSaveNotification(payload)
+          await fetchSaveNotification(formData.value)
           ElMessage.success('保存成功')
           dialogVisible.value = false
           refreshData()

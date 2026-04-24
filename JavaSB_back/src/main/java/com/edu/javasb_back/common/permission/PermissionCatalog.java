@@ -106,6 +106,13 @@ public final class PermissionCatalog {
     public static final String SYSTEM_PERMISSION_LIST = "system:permission:list";
     public static final String SYSTEM_PERMISSION_EDIT = "system:permission:edit";
     public static final String SYSTEM_PERMISSION_OPTIONS = "system:permission:options";
+    public static final String SYSTEM_NOTIFICATION_LIST = "system:notification:list";
+    public static final String SYSTEM_NOTIFICATION_SAVE = "system:notification:save";
+    public static final String SYSTEM_NOTIFICATION_DELETE = "system:notification:delete";
+
+    public static final String SYSTEM_NOTIFICATION_LIST = "system:notification:list";
+    public static final String SYSTEM_NOTIFICATION_SAVE = "system:notification:save";
+    public static final String SYSTEM_NOTIFICATION_DELETE = "system:notification:delete";
 
     public static final String SYSTEM_LOG_LIST = "system:log:list";
     public static final String SYSTEM_LOG_DELETE = "system:log:delete";
@@ -317,6 +324,17 @@ public final class PermissionCatalog {
                             SYSTEM_PERMISSION_LIST,
                             SYSTEM_PERMISSION_EDIT,
                             SYSTEM_PERMISSION_OPTIONS
+                    )
+            ),
+            new PermissionGroup(
+                    SYSTEM_NOTIFICATION_LIST,
+                    "系统通知管理",
+                    "/system/notification",
+                    "ri:notification-3-line",
+                    List.of(
+                            SYSTEM_NOTIFICATION_LIST,
+                            SYSTEM_NOTIFICATION_SAVE,
+                            SYSTEM_NOTIFICATION_DELETE
                     )
             ),
             new PermissionGroup(
