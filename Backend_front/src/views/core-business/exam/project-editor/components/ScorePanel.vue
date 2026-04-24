@@ -78,13 +78,13 @@
 </template>
 
 <script setup lang="ts">
-  import { onMounted, ref, watch } from 'vue'
+  import { defineAsyncComponent, onMounted, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
-  import PaperEditView from './PaperEditView.vue'
   import {
     fetchProjectScoreSummary,
     type ProjectScoreSummaryItem
   } from '@/api/core-business/exam/project-editor'
+  const PaperEditView = defineAsyncComponent(() => import('./PaperEditView.vue'))
 
   interface SchoolRow {
     schoolId: string

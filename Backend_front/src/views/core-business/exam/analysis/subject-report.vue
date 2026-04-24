@@ -178,7 +178,7 @@
 <script setup lang="ts">
   import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import * as echarts from 'echarts'
+  import { echarts } from '@/plugins/echarts'
   import { ElMessage } from 'element-plus'
   import { Refresh } from '@element-plus/icons-vue'
   import { fetchAnalysisSubjectReport } from '@/api/core-business/exam/analysis/subject-report'

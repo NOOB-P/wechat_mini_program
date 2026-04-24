@@ -3,27 +3,52 @@
 </template>
 
 <script setup lang="ts">
-  import { computed } from 'vue'
-  import { marked } from 'marked'
-  import katex from 'katex'
-  import 'katex/dist/katex.min.css'
+  import { ref, watch } from 'vue'
 
   const props = defineProps<{
     content: string
   }>()
 
-  const renderedHtml = computed(() => {
-    if (!props.content) return ''
+  const renderedHtml = ref('')
+  let markedLib: (typeof import('marked'))['marked'] | null = null
+  let katexLib: (typeof import('katex'))['default'] | null = null
+  let katexCssLoaded = false
+
+  const ensureRenderer = async () => {
+    if (!markedLib) {
+      const markedModule = await import('marked')
+      markedLib = markedModule.marked
+    }
+    if (!katexLib) {
+      const katexModule = await import('katex')
+      katexLib = katexModule.default
+    }
+    if (!katexCssLoaded) {
+      await import('katex/dist/katex.min.css')
+      katexCssLoaded = true
+    }
+  }
+
+  const renderContent = async () => {
+    if (!props.content) {
+      renderedHtml.value = ''
+      return
+    }
+
+    await ensureRenderer()
+    if (!markedLib || !katexLib) {
+      renderedHtml.value = props.content
+      return
+    }
+    const marked = markedLib
+    const katex = katexLib
 
     let content = props.content
     const placeholders: string[] = []
 
-    // 辅助函数：修复并渲染 LaTeX
     const renderMath = (formula: string, displayMode: boolean) => {
       try {
         let fixedFormula = formula.trim()
-        
-        // 1. 基础容错：修复不平衡的 \left 和 \right (OCR 常见错误)
         const leftCount = (fixedFormula.match(/\\left/g) || []).length
         const rightCount = (fixedFormula.match(/\\right/g) || []).length
         if (leftCount > rightCount) {
@@ -31,11 +56,7 @@
         } else if (rightCount > leftCount) {
           fixedFormula = ' \\left. '.repeat(rightCount - leftCount) + fixedFormula
         }
-
-        // 2. 处理 OCR 误识别的特殊情况，例如 \right.3 这种
         fixedFormula = fixedFormula.replace(/\\right\.(\d+)/g, '\\right. $1')
-
-       // 3. 处理公式中的中文，将其包裹在 \text{} 中以确保 KaTeX 正常渲染
         fixedFormula = fixedFormula.replace(/([\u4e00-\u9fa5]+)/g, '\\text{$1}')
 
         const rendered = katex.renderToString(fixedFormula, {
@@ -46,45 +67,43 @@
         })
 
         const placeholder = `@@LATEX_PH_${placeholders.length}@@`
-        const html = displayMode
-          ? `<span class="katex-display-wrapper">${rendered}</span>`
-          : rendered
-        placeholders.push(html)
+        placeholders.push(displayMode ? `<span class="katex-display-wrapper">${rendered}</span>` : rendered)
         return placeholder
-      } catch (e) {
+      } catch {
         return formula
       }
     }
 
-    // 1. 统一提取各种 LaTeX 格式并替换为占位符
-    // 块级公式
     content = content.replace(/\$\$(.*?)\$\$/gs, (_, f) => renderMath(f, true))
     content = content.replace(/\\\[(.*?)\\\]/gs, (_, f) => renderMath(f, true))
-
-    // 行内公式
     content = content.replace(/\$(.*?)\$/g, (_, f) => renderMath(f, false))
     content = content.replace(/\\\((.*?)\\\)/g, (_, f) => renderMath(f, false))
 
-    // 2. 使用 marked 渲染 Markdown
     let finalHtml = ''
     try {
       marked.setOptions({
         breaks: true,
         gfm: true
       })
-      // marked 渲染后的内容
       finalHtml = marked.parse(content) as string
-    } catch (e) {
+    } catch {
       finalHtml = content
     }
 
-    // 4. 将占位符替换回真实的 KaTeX HTML
     placeholders.forEach((html, i) => {
       finalHtml = finalHtml.replace(`@@LATEX_PH_${i}@@`, html)
     })
 
-    return finalHtml
-  })
+    renderedHtml.value = finalHtml
+  }
+
+  watch(
+    () => props.content,
+    () => {
+      renderContent()
+    },
+    { immediate: true }
+  )
 </script>
 
 <style lang="scss">

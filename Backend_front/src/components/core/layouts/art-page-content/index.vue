@@ -3,7 +3,7 @@
   <div class="layout-content" :class="{ 'overflow-auto': isFullPage }" :style="containerStyle">
     <div id="app-content-header">
       <!-- 节日滚动 -->
-      <ArtFestivalTextScroll v-if="!isFullPage" />
+      <ArtFestivalTextScroll v-if="!isFullPage && !isStandalonePage" />
 
       <!-- 路由信息调试 -->
       <div
@@ -16,7 +16,7 @@
 
     <RouterView v-if="isRefresh" v-slot="{ Component, route }" :style="contentStyle">
       <!-- 缓存路由动画 -->
-      <Transition :name="showTransitionMask ? '' : actualTransition" mode="out-in" appear>
+      <Transition :name="transitionName" :mode="transitionMode" :appear="enableTransitionAppear">
         <KeepAlive :max="10" :exclude="keepAliveExclude">
           <component
             class="art-page-view"
@@ -28,7 +28,7 @@
       </Transition>
 
       <!-- 非缓存路由动画 -->
-      <Transition :name="showTransitionMask ? '' : actualTransition" mode="out-in" appear>
+      <Transition :name="transitionName" :mode="transitionMode" :appear="enableTransitionAppear">
         <component
           class="art-page-view"
           :is="Component"
@@ -67,6 +67,19 @@
 
   // 标记是否是首次加载（浏览器刷新）
   const isFirstLoad = ref(true)
+  const isStandalonePage = computed(
+    () => Boolean(route.meta?.isHide) || Boolean(route.meta?.disableTransition)
+  )
+  const heavyRouteNames = new Set([
+    'ExamProjectEditor',
+    'ExamSubject',
+    'ExamSubjectScore',
+    'ExamAnalysisDashboard',
+    'ExamAnalysisClassDashboard',
+    'ExamAnalysisSubjectReport',
+    'ExamAnalysisStudentReport',
+    'ExamAnalysisStudentSubjectReport'
+  ])
 
   // 检查当前路由是否需要使用无基础布局模式
   const isFullPage = computed(() => route.matched.some((r) => r.meta?.isFullPage))
@@ -78,10 +91,21 @@
     if (prevIsFullPage.value && !isFullPage.value) return ''
     return pageTransition.value
   })
+  const disableTransition = computed(
+    () =>
+      isFirstLoad.value ||
+      isStandalonePage.value ||
+      heavyRouteNames.has(String(route.name || ''))
+  )
+  const transitionName = computed(() =>
+    showTransitionMask.value || disableTransition.value ? '' : actualTransition.value
+  )
+  const transitionMode = computed(() => (disableTransition.value ? undefined : 'out-in'))
+  const enableTransitionAppear = computed(() => !disableTransition.value)
 
   // 监听全屏状态变化，显示过渡遮罩
   watch(isFullPage, (val, oldVal) => {
-    if (val !== oldVal) {
+    if (val !== oldVal && !isStandalonePage.value) {
       showTransitionMask.value = true
       // 延迟隐藏遮罩，给足时间让页面完成切换
       setTimeout(() => {

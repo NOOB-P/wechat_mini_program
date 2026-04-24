@@ -239,12 +239,14 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+  import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
   import { ArrowDown, InfoFilled, Tools } from '@element-plus/icons-vue'
   import { ElMessage } from 'element-plus'
   import { normalizeQuestionNo } from '@/utils/exam-utils'
   import type { PaperRegionItem } from '@/api/core-business/exam/project-editor'
-  import ArtMarkdownRender from '@/components/core/others/art-markdown-render/index.vue'
+  const ArtMarkdownRender = defineAsyncComponent(
+    () => import('@/components/core/others/art-markdown-render/index.vue')
+  )
 
   type RegionTool = 'draw' | 'adjust' | 'pan' | 'select'
   type InteractionMode = 'draw' | 'pan' | 'move' | 'resize' | null
