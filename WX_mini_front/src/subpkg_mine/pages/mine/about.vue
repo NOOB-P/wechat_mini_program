@@ -3,8 +3,6 @@
     <!-- 顶部 Logo 区域 -->
     <view class="logo-section">
       <image class="logo" :src="staticBaseUrl + '/tabbar/logo.png'" mode="aspectFit" />
-      <text class="app-name">优题慧</text>
-      <text class="version">v1.0.0</text>
     </view>
 
     <!-- 产品简介 -->

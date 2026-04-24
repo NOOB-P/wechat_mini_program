@@ -251,6 +251,7 @@ const code = ref('')
 const password = ref('')
 const countdown = ref(0)
 const isAgreed = ref(false)
+const prefetchedCode = ref('')
 let timer: ReturnType<typeof setInterval> | null = null
 
 const showRegisterPopup = ref(false)
@@ -301,8 +302,23 @@ onMounted(() => {
   const token = uni.getStorageSync('token')
   if (token) {
     uni.switchTab({ url: '/pages/home/index' })
+    return
   }
+  // 预取微信登录凭证
+  prefetchWechatCode()
 })
+
+/**
+ * 预取微信登录凭证
+ */
+const prefetchWechatCode = async () => {
+  try {
+    prefetchedCode.value = await getWechatLoginCode()
+    console.log('微信凭证预取成功')
+  } catch (error) {
+    console.error('微信凭证预取失败', error)
+  }
+}
 
 onUnmounted(() => {
   clearLoginTimers()
@@ -456,7 +472,15 @@ const handleWechatPhoneLogin = async (event: any) => {
 
   uni.showLoading({ title: '登录中...', mask: true })
   try {
-    const wxCode = await getWechatLoginCode()
+    // 优先使用预取的 code
+    let wxCode = prefetchedCode.value
+    if (!wxCode) {
+      wxCode = await getWechatLoginCode()
+    } else {
+      // 使用后清除预取的 code，防止下次使用过期的
+      prefetchedCode.value = ''
+    }
+
     const res = await loginByWechatPhone({
       phoneCode,
       wxCode
@@ -470,9 +494,13 @@ const handleWechatPhoneLogin = async (event: any) => {
       return
     }
 
+    // 如果登录失败，重新预取一次，为下次尝试做准备
+    prefetchWechatCode()
     uni.hideLoading()
     toast.error(res.msg || '手机号授权登录失败')
   } catch (error: any) {
+    // 异常情况下也尝试重新预取
+    prefetchWechatCode()
     uni.hideLoading()
     toast.error(error.msg || error.message || '手机号授权登录失败')
   }
@@ -646,6 +674,35 @@ const thirdPartyLogin = (type: string) => {
 
   uni.showLoading({ title: '登录中...', mask: true })
   if (type === 'wechat') {
+    // 定义执行微信登录的逻辑
+    const doWechatLogin = async (wxCode: string) => {
+      try {
+        const res = await loginByWechat(wxCode)
+        if (res.code === 200) {
+          handleThirdPartySuccess(res, 'wechat')
+          return
+        }
+        // 登录失败，重新预取
+        prefetchWechatCode()
+        uni.hideLoading()
+        toast.error(res.msg || '微信登录失败')
+      } catch (error: any) {
+        // 异常情况，重新预取
+        prefetchWechatCode()
+        uni.hideLoading()
+        toast.error(error.msg || '微信登录异常')
+      }
+    }
+
+    // 优先使用预取的 code
+    if (prefetchedCode.value) {
+      const code = prefetchedCode.value
+      prefetchedCode.value = '' // 使用后清除
+      doWechatLogin(code)
+      return
+    }
+
+    // 没有预取到的情况（或预取失败），现场调用 uni.login
     uni.login({
       provider: 'weixin',
       success: async (loginRes) => {
@@ -654,19 +711,7 @@ const thirdPartyLogin = (type: string) => {
           toast.error('获取微信登录凭证失败')
           return
         }
-
-        try {
-          const res = await loginByWechat(loginRes.code)
-          if (res.code === 200) {
-            handleThirdPartySuccess(res, 'wechat')
-            return
-          }
-          uni.hideLoading()
-          toast.error(res.msg || '微信登录失败')
-        } catch (error: any) {
-          uni.hideLoading()
-          toast.error(error.msg || '微信登录异常')
-        }
+        doWechatLogin(loginRes.code)
       },
       fail: () => {
         uni.hideLoading()
