@@ -49,6 +49,7 @@
           </el-table-column>
           <el-table-column prop="subject" label="科目" width="80" />
           <el-table-column prop="grade" label="年级" width="100" />
+          <el-table-column prop="midasProductId" label="道具ID" width="120" show-overflow-tooltip />
           <el-table-column prop="price" label="价格" width="100">
             <template #default="{ row }">
               <span style="color: #f56c6c; font-weight: bold">￥{{ row.price?.toFixed(2) }}</span>

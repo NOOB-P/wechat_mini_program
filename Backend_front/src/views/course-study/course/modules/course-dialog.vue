@@ -63,8 +63,21 @@
           </el-form-item>
         </el-col>
         <el-col :span="12">
+          <el-form-item label="道具ID" prop="midasProductId">
+            <el-input v-model="form.midasProductId" placeholder="请输入米大师道具ID" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="20">
+        <el-col :span="12">
           <el-form-item label="作者/讲师" prop="author">
             <el-input v-model="form.author" placeholder="请输入作者姓名" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="已学人数" prop="buyers">
+            <el-input-number v-model="form.buyers" :min="0" class="w-full" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -103,11 +116,8 @@
             </el-upload>
             <div class="text-xs text-gray-400 mt-1">文件大小建议不超过 500MB</div>
           </el-form-item>
-          <el-form-item label="已学人数" prop="buyers">
-            <el-input-number v-model="form.buyers" :min="0" />
-          </el-form-item>
           <el-form-item label="总节数" prop="episodes">
-            <el-input-number v-model="form.episodes" :min="0" />
+            <el-input-number v-model="form.episodes" :min="0" class="w-full" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -183,6 +193,7 @@ const buildDefaultForm = () => ({
   buyers: 0,
   studentCount: 0,
   episodes: 0,
+  midasProductId: '',
   cover: '',
   videoUrl: '',
   content: ''

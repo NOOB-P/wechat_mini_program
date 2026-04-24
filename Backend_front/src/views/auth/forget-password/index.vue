@@ -37,6 +37,8 @@
           </div>
         </div>
       </div>
+
+      <AuthFooter />
     </div>
   </div>
 </template>

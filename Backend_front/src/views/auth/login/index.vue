@@ -73,11 +73,11 @@
               </p>
             </div>
 
-            <div class="flex-cb mt-2 text-sm">
+            <!-- <div class="flex-cb mt-2 text-sm">
               <ElCheckbox v-model="formData.rememberPassword">{{
                 $t('login.rememberPwd')
               }}</ElCheckbox>
-            </div>
+            </div> -->
 
             <div style="margin-top: 30px">
               <ElButton
@@ -93,6 +93,8 @@
           </ElForm>
         </div>
       </div>
+
+      <AuthFooter />
     </div>
   </div>
 </template>
