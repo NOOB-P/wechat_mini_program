@@ -1,6 +1,5 @@
 import api from '@/utils/http'
 import { mockUserList } from '@/mock/system/user'
-import { useUserStore } from '@/store/modules/user'
 
 /** 获取用户列表 */
 export function fetchGetUserList(params: Api.SystemManage.UserSearchParams) {
@@ -81,7 +80,6 @@ export function fetchImportParentUsers(data: File | FormData) {
 
 /** 下载家长导入模板 */
 export function fetchDownloadParentTemplate() {
-  const token = useUserStore().accessToken || ''
   const baseUrl = import.meta.env.VITE_API_URL === '/' ? '' : import.meta.env.VITE_API_URL || ''
-  window.open(`${baseUrl}/api/system/user/download-parent-template?token=${token}`, '_blank')
+  window.open(`${baseUrl}/api/system/user/download-parent-template`, '_blank')
 }

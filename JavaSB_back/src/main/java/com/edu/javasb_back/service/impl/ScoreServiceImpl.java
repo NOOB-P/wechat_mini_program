@@ -27,6 +27,8 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.config.GlobalConfigProperties;
@@ -108,6 +110,15 @@ public class ScoreServiceImpl implements ScoreService {
 
     @Autowired
     private OssStorageService ossStorageService;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    private void forceFreshRead() {
+        if (entityManager != null) {
+            entityManager.clear();
+        }
+    }
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final Map<String, Double> DEFAULT_FULL_SCORES = new LinkedHashMap<>();
@@ -271,6 +282,7 @@ public class ScoreServiceImpl implements ScoreService {
 
     @Override
     public Result<Map<String, Object>> getStudentScores(Long uid, String semester, String examId) {
+        forceFreshRead();
         Optional<SysStudent> studentOpt = getBoundStudent(uid);
         if (studentOpt.isEmpty()) return Result.error("未绑定学生账号");
 
@@ -285,6 +297,7 @@ public class ScoreServiceImpl implements ScoreService {
 
     @Override
     public Result<Map<String, Object>> getScoreComposition(Long uid, String examId, String subject) {
+        forceFreshRead();
         Optional<SysStudent> studentOpt = getBoundStudent(uid);
         if (studentOpt.isEmpty()) return Result.error("未绑定学生账号");
 
@@ -323,6 +336,7 @@ public class ScoreServiceImpl implements ScoreService {
 
     @Override
     public Result<Map<String, Object>> getScoreDistribution(Long uid, String examId, String subject) {
+        forceFreshRead();
         Optional<SysStudent> studentOpt = getBoundStudent(uid);
         if (studentOpt.isEmpty()) return Result.error("未绑定学生账号");
 
@@ -370,6 +384,7 @@ public class ScoreServiceImpl implements ScoreService {
 
     @Override
     public Result<Map<String, Object>> getScoreTrend(Long uid, String examId) {
+        forceFreshRead();
         Optional<SysStudent> studentOpt = getBoundStudent(uid);
         if (studentOpt.isEmpty()) return Result.error("未绑定学生账号");
 
@@ -437,6 +452,7 @@ public class ScoreServiceImpl implements ScoreService {
 
     @Override
     public Result<Map<String, Object>> getPaperDetail(Long uid, String examId, String subject) {
+        forceFreshRead();
         Optional<SysStudent> studentOpt = getBoundStudent(uid);
         if (studentOpt.isEmpty()) return Result.error("未绑定学生账号");
 
@@ -477,6 +493,7 @@ public class ScoreServiceImpl implements ScoreService {
 
     @Override
     public Result<String> exportWrongBook(Long uid, String examId, String subject) {
+        forceFreshRead();
         Optional<SysStudent> studentOpt = getBoundStudent(uid);
         if (studentOpt.isEmpty()) return Result.error("未绑定学生账号");
 

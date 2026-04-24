@@ -30,6 +30,8 @@ import com.github.junrar.rarfile.FileHeader;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -179,9 +181,17 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     @Autowired private AliyunPaperOcrService aliyunPaperOcrService;
     @Autowired private OssStorageService ossStorageService;
     @Autowired private GlobalConfigProperties globalConfigProperties;
+    @PersistenceContext private EntityManager entityManager;
+
+    private void forceFreshRead() {
+        if (entityManager != null) {
+            entityManager.clear();
+        }
+    }
 
     @Override
     public Result<Map<String, Object>> getProjectList(int current, int size, String name) {
+        forceFreshRead();
         Pageable pageable = PageRequest.of(current - 1, size, Sort.by(Sort.Direction.DESC, "createTime"));
         Specification<ExamProject> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -195,6 +205,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     @Override
     public Result<Map<String, Object>> getProjectOptions() {
+        forceFreshRead();
         List<SysSchool> schools = sysSchoolRepository.findByStatus(1);
         List<SysClass> classes = sysClassRepository.findAll(Sort.by("schoolId", "grade", "alias"));
         Map<String, SysSchool> schoolMap = schools.stream().collect(Collectors.toMap(SysSchool::getSchoolId, Function.identity(), (a, b) -> a));
@@ -268,6 +279,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     @Override
     public Result<Map<String, Object>> getProjectDetail(String id) {
+        forceFreshRead();
         ExamProject project = examProjectRepository.findById(id).orElse(null);
         if (project == null) return Result.error("项目不存在");
         Ctx ctx = ctx(id);
@@ -301,6 +313,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     @Override
     public Result<Map<String, Object>> getProjectStudentPage(String projectId, int current, int size, String keyword, String schoolId, String classId) {
+        forceFreshRead();
         ExamProject project = examProjectRepository.findById(projectId).orElse(null);
         if (project == null) return Result.error("项目不存在");
         Ctx ctx = ctx(projectId);
@@ -341,6 +354,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     @Override
     public Result<Map<String, Object>> getProjectScoreSummary(String projectId) {
+        forceFreshRead();
         ExamProject project = examProjectRepository.findById(projectId).orElse(null);
         if (project == null) return Result.error("项目不存在");
         Ctx ctx = ctx(projectId);
@@ -360,6 +374,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     @Override
     public Result<Map<String, Object>> getProjectScorePage(String projectId, String subjectName, int current, int size, String keyword, String schoolId, String classId) {
+        forceFreshRead();
         if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
         Ctx ctx = ctx(projectId);
         ExamSubject targetSubject = ctx.subjects().stream()
@@ -369,7 +384,6 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         if (targetSubject == null) {
             return Result.error("项目中不存在学科: " + subjectName);
         }
-        List<ExamStudentScore> convertedScores = new ArrayList<>();
 
         Map<String, ExamStudentScore> scoreMap = ctx.scores().stream()
                 .filter(s -> targetSubject.getId().equals(s.getSubjectId()))
@@ -378,11 +392,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         List<Map<String, Object>> rows = ctx.students().stream()
                 .map(student -> {
                     ExamStudentScore score = scoreMap.get(student.getStudentNo());
-                    String answerSheetUrl = normalizeStoredPaperPreviewUrl(score == null ? null : score.getAnswerSheetUrl());
-                    if (score != null && !java.util.Objects.equals(answerSheetUrl, score.getAnswerSheetUrl())) {
-                        score.setAnswerSheetUrl(answerSheetUrl);
-                        convertedScores.add(score);
-                    }
+                    String answerSheetUrl = score == null ? null : ossStorageService.toCdnUrl(score.getAnswerSheetUrl());
                     
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("id", score != null ? score.getId() : null);
@@ -409,10 +419,6 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     return score != null ? ((Number) score).doubleValue() : -1.0;
                 }).reversed())
                 .toList();
-
-        if (!convertedScores.isEmpty()) {
-            examStudentScoreRepository.saveAllAndFlush(convertedScores);
-        }
         return Result.success("获取成功", pageData(page(rows, current, size), rows.size(), current, size));
     }
 
@@ -1537,6 +1543,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     @Override
     public Result<Map<String, Object>> getPaperConfig(String projectId, String subjectName) {
+        forceFreshRead();
         if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
         ExamSubject subject = findProjectSubjectByName(projectId, subjectName);
         if (subject == null) return Result.success(new HashMap<>());
