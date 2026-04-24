@@ -45,6 +45,7 @@ import com.edu.javasb_back.repository.SysNotificationRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.repository.VipOrderRepository;
 import com.edu.javasb_back.service.AppNotificationService;
+import com.edu.javasb_back.service.SysNotificationService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -89,6 +90,9 @@ public class AppNotificationServiceImpl implements AppNotificationService {
     private SysNotificationRepository sysNotificationRepository;
 
     @Autowired
+    private SysNotificationService sysNotificationService;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     @Override
@@ -130,6 +134,40 @@ public class AppNotificationServiceImpl implements AppNotificationService {
                 .limit(normalizeLimit(limit))
                 .map(NotificationWrapper::payload)
                 .toList();
+    }
+
+    @Override
+    public void markAllAsRead(Long uid) {
+        if (uid == null) {
+            return;
+        }
+
+        // 1. 标记所有系统通知为已读
+        sysNotificationService.markAllAsRead(uid);
+
+        // 2. 标记所有动态生成的通知为已读
+        // 我们获取当前用户的所有通知，提取它们的 ID 并存入 SysAccount 的 readNotificationIds 中
+        List<AppNotificationVO> currentNotifications = getUserNotifications(uid, MAX_LIMIT);
+        Set<String> allIds = currentNotifications.stream()
+                .map(AppNotificationVO::getId)
+                .filter(id -> id != null && !id.startsWith("sys-")) // 只处理非系统通知
+                .collect(Collectors.toSet());
+
+        if (!allIds.isEmpty()) {
+            sysAccountRepository.findById(uid).ifPresent(account -> {
+                try {
+                    Set<String> readIds = new HashSet<>();
+                    if (StringUtils.hasText(account.getReadNotificationIds())) {
+                        readIds = objectMapper.readValue(account.getReadNotificationIds(), new TypeReference<Set<String>>() {});
+                    }
+                    readIds.addAll(allIds);
+                    account.setReadNotificationIds(objectMapper.writeValueAsString(readIds));
+                    sysAccountRepository.save(account);
+                } catch (Exception e) {
+                    log.error("标记全部动态通知已读异常: {}", e.getMessage());
+                }
+            });
+        }
     }
 
     private void appendSystemNotifications(Long uid, List<NotificationWrapper> notifications) {

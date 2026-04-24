@@ -5,7 +5,6 @@
       <wd-picker 
         :columns="pickerColumns" 
         v-model="pickerValue" 
-        label="选择考试" 
         title="请选择学期和考试" 
         @confirm="onPickerConfirm"
         :column-change="onPickerColumnChange"
@@ -791,6 +790,27 @@ watch(
       color: #333;
       font-weight: bold;
       margin-right: 12rpx;
+      max-width: 500rpx;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .loading-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    padding: 16rpx 40rpx;
+    border-radius: 40rpx;
+    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(67, 100, 247, 0.1);
+    
+    text {
+      font-size: 28rpx;
+      color: #999;
+      font-weight: bold;
     }
   }
 }

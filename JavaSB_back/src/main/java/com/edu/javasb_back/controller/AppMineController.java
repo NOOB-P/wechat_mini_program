@@ -125,7 +125,7 @@ public class AppMineController {
         if (uid == null) {
             return Result.error(401, "未登录");
         }
-        sysNotificationService.markAllAsRead(uid);
+        appNotificationService.markAllAsRead(uid);
         return Result.success("全部标记成功", null);
     }
 

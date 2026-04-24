@@ -7,4 +7,5 @@ import java.util.List;
 public interface AppNotificationService {
 
     List<AppNotificationVO> getUserNotifications(Long uid, Integer limit);
+    void markAllAsRead(Long uid);
 }
