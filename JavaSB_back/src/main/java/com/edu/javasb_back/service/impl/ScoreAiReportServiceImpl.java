@@ -177,8 +177,7 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
             return ProjectContext.fail("考试项目下暂无班级数据");
         }
 
-        List<String> classIds = projectClasses.stream().map(ExamClass::getId).toList();
-        List<ExamSubject> projectSubjects = examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(classIds);
+        List<ExamSubject> projectSubjects = examSubjectRepository.findByProjectIdOrderBySubjectNameAsc(project.getId());
         if (projectSubjects.isEmpty()) {
             return ProjectContext.fail("考试项目下暂无科目数据");
         }
@@ -193,12 +192,24 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         Map<String, ExamSubject> subjectMap = projectSubjects.stream()
                 .collect(Collectors.toMap(ExamSubject::getId, item -> item, (a, b) -> a, LinkedHashMap::new));
         Map<String, ExamSubject> currentSubjectMap = projectSubjects.stream()
-                .filter(item -> currentClass.getId().equals(item.getClassId()))
                 .collect(Collectors.toMap(ExamSubject::getSubjectName, item -> item, (a, b) -> a, LinkedHashMap::new));
 
+        List<String> sourceClassIds = projectClasses.stream().map(ExamClass::getSourceClassId).filter(StringUtils::hasText).toList();
+        Map<String, ExamClass> studentClassMap = (sourceClassIds.isEmpty() ? Collections.<SysStudent>emptyList() : studentRepository.findByClassIdIn(sourceClassIds)).stream()
+                .filter(item -> StringUtils.hasText(item.getStudentNo()))
+                .collect(Collectors.toMap(
+                        SysStudent::getStudentNo,
+                        item -> projectClasses.stream()
+                                .filter(examClass -> item.getClassId().equals(examClass.getSourceClassId()))
+                                .findFirst()
+                                .orElse(null),
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+
         Map<String, Double> fullScoreMap = parseBenchmarks(project.getSubjectBenchmarks());
-        Map<String, List<Map<String, Object>>> paperLayoutMap = parsePaperLayouts(project.getPaperLayouts(), currentSubjectMap.keySet());
-        List<StudentTotalRow> totals = buildStudentTotals(enteredScores, subjectMap, classMap);
+        Map<String, List<Map<String, Object>>> paperLayoutMap = parsePaperLayouts(projectSubjects);
+        List<StudentTotalRow> totals = buildStudentTotals(enteredScores, studentClassMap);
         if (totals.isEmpty()) {
             return ProjectContext.fail("考试项目下暂无已录入成绩");
         }
@@ -206,12 +217,10 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         return ProjectContext.success(project, student, currentClass, classMap, currentSubjectMap, subjectMap, enteredScores, fullScoreMap, paperLayoutMap, totals);
     }
 
-    private List<StudentTotalRow> buildStudentTotals(List<ExamStudentScore> scores, Map<String, ExamSubject> subjectMap, Map<String, ExamClass> classMap) {
+    private List<StudentTotalRow> buildStudentTotals(List<ExamStudentScore> scores, Map<String, ExamClass> studentClassMap) {
         Map<String, StudentTotalAccumulator> accumulatorMap = new LinkedHashMap<>();
         for (ExamStudentScore score : scores) {
-            ExamSubject subject = subjectMap.get(score.getSubjectId());
-            if (subject == null) continue;
-            ExamClass examClass = classMap.get(subject.getClassId());
+            ExamClass examClass = studentClassMap.get(score.getStudentNo());
             if (examClass == null) continue;
             StudentTotalAccumulator accumulator = accumulatorMap.computeIfAbsent(score.getStudentNo(), key ->
                     new StudentTotalAccumulator(score.getStudentNo(), score.getStudentName(), examClass.getId(), examClass.getSchoolId(), examClass.getGrade())
@@ -348,16 +357,15 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
     }
 
     private List<ExamStudentScore> subjectScoresByGroup(ProjectContext context, String subjectName, java.util.function.Predicate<StudentTotalRow> predicate) {
-        List<String> classIds = context.classMap().values().stream()
-                .filter(item -> predicate.test(new StudentTotalRow("", "", item.getId(), item.getSchoolId(), item.getGrade(), 0D)))
-                .map(ExamClass::getId)
+        ExamSubject subject = context.currentSubjectMap().get(subjectName);
+        if (subject == null) return Collections.emptyList();
+        List<String> studentNos = context.studentTotals().stream()
+                .filter(predicate)
+                .map(StudentTotalRow::studentNo)
                 .toList();
-        List<String> subjectIds = context.subjectMap().values().stream()
-                .filter(item -> subjectName.equals(item.getSubjectName()) && classIds.contains(item.getClassId()))
-                .map(ExamSubject::getId)
+        return context.enteredScores().stream()
+                .filter(item -> subject.getId().equals(item.getSubjectId()) && studentNos.contains(item.getStudentNo()))
                 .toList();
-        if (subjectIds.isEmpty()) return Collections.emptyList();
-        return context.enteredScores().stream().filter(item -> subjectIds.contains(item.getSubjectId())).toList();
     }
 
     private Map<String, Object> requestQwenReport(Map<String, Object> sourceSnapshot) {
@@ -494,23 +502,16 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         }
     }
 
-    private Map<String, List<Map<String, Object>>> parsePaperLayouts(String json, Collection<String> currentSubjects) {
-        if (!StringUtils.hasText(json)) return Collections.emptyMap();
-        try {
-            Map<String, Object> raw = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
-            Map<String, List<Map<String, Object>>> result = new LinkedHashMap<>();
-            for (String subjectName : currentSubjects) {
-                Map<String, Object> subjectLayout = map(raw.get(subjectName));
-                List<Map<String, Object>> rows = listMap(subjectLayout.get("template"));
-                if (rows.isEmpty()) {
-                    rows = listMap(subjectLayout.get("original"));
-                }
-                result.put(subjectName, rows);
+    private Map<String, List<Map<String, Object>>> parsePaperLayouts(List<ExamSubject> subjects) {
+        Map<String, List<Map<String, Object>>> result = new LinkedHashMap<>();
+        for (ExamSubject subject : subjects) {
+            List<Map<String, Object>> rows = listMap(readJsonValue(subject.getAnswersLayouts()));
+            if (rows.isEmpty()) {
+                rows = listMap(readJsonValue(subject.getPaperLayouts()));
             }
-            return result;
-        } catch (Exception ignored) {
-            return Collections.emptyMap();
+            result.put(subject.getSubjectName(), rows);
         }
+        return result;
     }
 
     private Map<String, Object> map(Object value) {
@@ -520,6 +521,15 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
             return result;
         }
         return Collections.emptyMap();
+    }
+
+    private Object readJsonValue(String json) {
+        if (!StringUtils.hasText(json)) return Collections.emptyList();
+        try {
+            return objectMapper.readValue(json, Object.class);
+        } catch (Exception ignored) {
+            return Collections.emptyList();
+        }
     }
 
     @SuppressWarnings("unchecked")

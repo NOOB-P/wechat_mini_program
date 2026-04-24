@@ -7,7 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
 
 public interface ExamSubjectService {
-    Result<Map<String, Object>> getSubjectList(String classId);
+    Result<Map<String, Object>> getSubjectList(String projectId);
 
     Result<Void> addSubject(ExamSubject examSubject);
 

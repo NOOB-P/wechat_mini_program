@@ -88,7 +88,7 @@
             :class="{ active: currentMainTab === 'wrong_push' }"
             @click="currentMainTab = 'wrong_push'"
           >
-            错题举一反三
+            AI成绩分析
             <view class="line" v-if="currentMainTab === 'wrong_push'"></view>
           </view>
         </view>

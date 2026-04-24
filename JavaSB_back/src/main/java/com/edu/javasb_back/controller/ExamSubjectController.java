@@ -19,8 +19,8 @@ public class ExamSubjectController {
 
     @LogOperation("获取考试科目列表")
     @GetMapping("/list")
-    public Result<Map<String, Object>> getSubjectList(@RequestParam String classId) {
-        return examSubjectService.getSubjectList(classId);
+    public Result<Map<String, Object>> getSubjectList(@RequestParam String projectId) {
+        return examSubjectService.getSubjectList(projectId);
     }
 
     @LogOperation("新增考试科目")

@@ -117,16 +117,16 @@ record Ctx(
 record UploadCtx(
         boolean ok,
         String msg,
-        Map<String, ExamSubject> classToSubjectMap,
+        ExamSubject subject,
         Map<String, ExamClass> examClassMap,
         Map<String, SysStudent> studentNoMap,
         Map<String, List<SysStudent>> studentNameMap,
         Map<String, ExamStudentScore> existingScoreMap) {
-    public static UploadCtx ok(Map<String, ExamSubject> classToSubjectMap, Map<String, ExamClass> examClassMap, Map<String, SysStudent> studentNoMap, Map<String, List<SysStudent>> studentNameMap, Map<String, ExamStudentScore> existingScoreMap) {
-        return new UploadCtx(true, "", classToSubjectMap, examClassMap, studentNoMap, studentNameMap, existingScoreMap);
+    public static UploadCtx ok(ExamSubject subject, Map<String, ExamClass> examClassMap, Map<String, SysStudent> studentNoMap, Map<String, List<SysStudent>> studentNameMap, Map<String, ExamStudentScore> existingScoreMap) {
+        return new UploadCtx(true, "", subject, examClassMap, studentNoMap, studentNameMap, existingScoreMap);
     }
     public static UploadCtx fail(String msg) {
-        return new UploadCtx(false, msg, Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap(), new HashMap<>());
+        return new UploadCtx(false, msg, null, Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap(), new HashMap<>());
     }
 }
 
@@ -362,27 +362,22 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     public Result<Map<String, Object>> getProjectScorePage(String projectId, String subjectName, int current, int size, String keyword, String schoolId, String classId) {
         if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
         Ctx ctx = ctx(projectId);
-        List<ExamStudentScore> convertedScores = new ArrayList<>();
-        
-        Map<String, String> classIdToSubjectId = ctx.subjects().stream()
+        ExamSubject targetSubject = ctx.subjects().stream()
                 .filter(s -> !StringUtils.hasText(subjectName) || subjectName.equals(s.getSubjectName()))
-                .collect(Collectors.toMap(ExamSubject::getClassId, ExamSubject::getId, (a, b) -> a));
+                .findFirst()
+                .orElse(null);
+        if (targetSubject == null) {
+            return Result.error("项目中不存在学科: " + subjectName);
+        }
+        List<ExamStudentScore> convertedScores = new ArrayList<>();
 
         Map<String, ExamStudentScore> scoreMap = ctx.scores().stream()
-                .collect(Collectors.toMap(s -> s.getSubjectId() + "_" + s.getStudentNo(), s -> s, (a, b) -> a));
+                .filter(s -> targetSubject.getId().equals(s.getSubjectId()))
+                .collect(Collectors.toMap(ExamStudentScore::getStudentNo, s -> s, (a, b) -> a));
 
         List<Map<String, Object>> rows = ctx.students().stream()
                 .map(student -> {
-                    ExamClass examClass = ctx.examClasses().stream()
-                            .filter(ec -> ec.getSourceClassId().equals(student.getClassId()))
-                            .findFirst().orElse(null);
-                    
-                    if (examClass == null) return null;
-                    
-                    String subjectId = classIdToSubjectId.get(examClass.getId());
-                    if (subjectId == null) return null;
-
-                    ExamStudentScore score = scoreMap.get(subjectId + "_" + student.getStudentNo());
+                    ExamStudentScore score = scoreMap.get(student.getStudentNo());
                     String answerSheetUrl = normalizeStoredPaperPreviewUrl(score == null ? null : score.getAnswerSheetUrl());
                     if (score != null && !java.util.Objects.equals(answerSheetUrl, score.getAnswerSheetUrl())) {
                         score.setAnswerSheetUrl(answerSheetUrl);
@@ -391,7 +386,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("id", score != null ? score.getId() : null);
-                    item.put("subjectName", subjectName);
+                    item.put("subjectName", targetSubject.getSubjectName());
                     item.put("studentNo", student.getStudentNo());
                     item.put("studentName", student.getName());
                     item.put("schoolId", student.getSchoolId());
@@ -468,10 +463,11 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         if (file == null || file.isEmpty()) return Result.error("请上传成绩文件");
         Ctx ctx = ctx(projectId);
 
-        Map<String, ExamSubject> classToSubjectMap = ctx.subjects().stream()
+        ExamSubject subject = ctx.subjects().stream()
                 .filter(s -> subjectName.equals(s.getSubjectName()))
-                .collect(Collectors.toMap(ExamSubject::getClassId, Function.identity(), (a, b) -> a));
-        if (classToSubjectMap.isEmpty()) return Result.error("项目中不存在学科: " + subjectName);
+                .findFirst()
+                .orElse(null);
+        if (subject == null) return Result.error("项目中不存在学科: " + subjectName);
 
         Map<String, ExamClass> examClassMap = ctx.examClasses().stream()
                 .filter(item -> StringUtils.hasText(item.getSourceClassId()))
@@ -504,13 +500,11 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         List<String> logs = new ArrayList<>();
         List<Map<String, Object>> nameConflicts = new ArrayList<>();
         List<ExamStudentScore> scoresToSave = new ArrayList<>();
-        Set<String> updatedSubjectIds = new LinkedHashSet<>();
         Set<String> importedScoreKeys = new LinkedHashSet<>();
-        Set<String> subjectIds = classToSubjectMap.values().stream().map(ExamSubject::getId).collect(Collectors.toSet());
         Map<String, ExamStudentScore> existingScoreMap = ctx.scores().stream()
-                .filter(score -> subjectIds.contains(score.getSubjectId()))
+                .filter(score -> subject.getId().equals(score.getSubjectId()))
                 .collect(Collectors.toMap(
-                        score -> score.getSubjectId() + "_" + score.getStudentNo(),
+                        ExamStudentScore::getStudentNo,
                         Function.identity(),
                         (a, b) -> b
                 ));
@@ -624,16 +618,8 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 }
                 SysStudent student = studentMatch.student();
 
-                ExamClass examClass = examClassMap.get(student.getClassId());
-                if (examClass == null) {
+                if (!examClassMap.containsKey(student.getClassId())) {
                     logs.add("第" + (rowIndex + 1) + "行: 学生[" + identifierRaw + "]未在当前考试项目的班级名单中");
-                    skipCount++;
-                    continue;
-                }
-
-                ExamSubject subject = classToSubjectMap.get(examClass.getId());
-                if (subject == null) {
-                    logs.add("第" + (rowIndex + 1) + "行: 学生[" + identifierRaw + "]所属班级未开启[" + subjectName + "]科目");
                     skipCount++;
                     continue;
                 }
@@ -652,8 +638,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     score.setQuestionScores(objectMapper.writeValueAsString(questionScores));
                 } catch (Exception ignored) {}
                 scoresToSave.add(score);
-                existingScoreMap.put(scoreKey, score);
-                updatedSubjectIds.add(subject.getId());
+                existingScoreMap.put(student.getStudentNo(), score);
                 rowCount++;
             }
         } catch (Exception e) {
@@ -675,15 +660,8 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         if (!scoresToSave.isEmpty()) {
             examStudentScoreRepository.saveAllAndFlush(scoresToSave);
         }
-        if (!updatedSubjectIds.isEmpty()) {
-            List<ExamSubject> subjectsToUpdate = classToSubjectMap.values().stream()
-                    .filter(subject -> updatedSubjectIds.contains(subject.getId()))
-                    .peek(subject -> subject.setScoreUploaded(Boolean.TRUE))
-                    .toList();
-            if (!subjectsToUpdate.isEmpty()) {
-                examSubjectRepository.saveAllAndFlush(subjectsToUpdate);
-            }
-        }
+        subject.setScoreUploaded(Boolean.TRUE);
+        examSubjectRepository.saveAndFlush(subject);
 
         if (!logs.isEmpty()) {
             String detail = logs.stream().limit(5).collect(Collectors.joining("; "));
@@ -735,21 +713,13 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 }
 
                 SysStudent student = fileMatch.student();
-                ExamClass examClass = uploadCtx.examClassMap().get(student.getClassId());
-                if (examClass == null) {
+                if (!uploadCtx.examClassMap().containsKey(student.getClassId())) {
                     logs.add("文件[" + entryPath + "]: 学生[" + student.getName() + "]未在当前考试项目班级中");
                     skipCount++;
                     continue;
                 }
 
-                ExamSubject subject = uploadCtx.classToSubjectMap().get(examClass.getId());
-                if (subject == null) {
-                    logs.add("文件[" + entryPath + "]: 学生[" + student.getName() + "]所属班级未开启[" + subjectName + "]科目");
-                    skipCount++;
-                    continue;
-                }
-
-                String scoreKey = subject.getId() + "_" + student.getStudentNo();
+                String scoreKey = uploadCtx.subject().getId() + "_" + student.getStudentNo();
                 if (!importedKeys.add(scoreKey)) {
                     logs.add("文件[" + entryPath + "]: 当前压缩包内重复上传了同一学生试卷");
                     errorCount++;
@@ -763,7 +733,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                         student.getStudentNo(),
                         entryName
                 );
-                ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), subject, student);
+                ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), uploadCtx.subject(), student);
                 score.setAnswerSheetUrl(asset.url());
 
                 // 如果上传的是 PDF 或有分页信息，保存分页信息
@@ -820,16 +790,12 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         SysStudent student = uploadCtx.studentNoMap().get(normalizeStudentNo(studentNo));
         if (student == null) return Result.error("该学生不在当前考试项目名单中");
 
-        ExamClass examClass = uploadCtx.examClassMap().get(student.getClassId());
-        if (examClass == null) return Result.error("该学生所在班级未纳入当前考试项目");
+        if (!uploadCtx.examClassMap().containsKey(student.getClassId())) return Result.error("该学生所在班级未纳入当前考试项目");
 
-        ExamSubject subject = uploadCtx.classToSubjectMap().get(examClass.getId());
-        if (subject == null) return Result.error("该学生所在班级未开启当前学科");
-
-        String scoreKey = subject.getId() + "_" + student.getStudentNo();
+        String scoreKey = uploadCtx.subject().getId() + "_" + student.getStudentNo();
         try {
             StoredPaperAsset asset = storePaperFile(file.getInputStream(), projectId, subjectName, student.getStudentNo(), originalFilename);
-            ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), subject, student);
+            ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), uploadCtx.subject(), student);
             score.setAnswerSheetUrl(asset.url());
 
             // 如果上传的是 PDF 或有分页信息，保存分页信息
@@ -851,12 +817,6 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         project.setSelectedClassIds(json(prepared.selectedClassIds()));
         project.setSubjectNames(json(prepared.subjects()));
         project.setSubjectBenchmarks(jsonMap(prepared.benchmarks()));
-        if (!StringUtils.hasText(project.getPaperLayouts())) {
-            project.setPaperLayouts("{}");
-        }
-        if (!StringUtils.hasText(project.getPaperMergeInfo())) {
-            project.setPaperMergeInfo("{}");
-        }
         project.setSchoolCount(prepared.coveredSchoolIds().size());
         project.setClassCount(prepared.classes().size());
         project.setStudentCount(prepared.classes().stream().mapToInt(c -> prepared.studentCountMap().getOrDefault(c.getClassid(), 0)).sum());
@@ -900,42 +860,42 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             examClassRepository.deleteAll(classesToDelete);
         }
 
-        syncProjectSubjects(savedClasses, prepared.subjects());
+        syncProjectSubjects(projectId, prepared.subjects());
     }
 
-    private void syncProjectSubjects(List<ExamClass> examClasses, List<String> subjects) {
-        if (examClasses.isEmpty()) return;
-
-        List<String> classIds = examClasses.stream().map(ExamClass::getId).toList();
-        List<ExamSubject> existingSubjects = examSubjectRepository.findByClassIdIn(classIds);
+    private void syncProjectSubjects(String projectId, List<String> subjects) {
+        List<ExamSubject> existingSubjects = examSubjectRepository.findByProjectIdOrderBySubjectNameAsc(projectId);
         Map<String, ExamSubject> existingSubjectMap = existingSubjects.stream()
-                .collect(Collectors.toMap(item -> item.getClassId() + "#" + item.getSubjectName(), Function.identity(), (a, b) -> a, LinkedHashMap::new));
+                .collect(Collectors.toMap(ExamSubject::getSubjectName, Function.identity(), (a, b) -> a, LinkedHashMap::new));
 
         List<ExamSubject> subjectsToSave = new ArrayList<>();
-        Set<String> targetSubjectKeys = new LinkedHashSet<>();
-        for (ExamClass examClass : examClasses) {
-            for (String subjectName : subjects) {
-                String key = examClass.getId() + "#" + subjectName;
-                targetSubjectKeys.add(key);
-                ExamSubject subject = existingSubjectMap.get(key);
-                if (subject == null) {
-                    subject = new ExamSubject();
-                    subject.setId(id("ES"));
-                    subject.setClassId(examClass.getId());
-                    subject.setSubjectName(subjectName);
-                    subject.setScoreUploaded(Boolean.FALSE);
-                } else {
-                    subject.setClassId(examClass.getId());
-                    subject.setSubjectName(subjectName);
+        Set<String> targetSubjectNames = new LinkedHashSet<>(subjects);
+        for (String subjectName : subjects) {
+            ExamSubject subject = existingSubjectMap.get(subjectName);
+            if (subject == null) {
+                subject = new ExamSubject();
+                subject.setId(id("ES"));
+                subject.setProjectId(projectId);
+                subject.setSubjectName(subjectName);
+                subject.setScoreUploaded(Boolean.FALSE);
+                subject.setPaperLayouts("[]");
+                subject.setAnswersLayouts("[]");
+            } else {
+                subject.setProjectId(projectId);
+                subject.setSubjectName(subjectName);
+                if (!StringUtils.hasText(subject.getPaperLayouts())) {
+                    subject.setPaperLayouts("[]");
                 }
-                subjectsToSave.add(subject);
+                if (!StringUtils.hasText(subject.getAnswersLayouts())) {
+                    subject.setAnswersLayouts("[]");
+                }
             }
+            subjectsToSave.add(subject);
         }
 
         List<ExamSubject> subjectsToDelete = existingSubjects.stream()
-                .filter(item -> !targetSubjectKeys.contains(item.getClassId() + "#" + item.getSubjectName()))
+                .filter(item -> !targetSubjectNames.contains(item.getSubjectName()))
                 .toList();
-
         if (!subjectsToDelete.isEmpty()) {
             examSubjectRepository.deleteAll(subjectsToDelete);
         }
@@ -992,8 +952,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     private Ctx ctx(String projectId) {
         List<ExamClass> examClasses = examClassRepository.findByProjectIdOrderBySchoolAscGradeAscClassNameAsc(projectId);
-        List<String> examClassIds = examClasses.stream().map(ExamClass::getId).toList();
-        List<ExamSubject> subjects = examClassIds.isEmpty() ? Collections.emptyList() : examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(examClassIds);
+        List<ExamSubject> subjects = examSubjectRepository.findByProjectIdOrderBySubjectNameAsc(projectId);
         List<String> sourceClassIds = examClasses.stream().map(ExamClass::getSourceClassId).filter(StringUtils::hasText).distinct().toList();
         List<SysStudent> students = sourceClassIds.isEmpty() ? Collections.emptyList() : sysStudentRepository.findByClassIdIn(sourceClassIds);
         List<String> subjectIds = subjects.stream().map(ExamSubject::getId).toList();
@@ -1018,30 +977,26 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     }
 
     private List<Map<String, Object>> scoreSummaryRows(Ctx ctx) {
-        return ctx.subjects().stream().collect(Collectors.groupingBy(ExamSubject::getSubjectName, LinkedHashMap::new, Collectors.toList()))
-                .entrySet().stream().map(entry -> {
-                    Set<String> classIds = entry.getValue().stream().map(ExamSubject::getClassId).collect(Collectors.toSet());
-                    Set<String> subjectIds = entry.getValue().stream().map(ExamSubject::getId).collect(Collectors.toSet());
-                    List<ExamStudentScore> scoreRecords = ctx.scores().stream()
-                            .filter(score -> subjectIds.contains(score.getSubjectId()) && hasScore(score))
-                            .toList();
-                    long paperCount = ctx.scores().stream()
-                            .filter(score -> subjectIds.contains(score.getSubjectId()) && hasAnswerSheet(score))
-                            .count();
-                    int studentCount = classIds.stream().map(ctx.classMap()::get).filter(v -> v != null).mapToInt(v -> num(v.getStudentCount())).sum();
-                    Map<String, Object> item = new LinkedHashMap<>();
-                    item.put("subjectName", entry.getKey());
-                    item.put("classCount", classIds.size());
-                    item.put("studentCount", studentCount);
-                    item.put("paperCount", paperCount);
-                    item.put("scoreCount", scoreRecords.size());
-                    item.put("avgScore", scoreRecords.isEmpty() ? null : round(scoreRecords.stream().mapToDouble(score -> dbl(score.getTotalScore())).average().orElse(0)));
-                    item.put("maxScore", scoreRecords.isEmpty() ? null : round(scoreRecords.stream().mapToDouble(score -> dbl(score.getTotalScore())).max().orElse(0)));
-                    item.put("minScore", scoreRecords.isEmpty() ? null : round(scoreRecords.stream().mapToDouble(score -> dbl(score.getTotalScore())).min().orElse(0)));
-                    item.put("paperUploaded", studentCount > 0 && paperCount >= studentCount);
-                    item.put("scoreUploaded", studentCount > 0 && scoreRecords.size() >= studentCount);
-                    return item;
-                }).toList();
+        return ctx.subjects().stream().map(subject -> {
+            List<ExamStudentScore> scoreRecords = ctx.scores().stream()
+                    .filter(score -> subject.getId().equals(score.getSubjectId()) && hasScore(score))
+                    .toList();
+            long paperCount = ctx.scores().stream()
+                    .filter(score -> subject.getId().equals(score.getSubjectId()) && hasAnswerSheet(score))
+                    .count();
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("subjectName", subject.getSubjectName());
+            item.put("classCount", ctx.examClasses().size());
+            item.put("studentCount", ctx.students().size());
+            item.put("paperCount", paperCount);
+            item.put("scoreCount", scoreRecords.size());
+            item.put("avgScore", scoreRecords.isEmpty() ? null : round(scoreRecords.stream().mapToDouble(score -> dbl(score.getTotalScore())).average().orElse(0)));
+            item.put("maxScore", scoreRecords.isEmpty() ? null : round(scoreRecords.stream().mapToDouble(score -> dbl(score.getTotalScore())).max().orElse(0)));
+            item.put("minScore", scoreRecords.isEmpty() ? null : round(scoreRecords.stream().mapToDouble(score -> dbl(score.getTotalScore())).min().orElse(0)));
+            item.put("paperUploaded", StringUtils.hasText(subject.getPaperUrl()) || StringUtils.hasText(subject.getAnswerUrl()));
+            item.put("scoreUploaded", Boolean.TRUE.equals(subject.getScoreUploaded()));
+            return item;
+        }).toList();
     }
 
     private Map<String, Object> projectBase(ExamProject project) {
@@ -1095,10 +1050,11 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     private UploadCtx buildUploadCtx(String projectId, String subjectName) {
         Ctx ctx = ctx(projectId);
-        Map<String, ExamSubject> classToSubjectMap = ctx.subjects().stream()
-                .filter(subject -> subjectName.equals(subject.getSubjectName()))
-                .collect(Collectors.toMap(ExamSubject::getClassId, Function.identity(), (a, b) -> a));
-        if (classToSubjectMap.isEmpty()) {
+        ExamSubject subject = ctx.subjects().stream()
+                .filter(item -> subjectName.equals(item.getSubjectName()))
+                .findFirst()
+                .orElse(null);
+        if (subject == null) {
             return UploadCtx.fail("项目中不存在学科: " + subjectName);
         }
 
@@ -1123,15 +1079,14 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             return UploadCtx.fail("该项目中暂无考试学生数据");
         }
 
-        Set<String> subjectIds = classToSubjectMap.values().stream().map(ExamSubject::getId).collect(Collectors.toSet());
         Map<String, ExamStudentScore> existingScoreMap = ctx.scores().stream()
-                .filter(score -> subjectIds.contains(score.getSubjectId()))
+                .filter(score -> subject.getId().equals(score.getSubjectId()))
                 .collect(Collectors.toMap(
                         score -> score.getSubjectId() + "_" + score.getStudentNo(),
                         Function.identity(),
                         (a, b) -> b
                 ));
-        return UploadCtx.ok(classToSubjectMap, examClassMap, studentNoMap, studentNameMap, existingScoreMap);
+        return UploadCtx.ok(subject, examClassMap, studentNoMap, studentNameMap, existingScoreMap);
     }
 
     private ExamStudentScore prepareScoreRecord(ExamStudentScore existing, ExamSubject subject, SysStudent student) {
@@ -1505,14 +1460,10 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         SysStudent student = uploadCtx.studentNoMap().get(normalizeStudentNo(studentNo));
         if (student == null) return Result.error("未找到学号为[" + studentNo + "]的学生");
 
-        ExamClass examClass = uploadCtx.examClassMap().get(student.getClassId());
-        if (examClass == null) return Result.error("学生所属班级未纳入本项目");
+        if (!uploadCtx.examClassMap().containsKey(student.getClassId())) return Result.error("学生所属班级未纳入本项目");
 
-        ExamSubject subject = uploadCtx.classToSubjectMap().get(examClass.getId());
-        if (subject == null) return Result.error("学生所属班级未开启[" + subjectName + "]科目");
-
-        String scoreKey = subject.getId() + "_" + student.getStudentNo();
-        ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), subject, student);
+        String scoreKey = uploadCtx.subject().getId() + "_" + student.getStudentNo();
+        ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), uploadCtx.subject(), student);
         
         double total = questionScores.stream().mapToDouble(v -> v == null ? 0D : v).sum();
         
@@ -1536,9 +1487,9 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         } catch (Exception ignored) {}
 
         examStudentScoreRepository.saveAndFlush(score);
-        
-        subject.setScoreUploaded(Boolean.TRUE);
-        examSubjectRepository.saveAndFlush(subject);
+
+        uploadCtx.subject().setScoreUploaded(Boolean.TRUE);
+        examSubjectRepository.saveAndFlush(uploadCtx.subject());
 
         return Result.success("成绩保存成功", null);
     }
@@ -1559,34 +1510,24 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         }
 
         try {
-            List<ExamSubject> subjects = findProjectSubjectsByName(projectId, subjectName);
-            if (subjects.isEmpty()) return Result.error("项目中无学科数据: " + subjectName);
+            ExamSubject subject = findProjectSubjectByName(projectId, subjectName);
+            if (subject == null) return Result.error("项目中无学科数据: " + subjectName);
 
-            Set<String> oldUrls = subjects.stream()
-                    .map(subject -> "template".equals(type) ? subject.getAnswerUrl() : subject.getPaperUrl())
-                    .filter(StringUtils::hasText)
-                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            String oldUrl = "template".equals(type) ? subject.getAnswerUrl() : subject.getPaperUrl();
 
             StoredPaperAsset asset = storePublicPaperFile(file.getInputStream(), projectId, subjectName, type, originalFilename);
             String storedUrl = asset.url();
 
-            for (ExamSubject subject : subjects) {
-                if ("template".equals(type)) {
-                    subject.setAnswerUrl(storedUrl);
-                } else if ("original".equals(type)) {
-                    subject.setPaperUrl(storedUrl);
-                }
+            if ("template".equals(type)) {
+                subject.setAnswerUrl(storedUrl);
+            } else {
+                subject.setPaperUrl(storedUrl);
             }
-            examSubjectRepository.saveAllAndFlush(subjects);
+            clearPaperLayout(subject, type);
+            savePaperMergeInfo(subject, type, asset.mergeInfo());
+            examSubjectRepository.saveAndFlush(subject);
 
-            ExamProject project = examProjectRepository.findById(projectId).orElse(null);
-            if (project != null) {
-                clearPaperLayout(project, subjectName, type);
-                savePaperMergeInfo(project, subjectName, type, asset.mergeInfo());
-                examProjectRepository.saveAndFlush(project);
-            }
-
-            oldUrls.forEach(this::deletePaperAssetByUrl);
+            deletePaperAssetByUrl(oldUrl);
 
             return Result.success("上传成功", storedUrl);
         } catch (Exception e) {
@@ -1596,80 +1537,52 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     @Override
     public Result<Map<String, Object>> getPaperConfig(String projectId, String subjectName) {
-        ExamProject project = examProjectRepository.findById(projectId).orElse(null);
-        if (project == null) return Result.error("项目不存在");
-        List<ExamClass> examClasses = examClassRepository.findByProjectIdOrderBySchoolAscGradeAscClassNameAsc(projectId);
-        if (examClasses.isEmpty()) return Result.success(new HashMap<>());
-        
-        List<String> examClassIds = examClasses.stream().map(ExamClass::getId).toList();
-        List<ExamSubject> subjectRows = examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(examClassIds).stream()
-                .filter(s -> subjectName.equals(s.getSubjectName()))
-                .toList();
+        if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
+        ExamSubject subject = findProjectSubjectByName(projectId, subjectName);
+        if (subject == null) return Result.success(new HashMap<>());
 
         Map<String, Object> config = new HashMap<>();
         config.put("templateUrl", null);
         config.put("originalUrl", null);
-        
-        if (!subjectRows.isEmpty()) {
-            ExamSubject subject = subjectRows.get(0);
-            try {
-                PaperAssetContext templateContext = resolveOptionalPaperAssetContext(project, subjectName, "template", subject.getAnswerUrl(), true);
-                PaperAssetContext originalContext = resolveOptionalPaperAssetContext(project, subjectName, "original", subject.getPaperUrl(), true);
-                
-                String templateUrl = templateContext != null ? templateContext.previewUrl() : normalizeStoredPaperPreviewUrl(subject.getAnswerUrl());
-                String originalUrl = originalContext != null ? originalContext.previewUrl() : normalizeStoredPaperPreviewUrl(subject.getPaperUrl());
-                
-                boolean changed = false;
-                if (!java.util.Objects.equals(templateUrl, subject.getAnswerUrl())) {
-                    for (ExamSubject item : subjectRows) {
-                        item.setAnswerUrl(templateUrl);
-                    }
-                    changed = true;
-                }
-                if (!java.util.Objects.equals(originalUrl, subject.getPaperUrl())) {
-                    for (ExamSubject item : subjectRows) {
-                        item.setPaperUrl(originalUrl);
-                    }
-                    changed = true;
-                }
-                if (changed) {
-                    examSubjectRepository.saveAllAndFlush(subjectRows);
-                }
-                
-                config.put("templateUrl", templateUrl);
-                config.put("originalUrl", originalUrl);
-                config.put("templateMergeInfo", templateContext == null ? Collections.emptyMap() : templateContext.mergeInfo());
-                config.put("originalMergeInfo", originalContext == null ? Collections.emptyMap() : originalContext.mergeInfo());
-                
-                // 同步更新 ExamSubject 中的分页信息 (如果 context 中生成了新的 mergeInfo)
-                if (templateContext != null && templateContext.mergeInfoChanged()) {
-                    String info = jsonMap(templateContext.mergeInfo());
-                    for (ExamSubject item : subjectRows) {
-                        item.setAnswerMergeInfo(info);
-                    }
-                    examSubjectRepository.saveAllAndFlush(subjectRows);
-                }
-                if (originalContext != null && originalContext.mergeInfoChanged()) {
-                    String info = jsonMap(originalContext.mergeInfo());
-                    for (ExamSubject item : subjectRows) {
-                        item.setPaperMergeInfo(info);
-                    }
-                    examSubjectRepository.saveAllAndFlush(subjectRows);
-                }
 
-                if ((templateContext != null && templateContext.mergeInfoChanged())
-                        || (originalContext != null && originalContext.mergeInfoChanged())) {
-                    examProjectRepository.saveAndFlush(project);
-                }
-            } catch (Exception ex) {
-                return Result.error("获取试卷配置失败: " + ex.getMessage());
+        try {
+            PaperAssetContext templateContext = resolveOptionalPaperAssetContext(subject, "template", subject.getAnswerUrl(), true);
+            PaperAssetContext originalContext = resolveOptionalPaperAssetContext(subject, "original", subject.getPaperUrl(), true);
+
+            String templateUrl = templateContext != null ? templateContext.previewUrl() : normalizeStoredPaperPreviewUrl(subject.getAnswerUrl());
+            String originalUrl = originalContext != null ? originalContext.previewUrl() : normalizeStoredPaperPreviewUrl(subject.getPaperUrl());
+
+            boolean changed = false;
+            if (!java.util.Objects.equals(templateUrl, subject.getAnswerUrl())) {
+                subject.setAnswerUrl(templateUrl);
+                changed = true;
             }
+            if (!java.util.Objects.equals(originalUrl, subject.getPaperUrl())) {
+                subject.setPaperUrl(originalUrl);
+                changed = true;
+            }
+            if (templateContext != null && templateContext.mergeInfoChanged()) {
+                subject.setAnswerMergeInfo(jsonMap(templateContext.mergeInfo()));
+                changed = true;
+            }
+            if (originalContext != null && originalContext.mergeInfoChanged()) {
+                subject.setPaperMergeInfo(jsonMap(originalContext.mergeInfo()));
+                changed = true;
+            }
+            if (changed) {
+                examSubjectRepository.saveAndFlush(subject);
+            }
+
+            config.put("templateUrl", templateUrl);
+            config.put("originalUrl", originalUrl);
+            config.put("templateMergeInfo", templateContext == null ? Collections.emptyMap() : templateContext.mergeInfo());
+            config.put("originalMergeInfo", originalContext == null ? Collections.emptyMap() : originalContext.mergeInfo());
+        } catch (Exception ex) {
+            return Result.error("获取试卷配置失败: " + ex.getMessage());
         }
-        
-        Map<String, Object> paperLayouts = map(project.getPaperLayouts());
-        Map<String, Object> subjectLayout = nestedMap(paperLayouts.get(subjectName));
-        config.put("templateRegions", regionList(subjectLayout.get("template")));
-        config.put("originalRegions", regionList(subjectLayout.get("original")));
+
+        config.put("templateRegions", regionList(mapList(subject.getAnswersLayouts())));
+        config.put("originalRegions", regionList(mapList(subject.getPaperLayouts())));
         return Result.success(config);
     }
 
@@ -1681,15 +1594,15 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         if (!"template".equals(dto.getType()) && !"original".equals(dto.getType())) {
             return Result.error("布局类型错误，仅支持 template 或 original");
         }
-        ExamProject project = examProjectRepository.findById(dto.getProjectId()).orElse(null);
-        if (project == null) return Result.error("项目不存在");
+        ExamSubject subject = findProjectSubjectByName(dto.getProjectId(), dto.getSubjectName());
+        if (subject == null) return Result.error("项目中无学科数据: " + dto.getSubjectName());
 
-        Map<String, Object> paperLayouts = new LinkedHashMap<>(map(project.getPaperLayouts()));
-        Map<String, Object> subjectLayout = new LinkedHashMap<>(nestedMap(paperLayouts.get(dto.getSubjectName())));
-        subjectLayout.put(dto.getType(), normalizeRegionDtos(dto.getRegions()));
-        paperLayouts.put(dto.getSubjectName(), subjectLayout);
-        project.setPaperLayouts(jsonMap(paperLayouts));
-        examProjectRepository.saveAndFlush(project);
+        if ("template".equals(dto.getType())) {
+            subject.setAnswersLayouts(jsonValue(normalizeRegionDtos(dto.getRegions())));
+        } else {
+            subject.setPaperLayouts(jsonValue(normalizeRegionDtos(dto.getRegions())));
+        }
+        examSubjectRepository.saveAndFlush(subject);
         return Result.success("保存成功", null);
     }
 
@@ -1702,18 +1615,16 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             return Result.error("布局类型错误，仅支持 template 或 original");
         }
 
-        ExamProject project = examProjectRepository.findById(dto.getProjectId()).orElse(null);
-        if (project == null) return Result.error("项目不存在");
+        if (!examProjectRepository.existsById(dto.getProjectId())) return Result.error("项目不存在");
 
-        List<ExamSubject> subjectRows = findProjectSubjectsByName(dto.getProjectId(), dto.getSubjectName());
-        if (subjectRows.isEmpty()) {
+        ExamSubject subject = findProjectSubjectByName(dto.getProjectId(), dto.getSubjectName());
+        if (subject == null) {
             return Result.error("项目中无学科数据: " + dto.getSubjectName());
         }
 
-        ExamSubject subject = subjectRows.get(0);
         try {
             String paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
-            PaperAssetContext paperContext = resolvePaperAssetContext(project, dto.getSubjectName(), dto.getType(), paperUrl, true);
+            PaperAssetContext paperContext = resolvePaperAssetContext(subject, dto.getType(), paperUrl, true);
             OcrExecutionResult ocrExecutionResult = runPaperOcrByPages(
                     paperContext.paperPath(),
                     paperContext.previewUrl(),
@@ -1727,12 +1638,12 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                 return Result.error("AI识别未识别出可切割的题目区域");
             }
 
-            Map<String, Object> paperLayouts = new LinkedHashMap<>(map(project.getPaperLayouts()));
-            Map<String, Object> subjectLayout = new LinkedHashMap<>(nestedMap(paperLayouts.get(dto.getSubjectName())));
-            subjectLayout.put(dto.getType(), regions);
-            paperLayouts.put(dto.getSubjectName(), subjectLayout);
-            project.setPaperLayouts(jsonMap(paperLayouts));
-            examProjectRepository.saveAndFlush(project);
+            if ("template".equals(dto.getType())) {
+                subject.setAnswersLayouts(jsonValue(regions));
+            } else {
+                subject.setPaperLayouts(jsonValue(regions));
+            }
+            examSubjectRepository.saveAndFlush(subject);
 
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("projectId", dto.getProjectId());
@@ -1767,18 +1678,16 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             return Result.error("页码不能为空");
         }
 
-        ExamProject project = examProjectRepository.findById(dto.getProjectId()).orElse(null);
-        if (project == null) return Result.error("项目不存在");
+        if (!examProjectRepository.existsById(dto.getProjectId())) return Result.error("项目不存在");
 
-        List<ExamSubject> subjectRows = findProjectSubjectsByName(dto.getProjectId(), dto.getSubjectName());
-        if (subjectRows.isEmpty()) {
+        ExamSubject subject = findProjectSubjectByName(dto.getProjectId(), dto.getSubjectName());
+        if (subject == null) {
             return Result.error("项目中无学科数据: " + dto.getSubjectName());
         }
 
-        ExamSubject subject = subjectRows.get(0);
         String paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
         try {
-            PaperAssetContext paperContext = resolvePaperAssetContext(project, dto.getSubjectName(), dto.getType(), paperUrl, true);
+            PaperAssetContext paperContext = resolvePaperAssetContext(subject, dto.getType(), paperUrl, true);
             Map<String, Object> pageResult = runSinglePaperOcrPage(
                     paperContext.paperPath(),
                     paperContext.previewUrl(),
@@ -1789,15 +1698,14 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     resolveOcrCutType(dto.getType())
             );
             mergePagedLayoutResult(
-                    project,
-                    dto.getSubjectName(),
+                    subject,
                     dto.getType(),
                     dto.getPageIndex(),
                     paperContext.mergeInfo(),
                     nestedMap(pageResult.get("pageInfo")),
                     mapList(pageResult.get("regions"))
             );
-            examProjectRepository.saveAndFlush(project);
+            examSubjectRepository.saveAndFlush(subject);
             return Result.success("分页识别完成", pageResult);
         } catch (IllegalArgumentException ex) {
             return Result.error(ex.getMessage());
@@ -1817,19 +1725,17 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             return Result.error("题框坐标无效");
         }
 
-        ExamProject project = examProjectRepository.findById(dto.getProjectId()).orElse(null);
-        if (project == null) return Result.error("项目不存在");
+        if (!examProjectRepository.existsById(dto.getProjectId())) return Result.error("项目不存在");
 
-        List<ExamSubject> subjectRows = findProjectSubjectsByName(dto.getProjectId(), dto.getSubjectName());
-        if (subjectRows.isEmpty()) {
+        ExamSubject subject = findProjectSubjectByName(dto.getProjectId(), dto.getSubjectName());
+        if (subject == null) {
             return Result.error("项目中无学科数据: " + dto.getSubjectName());
         }
 
-        ExamSubject subject = subjectRows.get(0);
         String paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
         Path tempPath = null;
         try {
-            PaperAssetContext paperContext = resolvePaperAssetContext(project, dto.getSubjectName(), dto.getType(), paperUrl, true);
+            PaperAssetContext paperContext = resolvePaperAssetContext(subject, dto.getType(), paperUrl, true);
             tempPath = cropRegionToTempImage(
                     paperContext.paperPath(),
                     clampRatio(dto.getX()),
@@ -1850,15 +1756,8 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         }
     }
 
-    private List<ExamSubject> findProjectSubjectsByName(String projectId, String subjectName) {
-        List<ExamClass> examClasses = examClassRepository.findByProjectIdOrderBySchoolAscGradeAscClassNameAsc(projectId);
-        if (examClasses.isEmpty()) {
-            return Collections.emptyList();
-        }
-        List<String> examClassIds = examClasses.stream().map(ExamClass::getId).toList();
-        return examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(examClassIds).stream()
-                .filter(item -> subjectName.equals(item.getSubjectName()))
-                .toList();
+    private ExamSubject findProjectSubjectByName(String projectId, String subjectName) {
+        return examSubjectRepository.findFirstByProjectIdAndSubjectName(projectId, subjectName).orElse(null);
     }
 
     private StoredPaperAsset storePublicPaperFile(InputStream inputStream, String projectId, String subjectName, String type, String originalFilename) throws Exception {
@@ -1968,15 +1867,15 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         }
     }
 
-    private void clearPaperLayout(ExamProject project, String subjectName, String type) {
-        if (project == null || !StringUtils.hasText(subjectName) || !StringUtils.hasText(type)) {
+    private void clearPaperLayout(ExamSubject subject, String type) {
+        if (subject == null || !StringUtils.hasText(type)) {
             return;
         }
-        Map<String, Object> paperLayouts = new LinkedHashMap<>(map(project.getPaperLayouts()));
-        Map<String, Object> subjectLayout = new LinkedHashMap<>(nestedMap(paperLayouts.get(subjectName)));
-        subjectLayout.put(type, Collections.emptyList());
-        paperLayouts.put(subjectName, subjectLayout);
-        project.setPaperLayouts(jsonMap(paperLayouts));
+        if ("template".equals(type)) {
+            subject.setAnswersLayouts("[]");
+        } else {
+            subject.setPaperLayouts("[]");
+        }
     }
 
     private void deletePaperAssetByUrl(String url) {
@@ -2031,6 +1930,12 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         catch (Exception ignored) { return "{}"; }
     }
 
+    private String jsonValue(Object value) {
+        if (value == null) return "[]";
+        try { return objectMapper.writeValueAsString(value); }
+        catch (Exception ignored) { return "[]"; }
+    }
+
     private Map<String, Object> map(String json) {
         if (!StringUtils.hasText(json)) return Collections.emptyMap();
         try { return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {}); }
@@ -2049,6 +1954,14 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> mapList(Object value) {
+        if (value instanceof String textValue && StringUtils.hasText(textValue)) {
+            try {
+                Object parsed = objectMapper.readValue(textValue, Object.class);
+                return mapList(parsed);
+            } catch (Exception ignored) {
+                return Collections.emptyList();
+            }
+        }
         if (!(value instanceof Collection<?> collection)) {
             return Collections.emptyList();
         }
@@ -2378,8 +2291,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     }
 
     private PaperAssetContext resolvePaperAssetContext(
-            ExamProject project,
-            String subjectName,
+            ExamSubject subject,
             String type,
             String storedPaperUrl,
             boolean persistIfMissing) throws Exception {
@@ -2393,12 +2305,12 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             throw new IllegalArgumentException("试卷文件不存在，请重新上传后再试");
         }
 
-        Map<String, Object> mergeInfo = resolveStoredPaperMergeInfo(project, subjectName, type);
+        Map<String, Object> mergeInfo = resolveStoredPaperMergeInfo(subject, type);
         boolean mergeInfoChanged = false;
         if (!hasValidPaperMergeInfo(mergeInfo)) {
             mergeInfo = derivePaperMergeInfo(storedPaperUrl, previewPath);
             if (persistIfMissing && hasValidPaperMergeInfo(mergeInfo)) {
-                savePaperMergeInfo(project, subjectName, type, mergeInfo);
+                savePaperMergeInfo(subject, type, mergeInfo);
                 mergeInfoChanged = true;
             }
         }
@@ -2407,37 +2319,26 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     }
 
     private PaperAssetContext resolveOptionalPaperAssetContext(
-            ExamProject project,
-            String subjectName,
+            ExamSubject subject,
             String type,
             String storedPaperUrl,
             boolean persistIfMissing) throws Exception {
         if (!StringUtils.hasText(storedPaperUrl)) return null;
         try {
-            return resolvePaperAssetContext(project, subjectName, type, storedPaperUrl, persistIfMissing);
+            return resolvePaperAssetContext(subject, type, storedPaperUrl, persistIfMissing);
         } catch (IllegalArgumentException ex) {
             if (isMissingPaperAssetMessage(ex.getMessage())) return null;
             throw ex;
         }
     }
 
-    private Map<String, Object> resolveStoredPaperMergeInfo(ExamProject project, String subjectName, String type) {
-        if (project == null || !StringUtils.hasText(subjectName) || !StringUtils.hasText(type)) return Collections.emptyMap();
-        
-        // 1. 优先从 ExamSubject 表字段中读取
-        List<ExamSubject> subjects = findProjectSubjectsByName(project.getId(), subjectName);
-        if (!subjects.isEmpty()) {
-            ExamSubject subject = subjects.get(0);
-            String mergeInfoJson = "template".equals(type) ? subject.getAnswerMergeInfo() : subject.getPaperMergeInfo();
-            if (StringUtils.hasText(mergeInfoJson)) {
-                return map(mergeInfoJson);
-            }
+    private Map<String, Object> resolveStoredPaperMergeInfo(ExamSubject subject, String type) {
+        if (subject == null || !StringUtils.hasText(type)) return Collections.emptyMap();
+        String mergeInfoJson = "template".equals(type) ? subject.getAnswerMergeInfo() : subject.getPaperMergeInfo();
+        if (StringUtils.hasText(mergeInfoJson)) {
+            return map(mergeInfoJson);
         }
-
-        // 2. 兜底从 ExamProject 的 JSON 字段中读取
-        Map<String, Object> mergeInfoRoot = map(project.getPaperMergeInfo());
-        Map<String, Object> subjectMergeInfo = nestedMap(mergeInfoRoot.get(subjectName));
-        return nestedMap(subjectMergeInfo.get(type));
+        return Collections.emptyMap();
     }
 
     private boolean hasValidPaperMergeInfo(Map<String, Object> mergeInfo) {
@@ -2453,45 +2354,27 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         return message.contains("当前试卷未上传") || message.contains("试卷文件不存在");
     }
 
-    private void savePaperMergeInfo(ExamProject project, String subjectName, String type, Map<String, Object> mergeInfo) {
-        if (project == null || !StringUtils.hasText(subjectName) || !StringUtils.hasText(type)) return;
-        
-        // 1. 保存到 ExamProject (项目级冗余)
-        Map<String, Object> mergeInfoRoot = new LinkedHashMap<>(map(project.getPaperMergeInfo()));
-        Map<String, Object> subjectMergeInfo = new LinkedHashMap<>(nestedMap(mergeInfoRoot.get(subjectName)));
-        subjectMergeInfo.put(type, mergeInfo == null ? Collections.emptyMap() : mergeInfo);
-        mergeInfoRoot.put(subjectName, subjectMergeInfo);
-        project.setPaperMergeInfo(jsonMap(mergeInfoRoot));
-
-        // 2. 同步保存到具体的 ExamSubject 表字段中
-        List<ExamSubject> subjects = findProjectSubjectsByName(project.getId(), subjectName);
-        if (!subjects.isEmpty()) {
-            String mergeInfoJson = jsonMap(mergeInfo);
-            for (ExamSubject subject : subjects) {
-                if ("template".equals(type)) {
-                    subject.setAnswerMergeInfo(mergeInfoJson);
-                } else if ("original".equals(type)) {
-                    subject.setPaperMergeInfo(mergeInfoJson);
-                }
-            }
-            examSubjectRepository.saveAllAndFlush(subjects);
+    private void savePaperMergeInfo(ExamSubject subject, String type, Map<String, Object> mergeInfo) {
+        if (subject == null || !StringUtils.hasText(type)) return;
+        String mergeInfoJson = jsonMap(mergeInfo);
+        if ("template".equals(type)) {
+            subject.setAnswerMergeInfo(mergeInfoJson);
+        } else if ("original".equals(type)) {
+            subject.setPaperMergeInfo(mergeInfoJson);
         }
     }
 
     private void mergePagedLayoutResult(
-            ExamProject project,
-            String subjectName,
+            ExamSubject subject,
             String type,
             Integer pageIndex,
             Map<String, Object> mergeInfo,
             Map<String, Object> pageInfo,
             List<Map<String, Object>> pageRegions) {
-        if (project == null || !StringUtils.hasText(subjectName) || !StringUtils.hasText(type)) return;
+        if (subject == null || !StringUtils.hasText(type)) return;
         if (pageRegions == null || pageRegions.isEmpty()) return;
 
-        Map<String, Object> paperLayouts = new LinkedHashMap<>(map(project.getPaperLayouts()));
-        Map<String, Object> subjectLayout = new LinkedHashMap<>(nestedMap(paperLayouts.get(subjectName)));
-        List<Map<String, Object>> existingRegions = new ArrayList<>(mapList(subjectLayout.get(type)));
+        List<Map<String, Object>> existingRegions = new ArrayList<>(mapList("template".equals(type) ? subject.getAnswersLayouts() : subject.getPaperLayouts()));
         List<Map<String, Object>> mergedRegions = new ArrayList<>();
 
         if (pageIndex != null && pageIndex <= 1) existingRegions.clear();
@@ -2504,10 +2387,12 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         mergedRegions.sort(Comparator
                 .comparingDouble((Map<String, Object> item) -> clampRatio(item.get("y")))
                 .thenComparingDouble(item -> clampRatio(item.get("x"))));
-        subjectLayout.put(type, normalizeOcrRegions(mergedRegions));
-        paperLayouts.put(subjectName, subjectLayout);
-        project.setPaperLayouts(jsonMap(paperLayouts));
-        if (hasValidPaperMergeInfo(mergeInfo)) savePaperMergeInfo(project, subjectName, type, mergeInfo);
+        if ("template".equals(type)) {
+            subject.setAnswersLayouts(jsonValue(normalizeOcrRegions(mergedRegions)));
+        } else {
+            subject.setPaperLayouts(jsonValue(normalizeOcrRegions(mergedRegions)));
+        }
+        if (hasValidPaperMergeInfo(mergeInfo)) savePaperMergeInfo(subject, type, mergeInfo);
     }
 
     private boolean isRegionInPage(Map<String, Object> region, Map<String, Object> pageInfo) {

@@ -1,9 +1,9 @@
 package com.edu.javasb_back.service.impl;
 
 import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.model.entity.ExamClass;
+import com.edu.javasb_back.model.entity.ExamProject;
 import com.edu.javasb_back.model.entity.ExamSubject;
-import com.edu.javasb_back.repository.ExamClassRepository;
+import com.edu.javasb_back.repository.ExamProjectRepository;
 import com.edu.javasb_back.repository.ExamSubjectRepository;
 import com.edu.javasb_back.service.ExamSubjectService;
 import com.edu.javasb_back.service.OssStorageService;
@@ -27,21 +27,21 @@ public class ExamSubjectServiceImpl implements ExamSubjectService {
     private ExamSubjectRepository examSubjectRepository;
 
     @Autowired
-    private ExamClassRepository examClassRepository;
+    private ExamProjectRepository examProjectRepository;
 
     @Autowired
     private OssStorageService ossStorageService;
 
     @Override
-    public Result<Map<String, Object>> getSubjectList(String classId) {
-        if (!StringUtils.hasText(classId)) {
-            return Result.error("班级ID不能为空");
+    public Result<Map<String, Object>> getSubjectList(String projectId) {
+        if (!StringUtils.hasText(projectId)) {
+            return Result.error("项目ID不能为空");
         }
-        if (!examClassRepository.existsById(classId)) {
-            return Result.error("考试班级不存在");
+        if (!examProjectRepository.existsById(projectId)) {
+            return Result.error("考试项目不存在");
         }
 
-        List<ExamSubject> records = examSubjectRepository.findByClassIdOrderBySubjectNameAsc(classId);
+        List<ExamSubject> records = examSubjectRepository.findByProjectIdOrderBySubjectNameAsc(projectId);
         Map<String, Object> data = new HashMap<>();
         data.put("records", records);
         data.put("total", records.size());
@@ -51,28 +51,34 @@ public class ExamSubjectServiceImpl implements ExamSubjectService {
     @Override
     @Transactional
     public Result<Void> addSubject(ExamSubject examSubject) {
-        if (examSubject == null || !StringUtils.hasText(examSubject.getClassId())) {
-            return Result.error("班级ID不能为空");
+        if (examSubject == null || !StringUtils.hasText(examSubject.getProjectId())) {
+            return Result.error("项目ID不能为空");
         }
         if (!StringUtils.hasText(examSubject.getSubjectName())) {
             return Result.error("科目名称不能为空");
         }
 
-        ExamClass examClass = examClassRepository.findById(examSubject.getClassId()).orElse(null);
-        if (examClass == null) {
-            return Result.error("考试班级不存在");
+        ExamProject project = examProjectRepository.findById(examSubject.getProjectId()).orElse(null);
+        if (project == null) {
+            return Result.error("考试项目不存在");
         }
 
-        if (examSubjectRepository.findFirstByClassIdAndSubjectName(
-                examSubject.getClassId(),
-                examSubject.getSubjectName().trim()).isPresent()) {
-            return Result.error("当前班级已存在该科目");
+        String subjectName = examSubject.getSubjectName().trim();
+        if (examSubjectRepository.findFirstByProjectIdAndSubjectName(examSubject.getProjectId(), subjectName).isPresent()) {
+            return Result.error("当前项目已存在该科目");
         }
 
         examSubject.setId("ES" + System.currentTimeMillis() + UUID.randomUUID().toString().replace("-", "").substring(0, 6));
-        examSubject.setSubjectName(examSubject.getSubjectName().trim());
+        examSubject.setSubjectName(subjectName);
+        examSubject.setProjectId(project.getId());
         if (examSubject.getScoreUploaded() == null) {
             examSubject.setScoreUploaded(Boolean.FALSE);
+        }
+        if (!StringUtils.hasText(examSubject.getPaperLayouts())) {
+            examSubject.setPaperLayouts("[]");
+        }
+        if (!StringUtils.hasText(examSubject.getAnswersLayouts())) {
+            examSubject.setAnswersLayouts("[]");
         }
         examSubjectRepository.save(examSubject);
         return Result.success("添加成功", null);
@@ -110,7 +116,7 @@ public class ExamSubjectServiceImpl implements ExamSubjectService {
         }
 
         if (!"paper".equals(type) && !"answer".equals(type)) {
-            return Result.error("当前页面仅支持上传班级试卷或答案文件");
+            return Result.error("当前页面仅支持上传公共试卷或模板答案文件");
         }
 
         String originalFilename = file.getOriginalFilename();
@@ -119,7 +125,7 @@ public class ExamSubjectServiceImpl implements ExamSubjectService {
         }
 
         try (InputStream inputStream = file.getInputStream()) {
-            String storedUrl = storeSubjectFile(inputStream, subject.getClassId(), subject.getSubjectName(), type, originalFilename);
+            String storedUrl = storeSubjectFile(inputStream, subject.getProjectId(), subject.getSubjectName(), type, originalFilename);
             if ("paper".equals(type)) {
                 subject.setPaperUrl(storedUrl);
             } else {
@@ -137,10 +143,10 @@ public class ExamSubjectServiceImpl implements ExamSubjectService {
         return ".jpg".equals(extension) || ".jpeg".equals(extension) || ".png".equals(extension) || ".pdf".equals(extension);
     }
 
-    private String storeSubjectFile(InputStream inputStream, String classId, String subjectName, String type, String originalFilename) throws Exception {
+    private String storeSubjectFile(InputStream inputStream, String projectId, String subjectName, String type, String originalFilename) throws Exception {
         String storedName = type + "_" + System.currentTimeMillis() + "_" +
                 UUID.randomUUID().toString().replace("-", "").substring(0, 8) + getFileExtension(originalFilename);
-        String objectKey = "papers/exam-classes/" + safePathSegment(classId) + "/" +
+        String objectKey = "papers/exam-projects/" + safePathSegment(projectId) + "/" +
                 safePathSegment(subjectName) + "/" + storedName;
         return ossStorageService.upload(inputStream, -1, objectKey, resolveContentType(originalFilename));
     }

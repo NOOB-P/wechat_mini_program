@@ -350,12 +350,10 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
         List<ExamClass> classes = examClassRepository.findByProjectIdOrderBySchoolAscGradeAscClassNameAsc(projectId);
         if (classes.isEmpty()) return AnalysisCtx.fail("项目下暂无班级数据");
 
-        List<String> examClassIds = classes.stream().map(ExamClass::getId).toList();
-        List<ExamSubject> subjects = examSubjectRepository.findByClassIdInOrderBySubjectNameAsc(examClassIds);
+        List<ExamSubject> subjects = examSubjectRepository.findByProjectIdOrderBySubjectNameAsc(projectId);
         Map<String, ExamClass> classMap = classes.stream().collect(Collectors.toMap(ExamClass::getId, item -> item, (a, b) -> a, LinkedHashMap::new));
-        Map<String, List<ExamSubject>> subjectsByClass = subjects.stream().collect(Collectors.groupingBy(ExamSubject::getClassId, LinkedHashMap::new, Collectors.toList()));
-        Map<String, ExamSubject> subjectByClassAndName = subjects.stream().collect(Collectors.toMap(
-                item -> item.getClassId() + "#" + item.getSubjectName(),
+        Map<String, ExamSubject> subjectByName = subjects.stream().collect(Collectors.toMap(
+                ExamSubject::getSubjectName,
                 item -> item,
                 (a, b) -> a,
                 LinkedHashMap::new
@@ -380,17 +378,14 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
         List<StudentSummary> students = new ArrayList<>();
         for (ExamClass examClass : classes) {
             List<SysStudent> classStudents = studentsBySourceClass.getOrDefault(examClass.getSourceClassId(), Collections.emptyList());
-            Map<String, ExamStudentScore> scoreMap = new HashMap<>();
-            for (ExamSubject subject : subjectsByClass.getOrDefault(examClass.getId(), Collections.emptyList())) {
-                for (ExamStudentScore score : scoresBySubjectId.getOrDefault(subject.getId(), Collections.emptyList())) {
-                    scoreMap.put(subject.getSubjectName() + "#" + score.getStudentNo(), score);
-                }
-            }
             for (SysStudent sysStudent : classStudents) {
                 LinkedHashMap<String, Double> subjectScores = new LinkedHashMap<>();
                 LinkedHashMap<String, Double> subjectFullScores = new LinkedHashMap<>();
-                for (ExamSubject subject : subjectsByClass.getOrDefault(examClass.getId(), Collections.emptyList())) {
-                    ExamStudentScore score = scoreMap.get(subject.getSubjectName() + "#" + sysStudent.getStudentNo());
+                for (ExamSubject subject : subjects) {
+                    ExamStudentScore score = scoresBySubjectId.getOrDefault(subject.getId(), Collections.emptyList()).stream()
+                            .filter(item -> sysStudent.getStudentNo().equals(item.getStudentNo()))
+                            .findFirst()
+                            .orElse(null);
                     if (score == null) continue;
                     subjectScores.put(subject.getSubjectName(), scoreValue(score));
                     subjectFullScores.put(subject.getSubjectName(), subjectFullScore(benchmarks, subject.getSubjectName(), scoresBySubjectName.getOrDefault(subject.getSubjectName(), Collections.emptyList()), score));
@@ -408,7 +403,7 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
             item.subjectScores().forEach((subject, score) -> subjectScoresByClassAndName.computeIfAbsent(item.classExamId() + "#" + subject, key -> new ArrayList<>()).add(score));
         }
 
-        return AnalysisCtx.ok(project, classes, classMap, subjects, subjectByClassAndName, scoresBySubjectId, scoresBySubjectName, students, studentsByClass, studentsBySchool, studentByClassAndNo, subjectScoresByClassAndName, new LinkedHashSet<>(subjects.stream().map(ExamSubject::getSubjectName).toList()), benchmarks);
+        return AnalysisCtx.ok(project, classes, classMap, subjects, subjectByName, scoresBySubjectId, scoresBySubjectName, students, studentsByClass, studentsBySchool, studentByClassAndNo, subjectScoresByClassAndName, new LinkedHashSet<>(subjects.stream().map(ExamSubject::getSubjectName).toList()), benchmarks);
     }
 
     private List<Map<String, Object>> buildClassStudentRows(AnalysisCtx ctx, List<StudentSummary> classStudents, String schoolId) {
@@ -460,12 +455,12 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
     }
 
     private List<Map<String, Object>> buildKnowledgeRates(AnalysisCtx ctx, ExamClass examClass, StudentSummary student, String subjectName) {
-        ExamSubject subject = ctx.subjectByClassAndName().get(examClass.getId() + "#" + subjectName);
+        ExamSubject subject = ctx.subjectByName().get(subjectName);
         if (subject == null) return Collections.emptyList();
         ExamStudentScore score = ctx.scoreBySubjectAndStudent(subject.getId(), student.studentNo());
         if (score == null) return Collections.emptyList();
         List<Double> questionScores = parseQuestionScores(score.getQuestionScores());
-        List<ExamStudentScore> classScores = ctx.scoresBySubjectId().getOrDefault(subject.getId(), Collections.emptyList());
+        List<ExamStudentScore> classScores = ctx.subjectsByClassAndName(examClass.getId(), subjectName);
         List<ExamStudentScore> schoolScores = ctx.subjectsBySchoolAndName(examClass.getSchoolId(), subjectName);
         List<Double> fullScores = resolveQuestionFullScores(classScores, ctx.benchmarks().get(subjectName));
 
@@ -505,7 +500,7 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
         List<Map<String, Object>> rows = new ArrayList<>();
         for (String subjectName : ctx.subjectNames()) {
             if (StringUtils.hasText(onlySubject) && !onlySubject.equals(subjectName)) continue;
-            ExamSubject subject = ctx.subjectByClassAndName().get(examClass.getId() + "#" + subjectName);
+            ExamSubject subject = ctx.subjectByName().get(subjectName);
             if (subject == null) continue;
             ExamStudentScore score = ctx.scoreBySubjectAndStudent(subject.getId(), student.studentNo());
             if (score == null) continue;
@@ -1013,7 +1008,7 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
             List<ExamClass> classes,
             Map<String, ExamClass> classMap,
             List<ExamSubject> subjects,
-            Map<String, ExamSubject> subjectByClassAndName,
+            Map<String, ExamSubject> subjectByName,
             Map<String, List<ExamStudentScore>> scoresBySubjectId,
             Map<String, List<ExamStudentScore>> scoresBySubjectName,
             List<StudentSummary> students,
@@ -1029,7 +1024,7 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
                 List<ExamClass> classes,
                 Map<String, ExamClass> classMap,
                 List<ExamSubject> subjects,
-                Map<String, ExamSubject> subjectByClassAndName,
+                Map<String, ExamSubject> subjectByName,
                 Map<String, List<ExamStudentScore>> scoresBySubjectId,
                 Map<String, List<ExamStudentScore>> scoresBySubjectName,
                 List<StudentSummary> students,
@@ -1039,7 +1034,7 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
                 Map<String, List<Double>> subjectScoresByClassAndName,
                 Set<String> subjectNames,
                 Map<String, SubjectBenchmark> benchmarks) {
-            return new AnalysisCtx(true, "", project, classes, classMap, subjects, subjectByClassAndName, scoresBySubjectId, scoresBySubjectName, students, studentsByClass, studentsBySchool, studentByClassAndNo, subjectScoresByClassAndName, subjectNames, benchmarks);
+            return new AnalysisCtx(true, "", project, classes, classMap, subjects, subjectByName, scoresBySubjectId, scoresBySubjectName, students, studentsByClass, studentsBySchool, studentByClassAndNo, subjectScoresByClassAndName, subjectNames, benchmarks);
         }
 
         private static AnalysisCtx fail(String msg) {
@@ -1054,18 +1049,23 @@ public class ExamAnalysisServiceImpl implements ExamAnalysisService {
         }
 
         private List<ExamStudentScore> subjectsByClassAndName(String classId, String subjectName) {
-            ExamSubject subject = subjectByClassAndName.get(classId + "#" + subjectName);
-            return subject == null ? Collections.emptyList() : scoresBySubjectId.getOrDefault(subject.getId(), Collections.emptyList());
+            ExamSubject subject = subjectByName.get(subjectName);
+            if (subject == null) {
+                return Collections.emptyList();
+            }
+            return scoresBySubjectId.getOrDefault(subject.getId(), Collections.emptyList()).stream()
+                    .filter(item -> studentByClassAndNo.containsKey(classId + "#" + item.getStudentNo()))
+                    .toList();
         }
 
         private List<ExamStudentScore> subjectsBySchoolAndName(String schoolId, String subjectName) {
-            return subjects.stream()
-                    .filter(item -> subjectName.equals(item.getSubjectName()))
-                    .filter(item -> {
-                        ExamClass examClass = classMap.get(item.getClassId());
-                        return examClass != null && schoolId.equals(examClass.getSchoolId());
-                    })
-                    .flatMap(item -> scoresBySubjectId.getOrDefault(item.getId(), Collections.emptyList()).stream())
+            ExamSubject subject = subjectByName.get(subjectName);
+            if (subject == null) {
+                return Collections.emptyList();
+            }
+            return scoresBySubjectId.getOrDefault(subject.getId(), Collections.emptyList()).stream()
+                    .filter(item -> studentsBySchool.getOrDefault(schoolId, Collections.emptyList()).stream()
+                            .anyMatch(student -> student.studentNo().equals(item.getStudentNo())))
                     .toList();
         }
     }
