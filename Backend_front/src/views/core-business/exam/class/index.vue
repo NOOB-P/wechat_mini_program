@@ -319,8 +319,7 @@ const handleEnter = (row: any) => {
     name: 'ExamSubject',
     query: { 
       projectId: projectId.value,
-      classId: row.id,
-      className: `${row.school} ${row.grade}${row.className}`
+      projectName: route.query.projectName || ''
     }
   })
 }

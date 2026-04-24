@@ -73,7 +73,7 @@
         gfm: true
       })
       // marked 渲染后的内容
-      finalHtml = marked.parse(content)
+      finalHtml = marked.parse(content) as string
     } catch (e) {
       finalHtml = content
     }

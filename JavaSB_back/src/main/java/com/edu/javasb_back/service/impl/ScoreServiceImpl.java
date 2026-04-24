@@ -302,9 +302,7 @@ public class ScoreServiceImpl implements ScoreService {
         ExamStudentScore studentScore = studentScoreOpt.get();
         double fullScore = resolveFullScore(snapshot.benchmarks(), targetSubject);
         List<ExamStudentScore> scoreList = findProjectSubjectScores(snapshot, targetSubject);
-        
-        Map<String, Object> paperLayouts = parseJsonMap(snapshot.project().getPaperLayouts());
-        List<Map<String, Object>> regions = resolveSubjectRegions(paperLayouts, targetSubject, "original");
+        List<Map<String, Object>> regions = resolveSubjectRegions(classSubject, "original");
         List<Double> bestScores = resolveBestQuestionScores(scoreList);
         
         SegmentAnalysis segmentAnalysis = buildSegmentAnalysis(targetSubject, parseQuestionScores(studentScore.getQuestionScores()), bestScores, regions);
@@ -383,16 +381,16 @@ public class ScoreServiceImpl implements ScoreService {
         List<Map<String, Object>> history = new ArrayList<>();
         
         // 提前预加载所有可能需要的成绩数据，减少循环内的数据库查询
-        List<String> allClassIds = trendSnapshots.stream().map(s -> s.examClass().getId()).collect(Collectors.toList());
-        List<ExamSubject> allTrendSubjects = examSubjectRepository.findByClassIdIn(allClassIds);
-        Map<String, List<ExamSubject>> subjectsByClassId = allTrendSubjects.stream()
-                .collect(Collectors.groupingBy(ExamSubject::getClassId));
+        List<String> projectIds = trendSnapshots.stream().map(snapshot -> snapshot.project().getId()).distinct().toList();
+        List<ExamSubject> allTrendSubjects = examSubjectRepository.findByProjectIdIn(projectIds);
+        Map<String, List<ExamSubject>> subjectsByProjectId = allTrendSubjects.stream()
+                .collect(Collectors.groupingBy(ExamSubject::getProjectId));
 
         Set<String> uniqueSubjectNames = new TreeSet<>();
 
         for (ProjectSnapshot snapshot : trendSnapshots) {
             try {
-                ProjectAggregate aggregate = buildFastProjectAggregate(snapshot, student, subjectsByClassId.getOrDefault(snapshot.examClass().getId(), Collections.emptyList()));
+                ProjectAggregate aggregate = buildFastProjectAggregate(snapshot, student, subjectsByProjectId.getOrDefault(snapshot.project().getId(), Collections.emptyList()));
                 if (aggregate.currentTotalScore() <= 0 && aggregate.currentSubjectScores().isEmpty()) continue;
 
                 Map<String, Object> historyItem = new LinkedHashMap<>();
@@ -649,7 +647,7 @@ public class ScoreServiceImpl implements ScoreService {
         ExamClass matchedClass = matchExamClass(student, examClasses);
         if (matchedClass == null) return null;
 
-        List<ExamSubject> classSubjects = examSubjectRepository.findByClassId(matchedClass.getId());
+        List<ExamSubject> classSubjects = examSubjectRepository.findByProjectIdOrderBySubjectNameAsc(project.getId());
         if (classSubjects.isEmpty()) return null;
 
         boolean hasStudentScore = classSubjects.stream()
@@ -658,10 +656,7 @@ public class ScoreServiceImpl implements ScoreService {
                 .anyMatch(this::isScoreEntered);
         if (!hasStudentScore) return null;
 
-        List<ExamSubject> projectSubjects = examSubjectRepository.findByClassIdIn(
-                examClasses.stream().map(ExamClass::getId).toList()
-        );
-        Map<String, List<ExamSubject>> projectSubjectsByName = projectSubjects.stream()
+        Map<String, List<ExamSubject>> projectSubjectsByName = classSubjects.stream()
                 .collect(Collectors.groupingBy(ExamSubject::getSubjectName, LinkedHashMap::new, Collectors.toList()));
 
         return new ProjectSnapshot(project, matchedClass, sortSubjects(classSubjects), projectSubjectsByName, parseBenchmarks(project.getSubjectBenchmarks()));
@@ -1231,7 +1226,6 @@ public class ScoreServiceImpl implements ScoreService {
 
     private List<Map<String, Object>> buildWrongQuestionRows(ProjectSnapshot snapshot, SysStudent student, String onlySubject) {
         List<Map<String, Object>> rows = new ArrayList<>();
-        Map<String, Object> paperLayouts = parseJsonMap(snapshot.project().getPaperLayouts());
         for (ExamSubject classSubject : snapshot.classSubjects()) {
             String subjectName = classSubject.getSubjectName();
             if (StringUtils.hasText(onlySubject) && !equalsText(subjectName, onlySubject)) {
@@ -1250,7 +1244,7 @@ public class ScoreServiceImpl implements ScoreService {
 
             List<ExamStudentScore> projectScores = findProjectSubjectScores(snapshot, subjectName);
             List<Double> bestScores = resolveBestQuestionScores(projectScores);
-            List<Map<String, Object>> regions = resolveSubjectRegions(paperLayouts, subjectName, "original");
+            List<Map<String, Object>> regions = resolveSubjectRegions(classSubject, "original");
             int questionCount = Math.min(personalScores.size(), bestScores.size());
             for (int index = 0; index < questionCount; index++) {
                 double bestScore = bestScores.get(index);
@@ -1304,8 +1298,7 @@ public class ScoreServiceImpl implements ScoreService {
 
     private List<Map<String, Object>> buildPaperAnswers(ProjectSnapshot snapshot, ExamSubject classSubject, ExamStudentScore studentScore) {
         List<Double> personalScores = parseQuestionScores(studentScore.getQuestionScores());
-        Map<String, Object> paperLayouts = parseJsonMap(snapshot.project().getPaperLayouts());
-        List<Map<String, Object>> regions = resolveSubjectRegions(paperLayouts, classSubject.getSubjectName(), "original");
+        List<Map<String, Object>> regions = resolveSubjectRegions(classSubject, "original");
         List<QuestionScoreContext> scoreContexts = buildQuestionScoreContexts(snapshot, classSubject.getSubjectName());
 
         List<Map<String, Object>> answers = new ArrayList<>();
@@ -1412,15 +1405,11 @@ public class ScoreServiceImpl implements ScoreService {
         return payload;
     }
 
-    private List<Map<String, Object>> resolveSubjectRegions(Map<String, Object> paperLayouts, String subjectName, String type) {
-        if (paperLayouts.isEmpty() || !StringUtils.hasText(subjectName) || !StringUtils.hasText(type)) {
+    private List<Map<String, Object>> resolveSubjectRegions(ExamSubject subject, String type) {
+        if (subject == null || !StringUtils.hasText(type)) {
             return Collections.emptyList();
         }
-        Object subjectNode = paperLayouts.get(subjectName);
-        if (!(subjectNode instanceof Map<?, ?> subjectMap)) {
-            return Collections.emptyList();
-        }
-        Object regionNode = subjectMap.get(type);
+        Object regionNode = readJsonValue("template".equals(type) ? subject.getAnswersLayouts() : subject.getPaperLayouts());
         if (!(regionNode instanceof Collection<?> collection)) {
             return Collections.emptyList();
         }
@@ -1435,21 +1424,36 @@ public class ScoreServiceImpl implements ScoreService {
         return rows;
     }
 
+    private Object readJsonValue(String json) {
+        if (!StringUtils.hasText(json)) {
+            return Collections.emptyList();
+        }
+        try {
+            return objectMapper.readValue(json, Object.class);
+        } catch (Exception ignored) {
+            return Collections.emptyList();
+        }
+    }
+
     private List<QuestionScoreContext> buildQuestionScoreContexts(ProjectSnapshot snapshot, String subjectName) {
         List<ExamSubject> projectSubjects = snapshot.projectSubjectsByName().getOrDefault(subjectName, Collections.emptyList());
         if (projectSubjects.isEmpty()) {
             return Collections.emptyList();
         }
-        Map<String, String> subjectClassMap = projectSubjects.stream()
-                .collect(Collectors.toMap(ExamSubject::getId, ExamSubject::getClassId, (a, b) -> a, LinkedHashMap::new));
         Map<String, ExamClass> classMap = examClassRepository.findByProjectId(snapshot.project().getId()).stream()
                 .collect(Collectors.toMap(ExamClass::getId, item -> item, (a, b) -> a, LinkedHashMap::new));
         List<String> subjectIds = projectSubjects.stream().map(ExamSubject::getId).toList();
+        Map<String, ExamClass> studentClassMap = classMap.values().stream()
+                .filter(item -> StringUtils.hasText(item.getSourceClassId()))
+                .flatMap(item -> studentRepository.findByClassIdIn(List.of(item.getSourceClassId())).stream()
+                        .filter(student -> StringUtils.hasText(student.getStudentNo()))
+                        .map(student -> Map.entry(student.getStudentNo(), item)))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new));
         return examStudentScoreRepository.findBySubjectIdIn(subjectIds).stream()
                 .filter(this::isScoreEntered)
                 .map(score -> {
-                    String classId = subjectClassMap.get(score.getSubjectId());
-                    ExamClass examClass = classMap.get(classId);
+                    ExamClass examClass = studentClassMap.get(score.getStudentNo());
+                    String classId = examClass == null ? "" : examClass.getId();
                     return new QuestionScoreContext(
                             classId == null ? "" : classId,
                             examClass == null ? "" : stringValue(examClass.getSchoolId()),

@@ -9,9 +9,9 @@ import java.util.Optional;
 
 @Repository
 public interface ExamSubjectRepository extends JpaRepository<ExamSubject, String> {
-    List<ExamSubject> findByClassIdIn(List<String> classIds);
-    List<ExamSubject> findByClassIdInOrderBySubjectNameAsc(List<String> classIds);
-    List<ExamSubject> findByClassId(String classId);
-    List<ExamSubject> findByClassIdOrderBySubjectNameAsc(String classId);
-    Optional<ExamSubject> findFirstByClassIdAndSubjectName(String classId, String subjectName);
+    List<ExamSubject> findByProjectId(String projectId);
+    List<ExamSubject> findByProjectIdOrderBySubjectNameAsc(String projectId);
+    List<ExamSubject> findByProjectIdIn(List<String> projectIds);
+    List<ExamSubject> findByProjectIdInOrderBySubjectNameAsc(List<String> projectIds);
+    Optional<ExamSubject> findFirstByProjectIdAndSubjectName(String projectId, String subjectName);
 }

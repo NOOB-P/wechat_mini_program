@@ -226,8 +226,6 @@ CREATE TABLE `exam_projects` (
     `selected_class_ids` TEXT COMMENT '普通考试选中的班级ID列表(JSON)',
     `subject_names` TEXT COMMENT '项目科目列表(JSON)',
     `subject_benchmarks` TEXT COMMENT '学科基准分数配置',
-    `paper_layouts` TEXT COMMENT '试卷框选布局配置(JSON)',
-    `paper_merge_info` TEXT COMMENT 'PDF拼接分页信息(JSON)',
     `school_count` INT DEFAULT 0 COMMENT '覆盖学校数',
     `class_count` INT DEFAULT 0 COMMENT '覆盖班级数',
     `student_count` INT DEFAULT 0 COMMENT '覆盖学生数',
@@ -256,17 +254,20 @@ CREATE TABLE `exam_classes` (
 DROP TABLE IF EXISTS `exam_subjects`;
 CREATE TABLE `exam_subjects` (
     `id` VARCHAR(50) PRIMARY KEY COMMENT '科目记录ID',
-    `class_id` VARCHAR(50) NOT NULL COMMENT '关联考试班级ID',
+    `project_id` VARCHAR(50) NOT NULL COMMENT '关联考试项目ID',
     `subject_name` VARCHAR(50) NOT NULL COMMENT '科目名称',
     `paper_url` VARCHAR(500) COMMENT '试卷文件地址',
     `answer_url` VARCHAR(500) COMMENT '答案文件地址',
     `paper_merge_info` TEXT COMMENT '试卷PDF/多图合并分页信息(JSON)',
     `answer_merge_info` TEXT COMMENT '答案PDF/多图合并分页信息(JSON)',
+    `paper_layouts` TEXT COMMENT '单科原卷框选布局(JSON)',
+    `answers_layouts` TEXT COMMENT '单科模板答题卡框选布局(JSON)',
     `score_uploaded` TINYINT(1) DEFAULT 0 COMMENT '是否已同步小题分成绩 (0-待同步, 1-已同步)',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    KEY `idx_exam_subject_class_name` (`class_id`, `subject_name`),
-    CONSTRAINT `fk_subject_class` FOREIGN KEY (`class_id`) REFERENCES `exam_classes` (`id`) ON DELETE CASCADE
+    UNIQUE KEY `uk_exam_subject_project_name` (`project_id`, `subject_name`),
+    KEY `idx_exam_subject_project_name` (`project_id`, `subject_name`),
+    CONSTRAINT `fk_subject_project` FOREIGN KEY (`project_id`) REFERENCES `exam_projects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB COMMENT='考试科目管理表';
 
 -- 6.4 学生科目成绩与小题分表

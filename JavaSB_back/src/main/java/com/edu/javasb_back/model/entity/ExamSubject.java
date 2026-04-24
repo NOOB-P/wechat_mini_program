@@ -19,8 +19,8 @@ public class ExamSubject {
     @Column(length = 50)
     private String id;
 
-    @Column(name = "class_id", length = 50, nullable = false)
-    private String classId;
+    @Column(name = "project_id", length = 50, nullable = false)
+    private String projectId;
 
     @Column(name = "subject_name", length = 50, nullable = false)
     private String subjectName;
@@ -36,6 +36,12 @@ public class ExamSubject {
 
     @Column(name = "answer_merge_info", columnDefinition = "TEXT")
     private String answerMergeInfo;
+
+    @Column(name = "paper_layouts", columnDefinition = "TEXT")
+    private String paperLayouts;
+
+    @Column(name = "answers_layouts", columnDefinition = "TEXT")
+    private String answersLayouts;
 
     @Column(name = "score_uploaded")
     private Boolean scoreUploaded;
@@ -63,8 +69,8 @@ public class ExamSubject {
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
-    public String getClassId() { return classId; }
-    public void setClassId(String classId) { this.classId = classId; }
+    public String getProjectId() { return projectId; }
+    public void setProjectId(String projectId) { this.projectId = projectId; }
 
     public String getSubjectName() { return subjectName; }
     public void setSubjectName(String subjectName) { this.subjectName = subjectName; }
@@ -80,6 +86,12 @@ public class ExamSubject {
 
     public String getAnswerMergeInfo() { return answerMergeInfo; }
     public void setAnswerMergeInfo(String answerMergeInfo) { this.answerMergeInfo = answerMergeInfo; }
+
+    public String getPaperLayouts() { return paperLayouts; }
+    public void setPaperLayouts(String paperLayouts) { this.paperLayouts = paperLayouts; }
+
+    public String getAnswersLayouts() { return answersLayouts; }
+    public void setAnswersLayouts(String answersLayouts) { this.answersLayouts = answersLayouts; }
 
     public Boolean getScoreUploaded() { return scoreUploaded; }
     public void setScoreUploaded(Boolean scoreUploaded) { this.scoreUploaded = scoreUploaded; }
