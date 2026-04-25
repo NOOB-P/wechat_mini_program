@@ -1,6 +1,8 @@
 package com.edu.javasb_back.service.impl;
 
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.common.WechatBindRequiredException;
+import com.edu.javasb_back.service.WechatPayService;
 import com.edu.javasb_back.model.entity.PrintOrder;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.PrintOrderRepository;
@@ -34,6 +36,9 @@ public class PrintOrderServiceImpl implements PrintOrderService {
 
     @Autowired
     private SysAccountRepository sysAccountRepository;
+
+    @Autowired
+    private WechatPayService wechatPayService;
 
     @Override
     public Result<Map<String, Object>> findByParams(int current, int size, String orderNo, String userName, Integer orderStatus, String startDate, String endDate) {
@@ -129,15 +134,7 @@ public class PrintOrderServiceImpl implements PrintOrderService {
 
     @Override
     public Result<List<PrintOrder>> getMyPrintOrders(Long uid) {
-        String phone = sysAccountRepository.findById(uid)
-                .map(com.edu.javasb_back.model.entity.SysAccount::getPhone)
-                .orElse(null);
-        
-        if (phone == null) {
-            return Result.success(List.of());
-        }
-
-        List<PrintOrder> orders = printOrderRepository.findByUserPhoneOrderByCreateTimeDesc(phone);
+        List<PrintOrder> orders = printOrderRepository.findByUserUidOrderByCreateTimeDesc(uid);
         if (orders.isEmpty()) {
             return Result.success(List.of());
         }
@@ -161,6 +158,96 @@ public class PrintOrderServiceImpl implements PrintOrderService {
         return Result.success(validOrders);
     }
 
+    @Override
+    public Result<Map<String, Object>> createWechatPayParams(Long uid, String orderNo) {
+        if (orderNo == null || orderNo.trim().isEmpty()) {
+            return Result.error("订单号不能为空");
+        }
+
+        Optional<PrintOrder> orderOptional = printOrderRepository.findByOrderNoAndUserUid(orderNo, uid);
+        if (orderOptional.isEmpty()) {
+            return Result.error("订单不存在");
+        }
+
+        PrintOrder order = orderOptional.get();
+        if (order.getOrderStatus() != null && order.getOrderStatus() >= 2) {
+            return Result.error(400, "订单已支付");
+        }
+
+        try {
+            Map<String, Object> payPackage = wechatPayService.createVirtualPaymentParams(
+                    order.getOrderNo(),
+                    buildPrintGoodsId(order),
+                    order.getTotalPrice(),
+                    uid);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("orderNo", order.getOrderNo());
+            result.put("paymentType", payPackage.get("paymentType"));
+            result.put("payParams", payPackage.get("payParams"));
+            result.put("security", payPackage.get("security"));
+            result.put("documentName", order.getDocumentName());
+            return Result.success("获取支付参数成功", result);
+        } catch (WechatBindRequiredException e) {
+            return Result.wechatBindRequired(e.getMessage());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return Result.error(e.getMessage());
+        } catch (Exception e) {
+            return Result.error("获取支付参数失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public Result<String> confirmVirtualPayment(Long uid, String orderNo, Map<String, Object> securityData) {
+        if (orderNo == null || orderNo.trim().isEmpty()) {
+            return Result.error("订单号不能为空");
+        }
+
+        Optional<PrintOrder> orderOptional = printOrderRepository.findByOrderNoAndUserUid(orderNo, uid);
+        if (orderOptional.isEmpty()) {
+            return Result.error("订单不存在");
+        }
+
+        PrintOrder order = orderOptional.get();
+        if (order.getOrderStatus() != null && order.getOrderStatus() >= 2) {
+            return Result.success("支付已处理");
+        }
+
+        boolean valid = wechatPayService.verifyVirtualPaymentSecurity(
+                orderNo,
+                buildPrintGoodsId(order),
+                order.getTotalPrice(),
+                uid,
+                asString(securityData == null ? null : securityData.get("timestamp")),
+                asString(securityData == null ? null : securityData.get("nonceStr")),
+                resolveSecuritySignature(securityData)
+        );
+        if (!valid) {
+            return Result.error(400, "虚拟支付校验失败");
+        }
+
+        paySuccess(orderNo);
+        return Result.success("支付处理成功", null);
+    }
+
+    @Override
+    @Transactional
+    public void paySuccess(String orderNo) {
+        Optional<PrintOrder> orderOptional = printOrderRepository.findByOrderNo(orderNo);
+        if (orderOptional.isEmpty()) {
+            return;
+        }
+
+        PrintOrder order = orderOptional.get();
+        if (order.getOrderStatus() != null && order.getOrderStatus() >= 2) {
+            return;
+        }
+
+        order.setOrderStatus(2);
+        printOrderRepository.save(order);
+    }
+
     private String normalizeKeyword(String keyword) {
         return (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
     }
@@ -177,5 +264,24 @@ public class PrintOrderServiceImpl implements PrintOrderService {
             return null;
         }
         return LocalDate.parse(value.trim()).atTime(LocalTime.MAX);
+    }
+
+    private String buildPrintGoodsId(PrintOrder order) {
+        return "print-" + order.getId();
+    }
+
+    private String asString(Object value) {
+        return value == null ? "" : value.toString();
+    }
+
+    private String resolveSecuritySignature(Map<String, Object> securityData) {
+        if (securityData == null) {
+            return "";
+        }
+        Object confirmSignature = securityData.get("confirmSignature");
+        if (confirmSignature != null && !confirmSignature.toString().trim().isEmpty()) {
+            return confirmSignature.toString();
+        }
+        return asString(securityData.get("signature"));
     }
 }

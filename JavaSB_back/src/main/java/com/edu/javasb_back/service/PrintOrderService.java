@@ -32,6 +32,12 @@ public interface PrintOrderService {
     Result<PrintOrder> save(PrintOrder printOrder);
 
     Result<List<PrintOrder>> getMyPrintOrders(Long uid);
+
+    Result<Map<String, Object>> createWechatPayParams(Long uid, String orderNo);
+
+    Result<String> confirmVirtualPayment(Long uid, String orderNo, Map<String, Object> securityData);
+
+    void paySuccess(String orderNo);
     /**
      * 导出打印订单
      */

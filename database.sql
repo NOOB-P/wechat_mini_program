@@ -489,6 +489,7 @@ DROP TABLE IF EXISTS `print_orders`;
 CREATE TABLE `print_orders` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '内部记录ID',
     `order_no` VARCHAR(50) NOT NULL UNIQUE COMMENT '外部订单编号(POD开头)',
+    `user_uid` BIGINT DEFAULT NULL COMMENT '下单用户UID',
     `user_name` VARCHAR(50) NOT NULL COMMENT '下单用户姓名(冗余)',
     `user_phone` VARCHAR(20) NOT NULL COMMENT '联系电话',
     `document_name` VARCHAR(200) NOT NULL COMMENT '打印文件名称',

@@ -487,6 +487,7 @@ public class ScoreServiceImpl implements ScoreService {
                 StringUtils.hasText(classSubject.getPaperUrl()) ? classSubject.getPaperUrl() : classSubject.getAnswerUrl()
         ));
         data.put("questionScores", answers);
+        data.put("originalDownloadUrl", ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl()));
         data.put("downloadUrl", ossStorageService.toCdnUrl(StringUtils.hasText(studentScore.getAnswerSheetUrl()) ? studentScore.getAnswerSheetUrl() : classSubject.getPaperUrl()));
         return Result.success(data);
     }

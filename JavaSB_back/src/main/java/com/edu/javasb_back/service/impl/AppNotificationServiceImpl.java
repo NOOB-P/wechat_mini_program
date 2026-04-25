@@ -173,6 +173,9 @@ public class AppNotificationServiceImpl implements AppNotificationService {
     private void appendSystemNotifications(Long uid, List<NotificationWrapper> notifications) {
         List<SysNotification> sysNotifications = sysNotificationRepository.findPublishedByUid(uid);
         for (SysNotification sys : sysNotifications) {
+            if (isLegacyPendingOrderNotification(sys)) {
+                continue;
+            }
             boolean isNew = true;
             if (sys.getTargetType() == 1) {
                 isNew = sys.getIsRead() == null || sys.getIsRead() == 0;
@@ -200,6 +203,15 @@ public class AppNotificationServiceImpl implements AppNotificationService {
                     isNew
             );
         }
+    }
+
+    private boolean isLegacyPendingOrderNotification(SysNotification notification) {
+        if (notification == null || notification.getTargetType() == null || notification.getTargetType() != 0) {
+            return false;
+        }
+        String category = firstNonEmpty(notification.getCategory());
+        boolean isOrderCategory = List.of("course", "vip", "print").contains(category);
+        return isOrderCategory && "立即支付".equals(firstNonEmpty(notification.getActionText()));
     }
 
     private void appendScoreNotifications(Long uid, List<NotificationWrapper> notifications, Set<String> dynamicReadIds) {

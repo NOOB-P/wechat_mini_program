@@ -114,9 +114,12 @@ const emit = defineEmits(['click', 'more'])
         align-items: flex-start;
         margin-bottom: 8rpx;
         width: 100%;
+        min-width: 0;
       }
 
       .item-name {
+        flex: 1;
+        min-width: 0;
         font-size: 30rpx;
         font-weight: 500;
         color: #333;
@@ -134,6 +137,7 @@ const emit = defineEmits(['click', 'more'])
         align-items: center;
         margin-top: auto;
         width: 100%;
+        gap: 20rpx;
 
         .item-price {
           font-size: 32rpx;
@@ -144,6 +148,7 @@ const emit = defineEmits(['click', 'more'])
 
         :deep(.wd-button) {
           margin: 0 !important;
+          margin-left: auto !important;
           flex-shrink: 0;
         }
       }

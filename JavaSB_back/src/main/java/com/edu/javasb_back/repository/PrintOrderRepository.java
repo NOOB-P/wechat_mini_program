@@ -18,9 +18,11 @@ import com.edu.javasb_back.model.entity.PrintOrder;
  */
 @Repository
 public interface PrintOrderRepository extends JpaRepository<PrintOrder, Long> {
+    List<PrintOrder> findByUserUidOrderByCreateTimeDesc(Long userUid);
     List<PrintOrder> findByUserPhoneOrderByCreateTimeDesc(String userPhone);
     List<PrintOrder> findByUserNameOrderByCreateTimeDesc(String userName);
     Optional<PrintOrder> findByOrderNo(String orderNo);
+    Optional<PrintOrder> findByOrderNoAndUserUid(String orderNo, Long userUid);
     List<PrintOrder> findTop5ByOrderByCreateTimeDesc();
     
     /**

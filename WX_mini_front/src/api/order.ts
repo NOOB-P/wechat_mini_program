@@ -7,6 +7,14 @@ export const getMyPrintOrdersApi = () => {
   return request({ url: '/api/app/order/print/list', method: 'GET' })
 }
 
+export const createPrintPayApi = (orderNo: string) => {
+  return request({ url: '/api/app/order/print/pay', method: 'POST', data: { orderNo } })
+}
+
+export const confirmPrintVirtualPayApi = (orderNo: string, security: Record<string, any>) => {
+  return request({ url: '/api/app/order/print/pay/confirm', method: 'POST', data: { orderNo, security } })
+}
+
 /**
  * 获取已购课程
  */
