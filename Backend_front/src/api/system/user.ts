@@ -1,12 +1,43 @@
 import api from '@/utils/http'
 import { mockUserList } from '@/mock/system/user'
 
+function normalizeDateTime(value: unknown) {
+  if (typeof value !== 'string') {
+    return value ?? null
+  }
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
+
+function buildUserPayload(data: any) {
+  return {
+    username: data.userName,
+    nickname: data.nickName,
+    phone: data.userPhone,
+    email: data.email,
+    roleId: data.userType,
+    password: data.password,
+    studentId: data.studentId ?? '',
+    isVip: data.isVip,
+    isSvip: data.isSvip,
+    vipStartTime: normalizeDateTime(data.vipStartTime),
+    svipStartTime: normalizeDateTime(data.svipStartTime),
+    vipExpireTime: normalizeDateTime(data.vipExpireTime),
+    svipExpireTime: normalizeDateTime(data.svipExpireTime),
+    vipDurationMonths: data.isVip === 1 ? data.vipDurationMonths ?? null : null,
+    svipDurationMonths: data.isSvip === 1 ? data.svipDurationMonths ?? null : null
+  }
+}
+
 /** 获取用户列表 */
 export function fetchGetUserList(params: Api.SystemManage.UserSearchParams) {
   // 对接真实后端接口
   return api.get<any>({
     url: '/api/system/user/list',
-    params
+    params: {
+      ...params,
+      _t: Date.now()
+    }
   })
 }
 
@@ -14,16 +45,7 @@ export function fetchGetUserList(params: Api.SystemManage.UserSearchParams) {
 export function fetchAddUser(data: any) {
   return api.post<any>({
     url: '/api/system/user/add',
-    data: {
-      username: data.userName,
-      nickname: data.nickName,
-      phone: data.userPhone,
-      email: data.email,
-      roleId: data.userType,
-      password: data.password,
-      isVip: data.isVip,
-      isSvip: data.isSvip
-    }
+    data: buildUserPayload(data)
   })
 }
 
@@ -32,13 +54,8 @@ export function fetchEditUser(id: number, data: any) {
   return api.put<any>({
     url: `/api/system/user/edit/${id}`,
     data: {
-      nickname: data.nickName,
-      phone: data.userPhone,
-      email: data.email,
-      roleId: data.userType,
-      password: data.password,
-      isVip: data.isVip,
-      isSvip: data.isSvip
+      ...buildUserPayload(data),
+      username: undefined
     }
   })
 }

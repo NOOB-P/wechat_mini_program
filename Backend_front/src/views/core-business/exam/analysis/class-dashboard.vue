@@ -243,6 +243,11 @@
   const loadData = async () => {
     try {
       const res = await fetchAnalysisClassDashboard({ projectId, classId })
+      // 如果没有班级信息或者统计数据为空，说明没有数据
+      if (!res.classInfo || (res.statsCards && res.statsCards.length === 0)) {
+        router.push({ name: 'ExamAnalysisEmpty' })
+        return
+      }
       if (res.classInfo) {
         schoolName.value = res.classInfo.schoolName || schoolName.value
         className.value = res.classInfo.className || className.value

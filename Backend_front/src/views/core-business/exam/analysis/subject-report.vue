@@ -451,6 +451,11 @@
         projectId,
         subjectName: subjectName || currentSubject.value || undefined
       })
+      // 如果没有学科信息，说明没有数据
+      if (!res.subjects || res.subjects.length === 0) {
+        router.push({ name: 'ExamAnalysisEmpty' })
+        return
+      }
       projectName.value = res.project?.name || projectName.value
       subjects.value = res.subjects || []
       overviewCards.value = res.overviewCards || []

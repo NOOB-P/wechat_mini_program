@@ -106,13 +106,14 @@ const emit = defineEmits(['click', 'more'])
       flex: 1;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
       min-height: 132rpx;
+      overflow: hidden;
 
       .name-wrap {
         display: flex;
         align-items: flex-start;
-        margin-bottom: 12rpx;
+        margin-bottom: 8rpx;
+        width: 100%;
       }
 
       .item-name {
@@ -124,17 +125,26 @@ const emit = defineEmits(['click', 'more'])
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        word-break: break-all;
       }
 
       .item-bottom {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        margin-top: auto;
+        width: 100%;
 
         .item-price {
           font-size: 32rpx;
           font-weight: bold;
           color: #f44336;
+          flex-shrink: 0;
+        }
+
+        :deep(.wd-button) {
+          margin: 0 !important;
+          flex-shrink: 0;
         }
       }
     }

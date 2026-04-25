@@ -15,6 +15,8 @@ public class VipOrderSchemaInitializer {
     public void initializeSchema() {
         ensureSourceTypeColumn();
         ensureSvipExpireTimeColumn();
+        ensureVipStartTimeColumn();
+        ensureSvipStartTimeColumn();
         backfillSourceType();
     }
 
@@ -38,6 +40,22 @@ public class VipOrderSchemaInitializer {
                 "sys_accounts",
                 "svip_expire_time",
                 "ALTER TABLE sys_accounts ADD COLUMN svip_expire_time DATETIME NULL COMMENT 'SVIP过期时间' AFTER vip_expire_time"
+        );
+    }
+
+    private void ensureVipStartTimeColumn() {
+        addColumnIfMissing(
+                "sys_accounts",
+                "vip_start_time",
+                "ALTER TABLE sys_accounts ADD COLUMN vip_start_time DATETIME NULL COMMENT 'VIP开始时间' AFTER is_vip"
+        );
+    }
+
+    private void ensureSvipStartTimeColumn() {
+        addColumnIfMissing(
+                "sys_accounts",
+                "svip_start_time",
+                "ALTER TABLE sys_accounts ADD COLUMN svip_start_time DATETIME NULL COMMENT 'SVIP开始时间' AFTER is_svip"
         );
     }
 

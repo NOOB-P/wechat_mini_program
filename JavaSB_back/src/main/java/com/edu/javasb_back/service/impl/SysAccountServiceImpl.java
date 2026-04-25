@@ -7,10 +7,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -47,40 +47,12 @@ import com.edu.javasb_back.repository.SysClassRepository;
 import com.edu.javasb_back.repository.SysRoleRepository;
 import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
+import com.edu.javasb_back.service.LoginAsyncService;
 import com.edu.javasb_back.service.RolePermissionService;
 import com.edu.javasb_back.service.SmsService;
-import com.edu.javasb_back.service.LoginAsyncService;
 import com.edu.javasb_back.service.SysAccountService;
 import com.edu.javasb_back.utils.JwtUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.client.RestTemplate;
-
-import java.time.LocalDateTime;
-import java.util.*;
 
 
 @Service
@@ -745,15 +717,34 @@ public class SysAccountServiceImpl implements SysAccountService {
 
         if (Objects.equals(account.getIsSvip(), 1)) {
             account.setIsVip(1);
-            if (account.getSvipExpireTime() == null) {
-                account.setSvipExpireTime(LocalDateTime.now().plusYears(99));
+            if (account.getSvipStartTime() == null) {
+                account.setSvipStartTime(LocalDateTime.now());
             }
-            if (account.getVipExpireTime() == null) {
-                account.setVipExpireTime(LocalDateTime.now().plusYears(99));
+            if (account.getVipStartTime() == null) {
+                account.setVipStartTime(account.getSvipStartTime());
+            }
+            if (account.getSvipExpireTime() == null) {
+                account.setSvipExpireTime(resolveMembershipExpireTime(
+                        account.getSvipStartTime(),
+                        null,
+                        account.getSvipDurationMonths(),
+                        1
+                ));
+            }
+            if (account.getVipExpireTime() == null || account.getVipExpireTime().isBefore(account.getSvipExpireTime())) {
+                account.setVipExpireTime(account.getSvipExpireTime());
             }
         } else if (Objects.equals(account.getIsVip(), 1)) {
+            if (account.getVipStartTime() == null) {
+                account.setVipStartTime(LocalDateTime.now());
+            }
             if (account.getVipExpireTime() == null) {
-                account.setVipExpireTime(LocalDateTime.now().plusYears(99));
+                account.setVipExpireTime(resolveMembershipExpireTime(
+                        account.getVipStartTime(),
+                        null,
+                        account.getVipDurationMonths(),
+                        1
+                ));
             }
         }
 
@@ -921,22 +912,59 @@ public class SysAccountServiceImpl implements SysAccountService {
             account.setIsVip(updateData.getIsVip());
             if (Objects.equals(updateData.getIsVip(), 0)) {
                 account.setVipExpireTime(null);
-            } else if (account.getVipExpireTime() == null) {
-                account.setVipExpireTime(LocalDateTime.now().plusYears(99));
+                account.setVipStartTime(null);
+            } else {
+                if (updateData.getVipStartTime() != null) {
+                    account.setVipStartTime(updateData.getVipStartTime());
+                } else if (account.getVipStartTime() == null) {
+                    account.setVipStartTime(LocalDateTime.now());
+                }
+
+                if (updateData.getVipExpireTime() != null) {
+                    account.setVipExpireTime(updateData.getVipExpireTime());
+                } else if (account.getVipExpireTime() == null) {
+                    account.setVipExpireTime(resolveMembershipExpireTime(
+                            account.getVipStartTime(),
+                            null,
+                            updateData.getVipDurationMonths(),
+                            1
+                    ));
+                }
             }
         }
+        
         if (updateData.getIsSvip() != null) {
             account.setIsSvip(updateData.getIsSvip());
             if (Objects.equals(updateData.getIsSvip(), 1)) {
                 account.setIsVip(1);
-                if (account.getSvipExpireTime() == null) {
-                    account.setSvipExpireTime(LocalDateTime.now().plusYears(99));
+                
+                if (updateData.getSvipStartTime() != null) {
+                    account.setSvipStartTime(updateData.getSvipStartTime());
+                } else if (account.getSvipStartTime() == null) {
+                    account.setSvipStartTime(LocalDateTime.now());
                 }
-                if (account.getVipExpireTime() == null) {
-                    account.setVipExpireTime(LocalDateTime.now().plusYears(99));
+
+                if (account.getVipStartTime() == null) {
+                    account.setVipStartTime(account.getSvipStartTime());
+                }
+                
+                if (updateData.getSvipExpireTime() != null) {
+                    account.setSvipExpireTime(updateData.getSvipExpireTime());
+                } else if (account.getSvipExpireTime() == null) {
+                    account.setSvipExpireTime(resolveMembershipExpireTime(
+                            account.getSvipStartTime(),
+                            null,
+                            updateData.getSvipDurationMonths(),
+                            1
+                    ));
+                }
+
+                if (account.getVipExpireTime() == null || account.getVipExpireTime().isBefore(account.getSvipExpireTime())) {
+                    account.setVipExpireTime(account.getSvipExpireTime());
                 }
             } else {
                 account.setSvipExpireTime(null);
+                account.setSvipStartTime(null);
             }
         }
         if (StringUtils.hasText(updateData.getPassword())) {
@@ -1043,6 +1071,10 @@ public class SysAccountServiceImpl implements SysAccountService {
         map.put("userType", String.valueOf(account.getRoleId()));
         map.put("isVip", account.getIsVip() != null ? account.getIsVip() : 0);
         map.put("isSvip", account.getIsSvip() != null ? account.getIsSvip() : 0);
+        map.put("vipStartTime", account.getVipStartTime() != null ? account.getVipStartTime().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "");
+        map.put("svipStartTime", account.getSvipStartTime() != null ? account.getSvipStartTime().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "");
+        map.put("vipExpireTime", account.getVipExpireTime() != null ? account.getVipExpireTime().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "");
+        map.put("svipExpireTime", account.getSvipExpireTime() != null ? account.getSvipExpireTime().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "");
         map.put("isBoundStudent", account.getIsBoundStudent() != null ? account.getIsBoundStudent() : 0);
         map.put("status", "online".equals(account.getOnlineStatus()) ? "1" : "2");
         map.put("createTime", account.getCreateTime() != null ? account.getCreateTime().toString() : "");
@@ -1094,6 +1126,18 @@ public class SysAccountServiceImpl implements SysAccountService {
         studentMap.put("school", schoolName);
         studentMap.put("className", className);
         return studentMap;
+    }
+
+    private LocalDateTime resolveMembershipExpireTime(LocalDateTime startTime,
+                                                      LocalDateTime providedExpireTime,
+                                                      Integer durationMonths,
+                                                      int defaultMonths) {
+        if (providedExpireTime != null) {
+            return providedExpireTime;
+        }
+        LocalDateTime baseTime = startTime != null ? startTime : LocalDateTime.now();
+        int validMonths = durationMonths != null && durationMonths > 0 ? durationMonths : defaultMonths;
+        return baseTime.plusMonths(validMonths);
     }
 
     private String trim(String value) {

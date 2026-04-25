@@ -3,6 +3,7 @@
     :title="isEdit ? '管理章节视频' : '新增章节'"
     v-model="dialogVisible"
     width="500px"
+    align-center
     @closed="handleClosed"
   >
     <el-form
