@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.edu.javasb_back.service.CourseOrderService;
+import com.edu.javasb_back.service.PrintOrderService;
 import com.edu.javasb_back.service.VipOrderService;
 import com.edu.javasb_back.service.WechatPayService;
 import com.wechat.pay.java.service.payments.model.Transaction;
@@ -28,6 +29,9 @@ public class PayNotifyController {
 
     @Autowired
     private VipOrderService vipOrderService;
+
+    @Autowired
+    private PrintOrderService printOrderService;
 
     @PostMapping("/notify")
     public ResponseEntity<Map<String, String>> notify(
@@ -47,6 +51,8 @@ public class PayNotifyController {
                 courseOrderService.paySuccess(orderNo);
             } else if (orderNo != null && orderNo.startsWith("VOD")) {
                 vipOrderService.paySuccessCallback(orderNo);
+            } else if (orderNo != null && orderNo.startsWith("POD")) {
+                printOrderService.paySuccess(orderNo);
             } else {
                 throw new IllegalArgumentException("未知订单号: " + orderNo);
             }

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.edu.javasb_back.config.WechatPayProperties;
 import com.edu.javasb_back.service.CourseOrderService;
+import com.edu.javasb_back.service.PrintOrderService;
 import com.edu.javasb_back.service.VipOrderService;
 import com.edu.javasb_back.utils.VirtualPaymentSignatureUtils;
 
@@ -31,6 +32,9 @@ public class MidasNotifyController {
 
     @Autowired
     private CourseOrderService courseOrderService;
+
+    @Autowired
+    private PrintOrderService printOrderService;
 
     @PostMapping("/notify")
     public Map<String, Object> handleNotify(@RequestBody Map<String, Object> body) {
@@ -59,6 +63,8 @@ public class MidasNotifyController {
                 vipOrderService.paySuccessCallback(outTradeNo);
             } else if (outTradeNo.startsWith("C")) {
                 courseOrderService.paySuccess(outTradeNo);
+            } else if (outTradeNo.startsWith("POD")) {
+                printOrderService.paySuccess(outTradeNo);
             } else {
                 log.warn("未知的虚拟支付订单前缀: {}", outTradeNo);
             }

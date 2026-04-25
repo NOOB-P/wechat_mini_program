@@ -6,7 +6,7 @@
         <text class="exam-title">{{ paperData.examName }}</text>
         <view class="score-info">
           <text class="score-text">得分: <text class="highlight">{{ paperData.score }}</text> / {{ paperData.fullScore }}</text>
-          <wd-button type="primary" size="small" plain @click="downloadPaper">下载试卷</wd-button>
+          <wd-button type="primary" size="small" plain @click="downloadPaper">下载原卷</wd-button>
         </view>
       </view>
 
@@ -123,7 +123,7 @@ const loadData = async () => {
         myPaperImages,
         examPaperImages,
         questionScores: res.data?.questionScores || res.data?.answers || [],
-        downloadUrl: resolveAssetUrl(res.data?.downloadUrl)
+        originalDownloadUrl: resolveAssetUrl(res.data?.originalDownloadUrl || res.data?.downloadUrl)
       }
     } else {
       toast.error(res.msg || '获取试卷失败')
@@ -177,18 +177,34 @@ const previewImage = (urls: string[], current: number) => {
 }
 
 const downloadPaper = () => {
-  if (!paperData.value?.downloadUrl) {
+  const downloadUrl = paperData.value?.originalDownloadUrl
+  if (!downloadUrl) {
     return toast.show('暂无下载链接')
   }
   
   uni.showLoading({ title: '下载中...', mask: true })
   
   uni.downloadFile({
-    url: paperData.value.downloadUrl,
+    url: downloadUrl,
     success: (res) => {
       if (res.statusCode === 200) {
         const filePath = res.tempFilePath
-        // 在微信小程序中，可以使用 openDocument 打开 pdf, doc, xls, ppt 等
+        const isImage = /\.(png|jpg|jpeg|webp|bmp)$/i.test(downloadUrl)
+        if (isImage) {
+          uni.saveImageToPhotosAlbum({
+            filePath,
+            success: () => {
+              uni.hideLoading()
+              toast.success('原卷已保存到相册')
+            },
+            fail: (err) => {
+              uni.hideLoading()
+              console.error('保存原卷失败:', err)
+              toast.error('保存原卷失败')
+            }
+          })
+          return
+        }
         uni.openDocument({
           filePath: filePath,
           showMenu: true, // 允许转发/保存
@@ -248,8 +264,11 @@ const downloadPaper = () => {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 20rpx;
 
     .score-text {
+      flex: 1;
+      min-width: 0;
       font-size: 28rpx;
       color: #666;
       .highlight {
@@ -258,6 +277,11 @@ const downloadPaper = () => {
         color: #1a5f8e;
         margin: 0 10rpx;
       }
+    }
+
+    :deep(.wd-button) {
+      margin-left: auto;
+      flex-shrink: 0;
     }
   }
 }

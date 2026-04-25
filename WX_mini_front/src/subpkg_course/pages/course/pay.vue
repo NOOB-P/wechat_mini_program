@@ -4,12 +4,15 @@
 
     <view class="order-info-card">
       <view class="course-brief">
-        <image v-if="order.type !== 'VIP'" :src="course.cover" mode="aspectFill" class="cover" />
-        <view v-else class="vip-icon-box">
+        <image v-if="order.type === 'course'" :src="course.cover" mode="aspectFill" class="cover" />
+        <view v-else-if="order.type === 'VIP'" class="vip-icon-box">
           <wd-icon :name="order.tierCode === 'SVIP' ? 'diamond' : 'sketch'" size="32px" color="#fff" />
         </view>
+        <view v-else class="print-icon-box">
+          <wd-icon name="print" size="32px" color="#1a5f8e" />
+        </view>
         <view class="info">
-          <text class="title">{{ order.type === 'VIP' ? order.title : course.title }}</text>
+          <text class="title">{{ order.type === 'course' ? course.title : order.title }}</text>
           <text class="price">￥{{ order.price }}</text>
         </view>
       </view>
@@ -51,6 +54,7 @@ import { useToast } from 'wot-design-uni'
 
 import { confirmCourseVirtualPayApi, createCoursePayApi, getCourseDetailApi } from '@/api/course'
 import { confirmVipVirtualPayApi, createVipPayApi } from '@/api/vip'
+import { confirmPrintVirtualPayApi, createPrintPayApi } from '@/api/order'
 import {
   PAYMENT_WECHAT_BIND_OPTIONS,
   refreshWechatUserInfo,
@@ -70,7 +74,8 @@ onLoad((options: any) => {
   }
 
   order.value = JSON.parse(decodeURIComponent(options.order))
-  if (order.value.type !== 'VIP') {
+  order.value.type = options.type === 'vip' ? 'VIP' : options.type === 'print' ? 'print' : 'course'
+  if (order.value.type === 'course') {
     loadCourseDetail(order.value.courseId)
   }
 })
@@ -126,8 +131,32 @@ const confirmVipVirtualPayWithRetry = async (orderNo: string, security: Record<s
   }
 }
 
+const confirmPrintVirtualPayWithRetry = async (orderNo: string, security: Record<string, any>) => {
+  for (let index = 0; index < 3; index += 1) {
+    try {
+      const res = await confirmPrintVirtualPayApi(orderNo, security)
+      if (res.code === 200) {
+        return res
+      }
+    } catch (error) {
+      if (index === 2) {
+        throw {
+          code: 'PAY_CONFIRM_FAILED',
+          msg: '支付已完成，但打印订单状态同步失败，请稍后刷新订单列表'
+        }
+      }
+      await wait(800)
+    }
+  }
+}
+
 const fetchPayParams = async () => {
-  const payApi = order.value.type === 'VIP' ? createVipPayApi : createCoursePayApi
+  const payApi =
+    order.value.type === 'VIP'
+      ? createVipPayApi
+      : order.value.type === 'print'
+        ? createPrintPayApi
+        : createCoursePayApi
   return runWithWechatBindGuard(async () => {
     loading.value = true
     return await payApi(order.value.orderNo)
@@ -158,6 +187,8 @@ const handlePay = async () => {
       try {
         if (order.value.type === 'VIP') {
           await confirmVipVirtualPayWithRetry(order.value.orderNo, payRes.data?.security || {})
+        } else if (order.value.type === 'print') {
+          await confirmPrintVirtualPayWithRetry(order.value.orderNo, payRes.data?.security || {})
         } else {
           await confirmCourseVirtualPayWithRetry(order.value.orderNo, payRes.data?.security || {})
         }
@@ -176,6 +207,13 @@ const handlePay = async () => {
     setTimeout(() => {
       if (order.value.type === 'VIP') {
         uni.switchTab({ url: '/pages/home/index' })
+        return
+      }
+
+      if (order.value.type === 'print') {
+        uni.redirectTo({
+          url: '/subpkg_mine/pages/mine/order-list?tab=print'
+        })
         return
       }
 
@@ -247,6 +285,17 @@ const formatTime = (time?: string) => {
   height: 140rpx;
   margin-right: 24rpx;
   background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+  border-radius: 12rpx;
+}
+
+.print-icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 140rpx;
+  height: 140rpx;
+  margin-right: 24rpx;
+  background: #eef5ff;
   border-radius: 12rpx;
 }
 

@@ -310,12 +310,8 @@ const handleBind = async () => {
     })
     
     if (res.code === 200) {
-      toast.success('绑定成功')
-      // 绑定成功后，销毁当前页进入首页
-      setTimeout(() => {
-        uni.hideLoading()
-        uni.switchTab({ url: '/pages/home/index' })
-      }, 1500)
+      uni.hideLoading()
+      uni.switchTab({ url: '/pages/home/index' })
     } else {
       uni.hideLoading()
       toast.error(res.msg || '绑定失败')
