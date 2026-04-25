@@ -102,6 +102,9 @@ public final class PermissionCatalog {
     public static final String SYSTEM_USER_TEMPLATE = "system:user:template";
 
     public static final String SYSTEM_ROLE_LIST = "system:role:list";
+    public static final String SYSTEM_ROLE_SAVE = "system:role:save";
+    public static final String SYSTEM_ROLE_UPDATE = "system:role:update";
+    public static final String SYSTEM_ROLE_DELETE = "system:role:delete";
 
     public static final String SYSTEM_PERMISSION_LIST = "system:permission:list";
     public static final String SYSTEM_PERMISSION_EDIT = "system:permission:edit";
@@ -311,7 +314,12 @@ public final class PermissionCatalog {
                     "角色管理",
                     "/system/role",
                     "ri:user-3-line",
-                    List.of(SYSTEM_ROLE_LIST)
+                    List.of(
+                            SYSTEM_ROLE_LIST,
+                            SYSTEM_ROLE_SAVE,
+                            SYSTEM_ROLE_UPDATE,
+                            SYSTEM_ROLE_DELETE
+                    )
             ),
             new PermissionGroup(
                     SYSTEM_PERMISSION_LIST,
