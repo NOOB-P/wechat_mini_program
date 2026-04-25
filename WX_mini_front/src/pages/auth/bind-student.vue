@@ -276,20 +276,21 @@ const sendCode = async () => {
   uni.showLoading({ title: '发送中...', mask: true })
   try {
     const res = await sendBindStudentCode(form.phone)
-    uni.hideLoading()
     if (res.code === 200) {
-      toast.success('验证码已发送')
+      uni.hideLoading()
+      uni.showToast({ title: '验证码已发送', icon: 'success' })
       countdown.value = 60
       timer = setInterval(() => {
         countdown.value--
         if (countdown.value <= 0) clearInterval(timer!)
       }, 1000)
     } else {
-      toast.error(res.msg || '发送失败')
+      uni.hideLoading()
+      uni.showToast({ title: res.msg || '发送失败', icon: 'none' })
     }
   } catch (error: any) {
     uni.hideLoading()
-    toast.error(error.msg || '发送失败')
+    uni.showToast({ title: error.msg || '发送失败', icon: 'none' })
   }
 }
 
@@ -298,7 +299,8 @@ const handleBind = async () => {
   const studentId = selectedStudentId.value
   
   if (!studentId || !code) {
-    return toast.show('请选择学生并输入验证码')
+    uni.showToast({ title: '请选择学生并输入验证码', icon: 'none' })
+    return
   }
   
   uni.showLoading({ title: '绑定中...', mask: true })
@@ -310,19 +312,19 @@ const handleBind = async () => {
     })
     
     if (res.code === 200) {
-      toast.success('绑定成功')
+      uni.hideLoading()
+      uni.showToast({ title: '绑定成功', icon: 'success' })
       // 绑定成功后，销毁当前页进入首页
       setTimeout(() => {
-        uni.hideLoading()
         uni.switchTab({ url: '/pages/home/index' })
       }, 1500)
     } else {
       uni.hideLoading()
-      toast.error(res.msg || '绑定失败')
+      uni.showToast({ title: res.msg || '绑定失败', icon: 'none' })
     }
   } catch (error: any) {
     uni.hideLoading()
-    toast.error(error.msg || '绑定失败')
+    uni.showToast({ title: error.msg || '绑定失败', icon: 'none' })
   }
 }
 

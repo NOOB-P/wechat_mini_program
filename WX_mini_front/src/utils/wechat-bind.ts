@@ -45,7 +45,7 @@ const popupState = reactive({
 })
 
 export const PAYMENT_WECHAT_BIND_OPTIONS: EnsureWechatBindOptions = {
-  force: true,
+  force: false,
   title: '支付前请先绑定微信',
   subtitle: '为了保障支付安全，请先完成微信绑定。',
   successMessage: '微信绑定成功'
@@ -286,7 +286,7 @@ export const runWithWechatBindGuard = async <T>(
   options: EnsureWechatBindOptions = {}
 ) => {
   const bindOptions = {
-    force: true,
+    force: false,
     ...options
   }
 
