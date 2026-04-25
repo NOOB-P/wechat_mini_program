@@ -94,6 +94,10 @@
   }
 
   const handleEnter = (item: any) => {
+    if (item.subjectCount === 0 || item.studentCount === 0) {
+      router.push({ name: 'ExamAnalysisEmpty' })
+      return
+    }
     router.push({
       name: 'ExamAnalysisDashboard',
       query: { projectId: item.id, projectName: item.name }
@@ -101,6 +105,10 @@
   }
 
   const handleSelectClass = (item: any) => {
+    if (item.subjectCount === 0 || item.studentCount === 0) {
+      router.push({ name: 'ExamAnalysisEmpty' })
+      return
+    }
     router.push({
       name: 'ExamAnalysisClassSelect',
       query: { projectId: item.id, projectName: item.name }
@@ -108,6 +116,10 @@
   }
 
   const handleSubjectReport = (item: any) => {
+    if (item.subjectCount === 0 || item.studentCount === 0) {
+      router.push({ name: 'ExamAnalysisEmpty' })
+      return
+    }
     router.push({
       name: 'ExamAnalysisSubjectReport',
       query: { projectId: item.id, projectName: item.name }

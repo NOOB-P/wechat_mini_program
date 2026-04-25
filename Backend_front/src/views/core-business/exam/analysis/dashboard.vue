@@ -196,6 +196,11 @@
     }
     try {
       const res = await fetchAnalysisProjectDashboard(projectId.value)
+      // 如果没有项目信息或者核心指标为空，说明没有数据
+      if (!res.project || (res.coreMetrics && res.coreMetrics.length === 0)) {
+        router.push({ name: 'ExamAnalysisEmpty' })
+        return
+      }
       projectName.value = res.project?.name || projectName.value
       coreMetrics.value = res.coreMetrics || []
       schoolRanking.value = res.schoolRanking || []

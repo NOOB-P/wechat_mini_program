@@ -3,6 +3,7 @@
     :title="isEdit ? '编辑视频' : '新增视频'"
     v-model="dialogVisible"
     width="500px"
+    align-center
     @closed="handleClosed"
   >
     <el-form
@@ -16,19 +17,28 @@
       </el-form-item>
       
       <el-form-item label="视频文件" prop="videoUrl">
-        <el-upload
-          class="video-uploader"
-          :show-file-list="false"
-          :http-request="handleVideoUploadRequest"
-          :before-upload="beforeUpload"
-          v-loading="uploading"
-        >
-          <div v-if="form.videoUrl" class="video-preview">
-            <el-icon class="text-green-500 mr-1"><VideoPlay /></el-icon>
-            <span class="text-xs truncate max-w-[150px]">{{ form.videoUrl }}</span>
-          </div>
-          <el-button v-else type="primary" size="small">上传视频</el-button>
-        </el-upload>
+        <div class="upload-container">
+          <el-upload
+            class="video-uploader-trigger"
+            :show-file-list="false"
+            :http-request="handleVideoUploadRequest"
+            :before-upload="beforeUpload"
+            v-loading="uploading"
+          >
+            <div v-if="form.videoUrl" class="video-preview-box">
+              <div class="video-info">
+                <el-icon class="video-icon"><VideoPlay /></el-icon>
+                <span class="video-name" :title="form.videoUrl">{{ getVideoName(form.videoUrl) }}</span>
+              </div>
+              <el-button type="primary" link size="small">更换视频</el-button>
+            </div>
+            <div v-else class="upload-placeholder">
+              <el-icon class="upload-icon"><Plus /></el-icon>
+              <span>点击上传视频文件</span>
+              <span class="upload-tip">支持 MP4 格式</span>
+            </div>
+          </el-upload>
+        </div>
       </el-form-item>
 
       <el-form-item label="排序" prop="sortOrder">
@@ -46,7 +56,7 @@
 import { ref, watch, computed } from 'vue'
 import type { FormInstance, UploadRequestOptions } from 'element-plus'
 import { ElMessage } from 'element-plus'
-import { VideoPlay } from '@element-plus/icons-vue'
+import { VideoPlay, Plus } from '@element-plus/icons-vue'
 import { uploadCourseVideo } from '@/api/course-study/course'
 
 const props = defineProps({
@@ -62,6 +72,13 @@ const dialogVisible = computed({
   get: () => props.visible,
   set: (val) => emit('update:visible', val)
 })
+
+// 获取视频文件名
+const getVideoName = (url: string) => {
+  if (!url) return ''
+  const parts = url.split('/')
+  return parts[parts.length - 1]
+}
 
 const formRef = ref<FormInstance>()
 const uploading = ref(false)
@@ -150,27 +167,96 @@ const handleSubmit = async () => {
 }
 </script>
 
-<style scoped>
-.video-uploader {
+<style scoped lang="scss">
+.upload-container {
+  width: 100%;
+}
+
+.video-uploader-trigger {
+  width: 100%;
+  
+  :deep(.el-upload) {
+    width: 100%;
+    display: block;
+  }
+}
+
+.upload-placeholder {
+  width: 100%;
+  height: 120px;
   border: 1px dashed #d9d9d9;
-  border-radius: 6px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+  background-color: #fafafa;
+  transition: all 0.3s;
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  width: 250px;
-  min-height: 32px;
+
+  &:hover {
+    border-color: var(--el-color-primary);
+    color: var(--el-color-primary);
+    background-color: var(--el-color-primary-light-9);
+  }
+
+  .upload-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+
+  span {
+    font-size: 14px;
+  }
+
+  .upload-tip {
+    font-size: 12px;
+    margin-top: 4px;
+    color: #c0c4cc;
+  }
+}
+
+.video-preview-box {
+  width: 100%;
+  height: 60px;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  padding: 0 10px;
+  justify-content: space-between;
+  padding: 0 16px;
+  background-color: #fff;
+  transition: all 0.3s;
+
+  &:hover {
+    border-color: var(--el-color-primary);
+    background-color: var(--el-color-primary-light-9);
+  }
+
+  .video-info {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    flex: 1;
+    margin-right: 12px;
+  }
+
+  .video-icon {
+    font-size: 20px;
+    color: #67c23a;
+    margin-right: 8px;
+  }
+
+  .video-name {
+    font-size: 13px;
+    color: #606266;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
-.video-uploader:hover {
-  border-color: #409eff;
-}
-.video-preview {
-  display: flex;
-  align-items: center;
-  color: #606266;
-}
+
 .w-full {
   width: 100%;
 }

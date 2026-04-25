@@ -115,6 +115,18 @@ export const examRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'analysis-empty',
+      name: 'ExamAnalysisEmpty',
+      component: '/core-business/exam/analysis/empty',
+      meta: {
+        title: '暂无数据',
+        isHide: true,
+        isHideTab: true,
+        disableTransition: true,
+        activePath: '/exam-hub/analysis-list'
+      }
+    },
+    {
       path: 'class',
       name: 'ExamClass',
       component: '/core-business/exam/class',

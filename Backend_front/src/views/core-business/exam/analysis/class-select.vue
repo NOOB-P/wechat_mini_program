@@ -89,6 +89,10 @@
     fetchAnalysisClassSelect(projectId)
       .then((res) => {
         schoolList.value = res.schools || []
+        if (schoolList.value.length === 0) {
+          router.push({ name: 'ExamAnalysisEmpty' })
+          return
+        }
         if (schoolList.value.length > 0) {
           activeSchool.value = schoolList.value[0].id
         }

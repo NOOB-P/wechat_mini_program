@@ -22,7 +22,8 @@ export function fetchAddUser(data: any) {
       roleId: data.userType,
       password: data.password,
       isVip: data.isVip,
-      isSvip: data.isSvip
+      isSvip: data.isSvip,
+      studentId: data.studentId
     }
   })
 }
@@ -38,7 +39,8 @@ export function fetchEditUser(id: number, data: any) {
       roleId: data.userType,
       password: data.password,
       isVip: data.isVip,
-      isSvip: data.isSvip
+      isSvip: data.isSvip,
+      studentId: data.studentId
     }
   })
 }

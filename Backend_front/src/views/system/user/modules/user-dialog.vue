@@ -42,22 +42,22 @@
       <!-- 家长用户特有字段 -->
       <template v-if="formData.userType === '3'">
         <ElFormItem label="关联学生" prop="studentId">
-          <ElSelect
-            v-model="formData.studentId"
-            placeholder="请搜索并选择学生"
-            filterable
-            remote
-            :remote-method="getStudents"
-            class="w-full"
-            clearable
-          >
-            <ElOption
-              v-for="item in studentList"
-              :key="item.id"
-              :label="`${item.name} (${item.school} / ${item.className || '未设置班级'})`"
-              :value="item.id"
+          <div class="flex items-center gap-2 w-full">
+            <StudentSelect
+              v-model="formData.studentId"
+              :initial-name="formData.studentName"
+              @change="(val) => formData.studentName = val.name"
+              class="flex-1"
             />
-          </ElSelect>
+            <ElButton 
+              v-if="formData.studentId" 
+              type="danger" 
+              plain 
+              @click="handleUnbind"
+            >
+              取消绑定
+            </ElButton>
+          </div>
         </ElFormItem>
       </template>
 
@@ -113,6 +113,7 @@
   import { fetchAddUser, fetchEditUser } from '@/api/system/user'
   import { fetchGetRoleList } from '@/api/system/role'
   import { fetchGetStudentList } from '@/api/core-business/student'
+  import StudentSelect from '@/components/business/student-select/index.vue'
   import { onMounted, ref, reactive, computed, watch, nextTick } from 'vue'
 
   interface Props {
@@ -239,7 +240,7 @@
         schoolName: row.schoolName || '',
         gradeName: row.gradeName || '',
         className: row.className || '',
-        studentName: row.studentName || '',
+        studentName: row.studentName || (row.boundStudents && row.boundStudents.length > 0 ? row.boundStudents[0].name : ''),
         studentId: (row.boundStudents && row.boundStudents.length > 0) ? row.boundStudents[0].id : '',
         parentName: row.parentName || ''
       })
@@ -280,6 +281,14 @@
     },
     { immediate: true }
   )
+
+  /**
+   * 取消绑定学生
+   */
+  const handleUnbind = () => {
+    formData.studentId = ''
+    formData.studentName = ''
+  }
 
   /**
    * 提交表单

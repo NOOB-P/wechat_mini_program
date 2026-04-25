@@ -336,18 +336,20 @@
               // 管理员和后台管理不需要绑定
               info.push(h('p', '-'))
             } else if (row.userType === '5') {
-              // 假设 5 是学校用户（目前代码中并未定义5，保留以前逻辑兼容）
+              // 假设 5 是学校用户
               info.push(h('p', `绑定学校: ${row.schoolName || '未绑定'}`))
             } else if (row.userType === '3') {
               // 家长用户
-              if (row.boundStudents && row.boundStudents.length > 0) {
+              // 优先显示 studentName，因为这通常是最新绑定的结果
+              if (row.studentName) {
+                info.push(h('p', `关联学生: ${row.studentName}`))
+                if (row.schoolName || row.className) {
+                  info.push(h('p', `学校班级: ${row.schoolName || '-'} / ${row.className || '-'}`))
+                }
+              } else if (row.boundStudents && row.boundStudents.length > 0) {
                 row.boundStudents.forEach((s: any) => {
                   info.push(h('p', `学生: ${s.name} (${s.school} / ${s.className || '未设置'})`))
                 })
-              } else if (row.schoolName && row.className && row.studentName) {
-                // 向后兼容之前的单条数据格式
-                info.push(h('p', `学校班级: ${row.schoolName} / ${row.className}`))
-                info.push(h('p', `关联学生: ${row.studentName}`))
               } else {
                 info.push(h('p', { class: 'text-red-500' }, '未绑定'))
               }
