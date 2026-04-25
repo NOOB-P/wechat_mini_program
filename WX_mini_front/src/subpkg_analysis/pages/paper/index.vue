@@ -6,7 +6,7 @@
         <text class="exam-title">{{ paperData.examName }}</text>
         <view class="score-info">
           <text class="score-text">得分: <text class="highlight">{{ paperData.score }}</text> / {{ paperData.fullScore }}</text>
-          <wd-button type="primary" size="small" plain @click="downloadPaper">下载原卷</wd-button>
+          <!-- <wd-button type="primary" size="small" plain @click="downloadPaper">下载试卷</wd-button> -->
         </view>
       </view>
 
