@@ -52,15 +52,31 @@ public class SysAccount {
     private Integer roleId;
 
     @Column(name = "is_vip")
+    @com.fasterxml.jackson.annotation.JsonProperty("isVip")
     private Integer isVip;
 
+    @Column(name = "vip_start_time")
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @com.fasterxml.jackson.annotation.JsonProperty("vipStartTime")
+    private LocalDateTime vipStartTime;
+
     @Column(name = "is_svip")
+    @com.fasterxml.jackson.annotation.JsonProperty("isSvip")
     private Integer isSvip;
 
+    @Column(name = "svip_start_time")
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @com.fasterxml.jackson.annotation.JsonProperty("svipStartTime")
+    private LocalDateTime svipStartTime;
+
     @Column(name = "vip_expire_time")
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @com.fasterxml.jackson.annotation.JsonProperty("vipExpireTime")
     private LocalDateTime vipExpireTime;
 
     @Column(name = "svip_expire_time")
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @com.fasterxml.jackson.annotation.JsonProperty("svipExpireTime")
     private LocalDateTime svipExpireTime;
 
     @Column(name = "online_status")
@@ -92,6 +108,12 @@ public class SysAccount {
 
     @Transient
     private String grade;
+
+    @Transient
+    private Integer vipDurationMonths;
+
+    @Transient
+    private Integer svipDurationMonths;
 
     @Transient
     private String roleCode;
@@ -136,6 +158,12 @@ public class SysAccount {
     public String getGrade() { return grade; }
     public void setGrade(String grade) { this.grade = grade; }
 
+    public Integer getVipDurationMonths() { return vipDurationMonths; }
+    public void setVipDurationMonths(Integer vipDurationMonths) { this.vipDurationMonths = vipDurationMonths; }
+
+    public Integer getSvipDurationMonths() { return svipDurationMonths; }
+    public void setSvipDurationMonths(Integer svipDurationMonths) { this.svipDurationMonths = svipDurationMonths; }
+
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 
@@ -151,8 +179,14 @@ public class SysAccount {
     public Integer getIsVip() { return isVip; }
     public void setIsVip(Integer isVip) { this.isVip = isVip; }
 
+    public LocalDateTime getVipStartTime() { return vipStartTime; }
+    public void setVipStartTime(LocalDateTime vipStartTime) { this.vipStartTime = vipStartTime; }
+
     public Integer getIsSvip() { return isSvip; }
     public void setIsSvip(Integer isSvip) { this.isSvip = isSvip; }
+
+    public LocalDateTime getSvipStartTime() { return svipStartTime; }
+    public void setSvipStartTime(LocalDateTime svipStartTime) { this.svipStartTime = svipStartTime; }
 
     public LocalDateTime getVipExpireTime() { return vipExpireTime; }
     public void setVipExpireTime(LocalDateTime vipExpireTime) { this.vipExpireTime = vipExpireTime; }

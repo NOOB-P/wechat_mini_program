@@ -3,6 +3,7 @@ package com.edu.javasb_back.controller;
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.SysRole;
+import com.edu.javasb_back.service.RolePermissionService;
 import com.edu.javasb_back.service.SysRoleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,6 +19,9 @@ public class SysRoleController {
 
     @Autowired
     private SysRoleService sysRoleService;
+
+    @Autowired
+    private RolePermissionService rolePermissionService;
 
     @LogOperation("获取角色列表")
     @PreAuthorize("hasAuthority('system:role:list')")
@@ -76,14 +80,14 @@ public class SysRoleController {
     @PreAuthorize("hasAuthority('system:role:list')")
     @GetMapping("/permissions/{id}")
     public Result<List<String>> getPermissions(@PathVariable Integer id) {
-        return Result.success("获取成功", sysRoleService.getRolePermissionCodes(id));
+        return Result.success("获取成功", rolePermissionService.getMenuPermissionsByRoleId(id));
     }
 
     @LogOperation("保存角色权限")
     @PreAuthorize("hasAuthority('system:role:update')")
     @PostMapping("/permissions/{id}")
     public Result<Void> savePermissions(@PathVariable Integer id, @RequestBody List<String> permissionCodes) {
-        sysRoleService.saveRolePermissions(id, permissionCodes);
+        rolePermissionService.replaceRolePermissions(id, permissionCodes);
         return Result.success("保存成功", null);
     }
 }

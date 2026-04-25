@@ -134,6 +134,10 @@ declare namespace Api {
       nickName: string
       isVip?: number
       isSvip?: number
+      vipStartTime?: string
+      svipStartTime?: string
+      vipExpireTime?: string
+      svipExpireTime?: string
       userPhone?: string
       userType?: '1' | '2' | '3' | '4'
       schoolName?: string

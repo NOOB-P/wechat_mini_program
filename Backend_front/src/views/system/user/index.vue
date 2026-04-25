@@ -246,7 +246,8 @@
     resetSearchParams,
     handleSizeChange,
     handleCurrentChange,
-    refreshData
+    refreshData,
+    refreshUpdate
   } = useTable({
     // 核心配置
     core: {
@@ -477,9 +478,9 @@
    */
   const handleDialogSubmit = async () => {
     try {
+      await refreshUpdate()
       dialogVisible.value = false
       currentUserData.value = {}
-      refreshData()
     } catch (error) {
       console.error('提交失败:', error)
     }

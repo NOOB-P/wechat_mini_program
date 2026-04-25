@@ -89,7 +89,7 @@ public interface SysAccountRepository extends JpaRepository<SysAccount, Long> {
     @Query(value = "SELECT DISTINCT a.* FROM sys_accounts a " +
            "LEFT JOIN student_parent_bindings b ON a.uid = b.parent_uid " +
            "LEFT JOIN students s ON b.student_id = s.id " +
-           "WHERE (:username IS NULL OR a.username LIKE CONCAT('%', :username, '%')) AND " +
+           "WHERE (:username IS NULL OR a.username LIKE CONCAT('%', :username, '%') OR a.nickname LIKE CONCAT('%', :username, '%')) AND " +
            "(:phone IS NULL OR a.phone LIKE CONCAT('%', :phone, '%')) AND " +
            "(:roleId IS NULL OR a.role_id = :roleId) AND " +
            "(:schoolName IS NULL OR s.school LIKE CONCAT('%', :schoolName, '%')) AND " +
@@ -98,7 +98,7 @@ public interface SysAccountRepository extends JpaRepository<SysAccount, Long> {
            countQuery = "SELECT COUNT(DISTINCT a.uid) FROM sys_accounts a " +
            "LEFT JOIN student_parent_bindings b ON a.uid = b.parent_uid " +
            "LEFT JOIN students s ON b.student_id = s.id " +
-           "WHERE (:username IS NULL OR a.username LIKE CONCAT('%', :username, '%')) AND " +
+           "WHERE (:username IS NULL OR a.username LIKE CONCAT('%', :username, '%') OR a.nickname LIKE CONCAT('%', :username, '%')) AND " +
            "(:phone IS NULL OR a.phone LIKE CONCAT('%', :phone, '%')) AND " +
            "(:roleId IS NULL OR a.role_id = :roleId) AND " +
            "(:schoolName IS NULL OR s.school LIKE CONCAT('%', :schoolName, '%')) AND " +
@@ -118,7 +118,7 @@ public interface SysAccountRepository extends JpaRepository<SysAccount, Long> {
                    "LEFT JOIN sys_roles r ON a.role_id = r.id " +
                    "LEFT JOIN student_parent_bindings b ON a.uid = b.parent_uid " +
                    "LEFT JOIN students s ON b.student_id = s.id " +
-                   "WHERE (:username IS NULL OR a.username LIKE CONCAT('%', :username, '%')) " +
+                   "WHERE (:username IS NULL OR a.username LIKE CONCAT('%', :username, '%') OR a.nickname LIKE CONCAT('%', :username, '%')) " +
                    "AND (:phone IS NULL OR a.phone LIKE CONCAT('%', :phone, '%')) " +
                    "AND (:roleId IS NULL OR a.role_id = :roleId) " +
                    "AND (:schoolId IS NULL OR s.school_id = :schoolId) " +
@@ -129,7 +129,7 @@ public interface SysAccountRepository extends JpaRepository<SysAccount, Long> {
                         "LEFT JOIN sys_roles r ON a.role_id = r.id " +
                         "LEFT JOIN student_parent_bindings b ON a.uid = b.parent_uid " +
                         "LEFT JOIN students s ON b.student_id = s.id " +
-                        "WHERE (:username IS NULL OR a.username LIKE CONCAT('%', :username, '%')) " +
+                        "WHERE (:username IS NULL OR a.username LIKE CONCAT('%', :username, '%') OR a.nickname LIKE CONCAT('%', :username, '%')) " +
                         "AND (:phone IS NULL OR a.phone LIKE CONCAT('%', :phone, '%')) " +
                         "AND (:roleId IS NULL OR a.role_id = :roleId) " +
                         "AND (:schoolId IS NULL OR s.school_id = :schoolId) " +

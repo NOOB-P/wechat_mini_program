@@ -67,12 +67,6 @@
               <ElOption label="订单相关" value="order" />
             </ElSelect>
           </ElFormItem>
-          <ElFormItem label="跳转文字" prop="actionText">
-            <ElInput v-model="formData.actionText" placeholder="如：立即查看 (不填则无按钮)" />
-          </ElFormItem>
-          <ElFormItem label="跳转路径" prop="actionPath">
-            <ElInput v-model="formData.actionPath" placeholder="如：/pages/mine/index" />
-          </ElFormItem>
           <ElFormItem label="目标用户" prop="targetType">
             <ElRadioGroup v-model="formData.targetType">
               <ElRadio :label="0">全部用户</ElRadio>
@@ -80,7 +74,21 @@
             </ElRadioGroup>
           </ElFormItem>
           <ElFormItem label="用户UID" v-if="formData.targetType === 1" prop="targetUid">
-            <ElInput v-model.number="formData.targetUid" placeholder="请输入接收用户UID" />
+            <div class="w-full">
+              <ElInput
+                :model-value="targetUserDisplay"
+                placeholder="点击选择接收用户"
+                readonly
+                @click="openUserSelector"
+              >
+                <template #append>
+                  <ElButton @click="openUserSelector">选择用户</ElButton>
+                </template>
+              </ElInput>
+              <div v-if="selectedTargetUser || formData.targetUid" class="mt-2 text-xs text-gray-500">
+                {{ selectedTargetUser ? `已选择：${selectedTargetUser.nickName || selectedTargetUser.userName}（UID: ${selectedTargetUser.id}）` : `已填写 UID: ${formData.targetUid}` }}
+              </div>
+            </div>
           </ElFormItem>
           <ElFormItem label="发布状态">
             <ElSwitch v-model="formData.isPublished" :active-value="1" :inactive-value="0" />
@@ -91,6 +99,8 @@
           <ElButton type="primary" :loading="submitLoading" @click="handleSubmit">确定</ElButton>
         </template>
       </ElDialog>
+
+      <UserSelectDialog v-model="userSelectVisible" @select="handleUserSelect" />
     </ElCard>
   </div>
 </template>
@@ -99,6 +109,7 @@
   import { useTable } from '@/hooks/core/useTable'
   import { fetchGetNotificationList, fetchSaveNotification, fetchDeleteNotification } from '@/api/system/notification'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
+  import UserSelectDialog from './modules/user-select-dialog.vue'
   import { ElMessage, ElMessageBox, ElTag } from 'element-plus'
   import { DialogType } from '@/types'
 
@@ -114,6 +125,8 @@
   const dialogType = ref<DialogType>('add')
   const submitLoading = ref(false)
   const formRef = ref()
+  const userSelectVisible = ref(false)
+  const selectedTargetUser = ref<any>(null)
   const formData = ref<any>({
     id: null,
     title: '',
@@ -125,11 +138,31 @@
     isPublished: 1
   })
 
-  const rules = {
+  const rules = computed(() => ({
     title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
     content: [{ required: true, message: '请输入内容', trigger: 'blur' }],
-    level: [{ required: true, message: '请选择级别', trigger: 'change' }]
-  }
+    level: [{ required: true, message: '请选择级别', trigger: 'change' }],
+    targetUid: [
+      {
+        validator: (_rule: any, value: number | null, callback: (error?: Error) => void) => {
+          if (formData.value.targetType === 1 && !value) {
+            callback(new Error('请选择接收用户'))
+            return
+          }
+          callback()
+        },
+        trigger: 'change'
+      }
+    ]
+  }))
+
+  const targetUserDisplay = computed(() => {
+    if (selectedTargetUser.value) {
+      const { id, userName, nickName, userPhone } = selectedTargetUser.value
+      return `${nickName || userName} / UID:${id}${userPhone ? ` / ${userPhone}` : ''}`
+    }
+    return formData.value.targetUid ? `UID:${formData.value.targetUid}` : ''
+  })
 
   const {
     columns,
@@ -237,6 +270,7 @@
 
   const showDialog = (type: DialogType, row?: any) => {
     dialogType.value = type
+    selectedTargetUser.value = null
     if (type === 'edit' && row) {
       formData.value = { ...row }
     } else {
@@ -248,12 +282,19 @@
         level: 'info',
         targetType: 0,
         targetUid: null,
-        isPublished: 1,
-        actionText: null,
-        actionPath: null
+        isPublished: 1
       }
     }
     dialogVisible.value = true
+  }
+
+  const openUserSelector = () => {
+    userSelectVisible.value = true
+  }
+
+  const handleUserSelect = (user: any) => {
+    selectedTargetUser.value = user
+    formData.value.targetUid = user.id
   }
 
   const handleDelete = (row: any) => {
@@ -272,7 +313,11 @@
       if (valid) {
         submitLoading.value = true
         try {
-          await fetchSaveNotification(formData.value)
+          await fetchSaveNotification({
+            ...formData.value,
+            actionText: null,
+            actionPath: null
+          })
           ElMessage.success('保存成功')
           dialogVisible.value = false
           refreshData()
@@ -282,6 +327,16 @@
       }
     })
   }
+
+  watch(
+    () => formData.value.targetType,
+    (value) => {
+      if (value === 0) {
+        formData.value.targetUid = null
+        selectedTargetUser.value = null
+      }
+    }
+  )
 </script>
 
 <style lang="scss" scoped>
