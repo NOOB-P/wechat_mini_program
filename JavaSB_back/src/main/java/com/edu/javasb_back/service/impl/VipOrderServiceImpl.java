@@ -1,25 +1,5 @@
 package com.edu.javasb_back.service.impl;
 
-import com.baomidou.dynamic.datasource.annotation.DS;
-import com.edu.javasb_back.common.Result;
-import com.edu.javasb_back.common.WechatBindRequiredException;
-import com.edu.javasb_back.model.entity.*;
-import com.edu.javasb_back.repository.StudentParentBindingRepository;
-import com.edu.javasb_back.repository.SysAccountRepository;
-import com.edu.javasb_back.repository.VipPricingRepository;
-import com.edu.javasb_back.repository.VipOrderRepository;
-import com.edu.javasb_back.service.SysNotificationService;
-import com.edu.javasb_back.service.VipOrderService;
-import com.edu.javasb_back.service.WechatPayService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -42,19 +22,23 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.common.WechatBindRequiredException;
 import com.edu.javasb_back.config.WechatPayProperties;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.SysNotification;
+import com.edu.javasb_back.model.entity.VipConfig;
 import com.edu.javasb_back.model.entity.VipOrder;
 import com.edu.javasb_back.model.entity.VipPricing;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
+import com.edu.javasb_back.repository.VipConfigRepository;
 import com.edu.javasb_back.repository.VipOrderRepository;
 import com.edu.javasb_back.repository.VipPricingRepository;
 import com.edu.javasb_back.service.SysNotificationService;
 import com.edu.javasb_back.service.VipOrderService;
 import com.edu.javasb_back.service.WechatPayService;
+import com.edu.javasb_back.utils.VipTypeUtils;
 
 @Service
 @Transactional(readOnly = true)
@@ -81,6 +65,9 @@ public class VipOrderServiceImpl implements VipOrderService {
 
     @Autowired
     private VipPricingRepository vipPricingRepository;
+
+    @Autowired
+    private VipConfigRepository vipConfigRepository;
 
     @Autowired
     private WechatPayService wechatPayService;
@@ -134,6 +121,12 @@ public class VipOrderServiceImpl implements VipOrderService {
         
         Integer pricingId = parseInteger(orderData.get("pricingId"));
         order.setPricingId(pricingId);
+        VipConfig vipConfig = resolveVipConfig(pricingId, tierCode, title);
+        int vipType = vipConfig != null && vipConfig.getTypeValue() != null
+                ? vipConfig.getTypeValue()
+                : resolveVipType(tierCode, title);
+        order.setVipType(vipType);
+        order.setVipConfigId(vipConfig != null ? vipConfig.getId() : null);
 
         order.setPaymentStatus(0);
         order.setPaymentMethod(ONLINE_PAYMENT_METHOD);
@@ -298,7 +291,7 @@ public class VipOrderServiceImpl implements VipOrderService {
         }
 
         SysAccount account = accountOptional.get();
-        extendMembership(account, months, false);
+        extendMembership(account, months, VipTypeUtils.VIP, resolveVipConfigId(VipTypeUtils.VIP));
         sysAccountRepository.save(account);
 
         VipOrder order = new VipOrder();
@@ -310,6 +303,8 @@ public class VipOrderServiceImpl implements VipOrderService {
         order.setPackageType(SCHOOL_VIP_PACKAGE);
         order.setPeriod(formatMonthPeriod(months));
         order.setPrice(BigDecimal.ZERO);
+        order.setVipType(VipTypeUtils.VIP);
+        order.setVipConfigId(resolveVipConfigId(VipTypeUtils.VIP));
         order.setPaymentStatus(1);
         order.setPaymentMethod(SCHOOL_PAYMENT_METHOD);
         order.setSourceType(SOURCE_SCHOOL_GIFT);
@@ -319,6 +314,8 @@ public class VipOrderServiceImpl implements VipOrderService {
         Map<String, Object> result = new HashMap<>();
         result.put("orderNo", savedOrder.getOrderNo());
         result.put("months", months);
+        result.put("vipType", account.getVipType());
+        result.put("vipConfigId", account.getVipConfigId());
         result.put("sourceType", savedOrder.getSourceType());
         result.put("vipExpireTime", account.getVipExpireTime());
         return Result.success("校讯通开通成功", result);
@@ -348,11 +345,11 @@ public class VipOrderServiceImpl implements VipOrderService {
         if (userOptional.isPresent()) {
             SysAccount account = userOptional.get();
             int months = resolveMonths(order.getPeriod());
-            boolean grantSvip = containsIgnoreCase(order.getPackageType(), "SVIP");
-            boolean shouldGrantVip = containsIgnoreCase(order.getPackageType(), "VIP");
+            boolean grantSvip = VipTypeUtils.isSvip(order.getVipType());
+            boolean shouldGrantVip = VipTypeUtils.isVip(order.getVipType());
 
             if (shouldGrantVip || grantSvip) {
-                extendMembership(account, months, grantSvip);
+                extendMembership(account, months, order.getVipType(), order.getVipConfigId());
                 sysAccountRepository.save(account);
             }
         }
@@ -421,27 +418,18 @@ public class VipOrderServiceImpl implements VipOrderService {
         return orders;
     }
 
-    private void extendMembership(SysAccount account, int months, boolean grantSvip) {
-        account.setIsVip(1);
-        if (grantSvip) {
-            account.setIsSvip(1);
-        }
-
+    private void extendMembership(SysAccount account, int months, Integer vipType, Integer vipConfigId) {
         if (months <= 0) {
             return;
         }
 
-        if (grantSvip) {
-            LocalDateTime nextSvipExpire = extendExpireTime(account.getSvipExpireTime(), months);
-            account.setSvipExpireTime(nextSvipExpire);
-
-            LocalDateTime vipExpireTime = account.getVipExpireTime();
-            if (vipExpireTime == null || vipExpireTime.isBefore(nextSvipExpire)) {
-                account.setVipExpireTime(nextSvipExpire);
-            }
-        } else {
-            account.setVipExpireTime(extendExpireTime(account.getVipExpireTime(), months));
+        account.setVipExpireTime(extendExpireTime(account.getVipExpireTime(), months));
+        if (account.getVipStartTime() == null || account.getVipExpireTime() == null || account.getVipExpireTime().isBefore(LocalDateTime.now())) {
+            account.setVipStartTime(LocalDateTime.now());
         }
+        account.setVipType(vipType);
+        account.setVipConfigId(vipConfigId != null ? vipConfigId : resolveVipConfigId(vipType));
+        VipTypeUtils.normalizeAccountVipType(account);
     }
 
     private LocalDateTime extendExpireTime(LocalDateTime currentExpire, int months) {
@@ -531,6 +519,51 @@ public class VipOrderServiceImpl implements VipOrderService {
                     .orElse("");
         }
         return "";
+    }
+
+    private VipConfig resolveVipConfig(Integer pricingId, String tierCode, String packageTitle) {
+        if (pricingId != null) {
+            Optional<VipPricing> pricingOptional = vipPricingRepository.findById(pricingId);
+            if (pricingOptional.isPresent()) {
+                Integer vipId = pricingOptional.get().getVipId();
+                if (vipId != null) {
+                    return vipConfigRepository.findById(vipId).orElse(null);
+                }
+            }
+        }
+
+        int vipType = resolveVipType(tierCode, packageTitle);
+        if (!VipTypeUtils.isVip(vipType)) {
+            return null;
+        }
+        return vipConfigRepository.findByTypeValue(vipType).orElse(null);
+    }
+
+    private Integer resolveVipConfigId(Integer vipType) {
+        if (!VipTypeUtils.isVip(vipType)) {
+            return null;
+        }
+        return vipConfigRepository.findByTypeValue(vipType)
+                .map(VipConfig::getId)
+                .orElse(null);
+    }
+
+    private int resolveVipType(String tierCode, String packageTitle) {
+        int tierCodeType = VipTypeUtils.resolveVipTypeByTierCode(tierCode);
+        if (VipTypeUtils.isVip(tierCodeType)) {
+            return tierCodeType;
+        }
+        int packageTitleType = VipTypeUtils.resolveVipTypeByTierCode(packageTitle);
+        if (VipTypeUtils.isVip(packageTitleType)) {
+            return packageTitleType;
+        }
+        if (containsIgnoreCase(packageTitle, "SVIP")) {
+            return VipTypeUtils.SVIP;
+        }
+        if (containsIgnoreCase(packageTitle, "VIP")) {
+            return VipTypeUtils.VIP;
+        }
+        return VipTypeUtils.NONE;
     }
 
     private BigDecimal parsePrice(Object rawPrice) {

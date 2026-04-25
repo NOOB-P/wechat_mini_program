@@ -48,6 +48,12 @@ public class VipOrder {
     @Column(name = "pricing_id")
     private Integer pricingId;
 
+    @Column(name = "vip_type", nullable = false)
+    private Integer vipType = 0;
+
+    @Column(name = "vip_config_id")
+    private Integer vipConfigId;
+
     @Column(name = "payment_status")
     private Integer paymentStatus = 0;
 
@@ -138,6 +144,22 @@ public class VipOrder {
 
     public void setPricingId(Integer pricingId) {
         this.pricingId = pricingId;
+    }
+
+    public Integer getVipType() {
+        return vipType;
+    }
+
+    public void setVipType(Integer vipType) {
+        this.vipType = vipType;
+    }
+
+    public Integer getVipConfigId() {
+        return vipConfigId;
+    }
+
+    public void setVipConfigId(Integer vipConfigId) {
+        this.vipConfigId = vipConfigId;
     }
 
     public Integer getPaymentStatus() {

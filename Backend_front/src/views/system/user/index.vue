@@ -56,7 +56,7 @@
                 <div class="text-xs leading-6 text-gray-600 p-2">
                   <p>1. 仅导入家长账号，角色固定为“家长”。</p>
                   <p>2. 模板必填列：用户名、昵称、手机号；密码留空默认 `123456`。</p>
-                  <p>3. `VIP`、`SVIP` 列支持填写“是/否”，`学生学号` 为可选绑定字段。</p>
+                  <p>3. `会员类型` 列支持填写 `NORMAL/VIP/SVIP` 或 `0/1/2`，`学生学号` 为可选绑定字段。</p>
                   <p>4. 若用户名或手机号已存在，系统会自动跳过并在结果里提示。</p>
                 </div>
               </template>
@@ -302,28 +302,18 @@
           }
         },
         {
-          prop: 'isVip',
-          label: 'VIP',
-          width: 80,
+          prop: 'vipTypeLabel',
+          label: '会员',
+          width: 110,
           align: 'center',
           formatter: (row: any) => {
+            const vipType = Number(row.vipType || 0)
+            const label = row.vipTypeLabel || (vipType === 2 ? 'SVIP' : vipType === 1 ? 'VIP' : '普通')
+            const typeMap: Record<number, string> = { 0: 'info', 1: 'success', 2: 'warning' }
             return h(
               ElTag,
-              { type: row.isVip === 1 ? 'success' : 'info', effect: row.isVip === 1 ? 'dark' : 'plain' },
-              () => (row.isVip === 1 ? '是' : '否')
-            )
-          }
-        },
-        {
-          prop: 'isSvip',
-          label: 'SVIP',
-          width: 80,
-          align: 'center',
-          formatter: (row: any) => {
-            return h(
-              ElTag,
-              { type: row.isSvip === 1 ? 'warning' : 'info', effect: row.isSvip === 1 ? 'dark' : 'plain' },
-              () => (row.isSvip === 1 ? '是' : '否')
+              { type: (typeMap[vipType] || 'info') as any, effect: vipType > 0 ? 'dark' : 'plain' },
+              () => label
             )
           }
         },

@@ -6,10 +6,10 @@
     <!-- 搜索栏 -->
     <el-card shadow="never" class="search-card mb-4">
       <el-form :inline="true" :model="searchForm" class="search-form-inline">
-        <el-form-item label="班级ID">
+        <el-form-item label="班级名称">
           <el-input 
-            v-model="searchForm.classid" 
-            placeholder="请输入班级ID" 
+            v-model="searchForm.alias" 
+            placeholder="请输入班级名称" 
             clearable 
             @keyup.enter="handleSearch"
             style="width: 200px"
@@ -71,11 +71,9 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column v-if="isBatchDeleting" type="selection" width="55" align="center" />
-        <el-table-column prop="id" label="内部ID" width="80" align="center" />
-        <el-table-column prop="classid" label="班级唯一标识" width="220" align="center" />
-        <el-table-column prop="schoolId" label="关联学校(schoolId)" width="200" align="center" />
         <el-table-column prop="grade" label="年级" width="100" align="center" />
         <el-table-column prop="alias" label="班级" min-width="150" align="center" />
+        <el-table-column prop="schoolId" label="学校ID" width="200" align="center" />
         <el-table-column prop="createTime" label="创建时间" width="180" align="center" />
         <el-table-column label="操作" width="200" align="center" fixed="right">
           <template #default="{ row }">
@@ -303,7 +301,7 @@ const route = useRoute()
 const router = useRouter()
 
 const searchForm = reactive({
-  classid: '',
+  alias: '',
   grade: '',
   schoolId: (route.query.schoolId as string) || ''
 })
@@ -377,7 +375,7 @@ const fetchList = async () => {
     const res: any = await getClassList({
       page: page.value,
       size: pageSize.value,
-      classid: searchForm.classid || undefined,
+      alias: searchForm.alias || undefined,
       grade: searchForm.grade || undefined,
       schoolId: searchForm.schoolId || undefined
     })
@@ -408,7 +406,7 @@ const handleSearch = () => {
 
 const resetSearch = () => {
   clearPendingClassDelete()
-  searchForm.classid = ''
+  searchForm.alias = ''
   searchForm.grade = ''
   handleSearch()
 }

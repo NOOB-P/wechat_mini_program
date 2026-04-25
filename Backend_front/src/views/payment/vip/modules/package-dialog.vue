@@ -9,6 +9,9 @@
       <el-form-item label="等级代码" required>
         <el-input v-model="form.tierCode" placeholder="如 VIP, SVIP" :disabled="!!form.id" />
       </el-form-item>
+      <el-form-item label="类型值" required>
+        <el-input-number v-model="form.typeValue" :min="1" :max="99" />
+      </el-form-item>
       <el-form-item label="显示标题" required>
         <el-input v-model="form.title" placeholder="如 VIP 基础版" />
       </el-form-item>
@@ -49,6 +52,7 @@
   const form = ref({
     id: undefined,
     tierCode: '',
+    typeValue: 1,
     title: '',
     subTitle: '',
     sortOrder: 0,
@@ -65,6 +69,7 @@
         form.value = {
           id: undefined,
           tierCode: '',
+          typeValue: 1,
           title: '',
           subTitle: '',
           sortOrder: 0,
@@ -81,7 +86,7 @@
   }
 
   const handleSubmit = async () => {
-    if (!form.value.tierCode || !form.value.title) {
+    if (!form.value.tierCode || !form.value.title || !form.value.typeValue) {
       return ElMessage.warning('请填写必填项')
     }
 

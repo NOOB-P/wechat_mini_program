@@ -52,7 +52,7 @@ public class SysClassServiceImpl implements SysClassService {
     private ExamStudentScoreRepository examStudentScoreRepository;
 
     @Override
-    public Page<SysClass> getClasses(int page, int size, String classid, String grade, String schoolId) {
+    public Page<SysClass> getClasses(int page, int size, String classid, String grade, String schoolId, String alias) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createTime"));
         
         Specification<SysClass> spec = (root, query, criteriaBuilder) -> {
@@ -65,6 +65,9 @@ public class SysClassServiceImpl implements SysClassService {
             }
             if (StringUtils.hasText(schoolId)) {
                 predicates.add(criteriaBuilder.equal(root.get("schoolId"), schoolId));
+            }
+            if (StringUtils.hasText(alias)) {
+                predicates.add(criteriaBuilder.like(root.get("alias"), "%" + alias + "%"));
             }
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };

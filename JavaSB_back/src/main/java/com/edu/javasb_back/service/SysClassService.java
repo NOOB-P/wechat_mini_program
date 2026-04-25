@@ -7,7 +7,7 @@ import org.springframework.data.domain.Page;
 import java.util.List;
 
 public interface SysClassService {
-    Page<SysClass> getClasses(int page, int size, String classid, String grade, String schoolId);
+    Page<SysClass> getClasses(int page, int size, String classid, String grade, String schoolId, String alias);
     Result<SysClass> createClass(SysClass sysClass);
     SysClass updateClass(Long id, SysClass sysClass);
     default void deleteClass(Long id) {

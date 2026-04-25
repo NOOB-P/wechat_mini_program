@@ -11,10 +11,9 @@ const userInfo = reactive({
   avatar: 'https://img.yzcdn.cn/vant/cat.jpeg',
   nickname: '',
   grade: '',
+  vipType: 0,
   role: 'normal',
-  roleName: '普通用户',
-  isVip: 0,
-  isSvip: 0
+  roleName: '普通用户'
 })
 
 const notificationCount = ref(0)
@@ -51,13 +50,12 @@ const getUserInfo = async () => {
       }
       Object.assign(userInfo, updatedData)
 
-      userInfo.isVip = res.data.isVip || 0
-      userInfo.isSvip = res.data.isSvip || 0
+      userInfo.vipType = Number(res.data.vipType || 0)
 
-      if (userInfo.isSvip) {
+      if (userInfo.vipType >= 2) {
         userInfo.role = 'svip'
         userInfo.roleName = 'SVIP会员'
-      } else if (userInfo.isVip) {
+      } else if (userInfo.vipType >= 1) {
         userInfo.role = 'vip'
         userInfo.roleName = 'VIP会员'
       } else {

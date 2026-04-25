@@ -9,6 +9,7 @@ import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.repository.VipConfigRepository;
 import com.edu.javasb_back.repository.VipPricingRepository;
 import com.edu.javasb_back.service.VipConfigService;
+import com.edu.javasb_back.utils.VipTypeUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +49,12 @@ public class VipConfigServiceImpl implements VipConfigService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<VipConfig> updateVipConfig(VipConfig config) {
+        if (config.getTypeValue() == null || config.getTypeValue() <= 0) {
+            config.setTypeValue(VipTypeUtils.resolveVipTypeByTierCode(config.getTierCode()));
+        }
+        if (config.getTypeValue() == null || config.getTypeValue() <= 0) {
+            return Result.error("会员类型值不能为空");
+        }
         Result<Void> schoolValidateResult = validateSchools(config.getSchools());
         if (schoolValidateResult.getCode() != 200) {
             return Result.error(schoolValidateResult.getCode(), schoolValidateResult.getMsg());
@@ -74,6 +81,7 @@ public class VipConfigServiceImpl implements VipConfigService {
         target.setBenefits(config.getBenefits());
         target.setSortOrder(config.getSortOrder());
         target.setTierCode(config.getTierCode());
+        target.setTypeValue(config.getTypeValue());
         if (config.getIsEnabled() != null) {
             target.setIsEnabled(config.getIsEnabled());
         }

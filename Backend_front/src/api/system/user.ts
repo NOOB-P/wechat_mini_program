@@ -10,6 +10,7 @@ function normalizeDateTime(value: unknown) {
 }
 
 function buildUserPayload(data: any) {
+  const vipType = Number(data.vipType ?? 0)
   return {
     username: data.userName,
     nickname: data.nickName,
@@ -18,14 +19,11 @@ function buildUserPayload(data: any) {
     roleId: data.userType,
     password: data.password,
     studentId: data.studentId ?? '',
-    isVip: data.isVip,
-    isSvip: data.isSvip,
+    vipType,
+    vipConfigId: data.vipConfigId ?? null,
     vipStartTime: normalizeDateTime(data.vipStartTime),
-    svipStartTime: normalizeDateTime(data.svipStartTime),
     vipExpireTime: normalizeDateTime(data.vipExpireTime),
-    svipExpireTime: normalizeDateTime(data.svipExpireTime),
-    vipDurationMonths: data.isVip === 1 ? data.vipDurationMonths ?? null : null,
-    svipDurationMonths: data.isSvip === 1 ? data.svipDurationMonths ?? null : null
+    vipDurationMonths: vipType >= 1 ? data.vipDurationMonths ?? null : null
   }
 }
 

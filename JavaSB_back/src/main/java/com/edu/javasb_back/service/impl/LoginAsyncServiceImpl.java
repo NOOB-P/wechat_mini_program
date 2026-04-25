@@ -3,6 +3,7 @@ package com.edu.javasb_back.service.impl;
 import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.repository.SysAccountRepository;
 import com.edu.javasb_back.service.LoginAsyncService;
+import com.edu.javasb_back.utils.VipTypeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,28 +62,7 @@ public class LoginAsyncServiceImpl implements LoginAsyncService {
             return;
         }
 
-        boolean changed = false;
-        LocalDateTime now = LocalDateTime.now();
-        boolean svipActive = account.getSvipExpireTime() != null && !account.getSvipExpireTime().isBefore(now);
-        boolean vipActiveByOwnExpire = account.getVipExpireTime() != null && !account.getVipExpireTime().isBefore(now);
-
-        if (account.getIsSvip() != null && account.getIsSvip() == 1 && !svipActive) {
-            account.setIsSvip(0);
-            changed = true;
-        }
-
-        boolean effectiveVipActive = vipActiveByOwnExpire || svipActive;
-        if (account.getIsVip() != null && account.getIsVip() == 1 && !effectiveVipActive) {
-            account.setIsVip(0);
-            changed = true;
-        }
-
-        if ((account.getIsVip() == null || account.getIsVip() == 0) && svipActive) {
-            account.setIsVip(1);
-            changed = true;
-        }
-
-        if (changed) {
+        if (VipTypeUtils.normalizeAccountVipType(account)) {
             accountRepository.save(account);
             log.info("用户会员状态已更新, uid: {}", account.getUid());
         }

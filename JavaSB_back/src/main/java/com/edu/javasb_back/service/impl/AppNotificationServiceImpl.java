@@ -46,6 +46,7 @@ import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.repository.VipOrderRepository;
 import com.edu.javasb_back.service.AppNotificationService;
 import com.edu.javasb_back.service.SysNotificationService;
+import com.edu.javasb_back.utils.VipTypeUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -339,14 +340,14 @@ public class AppNotificationServiceImpl implements AppNotificationService {
     }
 
     private void appendVipExpireNotification(SysAccount account, List<NotificationWrapper> notifications, Set<String> dynamicReadIds) {
-        boolean svipActive = Objects.equals(account.getIsSvip(), 1)
-                && account.getSvipExpireTime() != null
-                && !account.getSvipExpireTime().isBefore(LocalDateTime.now());
-        boolean vipActive = Objects.equals(account.getIsVip(), 1)
+        boolean svipActive = VipTypeUtils.isSvip(account.getVipType())
+                && account.getVipExpireTime() != null
+                && !account.getVipExpireTime().isBefore(LocalDateTime.now());
+        boolean vipActive = VipTypeUtils.isVip(account.getVipType())
                 && account.getVipExpireTime() != null
                 && !account.getVipExpireTime().isBefore(LocalDateTime.now());
 
-        LocalDateTime expireTime = svipActive ? account.getSvipExpireTime() : account.getVipExpireTime();
+        LocalDateTime expireTime = account.getVipExpireTime();
         if (expireTime == null || (!vipActive && !svipActive)) {
             return;
         }
