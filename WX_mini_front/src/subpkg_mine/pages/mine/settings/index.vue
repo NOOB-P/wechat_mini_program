@@ -296,7 +296,7 @@ const sendPhoneCode = async () => {
   try {
     await sendSmsCode(phoneForm.newPhone)
     uni.hideLoading()
-    toast.success('验证码已发送')
+    uni.showToast({ title: '验证码已发送', icon: 'success' })
     phoneCountdown.value = 60
     phoneTimer = setInterval(() => {
       phoneCountdown.value -= 1
@@ -308,17 +308,17 @@ const sendPhoneCode = async () => {
   } catch (error: any) {
     uni.hideLoading()
     phoneErrorMessage.value = error?.msg || '验证码发送失败，请稍后重试'
-    toast.error(phoneErrorMessage.value)
+    uni.showToast({ title: phoneErrorMessage.value, icon: 'none' })
   }
 }
 
 const handleChangePhone = async () => {
   if (!phoneForm.newPhone || !phoneForm.code) {
-    toast.show('请填写完整信息')
+    uni.showToast({ title: '请填写完整信息', icon: 'none' })
     return
   }
   if (phoneForm.newPhone === userInfo.phone) {
-    toast.show('新手机号不能与当前手机号相同')
+    uni.showToast({ title: '新手机号不能与当前手机号相同', icon: 'none' })
     return
   }
 
@@ -329,13 +329,13 @@ const handleChangePhone = async () => {
       code: phoneForm.code
     })
     uni.hideLoading()
-    toast.success('修改成功')
+    uni.showToast({ title: '修改成功', icon: 'success' })
     await fetchData()
     showChangePhonePopup.value = false
   } catch (error: any) {
     uni.hideLoading()
     phoneErrorMessage.value = error?.msg || '修改手机号失败，请稍后重试'
-    toast.error(phoneErrorMessage.value)
+    uni.showToast({ title: phoneErrorMessage.value, icon: 'none' })
   }
 }
 
@@ -352,11 +352,11 @@ const handleWechatBindingClick = async () => {
           try {
             const latestUserInfo = await unbindWechatAccount()
             uni.hideLoading()
-            toast.success('解绑成功')
+            uni.showToast({ title: '解绑成功', icon: 'success' })
             assignUserInfo(latestUserInfo || {})
           } catch (error: any) {
             uni.hideLoading()
-            toast.error(error?.msg || error?.message || '解绑失败')
+            uni.showToast({ title: error?.msg || error?.message || '解绑失败', icon: 'none' })
           }
         }
       }
@@ -375,17 +375,17 @@ const handleWechatBindingClick = async () => {
     if (error?.code === 'WECHAT_BIND_CANCELLED') {
       return
     }
-    toast.error(error?.msg || error?.message || '微信绑定失败')
+    uni.showToast({ title: error?.msg || error?.message || '微信绑定失败', icon: 'none' })
   }
 }
 
 const handleChangePassword = async () => {
   if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-    toast.show('请填写完整信息')
+    uni.showToast({ title: '请填写完整信息', icon: 'none' })
     return
   }
   if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-    toast.show('两次输入的新密码不一致')
+    uni.showToast({ title: '两次输入的新密码不一致', icon: 'none' })
     return
   }
 
@@ -396,11 +396,11 @@ const handleChangePassword = async () => {
       newPassword: passwordForm.newPassword
     })
     uni.hideLoading()
-    toast.success('修改成功')
+    uni.showToast({ title: '修改成功', icon: 'success' })
     showChangePasswordPopup.value = false
   } catch (error: any) {
     uni.hideLoading()
-    toast.error(error?.msg || error?.message || '修改密码失败')
+    uni.showToast({ title: error?.msg || error?.message || '修改密码失败', icon: 'none' })
   }
 }
 
@@ -438,7 +438,8 @@ const handleUnbindStudent = () => {
       uni.showLoading({ title: '正在解绑...', mask: true })
       try {
         await unbindStudentApi()
-        toast.success('解绑成功')
+        uni.hideLoading()
+        uni.showToast({ title: '解绑成功', icon: 'success' })
         userInfo.isBoundStudent = 0
         userInfo.boundStudentInfo = null
         syncCachedUserInfo({
@@ -447,13 +448,12 @@ const handleUnbindStudent = () => {
         })
         showStudentDetailPopup.value = false
         setTimeout(() => {
-          uni.hideLoading()
           const phone = userInfo.phone || uni.getStorageSync('userInfo')?.phone || ''
           uni.redirectTo({ url: `/pages/auth/bind-student?phone=${phone}` })
         }, 1000)
       } catch (error: any) {
         uni.hideLoading()
-        toast.error(error?.msg || error?.message || '解绑失败')
+        uni.showToast({ title: error?.msg || error?.message || '解绑失败', icon: 'none' })
       }
     }
   })
@@ -463,7 +463,7 @@ const handleCheckUpdate = () => {
   uni.showLoading({ title: '正在检查更新...', mask: true })
   setTimeout(() => {
     uni.hideLoading()
-    toast.show('当前已是最新版本')
+    uni.showToast({ title: '当前已是最新版本', icon: 'none' })
   }, 1000)
 }
 

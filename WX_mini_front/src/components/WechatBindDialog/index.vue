@@ -8,8 +8,9 @@ const { popupState, confirmWechatBind, cancelWechatBind } = useWechatBindPopup()
   <wd-popup
     v-model="popupState.visible"
     position="center"
-    :close-on-click-modal="!popupState.force"
+    :close-on-click-modal="true"
     custom-style="width: 650rpx; border-radius: 32rpx; overflow: hidden;"
+    @close="cancelWechatBind"
   >
     <view class="wechat-bind-dialog">
       <view class="dialog-hero">
@@ -20,7 +21,7 @@ const { popupState, confirmWechatBind, cancelWechatBind } = useWechatBindPopup()
         <wd-button type="primary" block :loading="popupState.loading" @click="confirmWechatBind">
           {{ popupState.confirmText }}
         </wd-button>
-        <view v-if="!popupState.force" class="cancel-btn" @click="cancelWechatBind">
+        <view class="cancel-btn" @click="cancelWechatBind">
           {{ popupState.cancelText }}
         </view>
       </view>

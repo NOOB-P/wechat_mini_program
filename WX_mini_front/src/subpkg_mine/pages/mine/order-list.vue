@@ -329,6 +329,8 @@ const handleVipClick = (item: any) => {
     uni.navigateTo({
       url: `/subpkg_course/pages/course/pay?order=${orderData}&type=vip`
     })
+  } else {
+    uni.showToast({ title: '会员订单已支付', icon: 'none' })
   }
 }
 
@@ -343,6 +345,8 @@ const handlePrintClick = (item: any) => {
     uni.navigateTo({
       url: `/subpkg_course/pages/course/pay?order=${orderData}&type=print`
     })
+  } else {
+    uni.showToast({ title: '请查看打印订单详情', icon: 'none' })
   }
 }
 

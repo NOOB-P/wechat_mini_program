@@ -28,7 +28,7 @@ public class PrintOrder {
     @Column(name = "order_no", unique = true, nullable = false, length = 50)
     private String orderNo;
 
-    @jakarta.persistence.Transient
+    @Column(name = "user_uid")
     private Long userUid;
 
     @Column(name = "user_name", nullable = false, length = 50)
@@ -86,4 +86,10 @@ public class PrintOrder {
     public void setTotalPrice(BigDecimal totalPrice) { this.totalPrice = totalPrice; }
     public Integer getOrderStatus() { return orderStatus; }
     public void setOrderStatus(Integer orderStatus) { this.orderStatus = orderStatus; }
+
+    public LocalDateTime getCreateTime() { return createTime; }
+    public void setCreateTime(LocalDateTime createTime) { this.createTime = createTime; }
+
+    public LocalDateTime getUpdateTime() { return updateTime; }
+    public void setUpdateTime(LocalDateTime updateTime) { this.updateTime = updateTime; }
 }

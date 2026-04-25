@@ -28,13 +28,6 @@ const emit = defineEmits(['click', 'more'])
         <view class="item-info">
           <view class="name-wrap">
             <text class="item-name">{{ course.name }}</text>
-            <wd-icon
-              v-if="!isSVIPUser"
-              name="lock-on"
-              size="14px"
-              color="#f6d365"
-              style="margin-left: 8rpx;"
-            />
           </view>
           <view class="item-bottom">
             <text class="item-price">￥{{ course.price }}</text>
@@ -114,9 +107,11 @@ const emit = defineEmits(['click', 'more'])
         align-items: flex-start;
         margin-bottom: 8rpx;
         width: 100%;
+        min-width: 0;
       }
 
       .item-name {
+        width: 100%;
         font-size: 30rpx;
         font-weight: 500;
         color: #333;
@@ -134,6 +129,7 @@ const emit = defineEmits(['click', 'more'])
         align-items: center;
         margin-top: auto;
         width: 100%;
+        gap: 20rpx;
 
         .item-price {
           font-size: 32rpx;
@@ -144,7 +140,9 @@ const emit = defineEmits(['click', 'more'])
 
         :deep(.wd-button) {
           margin: 0 !important;
+          margin-left: auto !important;
           flex-shrink: 0;
+          min-width: 112rpx;
         }
       }
     }

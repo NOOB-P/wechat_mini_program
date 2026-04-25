@@ -141,6 +141,7 @@ public class VipOrderServiceImpl implements VipOrderService {
         notification.setCategory("vip");
         notification.setLevel("warning");
         notification.setPublisher("系统通知");
+        notification.setTargetType(1);
         notification.setTargetUid(userUid);
         notification.setIsPublished(1);
         notification.setCreateTime(LocalDateTime.now());

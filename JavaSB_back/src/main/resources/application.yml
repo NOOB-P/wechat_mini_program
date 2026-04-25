@@ -11,7 +11,7 @@ spring:
         master:
           url: jdbc:mysql://localhost:3306/edu_data?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
           username: root
-          password: root123
+          password: d5dQA3JePwQiQRMa
           driver-class-name: com.mysql.cj.jdbc.Driver
           hikari:
             max-lifetime: 600000
@@ -23,7 +23,7 @@ spring:
           # Keep slave pointing to master for now; switch the connection later when replication is ready.
           url: jdbc:mysql://localhost:3306/edu_data?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
           username: root
-          password: root123
+          password: d5dQA3JePwQiQRMa
           driver-class-name: com.mysql.cj.jdbc.Driver
           hikari:
             max-lifetime: 600000
@@ -50,7 +50,7 @@ server:
 app:
   config:
     default-password: 123456
-    jwt-secret: your_super_secret_key_for_jwt_token_generation_with_at_least_256_bits
+    jwt-secret: "b3V0aWh1aV9zZWNZXRfa2V5XzIwMjZfcmFuZG9tX3N0cmluZw=="
     jwt-expiration: 86400000
     wechat-app-id: wxd18b4cd16e9e909f
     wechat-app-secret: 68efdbfd5ad540ed834f194ce379bc56
@@ -98,11 +98,11 @@ wechat:
     publicKeyPath: ${WECHAT_PAY_PUBLIC_KEY_PATH:pub_key.pem}
     publicKeyId: ${WECHAT_PAY_PUBLIC_KEY_ID:PUB_KEY_ID_0117443838972026041800381657002000}
     merchantSerialNumber: ${WECHAT_PAY_MERCHANT_SERIAL_NUMBER:64D622036126915C5930E5EDD8D27CC0A9FAEB7F}
-    notifyUrl: ${WECHAT_PAY_NOTIFY_URL:http://10.62.61.71:8082/api/pay/wechat/notify}
+    notifyUrl: ${WECHAT_PAY_NOTIFY_URL:http://youtihui.com/api/pay/wechat/notify}
     virtual-payment:
       offerId: ${WECHAT_PAY_VIRTUAL_OFFER_ID:1450516117}
-      appSecret: ${WECHAT_PAY_VIRTUAL_APP_SECRET:laP7esl71JZchpLX3cXuEVsBxrUzL6N0}
-      env: ${WECHAT_PAY_VIRTUAL_ENV:1}
+      appSecret: ${WECHAT_PAY_VIRTUAL_APP_SECRET:1nbqmtywhgGfFdOPRl8uhXE8dHYGNSeV}
+      env: ${WECHAT_PAY_VIRTUAL_ENV:0}
       vipGoodsPrefix: ${WECHAT_PAY_VIRTUAL_VIP_GOODS_PREFIX:vip}
       courseGoodsPrefix: ${WECHAT_PAY_VIRTUAL_COURSE_GOODS_PREFIX:course}
       securityKey: ${WECHAT_PAY_VIRTUAL_SECURITY_KEY:edu-security-key-2026}

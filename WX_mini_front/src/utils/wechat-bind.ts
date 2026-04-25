@@ -45,7 +45,7 @@ const popupState = reactive({
 })
 
 export const PAYMENT_WECHAT_BIND_OPTIONS: EnsureWechatBindOptions = {
-  force: true,
+  force: false,
   title: '支付前请先绑定微信',
   subtitle: '为了保障支付安全，请先完成微信绑定。',
   successMessage: '微信绑定成功'
@@ -54,6 +54,10 @@ export const PAYMENT_WECHAT_BIND_OPTIONS: EnsureWechatBindOptions = {
 let pendingPromise: Promise<any> | null = null
 let pendingHandlers: PendingHandlers | null = null
 let bindPromise: Promise<any> | null = null
+
+const shouldAbortForcedBind = (message = '') => {
+  return /已绑定.*其他用户|其他用户已绑定|已被绑定到其他用户/i.test(message)
+}
 
 const createWechatBindError = (code: WechatBindErrorCode, msg: string): WechatBindError => {
   const error = new Error(msg) as WechatBindError
@@ -233,6 +237,15 @@ export const ensureWechatBound = async (options: EnsureWechatBindOptions = {}) =
     return localUserInfo
   }
 
+  try {
+    const latestUserInfo = await refreshWechatUserInfo()
+    if (!options.rebind && isWechatBound(latestUserInfo)) {
+      return latestUserInfo
+    }
+  } catch (error) {
+    console.error('refresh wechat bind state failed', error)
+  }
+
   applyPopupOptions(options)
 
   if (pendingPromise) {
@@ -257,9 +270,31 @@ export const confirmWechatBind = async () => {
     closePopup()
     resolvePending(userInfo)
   } catch (error: any) {
+    try {
+      const latestUserInfo = await refreshWechatUserInfo()
+      if (isWechatBound(latestUserInfo)) {
+        closePopup()
+        resolvePending(latestUserInfo)
+        return
+      }
+    } catch (refreshError) {
+      console.error('refresh after bind failed', refreshError)
+    }
+
+    const errorMessage = error?.msg || error?.message || '微信绑定失败'
+    if (shouldAbortForcedBind(errorMessage)) {
+      closePopup()
+      rejectPending(createWechatBindError('WECHAT_BIND_FAILED', errorMessage))
+      uni.showToast({
+        title: errorMessage,
+        icon: 'none'
+      })
+      return
+    }
+
     popupState.loading = false
     uni.showToast({
-      title: error?.msg || error?.message || '微信绑定失败',
+      title: errorMessage,
       icon: 'none'
     })
   }
@@ -286,7 +321,7 @@ export const runWithWechatBindGuard = async <T>(
   options: EnsureWechatBindOptions = {}
 ) => {
   const bindOptions = {
-    force: true,
+    force: false,
     ...options
   }
 

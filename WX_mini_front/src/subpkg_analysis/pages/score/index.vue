@@ -11,12 +11,16 @@
         v-if="pickerColumns[0].length > 0"
       >
         <view class="picker-inner">
-          <text class="picker-text">{{ currentDisplayLabel }}</text>
-          <wd-icon name="arrow-down" size="14px" color="#666" />
+          <text class="picker-label">选择考试</text>
+          <view class="picker-right">
+            <text class="picker-text">{{ currentDisplayLabel }}</text>
+            <wd-icon name="arrow-right" size="14px" color="#94a3b8" />
+          </view>
         </view>
       </wd-picker>
       <view v-else class="loading-placeholder">
-        <text>{{ currentDisplayLabel }}</text>
+        <text class="picker-label">选择考试</text>
+        <text class="picker-text">{{ currentDisplayLabel }}</text>
       </view>
     </view>
 
@@ -765,7 +769,7 @@ watch(
 
 .filter-bar {
   background: #e0effe;
-  padding: 20rpx 30rpx;
+  padding: 20rpx 30rpx 24rpx;
   position: sticky;
   top: 0;
   z-index: 99; // 降低层级，确保低于弹窗的遮罩层（通常为1000+）
@@ -779,21 +783,44 @@ watch(
     display: flex;
     align-items: center;
     justify-content: center;
+    width: min(680rpx, 100%);
+    min-height: 96rpx;
     background: #fff;
-    padding: 16rpx 40rpx;
-    border-radius: 40rpx;
+    padding: 0 28rpx;
+    border-radius: 24rpx;
     box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08); // 阴影稍微重一点，更显眼
     border: 1px solid rgba(67, 100, 247, 0.1); // 增加淡蓝色边框
+    margin: 0 auto;
+
+    .picker-label {
+      flex-shrink: 0;
+      font-size: 28rpx;
+      color: #475569;
+      font-weight: 600;
+      margin-right: 20rpx;
+    }
+
+    .picker-right {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12rpx;
+    }
     
     .picker-text {
       font-size: 28rpx;
       color: #333;
-      font-weight: bold;
-      margin-right: 12rpx;
-      max-width: 500rpx;
-      white-space: nowrap;
+      font-weight: 500;
+      max-width: 100%;
+      white-space: normal;
+      text-align: center;
       overflow: hidden;
       text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
     }
   }
 
@@ -801,16 +828,29 @@ watch(
     display: flex;
     align-items: center;
     justify-content: center;
+    width: min(680rpx, 100%);
+    min-height: 96rpx;
     background: #fff;
-    padding: 16rpx 40rpx;
-    border-radius: 40rpx;
+    padding: 0 28rpx;
+    border-radius: 24rpx;
     box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
     border: 1px solid rgba(67, 100, 247, 0.1);
-    
-    text {
+    margin: 0 auto;
+
+    .picker-label {
+      flex-shrink: 0;
+      font-size: 28rpx;
+      color: #475569;
+      font-weight: 600;
+      margin-right: 20rpx;
+    }
+
+    .picker-text {
+      flex: 1;
       font-size: 28rpx;
       color: #999;
-      font-weight: bold;
+      font-weight: 500;
+      text-align: center;
     }
   }
 }
