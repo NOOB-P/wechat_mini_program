@@ -11,7 +11,7 @@ import com.edu.javasb_back.model.dto.ParentImportDTO;
 
 public class ParentImportListener extends AnalysisEventListener<ParentImportDTO> {
     private final List<ParentImportDTO> list = new ArrayList<>();
-    private static final String[] EXPECTED_HEADERS = {"用户名", "昵称", "手机号", "密码", "VIP", "SVIP", "学生学号"};
+    private static final String[] EXPECTED_HEADERS = {"用户名", "昵称", "手机号", "密码", "会员类型", "学生学号"};
 
     @Override
     public void invokeHeadMap(Map<Integer, String> headMap, AnalysisContext context) {

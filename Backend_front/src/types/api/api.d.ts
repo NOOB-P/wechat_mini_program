@@ -132,12 +132,11 @@ declare namespace Api {
       userName: string
       userGender: string
       nickName: string
-      isVip?: number
-      isSvip?: number
+      vipType?: number
+      vipTypeLabel?: string
+      vipConfigId?: number
       vipStartTime?: string
-      svipStartTime?: string
       vipExpireTime?: string
-      svipExpireTime?: string
       userPhone?: string
       userType?: '1' | '2' | '3' | '4'
       schoolName?: string
@@ -292,8 +291,9 @@ declare namespace Api {
       status: string
       roleId: number | string
 
-      isVip?: number
-      isSvip?: number
+      vipType?: number
+      vipTypeLabel?: string
+      vipConfigId?: number
       /** 用户类型: 1-管理员, 2-学校, 3-家长, 4-学生 */
       userType: '1' | '2' | '3' | '4'
       /** 绑定的学校 */

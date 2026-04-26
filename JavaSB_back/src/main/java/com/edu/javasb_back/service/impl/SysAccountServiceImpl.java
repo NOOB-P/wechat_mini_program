@@ -40,6 +40,7 @@ import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.model.entity.SysRole;
 import com.edu.javasb_back.model.entity.SysSchool;
 import com.edu.javasb_back.model.entity.SysStudent;
+import com.edu.javasb_back.model.entity.VipConfig;
 import com.edu.javasb_back.model.vo.LoginVO;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysAccountRepository;
@@ -47,10 +48,12 @@ import com.edu.javasb_back.repository.SysClassRepository;
 import com.edu.javasb_back.repository.SysRoleRepository;
 import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
+import com.edu.javasb_back.repository.VipConfigRepository;
 import com.edu.javasb_back.service.LoginAsyncService;
 import com.edu.javasb_back.service.RolePermissionService;
 import com.edu.javasb_back.service.SmsService;
 import com.edu.javasb_back.service.SysAccountService;
+import com.edu.javasb_back.utils.VipTypeUtils;
 import com.edu.javasb_back.utils.JwtUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -79,6 +82,9 @@ public class SysAccountServiceImpl implements SysAccountService {
 
     @Autowired
     private SysRoleRepository sysRoleRepository;
+
+    @Autowired
+    private VipConfigRepository vipConfigRepository;
 
     @Autowired
     private RolePermissionService rolePermissionService;
@@ -715,38 +721,7 @@ public class SysAccountServiceImpl implements SysAccountService {
         String rawPassword = StringUtils.hasText(account.getPassword()) ? account.getPassword() : "123456";
         account.setPassword(passwordEncoder.encode(rawPassword));
 
-        if (Objects.equals(account.getIsSvip(), 1)) {
-            account.setIsVip(1);
-            if (account.getSvipStartTime() == null) {
-                account.setSvipStartTime(LocalDateTime.now());
-            }
-            if (account.getVipStartTime() == null) {
-                account.setVipStartTime(account.getSvipStartTime());
-            }
-            if (account.getSvipExpireTime() == null) {
-                account.setSvipExpireTime(resolveMembershipExpireTime(
-                        account.getSvipStartTime(),
-                        null,
-                        account.getSvipDurationMonths(),
-                        1
-                ));
-            }
-            if (account.getVipExpireTime() == null || account.getVipExpireTime().isBefore(account.getSvipExpireTime())) {
-                account.setVipExpireTime(account.getSvipExpireTime());
-            }
-        } else if (Objects.equals(account.getIsVip(), 1)) {
-            if (account.getVipStartTime() == null) {
-                account.setVipStartTime(LocalDateTime.now());
-            }
-            if (account.getVipExpireTime() == null) {
-                account.setVipExpireTime(resolveMembershipExpireTime(
-                        account.getVipStartTime(),
-                        null,
-                        account.getVipDurationMonths(),
-                        1
-                ));
-            }
-        }
+        applyMembershipState(account, account);
 
         accountRepository.save(account);
 
@@ -816,17 +791,15 @@ public class SysAccountServiceImpl implements SysAccountService {
                 account.setRoleId(PARENT_ROLE_ID);
                 account.setIsEnabled(1);
                 account.setOnlineStatus("offline");
-                account.setIsVip(parseBooleanFlag(dto.getVip()) ? 1 : 0);
-                account.setIsSvip(parseBooleanFlag(dto.getSvip()) ? 1 : 0);
-                if (account.getIsSvip() == 1) {
-                    account.setIsVip(1);
-                }
+                int requestedVipType = parseVipTypeFlag(dto.getVipType());
+                account.setVipType(requestedVipType);
 
                 String rawPassword = password;
                 if (!StringUtils.hasText(rawPassword)) {
                     rawPassword = phone.length() >= 6 ? phone.substring(phone.length() - 6) : "123456";
                 }
                 account.setPassword(passwordEncoder.encode(rawPassword));
+                applyMembershipState(account, account);
                 accountRepository.save(account);
                 successCount++;
 
@@ -908,65 +881,7 @@ public class SysAccountServiceImpl implements SysAccountService {
         if (updateData.getRoleId() != null) {
             account.setRoleId(updateData.getRoleId());
         }
-        if (updateData.getIsVip() != null) {
-            account.setIsVip(updateData.getIsVip());
-            if (Objects.equals(updateData.getIsVip(), 0)) {
-                account.setVipExpireTime(null);
-                account.setVipStartTime(null);
-            } else {
-                if (updateData.getVipStartTime() != null) {
-                    account.setVipStartTime(updateData.getVipStartTime());
-                } else if (account.getVipStartTime() == null) {
-                    account.setVipStartTime(LocalDateTime.now());
-                }
-
-                if (updateData.getVipExpireTime() != null) {
-                    account.setVipExpireTime(updateData.getVipExpireTime());
-                } else if (account.getVipExpireTime() == null) {
-                    account.setVipExpireTime(resolveMembershipExpireTime(
-                            account.getVipStartTime(),
-                            null,
-                            updateData.getVipDurationMonths(),
-                            1
-                    ));
-                }
-            }
-        }
-        
-        if (updateData.getIsSvip() != null) {
-            account.setIsSvip(updateData.getIsSvip());
-            if (Objects.equals(updateData.getIsSvip(), 1)) {
-                account.setIsVip(1);
-                
-                if (updateData.getSvipStartTime() != null) {
-                    account.setSvipStartTime(updateData.getSvipStartTime());
-                } else if (account.getSvipStartTime() == null) {
-                    account.setSvipStartTime(LocalDateTime.now());
-                }
-
-                if (account.getVipStartTime() == null) {
-                    account.setVipStartTime(account.getSvipStartTime());
-                }
-                
-                if (updateData.getSvipExpireTime() != null) {
-                    account.setSvipExpireTime(updateData.getSvipExpireTime());
-                } else if (account.getSvipExpireTime() == null) {
-                    account.setSvipExpireTime(resolveMembershipExpireTime(
-                            account.getSvipStartTime(),
-                            null,
-                            updateData.getSvipDurationMonths(),
-                            1
-                    ));
-                }
-
-                if (account.getVipExpireTime() == null || account.getVipExpireTime().isBefore(account.getSvipExpireTime())) {
-                    account.setVipExpireTime(account.getSvipExpireTime());
-                }
-            } else {
-                account.setSvipExpireTime(null);
-                account.setSvipStartTime(null);
-            }
-        }
+        applyMembershipState(account, updateData);
         if (StringUtils.hasText(updateData.getPassword())) {
             account.setPassword(passwordEncoder.encode(updateData.getPassword()));
         }
@@ -1069,12 +984,11 @@ public class SysAccountServiceImpl implements SysAccountService {
         map.put("userPhone", account.getPhone());
         map.put("email", account.getEmail());
         map.put("userType", String.valueOf(account.getRoleId()));
-        map.put("isVip", account.getIsVip() != null ? account.getIsVip() : 0);
-        map.put("isSvip", account.getIsSvip() != null ? account.getIsSvip() : 0);
+        map.put("vipType", account.getVipType() != null ? account.getVipType() : 0);
+        map.put("vipTypeLabel", account.getVipTypeLabel());
+        map.put("vipConfigId", account.getVipConfigId());
         map.put("vipStartTime", account.getVipStartTime() != null ? account.getVipStartTime().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "");
-        map.put("svipStartTime", account.getSvipStartTime() != null ? account.getSvipStartTime().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "");
         map.put("vipExpireTime", account.getVipExpireTime() != null ? account.getVipExpireTime().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "");
-        map.put("svipExpireTime", account.getSvipExpireTime() != null ? account.getSvipExpireTime().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "");
         map.put("isBoundStudent", account.getIsBoundStudent() != null ? account.getIsBoundStudent() : 0);
         map.put("status", "online".equals(account.getOnlineStatus()) ? "1" : "2");
         map.put("createTime", account.getCreateTime() != null ? account.getCreateTime().toString() : "");
@@ -1128,6 +1042,68 @@ public class SysAccountServiceImpl implements SysAccountService {
         return studentMap;
     }
 
+    private void applyMembershipState(SysAccount target, SysAccount source) {
+        if (target == null || source == null) {
+            return;
+        }
+
+        Integer requestedVipType = resolveRequestedVipType(source);
+        target.setVipType(requestedVipType);
+        target.setVipConfigId(resolveVipConfigId(source.getVipConfigId(), requestedVipType));
+
+        if (requestedVipType >= VipTypeUtils.VIP) {
+            LocalDateTime vipStartTime = source.getVipStartTime() != null ? source.getVipStartTime() : target.getVipStartTime();
+            if (vipStartTime == null) {
+                vipStartTime = LocalDateTime.now();
+            }
+            target.setVipStartTime(vipStartTime);
+
+            LocalDateTime vipExpireTime = source.getVipExpireTime() != null ? source.getVipExpireTime() : target.getVipExpireTime();
+            if (vipExpireTime == null) {
+                vipExpireTime = resolveMembershipExpireTime(
+                        vipStartTime,
+                        null,
+                        source.getVipDurationMonths(),
+                        1
+                );
+            }
+            target.setVipExpireTime(vipExpireTime);
+        } else {
+            target.setVipStartTime(null);
+            target.setVipExpireTime(null);
+        }
+
+        VipTypeUtils.normalizeAccountVipType(target);
+        if (!VipTypeUtils.isVip(target.getVipType())) {
+            target.setVipConfigId(null);
+        } else if (target.getVipConfigId() == null) {
+            target.setVipConfigId(resolveVipConfigId(null, target.getVipType()));
+        }
+    }
+
+    private Integer resolveRequestedVipType(SysAccount account) {
+        if (account == null) {
+            return VipTypeUtils.NONE;
+        }
+        Integer vipType = account.getVipType();
+        if (vipType != null) {
+            return Math.max(vipType, VipTypeUtils.NONE);
+        }
+        return VipTypeUtils.NONE;
+    }
+
+    private Integer resolveVipConfigId(Integer vipConfigId, Integer vipType) {
+        if (!VipTypeUtils.isVip(vipType)) {
+            return null;
+        }
+        if (vipConfigId != null) {
+            return vipConfigId;
+        }
+        return vipConfigRepository.findByTypeValue(vipType)
+                .map(VipConfig::getId)
+                .orElse(null);
+    }
+
     private LocalDateTime resolveMembershipExpireTime(LocalDateTime startTime,
                                                       LocalDateTime providedExpireTime,
                                                       Integer durationMonths,
@@ -1148,16 +1124,21 @@ public class SysAccountServiceImpl implements SysAccountService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private boolean parseBooleanFlag(String value) {
-        if (value == null) {
-            return false;
+    private int parseVipTypeFlag(String value) {
+        if (!StringUtils.hasText(value)) {
+            return VipTypeUtils.NONE;
         }
-        String normalized = value.trim();
-        return "1".equals(normalized)
-                || "是".equals(normalized)
-                || "true".equalsIgnoreCase(normalized)
-                || "yes".equalsIgnoreCase(normalized)
-                || "y".equalsIgnoreCase(normalized);
+        String normalized = value.trim().toUpperCase();
+        if ("2".equals(normalized) || "SVIP".equals(normalized)) {
+            return VipTypeUtils.SVIP;
+        }
+        if ("1".equals(normalized) || "VIP".equals(normalized)) {
+            return VipTypeUtils.VIP;
+        }
+        if ("0".equals(normalized) || "NONE".equals(normalized) || "NORMAL".equals(normalized) || "普通".equals(normalized)) {
+            return VipTypeUtils.NONE;
+        }
+        return VipTypeUtils.NONE;
     }
 
     private void appendDetail(StringBuilder builder, String key, String message) {
@@ -1451,21 +1432,15 @@ public class SysAccountServiceImpl implements SysAccountService {
     }
 
     private void mergeVipInfo(SysAccount phoneAccount, SysAccount wxAccount) {
-        if (wxAccount.getIsVip() != null && wxAccount.getIsVip() == 1) {
-            phoneAccount.setIsVip(1);
-        }
-        if (wxAccount.getIsSvip() != null && wxAccount.getIsSvip() == 1) {
-            phoneAccount.setIsSvip(1);
+        if ((phoneAccount.getVipType() == null ? 0 : phoneAccount.getVipType())
+                < (wxAccount.getVipType() == null ? 0 : wxAccount.getVipType())) {
+            phoneAccount.setVipType(wxAccount.getVipType());
+            phoneAccount.setVipConfigId(resolveVipConfigId(wxAccount.getVipConfigId(), wxAccount.getVipType()));
         }
         if (wxAccount.getVipExpireTime() != null
                 && (phoneAccount.getVipExpireTime() == null
                 || wxAccount.getVipExpireTime().isAfter(phoneAccount.getVipExpireTime()))) {
             phoneAccount.setVipExpireTime(wxAccount.getVipExpireTime());
-        }
-        if (wxAccount.getSvipExpireTime() != null
-                && (phoneAccount.getSvipExpireTime() == null
-                || wxAccount.getSvipExpireTime().isAfter(phoneAccount.getSvipExpireTime()))) {
-            phoneAccount.setSvipExpireTime(wxAccount.getSvipExpireTime());
         }
     }
 
@@ -1478,28 +1453,12 @@ public class SysAccountServiceImpl implements SysAccountService {
             return;
         }
 
-        boolean changed = false;
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        boolean svipActive = account.getSvipExpireTime() != null && !account.getSvipExpireTime().isBefore(now);
-        boolean vipActiveByOwnExpire = account.getVipExpireTime() != null && !account.getVipExpireTime().isBefore(now);
-
-        if (account.getIsSvip() != null && account.getIsSvip() == 1 && !svipActive) {
-            account.setIsSvip(0);
-            changed = true;
-        }
-
-        boolean effectiveVipActive = vipActiveByOwnExpire || svipActive;
-        if (account.getIsVip() != null && account.getIsVip() == 1 && !effectiveVipActive) {
-            account.setIsVip(0);
-            changed = true;
-        }
-
-        if ((account.getIsVip() == null || account.getIsVip() == 0) && svipActive) {
-            account.setIsVip(1);
-            changed = true;
-        }
-
-        if (changed) {
+        if (VipTypeUtils.normalizeAccountVipType(account)) {
+            if ((account.getVipType() == null || account.getVipType() == 0)) {
+                account.setVipConfigId(null);
+            } else if (account.getVipConfigId() == null) {
+                account.setVipConfigId(resolveVipConfigId(null, account.getVipType()));
+            }
             accountRepository.save(account);
         }
     }

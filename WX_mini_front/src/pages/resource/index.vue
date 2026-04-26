@@ -177,7 +177,7 @@ const checkVipStatus = async () => {
   try {
     const res = await getUserInfoApi()
     if (res.code === 200) {
-      isSVIPUser.value = res.data.isSvip === 1
+      isSVIPUser.value = Number(res.data.vipType || 0) >= 2
       uni.setStorageSync('userInfo', res.data)
     }
   } catch (error) {

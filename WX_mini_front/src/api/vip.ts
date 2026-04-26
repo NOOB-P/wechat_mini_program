@@ -25,7 +25,7 @@ export const getVipWrongBookApi = (params: any) => {
   return request({
     url: '/api/app/vip/wrongbook/list',
     method: 'GET',
-    data: params
+    params
   })
 }
 

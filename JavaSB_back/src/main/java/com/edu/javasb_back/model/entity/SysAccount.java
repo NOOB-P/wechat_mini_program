@@ -14,6 +14,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import lombok.Data;
+import com.edu.javasb_back.utils.VipTypeUtils;
 
 @Data
 @Entity
@@ -51,33 +52,21 @@ public class SysAccount {
     @Column(name = "role_id", nullable = false)
     private Integer roleId;
 
-    @Column(name = "is_vip")
-    @com.fasterxml.jackson.annotation.JsonProperty("isVip")
-    private Integer isVip;
+    @Column(name = "vip_type")
+    private Integer vipType = 0;
+
+    @Column(name = "vip_config_id")
+    private Integer vipConfigId;
 
     @Column(name = "vip_start_time")
     @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @com.fasterxml.jackson.annotation.JsonProperty("vipStartTime")
     private LocalDateTime vipStartTime;
 
-    @Column(name = "is_svip")
-    @com.fasterxml.jackson.annotation.JsonProperty("isSvip")
-    private Integer isSvip;
-
-    @Column(name = "svip_start_time")
-    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @com.fasterxml.jackson.annotation.JsonProperty("svipStartTime")
-    private LocalDateTime svipStartTime;
-
     @Column(name = "vip_expire_time")
     @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @com.fasterxml.jackson.annotation.JsonProperty("vipExpireTime")
     private LocalDateTime vipExpireTime;
-
-    @Column(name = "svip_expire_time")
-    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @com.fasterxml.jackson.annotation.JsonProperty("svipExpireTime")
-    private LocalDateTime svipExpireTime;
 
     @Column(name = "online_status")
     private String onlineStatus = "offline"; // online, offline, banned
@@ -111,9 +100,6 @@ public class SysAccount {
 
     @Transient
     private Integer vipDurationMonths;
-
-    @Transient
-    private Integer svipDurationMonths;
 
     @Transient
     private String roleCode;
@@ -161,9 +147,6 @@ public class SysAccount {
     public Integer getVipDurationMonths() { return vipDurationMonths; }
     public void setVipDurationMonths(Integer vipDurationMonths) { this.vipDurationMonths = vipDurationMonths; }
 
-    public Integer getSvipDurationMonths() { return svipDurationMonths; }
-    public void setSvipDurationMonths(Integer svipDurationMonths) { this.svipDurationMonths = svipDurationMonths; }
-
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 
@@ -176,23 +159,20 @@ public class SysAccount {
     public Integer getRoleId() { return roleId; }
     public void setRoleId(Integer roleId) { this.roleId = roleId; }
 
-    public Integer getIsVip() { return isVip; }
-    public void setIsVip(Integer isVip) { this.isVip = isVip; }
+    public Integer getVipType() { return vipType; }
+    public void setVipType(Integer vipType) { this.vipType = vipType == null ? 0 : vipType; }
+
+    public Integer getVipConfigId() { return vipConfigId; }
+    public void setVipConfigId(Integer vipConfigId) { this.vipConfigId = vipConfigId; }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("vipTypeLabel")
+    public String getVipTypeLabel() { return VipTypeUtils.resolveVipTypeLabel(vipType); }
 
     public LocalDateTime getVipStartTime() { return vipStartTime; }
     public void setVipStartTime(LocalDateTime vipStartTime) { this.vipStartTime = vipStartTime; }
 
-    public Integer getIsSvip() { return isSvip; }
-    public void setIsSvip(Integer isSvip) { this.isSvip = isSvip; }
-
-    public LocalDateTime getSvipStartTime() { return svipStartTime; }
-    public void setSvipStartTime(LocalDateTime svipStartTime) { this.svipStartTime = svipStartTime; }
-
     public LocalDateTime getVipExpireTime() { return vipExpireTime; }
     public void setVipExpireTime(LocalDateTime vipExpireTime) { this.vipExpireTime = vipExpireTime; }
-
-    public LocalDateTime getSvipExpireTime() { return svipExpireTime; }
-    public void setSvipExpireTime(LocalDateTime svipExpireTime) { this.svipExpireTime = svipExpireTime; }
 
     public String getOnlineStatus() { return onlineStatus; }
     public void setOnlineStatus(String onlineStatus) { this.onlineStatus = onlineStatus; }

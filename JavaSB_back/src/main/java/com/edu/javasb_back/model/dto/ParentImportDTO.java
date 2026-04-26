@@ -18,11 +18,8 @@ public class ParentImportDTO {
     @ExcelProperty("密码")
     private String password;
 
-    @ExcelProperty("VIP")
-    private String vip;
-
-    @ExcelProperty("SVIP")
-    private String svip;
+    @ExcelProperty("会员类型")
+    private String vipType;
 
     @ExcelProperty("学生学号")
     private String studentNo;
@@ -39,11 +36,8 @@ public class ParentImportDTO {
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
 
-    public String getVip() { return vip; }
-    public void setVip(String vip) { this.vip = vip; }
-
-    public String getSvip() { return svip; }
-    public void setSvip(String svip) { this.svip = svip; }
+    public String getVipType() { return vipType; }
+    public void setVipType(String vipType) { this.vipType = vipType; }
 
     public String getStudentNo() { return studentNo; }
     public void setStudentNo(String studentNo) { this.studentNo = studentNo; }

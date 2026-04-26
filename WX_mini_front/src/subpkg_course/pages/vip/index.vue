@@ -182,8 +182,8 @@ const checkVipStatus = async () => {
   try {
     const res = await getUserInfoApi()
     if (res.code === 200) {
-      isSVIPUser.value = res.data.isSvip === 1
-      isVipUser.value = res.data.isVip === 1
+      isSVIPUser.value = Number(res.data.vipType || 0) >= 2
+      isVipUser.value = Number(res.data.vipType || 0) >= 1
       uni.setStorageSync('userInfo', res.data)
     }
   } catch (error) {
@@ -287,7 +287,7 @@ const handleExport = () => {
 }
 
 const goToRecharge = (type: string = 'VIP') => {
-  uni.navigateTo({ url: `/pages/vip/recharge?type=${type}` })
+  uni.navigateTo({ url: `/subpkg_course/pages/vip/recharge?type=${type}` })
 }
 
 const joinRoom = () => {
