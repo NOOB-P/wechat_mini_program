@@ -60,7 +60,7 @@ const loadData = async () => {
     }
 
     if (userResult.status === 'fulfilled' && userResult.value.code === 200) {
-      isSVIPUser.value = userResult.value.data.isSvip === 1
+      isSVIPUser.value = Number(userResult.value.data.vipType || 0) >= 2
       userInfo.value = userResult.value.data
       uni.setStorageSync('userInfo', userResult.value.data)
     }

@@ -30,6 +30,7 @@ import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.repository.VipConfigRepository;
 import com.edu.javasb_back.service.SysNotificationService;
 import com.edu.javasb_back.service.VipService;
+import com.edu.javasb_back.utils.VipTypeUtils;
 import java.time.LocalDateTime;
 @Service
 public class VipServiceImpl implements VipService {
@@ -72,8 +73,8 @@ public class VipServiceImpl implements VipService {
             sysAccountRepository.save(account);
         }
 
-        boolean vipActive = account.getIsVip() != null && account.getIsVip() == 1;
-        boolean svipActive = account.getIsSvip() != null && account.getIsSvip() == 1;
+        boolean vipActive = VipTypeUtils.isVip(account.getVipType());
+        boolean svipActive = VipTypeUtils.isSvip(account.getVipType());
 
         if (!vipActive && !svipActive) {
             return Result.error(403, "您尚未开通会员，请先开通后查看");
@@ -88,27 +89,7 @@ public class VipServiceImpl implements VipService {
         }
 
         boolean changed = false;
-        LocalDateTime now = LocalDateTime.now();
-        boolean svipActive = account.getSvipExpireTime() != null && !account.getSvipExpireTime().isBefore(now);
-        boolean vipActiveByOwnExpire = account.getVipExpireTime() != null && !account.getVipExpireTime().isBefore(now);
-
-        if ((account.getIsSvip() != null && account.getIsSvip() == 1) && !svipActive) {
-            account.setIsSvip(0);
-            changed = true;
-        }
-
-        boolean effectiveVipActive = vipActiveByOwnExpire || svipActive;
-        if ((account.getIsVip() != null && account.getIsVip() == 1) && !effectiveVipActive) {
-            account.setIsVip(0);
-            changed = true;
-        }
-
-        if ((account.getIsVip() == null || account.getIsVip() == 0) && svipActive) {
-            account.setIsVip(1);
-            changed = true;
-        }
-
-        return changed;
+        return VipTypeUtils.normalizeAccountVipType(account);
     }
 
     @Override

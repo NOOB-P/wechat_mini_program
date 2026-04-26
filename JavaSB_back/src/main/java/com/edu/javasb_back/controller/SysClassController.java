@@ -44,8 +44,9 @@ public class SysClassController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String classid,
             @RequestParam(required = false) String grade,
-            @RequestParam(required = false) String schoolId) {
-        Page<SysClass> pageResult = sysClassService.getClasses(page, size, classid, grade, schoolId);
+            @RequestParam(required = false) String schoolId,
+            @RequestParam(required = false) String alias) {
+        Page<SysClass> pageResult = sysClassService.getClasses(page, size, classid, grade, schoolId, alias);
         Map<String, Object> data = new HashMap<>();
         data.put("records", pageResult.getContent());
         data.put("total", pageResult.getTotalElements());
@@ -55,11 +56,12 @@ public class SysClassController {
     @PreAuthorize("hasAnyAuthority('system:class:list','system:student:list','exam:project:list')")
     @GetMapping("/options")
     public Result<List<Map<String, Object>>> getClassOptions(@RequestParam String schoolId) {
-        List<SysClass> classes = sysClassService.getClasses(1, 1000, null, null, schoolId).getContent();
+        List<SysClass> classes = sysClassService.getClasses(1, 1000, null, null, schoolId, null).getContent();
         List<Map<String, Object>> options = classes.stream().map(sysClass -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", sysClass.getClassid());
-            map.put("name", sysClass.getAlias());
+            String fullName = (sysClass.getGrade() != null ? sysClass.getGrade() + " " : "") + sysClass.getAlias();
+            map.put("name", fullName);
             map.put("grade", sysClass.getGrade());
             return map;
         }).collect(Collectors.toList());

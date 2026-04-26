@@ -173,10 +173,10 @@ watch(currentTab, () => {
 
 const getStatusText = () => {
   const userInfo = uni.getStorageSync('userInfo')
-  if (userInfo?.isSvip === 1) {
+  if (userInfo?.vipType === 2) {
     return '您当前是 SVIP 用户'
   }
-  if (userInfo?.isVip === 1) {
+  if (userInfo?.vipType === 1) {
     return '您当前是 VIP 用户'
   }
   return '暂未开通会员'

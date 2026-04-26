@@ -33,12 +33,10 @@ CREATE TABLE `sys_accounts` (
     `wxid` VARCHAR(100) UNIQUE COMMENT '微信 OpenID/UnionID',
     `qqid` VARCHAR(100) UNIQUE COMMENT 'QQ OpenID',
     `role_id` INT NOT NULL COMMENT '关联角色ID',
-    `is_vip` TINYINT DEFAULT 0 COMMENT '是否VIP: 1-是, 0-否 (仅家长角色有效)',
+    `vip_type` TINYINT DEFAULT 0 COMMENT '当前会员类型: 0-普通, 1-VIP, 2-SVIP，可扩展更高等级',
+    `vip_config_id` INT DEFAULT NULL COMMENT '当前生效会员配置ID',
     `vip_start_time` DATETIME DEFAULT NULL COMMENT 'VIP开始时间',
-    `is_svip` TINYINT DEFAULT 0 COMMENT '是否SVIP: 1-是, 0-否 (仅家长角色有效)',
-    `svip_start_time` DATETIME DEFAULT NULL COMMENT 'SVIP开始时间',
     `vip_expire_time` DATETIME DEFAULT NULL COMMENT 'VIP过期时间',
-    `svip_expire_time` DATETIME DEFAULT NULL COMMENT 'SVIP过期时间',
     `online_status` ENUM('online', 'offline', 'banned') DEFAULT 'offline' COMMENT '在线状态: online-在线, offline-离线, banned-封禁',
     `is_bound_student` TINYINT DEFAULT 0 COMMENT '是否已绑定学生: 1-是, 0-否',
     `is_enabled` TINYINT DEFAULT 1 COMMENT '是否启用: 1-启用, 0-禁用',
@@ -67,13 +65,15 @@ DROP TABLE IF EXISTS `sys_vip_config`;
 CREATE TABLE `sys_vip_config` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `tier_code` VARCHAR(20) NOT NULL COMMENT '等级标识：VIP, SVIP',
+    `type_value` TINYINT NOT NULL COMMENT '会员类型值：1-VIP, 2-SVIP，可扩展',
     `title` VARCHAR(50) NOT NULL COMMENT '显示标题',
     `sub_title` VARCHAR(100) COMMENT '副标题',
     `benefits` TEXT COMMENT '权益列表 (JSON)',
     `is_enabled` TINYINT DEFAULT 1 COMMENT '是否启用：0-禁用, 1-启用',
     `sort_order` INT DEFAULT 0 COMMENT '排序',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uk_sys_vip_config_type_value` (`type_value`)
 ) ENGINE=InnoDB COMMENT='会员等级配置表';
 
 -- 4. 会员价格套餐表
@@ -93,9 +93,9 @@ CREATE TABLE `sys_vip_pricing` (
 ) ENGINE=InnoDB COMMENT='会员价格套餐表';
 
 -- 初始化会员配置数据
-INSERT INTO `sys_vip_config` (`id`, `tier_code`, `title`, `sub_title`, `benefits`, `is_enabled`, `sort_order`) VALUES 
-(1, 'VIP', 'VIP 基础版', '适合个人学习，包含基础题库与分析功能', '["基础题库访问", "错题本功能", "月度学习报告"]', 1, 1),
-(2, 'SVIP', 'SVIP 专业版', '全能学习助手，解锁所有高级分析与名师课程', '["全站题库无限制访问", "AI 智能解析", "名师精讲视频", "专属客服优先响应"]', 1, 2);
+INSERT INTO `sys_vip_config` (`id`, `tier_code`, `type_value`, `title`, `sub_title`, `benefits`, `is_enabled`, `sort_order`) VALUES 
+(1, 'VIP', 1, 'VIP 基础版', '适合个人学习，包含基础题库与分析功能', '["基础题库访问", "错题本功能", "月度学习报告"]', 1, 1),
+(2, 'SVIP', 2, 'SVIP 专业版', '全能学习助手，解锁所有高级分析与名师课程', '["全站题库无限制访问", "AI 智能解析", "名师精讲视频", "专属客服优先响应"]', 1, 2);
 
 -- 初始化会员价格数据
 INSERT INTO `sys_vip_pricing` (`vip_id`, `pkg_name`, `pkg_desc`, `current_price`, `original_price`, `duration_months`, `is_best_value`, `sort_order`, `midas_product_id`) VALUES 
@@ -514,6 +514,8 @@ CREATE TABLE `vip_orders` (
     `period` VARCHAR(50) NOT NULL COMMENT '时长(月包/季包/年包)',
     `price` DECIMAL(10,2) NOT NULL COMMENT '支付金额',
     `pricing_id` INT DEFAULT NULL COMMENT '关联 sys_vip_pricing.id',
+    `vip_type` TINYINT NOT NULL DEFAULT 0 COMMENT '订单对应会员类型: 1-VIP, 2-SVIP',
+    `vip_config_id` INT DEFAULT NULL COMMENT '订单对应会员配置ID',
     `payment_status` TINYINT DEFAULT 0 COMMENT '支付状态: 0-待支付, 1-已支付, 2-已退款',
     `payment_method` VARCHAR(50) COMMENT '支付方式(微信/支付宝)',
     `source_type` VARCHAR(50) NOT NULL DEFAULT 'ONLINE_PURCHASE' COMMENT '订单来源: ONLINE_PURCHASE-在线购买, SCHOOL_GIFT-校讯通赠送',
@@ -564,17 +566,17 @@ INSERT INTO `sys_roles` (`id`, `role_name`, `role_code`, `description`, `status`
 (3, '家长', 'parent', '小程序端家长用户', 1);
 
 -- 2. 统一账号表数据 (密码默认设为123456)
-INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `avatar`, `password`, `phone`, `email`, `role_id`, `is_vip`, `is_svip`, `online_status`, `is_bound_student`, `is_enabled`) VALUES
-(1, 'admin', '超级管理员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000000', 'admin@example.com', 1, NULL, NULL, 'offline', 0, 1),
-(2, 'manager', '运营人员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000001', 'manager@example.com', 2, NULL, NULL, 'offline', 0, 1),
-(3, 'parent01', '张三爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000002', 'parent01@example.com', 3, 1, 0, 'offline', 1, 1),
-(4, 'parent02', '李四妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000003', 'parent02@example.com', 3, 0, 0, 'offline', 1, 1),
-(5, 'parent03', '王五妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000004', 'parent03@example.com', 3, 1, 1, 'offline', 1, 1),
-(6, 'parent04', '赵六爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000005', 'parent04@example.com', 3, 0, 0, 'offline', 1, 1),
-(7, 'manager02', '财务人员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000006', 'finance@example.com', 2, NULL, NULL, 'offline', 0, 1),
-(8, 'parent05', '孙七妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000007', 'parent05@example.com', 3, 1, 0, 'offline', 1, 1),
-(9, 'parent06', '周八爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000008', 'parent06@example.com', 3, 0, 0, 'offline', 1, 1),
-(10, 'parent07', '吴九妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000009', 'parent07@example.com', 3, 1, 1, 'offline', 1, 1);
+INSERT INTO `sys_accounts` (`uid`, `username`, `nickname`, `avatar`, `password`, `phone`, `email`, `role_id`, `vip_type`, `vip_config_id`, `vip_start_time`, `vip_expire_time`, `online_status`, `is_bound_student`, `is_enabled`) VALUES
+(1, 'admin', '超级管理员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000000', 'admin@example.com', 1, 0, NULL, NULL, NULL, 'offline', 0, 1),
+(2, 'manager', '运营人员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000001', 'manager@example.com', 2, 0, NULL, NULL, NULL, 'offline', 0, 1),
+(3, 'parent01', '张三爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000002', 'parent01@example.com', 3, 1, 1, '2026-01-01 00:00:00', '2027-01-01 00:00:00', 'offline', 1, 1),
+(4, 'parent02', '李四妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000003', 'parent02@example.com', 3, 0, NULL, NULL, NULL, 'offline', 1, 1),
+(5, 'parent03', '王五妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000004', 'parent03@example.com', 3, 2, 2, '2026-01-01 00:00:00', '2027-01-01 00:00:00', 'offline', 1, 1),
+(6, 'parent04', '赵六爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000005', 'parent04@example.com', 3, 0, NULL, NULL, NULL, 'offline', 1, 1),
+(7, 'manager02', '财务人员', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000006', 'finance@example.com', 2, 0, NULL, NULL, NULL, 'offline', 0, 1),
+(8, 'parent05', '孙七妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000007', 'parent05@example.com', 3, 1, 1, '2026-01-01 00:00:00', '2027-01-01 00:00:00', 'offline', 1, 1),
+(9, 'parent06', '周八爸爸', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000008', 'parent06@example.com', 3, 0, NULL, NULL, NULL, 'offline', 1, 1),
+(10, 'parent07', '吴九妈妈', 'https://img.yzcdn.cn/vant/cat.jpeg', '123456', '13800000009', 'parent07@example.com', 3, 2, 2, '2026-01-01 00:00:00', '2027-01-01 00:00:00', 'offline', 1, 1);
 
 -- 2.1 角色权限关联初始化数据
 INSERT INTO `sys_role_menu` (`role_id`, `permission_code`) VALUES

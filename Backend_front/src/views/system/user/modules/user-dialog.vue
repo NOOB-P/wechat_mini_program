@@ -81,82 +81,38 @@
         </ElRadioGroup>
       </ElFormItem>
 
-      <ElFormItem label="VIP权限">
-        <div class="flex flex-col gap-4">
-          <!-- VIP Row -->
-          <div class="vip-row">
-            <div class="flex items-center gap-4 mb-2">
-              <ElSwitch
-                v-model="formData.isVip"
-                :active-value="1"
-                :inactive-value="0"
-                active-text="VIP"
-                @change="handleVipChange"
-              />
-            </div>
-            <div v-if="formData.isVip === 1" class="time-inputs flex flex-col gap-2 ml-4">
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 w-16">开始时间:</span>
-                <ElInput v-model="formData.vipStartTime" readonly size="small" style="width: 180px" />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 w-16">持续时间:</span>
-                <ElSelect
-                  v-model="formData.vipDurationMonths"
-                  placeholder="请选择VIP时长"
-                  size="small"
-                  style="width: 180px"
-                  @change="handleVipDurationChange"
-                >
-                  <ElOption
-                    v-if="formData.vipDurationMonths === 0"
-                    :label="vipLegacyDurationLabel || '历史时长'"
-                    :value="0"
-                  />
-                  <ElOption label="一个月" :value="1" />
-                  <ElOption label="一个季度" :value="3" />
-                  <ElOption label="一年" :value="12" />
-                </ElSelect>
-              </div>
-            </div>
-          </div>
+      <ElFormItem label="会员类型">
+        <div class="flex flex-col gap-4 w-full">
+          <ElRadioGroup v-model="formData.vipType" @change="handleVipTypeChange">
+            <ElRadio :label="0">普通用户</ElRadio>
+            <ElRadio :label="1">VIP</ElRadio>
+            <ElRadio :label="2">SVIP</ElRadio>
+          </ElRadioGroup>
 
-          <!-- SVIP Row -->
-          <div class="vip-row">
-            <div class="flex items-center gap-4 mb-2">
-              <ElSwitch
-                v-model="formData.isSvip"
-                :active-value="1"
-                :inactive-value="0"
-                active-text="SVIP"
-                style="--el-switch-on-color: #e6a23c"
-                @change="handleSvipChange"
-              />
+          <div v-if="formData.vipType >= 1" class="time-inputs flex flex-col gap-2 ml-4">
+            <div class="text-xs text-gray-500">{{ formData.vipType === 2 ? 'SVIP 有效期' : 'VIP 有效期' }}</div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500 w-16">开始时间:</span>
+              <ElInput v-model="formData.vipStartTime" readonly size="small" style="width: 180px" />
             </div>
-            <div v-if="formData.isSvip === 1" class="time-inputs flex flex-col gap-2 ml-4">
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 w-16">开始时间:</span>
-                <ElInput v-model="formData.svipStartTime" readonly size="small" style="width: 180px" />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-500 w-16">持续时间:</span>
-                <ElSelect
-                  v-model="formData.svipDurationMonths"
-                  placeholder="请选择SVIP时长"
-                  size="small"
-                  style="width: 180px"
-                  @change="handleSvipDurationChange"
-                >
-                  <ElOption
-                    v-if="formData.svipDurationMonths === 0"
-                    :label="svipLegacyDurationLabel || '历史时长'"
-                    :value="0"
-                  />
-                  <ElOption label="一个月" :value="1" />
-                  <ElOption label="一个季度" :value="3" />
-                  <ElOption label="一年" :value="12" />
-                </ElSelect>
-              </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500 w-16">持续时间:</span>
+              <ElSelect
+                v-model="formData.vipDurationMonths"
+                :placeholder="formData.vipType === 2 ? '请选择SVIP时长' : '请选择VIP时长'"
+                size="small"
+                style="width: 180px"
+                @change="handleVipDurationChange"
+              >
+                <ElOption
+                  v-if="formData.vipDurationMonths === 0"
+                  :label="vipLegacyDurationLabel || '历史时长'"
+                  :value="0"
+                />
+                <ElOption label="一个月" :value="1" />
+                <ElOption label="一个季度" :value="3" />
+                <ElOption label="一年" :value="12" />
+              </ElSelect>
             </div>
           </div>
         </div>
@@ -195,9 +151,7 @@
 
   const submitLoading = ref(false)
   const vipDurationTouched = ref(false)
-  const svipDurationTouched = ref(false)
   const vipLegacyDurationLabel = ref('')
-  const svipLegacyDurationLabel = ref('')
   
   // 角色列表
   const roleList = ref<any[]>([])
@@ -251,14 +205,11 @@
     userPhone: '',
     userType: '1',
     status: '1',
-    isVip: 0,
-    isSvip: 0,
+    vipType: 0,
+    vipConfigId: null,
     vipStartTime: '',
-    svipStartTime: '',
     vipExpireTime: '',
-    svipExpireTime: '',
     vipDurationMonths: 1,
-    svipDurationMonths: 1,
     schoolName: '',
     gradeName: '',
     className: '',
@@ -299,11 +250,9 @@
     const isEdit = props.type === 'edit' && props.userData
     const row = props.userData
     vipDurationTouched.value = false
-    svipDurationTouched.value = false
 
     if (isEdit && row) {
       const vipDurationMonths = resolveDurationMonths(row.vipStartTime, row.vipExpireTime)
-      const svipDurationMonths = resolveDurationMonths(row.svipStartTime, row.svipExpireTime)
       Object.assign(formData, {
         id: row.id,
         userName: row.userName || '',
@@ -312,14 +261,11 @@
         userPhone: row.userPhone || '',
         userType: row.userType || '1',
         status: row.status || '1',
-        isVip: row.isVip || 0,
-        isSvip: row.isSvip || 0,
+        vipType: Number(row.vipType || 0),
+        vipConfigId: row.vipConfigId ?? null,
         vipStartTime: row.vipStartTime || '',
-        svipStartTime: row.svipStartTime || '',
         vipExpireTime: row.vipExpireTime || '',
-        svipExpireTime: row.svipExpireTime || '',
         vipDurationMonths,
-        svipDurationMonths,
         schoolName: row.schoolName || '',
         gradeName: row.gradeName || '',
         className: row.className || '',
@@ -336,14 +282,11 @@
         userPhone: '',
         userType: '1',
         status: '1',
-        isVip: 0,
-        isSvip: 0,
+        vipType: 0,
+        vipConfigId: null,
         vipStartTime: '',
-        svipStartTime: '',
         vipExpireTime: '',
-        svipExpireTime: '',
         vipDurationMonths: 1,
-        svipDurationMonths: 1,
         schoolName: '',
         gradeName: '',
         className: '',
@@ -354,7 +297,6 @@
     }
 
     vipLegacyDurationLabel.value = formData.vipDurationMonths === 0 ? describeLegacyDuration(row?.vipStartTime, row?.vipExpireTime) : ''
-    svipLegacyDurationLabel.value = formData.svipDurationMonths === 0 ? describeLegacyDuration(row?.svipStartTime, row?.svipExpireTime) : ''
   }
 
   /**
@@ -434,12 +376,6 @@
     }
   }
 
-  const ensureSvipStartTime = () => {
-    if (!formData.svipStartTime) {
-      formData.svipStartTime = formatDateTime(new Date())
-    }
-  }
-
   const handleVipDurationChange = () => {
     vipDurationTouched.value = true
     ensureVipStartTime()
@@ -448,58 +384,25 @@
     }
   }
 
-  const handleSvipDurationChange = () => {
-    svipDurationTouched.value = true
-    ensureSvipStartTime()
-    if (formData.svipDurationMonths > 0) {
-      formData.svipExpireTime = addMonths(formData.svipStartTime, formData.svipDurationMonths)
+  const handleVipTypeChange = (val: string | number | boolean | undefined) => {
+    const vipType = Number(val || 0)
+    if (vipType >= 1) {
+      ensureVipStartTime()
+      if (!formData.vipDurationMonths) {
+        formData.vipDurationMonths = 1
+      }
+      if (!formData.vipExpireTime || formData.vipDurationMonths > 0) {
+        formData.vipExpireTime = addMonths(formData.vipStartTime, formData.vipDurationMonths || 1)
+      }
     }
   }
-
-  const handleVipChange = (val: any) => {
-     if (val === 1) {
-       ensureVipStartTime()
-       if (!formData.vipDurationMonths) {
-         formData.vipDurationMonths = 1
-       }
-       if (!formData.vipExpireTime || formData.vipDurationMonths > 0) {
-         formData.vipExpireTime = addMonths(formData.vipStartTime, formData.vipDurationMonths || 1)
-       }
-     } else {
-       if (formData.isSvip === 1) {
-         formData.isVip = 1
-         ElMessage.warning('开启SVIP时会自动保留VIP权限')
-       }
-     }
-   }
-
-   const handleSvipChange = (val: any) => {
-     if (val === 1) {
-       ensureSvipStartTime()
-       if (!formData.svipDurationMonths) {
-         formData.svipDurationMonths = 1
-       }
-       if (!formData.svipExpireTime || formData.svipDurationMonths > 0) {
-         formData.svipExpireTime = addMonths(formData.svipStartTime, formData.svipDurationMonths || 1)
-       }
-       formData.isVip = 1
-       if (!formData.vipStartTime) {
-         formData.vipStartTime = formData.svipStartTime
-       }
-       if (!formData.vipExpireTime || (parseDateTime(formData.vipExpireTime)?.getTime() || 0) < (parseDateTime(formData.svipExpireTime)?.getTime() || 0)) {
-         formData.vipExpireTime = formData.svipExpireTime
-       }
-     } else {
-       // 保留历史值，提交时根据开关决定是否生效
-     }
-   }
 
   const buildSubmitData = () => {
     const submitData = {
       ...formData
     }
 
-    if (submitData.isVip === 1) {
+    if (submitData.vipType >= 1) {
       ensureVipStartTime()
       if (submitData.vipDurationMonths > 0) {
         submitData.vipExpireTime = addMonths(submitData.vipStartTime, submitData.vipDurationMonths)
@@ -511,30 +414,7 @@
       submitData.vipStartTime = ''
       submitData.vipExpireTime = ''
       submitData.vipDurationMonths = null
-    }
-
-    if (submitData.isSvip === 1) {
-      ensureSvipStartTime()
-      submitData.isVip = 1
-      if (submitData.svipDurationMonths > 0) {
-        submitData.svipExpireTime = addMonths(submitData.svipStartTime, submitData.svipDurationMonths)
-      } else if (dialogType.value === 'add' || svipDurationTouched.value || !submitData.svipExpireTime) {
-        submitData.svipDurationMonths = 1
-        submitData.svipExpireTime = addMonths(submitData.svipStartTime, 1)
-      }
-
-      if (!submitData.vipStartTime) {
-        submitData.vipStartTime = submitData.svipStartTime
-      }
-      const vipExpireAt = parseDateTime(submitData.vipExpireTime)?.getTime() || 0
-      const svipExpireAt = parseDateTime(submitData.svipExpireTime)?.getTime() || 0
-      if (!submitData.vipExpireTime || vipExpireAt < svipExpireAt) {
-        submitData.vipExpireTime = submitData.svipExpireTime
-      }
-    } else {
-      submitData.svipStartTime = ''
-      submitData.svipExpireTime = ''
-      submitData.svipDurationMonths = null
+      submitData.vipConfigId = null
     }
 
     return submitData

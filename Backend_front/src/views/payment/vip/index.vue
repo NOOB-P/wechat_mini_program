@@ -18,7 +18,7 @@
           <div class="flex items-start justify-between">
             <div>
               <span class="mb-2 inline-block rounded-full bg-white/20 px-2 py-0.5 text-xs text-white">
-                {{ pkg.tierCode }}
+                {{ pkg.tierCode }} / Lv.{{ pkg.typeValue }}
               </span>
               <h3 class="text-2xl font-bold text-white">{{ pkg.title }}</h3>
             </div>

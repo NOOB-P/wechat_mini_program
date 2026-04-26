@@ -23,35 +23,35 @@ export const getProvinces = () => {
  * @Description: 获取省份下的所有城市
  */
 export const getCities = (province: string) => {
-  return request({ url: '/api/app/auth/cities', method: 'GET', data: { province } })
+  return request({ url: '/api/app/auth/cities', method: 'GET', params: { province } })
 }
 
 /**
  * @Description: 获取城市下的所有学校
  */
 export const getSchools = (city: string) => {
-  return request({ url: '/api/app/auth/schools', method: 'GET', data: { city } })
+  return request({ url: '/api/app/auth/schools', method: 'GET', params: { city } })
 }
 
 /**
  * @Description: 获取学校下的所有年级
  */
 export const getGrades = (schoolId: string) => {
-  return request({ url: '/api/app/auth/grades', method: 'GET', data: { schoolId } })
+  return request({ url: '/api/app/auth/grades', method: 'GET', params: { schoolId } })
 }
 
 /**
  * @Description: 获取学校年级下的所有班级
  */
 export const getClasses = (schoolId: string, grade: string) => {
-  return request({ url: '/api/app/auth/classes', method: 'GET', data: { schoolId, grade } })
+  return request({ url: '/api/app/auth/classes', method: 'GET', params: { schoolId, grade } })
 }
 
 /**
  * @Description: 获取学校年级班级下的所有学生
  */
 export const getStudents = (schoolId: string, grade: string, className: string) => {
-  return request({ url: '/api/app/auth/students', method: 'GET', data: { schoolId, grade, className } })
+  return request({ url: '/api/app/auth/students', method: 'GET', params: { schoolId, grade, className } })
 }
 
 /**

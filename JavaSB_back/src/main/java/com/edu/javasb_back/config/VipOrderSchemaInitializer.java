@@ -13,11 +13,20 @@ public class VipOrderSchemaInitializer {
 
     @PostConstruct
     public void initializeSchema() {
+        ensureVipConfigTypeValueColumn();
+        ensureAccountVipTypeColumn();
+        ensureAccountVipConfigIdColumn();
         ensureSourceTypeColumn();
-        ensureSvipExpireTimeColumn();
+        ensureVipOrderVipTypeColumn();
+        ensureVipOrderVipConfigIdColumn();
         ensureVipStartTimeColumn();
-        ensureSvipStartTimeColumn();
+        backfillVipConfigTypeValue();
+        backfillAccountVipType();
+        backfillAccountVipConfigId();
         backfillSourceType();
+        backfillVipOrderMembershipFields();
+        dropLegacyVipColumns();
+        dropLegacyVipTimeColumns();
     }
 
     private void ensureSourceTypeColumn() {
@@ -35,39 +44,137 @@ public class VipOrderSchemaInitializer {
         );
     }
 
-    private void ensureSvipExpireTimeColumn() {
-        addColumnIfMissing(
-                "sys_accounts",
-                "svip_expire_time",
-                "ALTER TABLE sys_accounts ADD COLUMN svip_expire_time DATETIME NULL COMMENT 'SVIP过期时间' AFTER vip_expire_time"
-        );
-    }
-
     private void ensureVipStartTimeColumn() {
         addColumnIfMissing(
                 "sys_accounts",
                 "vip_start_time",
-                "ALTER TABLE sys_accounts ADD COLUMN vip_start_time DATETIME NULL COMMENT 'VIP开始时间' AFTER is_vip"
+                "ALTER TABLE sys_accounts ADD COLUMN vip_start_time DATETIME NULL COMMENT 'VIP开始时间' AFTER vip_config_id"
         );
     }
 
-    private void ensureSvipStartTimeColumn() {
+    private void ensureVipConfigTypeValueColumn() {
+        addColumnIfMissing(
+                "sys_vip_config",
+                "type_value",
+                "ALTER TABLE sys_vip_config ADD COLUMN type_value INT NOT NULL DEFAULT 0 COMMENT '会员类型值: 1-VIP, 2-SVIP，可扩展' AFTER tier_code"
+        );
+    }
+
+    private void ensureAccountVipTypeColumn() {
         addColumnIfMissing(
                 "sys_accounts",
-                "svip_start_time",
-                "ALTER TABLE sys_accounts ADD COLUMN svip_start_time DATETIME NULL COMMENT 'SVIP开始时间' AFTER is_svip"
+                "vip_type",
+                "ALTER TABLE sys_accounts ADD COLUMN vip_type INT NOT NULL DEFAULT 0 COMMENT '当前会员类型: 0-普通, 1-VIP, 2-SVIP，可扩展' AFTER role_id"
         );
+    }
+
+    private void ensureAccountVipConfigIdColumn() {
+        addColumnIfMissing(
+                "sys_accounts",
+                "vip_config_id",
+                "ALTER TABLE sys_accounts ADD COLUMN vip_config_id INT NULL COMMENT '当前生效会员配置ID' AFTER vip_type"
+        );
+    }
+
+    private void ensureVipOrderVipTypeColumn() {
+        addColumnIfMissing(
+                "vip_orders",
+                "vip_type",
+                "ALTER TABLE vip_orders ADD COLUMN vip_type INT NOT NULL DEFAULT 0 COMMENT '订单对应会员类型值' AFTER pricing_id"
+        );
+    }
+
+    private void ensureVipOrderVipConfigIdColumn() {
+        addColumnIfMissing(
+                "vip_orders",
+                "vip_config_id",
+                "ALTER TABLE vip_orders ADD COLUMN vip_config_id INT NULL COMMENT '订单对应会员配置ID' AFTER vip_type"
+        );
+    }
+
+    private void backfillVipConfigTypeValue() {
+        jdbcTemplate.update(
+                "UPDATE sys_vip_config SET type_value = CASE " +
+                        "WHEN UPPER(tier_code) = 'SVIP' THEN 2 " +
+                        "WHEN UPPER(tier_code) = 'VIP' THEN 1 " +
+                        "ELSE type_value END " +
+                        "WHERE type_value = 0 OR type_value IS NULL"
+        );
+    }
+
+    private void backfillAccountVipType() {
+        if (hasColumn("sys_accounts", "is_svip") && hasColumn("sys_accounts", "is_vip")) {
+            jdbcTemplate.update(
+                    "UPDATE sys_accounts SET vip_type = CASE " +
+                            "WHEN COALESCE(is_svip, 0) = 1 THEN 2 " +
+                            "WHEN (vip_expire_time IS NOT NULL AND vip_expire_time >= NOW()) OR COALESCE(is_vip, 0) = 1 THEN 1 " +
+                            "ELSE 0 END " +
+                            "WHERE vip_type = 0 OR vip_type IS NULL"
+            );
+            return;
+        }
+        jdbcTemplate.update(
+                "UPDATE sys_accounts SET vip_type = CASE " +
+                        "WHEN svip_expire_time IS NOT NULL AND svip_expire_time >= NOW() THEN 2 " +
+                        "WHEN vip_expire_time IS NOT NULL AND vip_expire_time >= NOW() THEN 1 " +
+                        "ELSE 0 END " +
+                        "WHERE vip_type = 0 OR vip_type IS NULL"
+        );
+    }
+
+    private void backfillAccountVipConfigId() {
+        jdbcTemplate.update(
+                "UPDATE sys_accounts sa " +
+                        "LEFT JOIN sys_vip_config svc ON svc.type_value = sa.vip_type " +
+                        "SET sa.vip_config_id = svc.id " +
+                        "WHERE sa.vip_type > 0 AND (sa.vip_config_id IS NULL OR sa.vip_config_id = 0)"
+        );
+    }
+
+    private void backfillVipOrderMembershipFields() {
+        jdbcTemplate.update(
+                "UPDATE vip_orders vo " +
+                        "LEFT JOIN sys_vip_pricing vp ON vp.id = vo.pricing_id " +
+                        "LEFT JOIN sys_vip_config svc ON svc.id = COALESCE(vo.vip_config_id, vp.vip_id) " +
+                        "SET vo.vip_config_id = COALESCE(vo.vip_config_id, vp.vip_id, svc.id), " +
+                        "vo.vip_type = CASE " +
+                        "WHEN COALESCE(svc.type_value, 0) > 0 THEN svc.type_value " +
+                        "WHEN UPPER(vo.package_type) LIKE '%SVIP%' THEN 2 " +
+                        "WHEN UPPER(vo.package_type) LIKE '%VIP%' THEN 1 " +
+                        "ELSE vo.vip_type END " +
+                        "WHERE vo.vip_type = 0 OR vo.vip_type IS NULL OR vo.vip_config_id IS NULL"
+        );
+    }
+
+    private void dropLegacyVipColumns() {
+        dropColumnIfExists("sys_accounts", "is_vip");
+        dropColumnIfExists("sys_accounts", "is_svip");
+    }
+
+    private void dropLegacyVipTimeColumns() {
+        dropColumnIfExists("sys_accounts", "svip_start_time");
+        dropColumnIfExists("sys_accounts", "svip_expire_time");
     }
 
     private void addColumnIfMissing(String tableName, String columnName, String alterSql) {
+        if (!hasColumn(tableName, columnName)) {
+            jdbcTemplate.execute(alterSql);
+        }
+    }
+
+    private void dropColumnIfExists(String tableName, String columnName) {
+        if (hasColumn(tableName, columnName)) {
+            jdbcTemplate.execute(String.format("ALTER TABLE %s DROP COLUMN %s", tableName, columnName));
+        }
+    }
+
+    private boolean hasColumn(String tableName, String columnName) {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?",
                 Integer.class,
                 tableName,
                 columnName
         );
-        if (count != null && count == 0) {
-            jdbcTemplate.execute(alterSql);
-        }
+        return count != null && count > 0;
     }
 }

@@ -21,6 +21,9 @@ public class VipConfig {
     @Column(name = "tier_code", nullable = false, length = 20)
     private String tierCode;
 
+    @Column(name = "type_value", nullable = false)
+    private Integer typeValue;
+
     @Column(nullable = false, length = 50)
     private String title;
 
@@ -69,6 +72,14 @@ public class VipConfig {
 
     public void setTierCode(String tierCode) {
         this.tierCode = tierCode;
+    }
+
+    public Integer getTypeValue() {
+        return typeValue;
+    }
+
+    public void setTypeValue(Integer typeValue) {
+        this.typeValue = typeValue;
     }
 
     public String getTitle() {

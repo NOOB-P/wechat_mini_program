@@ -18,7 +18,7 @@
     <ElDialog
       v-model="visible"
       title="选择学生"
-      width="850px"
+      width="700px"
       align-center
       append-to-body
       destroy-on-close
@@ -28,35 +28,38 @@
         <!-- 级联选择区域 -->
         <div class="cascade-section mb-4">
           <ElRow :gutter="10">
-            <ElCol :span="4">
-              <ElSelect v-model="selectedProvince" placeholder="省份" clearable @change="handleProvinceChange">
+            <ElCol :span="6">
+              <ElSelect v-model="selectedProvince" placeholder="省份" clearable size="small" @change="handleProvinceChange">
                 <ElOption v-for="item in provinces" :key="item.id" :label="item.name" :value="item.name" />
               </ElSelect>
             </ElCol>
-            <ElCol :span="4">
-              <ElSelect v-model="selectedCity" placeholder="城市" clearable :disabled="!selectedProvince" @change="handleCityChange">
+            <ElCol :span="6">
+              <ElSelect v-model="selectedCity" placeholder="城市" clearable size="small" :disabled="!selectedProvince" @change="handleCityChange">
                 <ElOption v-for="item in cities" :key="item.id" :label="item.name" :value="item.name" />
               </ElSelect>
             </ElCol>
-            <ElCol :span="5">
-              <ElSelect v-model="selectedSchoolId" placeholder="学校" clearable :disabled="!selectedCity" @change="handleSchoolChange">
+            <ElCol :span="6">
+              <ElSelect v-model="selectedSchoolId" placeholder="学校" clearable size="small" :disabled="!selectedCity" @change="handleSchoolChange">
                 <ElOption v-for="item in schools" :key="item.id" :label="item.name" :value="item.id" />
               </ElSelect>
             </ElCol>
-            <ElCol :span="5">
-              <ElSelect v-model="selectedClassId" placeholder="班级" clearable :disabled="!selectedSchoolId" @change="handleClassChange">
+            <ElCol :span="6">
+              <ElSelect v-model="selectedClassId" placeholder="班级" clearable size="small" :disabled="!selectedSchoolId" @change="handleClassChange">
                 <ElOption v-for="item in classes" :key="item.id" :label="item.name" :value="item.id" />
               </ElSelect>
             </ElCol>
-            <ElCol :span="6">
+          </ElRow>
+          <ElRow class="mt-2">
+            <ElCol :span="24">
               <ElInput
                 v-model="searchKeyword"
                 placeholder="学生姓名搜索"
                 clearable
+                size="small"
                 @keyup.enter="handleSearch"
               >
                 <template #append>
-                  <ElButton @click="handleSearch">
+                  <ElButton size="small" @click="handleSearch">
                     <ElIcon><Search /></ElIcon>
                   </ElButton>
                 </template>
@@ -66,28 +69,28 @@
         </div>
 
         <!-- 选择结果显示区域 -->
-        <div class="selection-result mb-4" v-if="hasSelection">
-          <span class="result-label">当前选择：</span>
-          <ElTag v-if="selectedProvince" closable @close="clearProvince" class="mr-2">{{ selectedProvince }}</ElTag>
-          <ElTag v-if="selectedCity" closable @close="clearCity" class="mr-2">{{ selectedCity }}</ElTag>
-          <ElTag v-if="selectedSchoolName" closable @close="clearSchool" class="mr-2">{{ selectedSchoolName }}</ElTag>
-          <ElTag v-if="selectedClassName" closable @close="clearClass" class="mr-2">{{ selectedClassName }}</ElTag>
+        <div class="selection-result mb-2" v-if="hasSelection">
+          <span class="result-label text-xs">当前筛选：</span>
+          <ElTag v-if="selectedProvince" size="small" closable @close="clearProvince" class="mr-1">{{ selectedProvince }}</ElTag>
+          <ElTag v-if="selectedCity" size="small" closable @close="clearCity" class="mr-1">{{ selectedCity }}</ElTag>
+          <ElTag v-if="selectedSchoolName" size="small" closable @close="clearSchool" class="mr-1">{{ selectedSchoolName }}</ElTag>
+          <ElTag v-if="selectedClassName" size="small" closable @close="clearClass" class="mr-1">{{ selectedClassName }}</ElTag>
         </div>
 
         <!-- 学生列表 -->
         <ElTable
           v-loading="loading"
           :data="studentList"
-          height="320px"
+          height="280px"
           highlight-current-row
+          size="small"
           row-class-name="student-table-row"
           @current-change="handleCurrentChange"
         >
-          <ElTableColumn prop="name" label="姓名" width="120" />
+          <ElTableColumn prop="name" label="姓名" width="100" />
           <ElTableColumn prop="school" label="学校" show-overflow-tooltip />
-          <ElTableColumn prop="grade" label="年级" width="100" />
-          <ElTableColumn prop="className" label="班级" width="120" />
-          <ElTableColumn prop="studentNo" label="学号" width="150" />
+          <ElTableColumn prop="className" label="班级" width="100" />
+          <ElTableColumn prop="studentNo" label="学号" width="120" />
         </ElTable>
 
         <!-- 分页 -->

@@ -1,37 +1,36 @@
 <template>
-  <ElDialog v-model="visible" title="选择接收用户" width="780px" destroy-on-close>
-    <div class="mb-4 flex items-center gap-3">
+  <ElDialog v-model="visible" title="选择接收用户" width="500px" align-center destroy-on-close>
+    <div class="mb-4 flex items-center gap-2">
       <ElInput
         v-model="keyword"
         placeholder="搜索账号、昵称或手机号"
         clearable
+        size="small"
         @keyup.enter="handleSearch"
       />
-      <ElButton type="primary" @click="handleSearch">查询</ElButton>
-      <ElButton @click="handleReset">重置</ElButton>
+      <ElButton type="primary" size="small" @click="handleSearch">查询</ElButton>
     </div>
 
     <ElTable
       v-loading="loading"
       :data="tableData"
       border
-      height="420"
+      height="350"
       highlight-current-row
+      size="small"
       @current-change="handleCurrentChange"
       @row-dblclick="handleRowConfirm"
     >
-      <ElTableColumn prop="id" label="UID" width="90" />
-      <ElTableColumn prop="userName" label="账号" min-width="140" show-overflow-tooltip />
-      <ElTableColumn prop="nickName" label="昵称" min-width="140" show-overflow-tooltip />
-      <ElTableColumn prop="userType" label="角色" width="120">
+      <ElTableColumn prop="userName" label="账号" min-width="120" show-overflow-tooltip />
+      <ElTableColumn prop="nickName" label="昵称" min-width="120" show-overflow-tooltip />
+      <ElTableColumn prop="userType" label="角色" width="100">
         <template #default="{ row }">
           {{ roleMap[row.userType] || `角色${row.userType}` }}
         </template>
       </ElTableColumn>
-      <ElTableColumn prop="userPhone" label="手机号" width="140" />
-      <ElTableColumn label="操作" width="90" fixed="right">
+      <ElTableColumn label="操作" width="70" fixed="right">
         <template #default="{ row }">
-          <ElButton link type="primary" @click="handleRowConfirm(row)">选择</ElButton>
+          <ElButton link type="primary" size="small" @click="handleRowConfirm(row)">选择</ElButton>
         </template>
       </ElTableColumn>
     </ElTable>

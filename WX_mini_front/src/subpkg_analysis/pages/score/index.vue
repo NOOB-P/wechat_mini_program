@@ -309,8 +309,8 @@ const checkVipStatus = async () => {
       }
       
       // 2. 更新 VIP 状态
-      isVIPUser.value = res.data.isVip === 1 || res.data.isSvip === 1
-      isSVIPUser.value = res.data.isSvip === 1
+      isVIPUser.value = Number(res.data.vipType || 0) >= 1
+      isSVIPUser.value = Number(res.data.vipType || 0) >= 2
       uni.setStorageSync('userInfo', res.data)
     }
   } catch (error) {
