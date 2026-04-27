@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow, onHide, onUnload } from '@dcloudio/uni-app'
 import { getMyCoursesApi, getMyCollectionsApi, getMyStudyRecordsApi, getPurchasedCoursesApi } from '@/api/course'
 import { useToast } from 'wot-design-uni'
 
@@ -107,13 +107,18 @@ const loadData = async () => {
       res = await getPurchasedCoursesApi()
     }
     
-    uni.hideLoading()
     if (res && res.code === 200) {
-      courses.value = res.data
+      courses.value = (Array.isArray(res.data) ? res.data : []).filter((item: any) => item && item.id && item.title)
+      return
     }
+    courses.value = []
+    toast.show(res?.msg || '暂无学习记录')
   } catch (e) {
+    courses.value = []
+    console.error('course list load failed', e)
+    toast.show('加载失败')
+  } finally {
     uni.hideLoading()
-    toast.error('加载失败')
   }
 }
 
@@ -128,6 +133,14 @@ onLoad((options: any) => {
 
 onShow(() => {
   loadData()
+})
+
+onHide(() => {
+  uni.hideLoading()
+})
+
+onUnload(() => {
+  uni.hideLoading()
 })
 
 const goToDetail = (id: string) => {

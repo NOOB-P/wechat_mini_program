@@ -8,6 +8,7 @@ export const getPaperDetailApi = (params: { examId?: string; subject?: string })
   return request({
     url: '/api/app/paper/detail',
     method: 'GET',
-    data: params
+    data: params,
+    silent: true
   })
 }
