@@ -2,6 +2,7 @@ package com.edu.javasb_back.utils;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Base64;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -30,13 +31,19 @@ public final class VirtualPaymentSignatureUtils {
     }
 
     /**
-     * 小程序虚拟支付签名
-     * 算法: hmac_sha256(app_key, signData)
+     * 小程序虚拟支付签名 (使用 AppKey)
+     * 算法: hmac_sha256(app_key, "requestVirtualPayment" + "&" + signData)
      */
     public static String midasPaySig(String signData, String appKey) {
         return sign(REQUEST_VIRTUAL_PAYMENT + "&" + signData, appKey);
     }
 
+    /**
+     * 小程序虚拟支付用户态签名 (使用 session_key)
+     * 算法: hmac_sha256(session_key, signData)
+     * 注意：根据官方 Python 示例，此处的 signature 不需要 "requestVirtualPayment&" 前缀，
+     * 且 session_key 直接作为字符串 key 使用，不需要 Base64 解码。
+     */
     public static String midasSignature(String signData, String sessionKey) {
         return sign(signData, sessionKey);
     }

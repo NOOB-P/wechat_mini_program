@@ -91,12 +91,6 @@
             }}</span>
           </template>
         </el-table-column>
-        <el-table-column
-          :label="text.paymentMethod"
-          prop="paymentMethod"
-          width="120"
-          align="center"
-        />
         <el-table-column :label="text.paymentStatus" width="100" align="center">
           <template #default="scope">
             <el-tag :type="getStatusTag(scope.row.paymentStatus)">
@@ -104,6 +98,12 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column
+          :label="text.paymentMethod"
+          prop="paymentMethod"
+          width="120"
+          align="center"
+        />
         <el-table-column :label="text.createTime" prop="createTime" width="180" align="center" />
         <el-table-column :label="text.action" width="100" align="center" fixed="right">
           <template #default="scope">
@@ -157,14 +157,14 @@
             `${moneySymbol}${formatPrice(currentOrder.price)}`
           }}</span>
         </el-descriptions-item>
-        <el-descriptions-item :label="text.paymentMethod">{{
-          currentOrder.paymentMethod || '-'
-        }}</el-descriptions-item>
         <el-descriptions-item :label="text.paymentStatus">
           <el-tag :type="getStatusTag(currentOrder.paymentStatus)">
             {{ getStatusText(currentOrder.paymentStatus) }}
           </el-tag>
         </el-descriptions-item>
+        <el-descriptions-item :label="text.paymentMethod">{{
+          currentOrder.paymentMethod || '-'
+        }}</el-descriptions-item>
         <el-descriptions-item :label="text.createTime">{{
           currentOrder.createTime || '-'
         }}</el-descriptions-item>

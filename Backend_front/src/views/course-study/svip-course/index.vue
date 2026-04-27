@@ -160,12 +160,30 @@
           </el-form>
         </div>
 
-        <el-table :data="videoData" border v-loading="videoLoading">
+        <el-table :data="combinedVideoData" border v-loading="videoLoading">
           <el-table-column type="index" label="序号" width="60" />
           <el-table-column prop="title" label="视频名称" min-width="200" />
           <el-table-column prop="videoUrl" label="视频地址" min-width="300" show-overflow-tooltip>
             <template #default="{ row }">
-              <div class="flex items-center">
+              <div v-if="row.status === 'uploading' || row.status === 'saving'" class="flex flex-col w-full">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-xs text-blue-500">{{ row.status === 'saving' ? '正在保存地址...' : '正在上传...' }}</span>
+                  <span class="text-xs font-bold text-blue-500">{{ row.progress }}%</span>
+                </div>
+                <el-progress
+                  :percentage="row.progress"
+                  :stroke-width="6"
+                  :show-text="false"
+                  striped
+                  striped-flow
+                />
+                <span class="mt-1 text-xs text-gray-500">{{ row.videoUrl }}</span>
+              </div>
+              <div v-else-if="row.status === 'error'" class="flex flex-col w-full">
+                <span class="text-xs text-red-500 mb-1">上传失败</span>
+                <span class="text-xs text-gray-500">{{ row.errorMessage || row.videoUrl }}</span>
+              </div>
+              <div v-else class="flex items-center">
                 <el-icon class="text-green-500 mr-1"><VideoPlay /></el-icon>
                 <span class="text-xs text-gray-500">{{ row.videoUrl }}</span>
               </div>
@@ -174,8 +192,16 @@
           <el-table-column prop="sortOrder" label="排序" width="80" />
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="handleEditVideo(row)">编辑</el-button>
-              <el-button link type="danger" @click="handleDeleteVideo(row)">删除</el-button>
+              <div v-if="row.status === 'uploading' || row.status === 'saving'">
+                <el-button link disabled>{{ row.status === 'saving' ? '保存中' : '上传中' }}</el-button>
+              </div>
+              <div v-else-if="row.status === 'error'">
+                <el-button link type="danger" @click="handleDismissUploadTask(row)">移除</el-button>
+              </div>
+              <div v-else>
+                <el-button link type="primary" @click="handleEditVideo(row)">编辑</el-button>
+                <el-button link type="danger" @click="handleDeleteVideo(row)">删除</el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -208,7 +234,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { 
   fetchGetSvipCourseList, 
   fetchDeleteSvipCourse, 
@@ -228,6 +254,7 @@ import CourseDialog from '../course/modules/course-dialog.vue'
 import EpisodeDialog from '../course/modules/episode-dialog.vue'
 import VideoDialog from '../course/modules/video-dialog.vue'
 import { ArrowLeft, VideoPlay } from '@element-plus/icons-vue'
+import { uploadCourseVideoByOss } from '@/utils/course-video-oss'
 
 const loading = ref(false)
 const tableData = ref<any[]>([])
@@ -268,6 +295,28 @@ const videoDialogVisible = ref(false)
 const isVideoEdit = ref(false)
 const videoEditData = ref<Record<string, any> | undefined>(undefined)
 
+interface UploadTask {
+  id: string | number
+  episodeId: string
+  title: string
+  sortOrder: number
+  progress: number
+  status: 'uploading' | 'saving' | 'error'
+  videoUrl: string
+  errorMessage?: string
+}
+
+const uploadTasks = ref<UploadTask[]>([])
+
+const combinedVideoData = computed(() => {
+  const currentEpisodeTasks = uploadTasks.value.filter(t => t.episodeId === currentEpisode.value.id)
+  return [...currentEpisodeTasks, ...videoData.value]
+})
+
+const handleDismissUploadTask = (task: UploadTask) => {
+  uploadTasks.value = uploadTasks.value.filter(t => t.id !== task.id)
+}
+
 const enterEpisodeVideoManagement = (row: any) => {
   currentEpisode.value = { ...row }
   showEpisodeVideoManagement.value = true
@@ -304,15 +353,65 @@ const handleEditVideo = (row: any) => {
   videoDialogVisible.value = true
 }
 
-const handleVideoSuccess = async (formData: any) => {
+const handleVideoSuccess = async (formData: any, file?: File) => {
   try {
-    if (isVideoEdit.value) {
-      await fetchUpdateVideo(formData)
-    } else {
-      await fetchAddVideo(formData)
+    if (!file) {
+      if (isVideoEdit.value) {
+        await fetchUpdateVideo(formData)
+      } else {
+        await fetchAddVideo(formData)
+      }
+      ElMessage.success(isVideoEdit.value ? '更新成功' : '新增成功')
+      loadVideos()
+      return
     }
-    ElMessage.success(isVideoEdit.value ? '更新成功' : '新增成功')
-    loadVideos()
+
+    const taskId = `upload-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
+    uploadTasks.value.unshift({
+      id: taskId,
+      episodeId: formData.episodeId,
+      title: formData.title,
+      sortOrder: formData.sortOrder,
+      progress: 1,
+      status: 'uploading',
+      videoUrl: '正在初始化上传...'
+    })
+
+    try {
+      const videoUrl = await uploadCourseVideoByOss(file, (percent, message) => {
+        const targetTask = uploadTasks.value.find(t => t.id === taskId)
+        if (!targetTask) {
+          return
+        }
+        targetTask.progress = percent
+        targetTask.videoUrl = message || '正在上传...'
+      })
+
+      const targetTask = uploadTasks.value.find(t => t.id === taskId)
+      if (targetTask) {
+        targetTask.progress = 100
+        targetTask.status = 'saving'
+        targetTask.videoUrl = videoUrl
+      }
+
+      if (isVideoEdit.value) {
+        await fetchUpdateVideo({ ...formData, videoUrl })
+      } else {
+        await fetchAddVideo({ ...formData, videoUrl })
+      }
+
+      uploadTasks.value = uploadTasks.value.filter(t => t.id !== taskId)
+      ElMessage.success(`视频《${formData.title}》上传成功`)
+      loadVideos()
+    } catch (error: any) {
+      const targetTask = uploadTasks.value.find(t => t.id === taskId)
+      if (targetTask) {
+        targetTask.status = 'error'
+        targetTask.errorMessage = error?.message || '上传失败'
+        targetTask.videoUrl = '上传失败，请重试'
+      }
+      ElMessage.error(`视频《${formData.title}》上传失败`)
+    }
   } catch (error) {
     // 拦截器处理
   }

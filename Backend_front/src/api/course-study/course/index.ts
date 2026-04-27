@@ -122,3 +122,33 @@ export function uploadCourseVideo(file: File) {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
 }
+
+export interface CourseVideoUploadStsPayload {
+  scene: 'course-video'
+  fileName: string
+  contentType: string
+}
+
+export interface CourseVideoUploadStsResponse {
+  bucket: string
+  region: string
+  endpoint: string
+  secure: boolean
+  objectKey: string
+  publicUrl: string
+  accessKeyId: string
+  accessKeySecret: string
+  securityToken: string
+  expiration: string
+  partSize: number
+  parallel: number
+  retryMax: number
+  timeoutMillis: number
+}
+
+export function getCourseVideoUploadSts(data: CourseVideoUploadStsPayload) {
+  return request.post<CourseVideoUploadStsResponse>({
+    url: '/api/oss/sts',
+    data
+  })
+}

@@ -44,12 +44,12 @@ export const getPrintConfigApi = () => {
   })
 }
 
-export const createVipOrderApi = (data: any) => {
-  return request({ url: '/api/app/vip/order/create', method: 'POST', data })
+export const createVipOrderApi = (data: any, options: any = {}) => {
+  return request({ url: '/api/app/vip/order/create', method: 'POST', data, ...options })
 }
 
-export const cancelVipOrderApi = (orderNo: string) => {
-  return request({ url: '/api/app/vip/order/cancel', method: 'POST', data: { orderNo } })
+export const cancelVipOrderApi = (orderNo: string, options: any = {}) => {
+  return request({ url: '/api/app/vip/order/cancel', method: 'POST', data: { orderNo }, ...options })
 }
 
 export const createVipPayApi = (orderNo: string) => {

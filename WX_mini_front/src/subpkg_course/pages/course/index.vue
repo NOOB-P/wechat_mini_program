@@ -49,11 +49,7 @@ const filteredCourses = computed(() => {
   })
 })
 
-const totalCount = computed(() => courses.value.length)
-const freeCount = computed(() => courses.value.filter((item) => item.price <= 0).length)
-const purchasedCount = computed(() => courses.value.filter((item) => item.isPurchased).length)
-
-const measureTopShell = () => {
+  const measureTopShell = () => {
   nextTick(() => {
     const query = uni.createSelectorQuery()
     query.select('#course-top-shell').boundingClientRect((rect: any) => {
@@ -157,21 +153,6 @@ onMounted(() => {
           <text class="hero-eyebrow">COURSE PICKS</text>
           <text class="hero-title">找到一门真正适合孩子的课</text>
           <text class="hero-subtitle">搜索、筛选、购买都集中在顶部，课程内容独立滚动</text>
-        </view>
-
-        <view class="stats-row">
-          <view class="stat-pill">
-            <text class="stat-number">{{ totalCount }}</text>
-            <text class="stat-label">全部</text>
-          </view>
-          <view class="stat-pill stat-pill-accent">
-            <text class="stat-number">{{ freeCount }}</text>
-            <text class="stat-label">免费</text>
-          </view>
-          <view class="stat-pill">
-            <text class="stat-number">{{ purchasedCount }}</text>
-            <text class="stat-label">已购</text>
-          </view>
         </view>
 
         <view class="search-shell">
@@ -374,37 +355,6 @@ onMounted(() => {
   font-size: 24rpx;
   line-height: 1.5;
   color: #6f859a;
-}
-
-.stats-row {
-  display: flex;
-  gap: 14rpx;
-  margin-top: 22rpx;
-}
-
-.stat-pill {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4rpx;
-  padding: 18rpx 18rpx 16rpx;
-  border-radius: 24rpx;
-  background: rgba(244, 250, 255, 0.95);
-}
-
-.stat-pill-accent {
-  background: linear-gradient(135deg, rgba(229, 255, 247, 0.95) 0%, rgba(240, 252, 255, 0.95) 100%);
-}
-
-.stat-number {
-  font-size: 34rpx;
-  font-weight: 700;
-  color: #1f4d75;
-}
-
-.stat-label {
-  font-size: 22rpx;
-  color: #7a8fa4;
 }
 
 .search-shell {

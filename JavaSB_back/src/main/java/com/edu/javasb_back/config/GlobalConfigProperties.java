@@ -68,6 +68,16 @@ public class GlobalConfigProperties {
     private String qwenApiKey;
 
     /**
+     * 阿里云 OSS AccessKey ID
+     */
+    private String ossAccessKeyId;
+
+    /**
+     * 阿里云 OSS AccessKey Secret
+     */
+    private String ossAccessKeySecret;
+
+    /**
      * 通义千问 Chat Completions 地址
      */
     private String qwenChatUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
@@ -164,6 +174,10 @@ public class GlobalConfigProperties {
     public void setUploadTempDir(String uploadTempDir) { this.uploadTempDir = uploadTempDir; }
     public String getQwenApiKey() { return qwenApiKey; }
     public void setQwenApiKey(String qwenApiKey) { this.qwenApiKey = qwenApiKey; }
+    public String getOssAccessKeyId() { return ossAccessKeyId; }
+    public void setOssAccessKeyId(String ossAccessKeyId) { this.ossAccessKeyId = ossAccessKeyId; }
+    public String getOssAccessKeySecret() { return ossAccessKeySecret; }
+    public void setOssAccessKeySecret(String ossAccessKeySecret) { this.ossAccessKeySecret = ossAccessKeySecret; }
     public String getQwenChatUrl() { return qwenChatUrl; }
     public void setQwenChatUrl(String qwenChatUrl) { this.qwenChatUrl = qwenChatUrl; }
     public String getQwenModel() { return qwenModel; }

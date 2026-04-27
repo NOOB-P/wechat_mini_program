@@ -160,12 +160,30 @@
           </div>
         </template>
 
-        <el-table :data="videoData" border v-loading="videoLoading">
+        <el-table :data="combinedVideoData" border v-loading="videoLoading">
           <el-table-column type="index" label="序号" width="60" />
           <el-table-column prop="title" label="视频名称" min-width="200" />
           <el-table-column prop="videoUrl" label="视频地址" min-width="300" show-overflow-tooltip>
             <template #default="{ row }">
-              <div class="flex items-center">
+              <div v-if="row.status === 'uploading' || row.status === 'saving'" class="flex flex-col w-full">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-xs text-blue-500">{{ row.status === 'saving' ? '正在保存地址...' : '正在上传...' }}</span>
+                  <span class="text-xs font-bold text-blue-500">{{ row.progress }}%</span>
+                </div>
+                <el-progress 
+                  :percentage="row.progress" 
+                  :stroke-width="6" 
+                  :show-text="false"
+                  striped 
+                  striped-flow
+                />
+                <span class="mt-1 text-xs text-gray-500">{{ row.videoUrl }}</span>
+              </div>
+              <div v-else-if="row.status === 'error'" class="flex flex-col w-full">
+                <span class="text-xs text-red-500 mb-1">上传失败</span>
+                <span class="text-xs text-gray-500">{{ row.errorMessage || row.videoUrl }}</span>
+              </div>
+              <div v-else class="flex items-center">
                 <el-icon class="text-green-500 mr-1"><VideoPlay /></el-icon>
                 <span class="text-xs text-gray-500">{{ row.videoUrl }}</span>
               </div>
@@ -174,8 +192,17 @@
           <el-table-column prop="sortOrder" label="排序" width="80" />
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="handleEditVideo(row)">编辑</el-button>
-              <el-button link type="danger" @click="handleDeleteVideo(row)">删除</el-button>
+              <div v-if="row.status === 'uploading' || row.status === 'saving'">
+                <el-button v-if="row.status === 'uploading'" link type="danger" @click="handleCancelUpload(row)">取消</el-button>
+                <el-button v-else link disabled>保存中</el-button>
+              </div>
+              <div v-else-if="row.status === 'error'">
+                <el-button link type="danger" @click="handleDismissUploadTask(row)">移除</el-button>
+              </div>
+              <div v-else>
+                <el-button link type="primary" @click="handleEditVideo(row)">编辑</el-button>
+                <el-button link type="danger" @click="handleDeleteVideo(row)">删除</el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -208,7 +235,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import {
   getCourseList,
   addCourse,
@@ -231,6 +259,11 @@ import VideoDialog from './modules/video-dialog.vue'
 import { ArrowLeft, VideoPlay } from '@element-plus/icons-vue'
 import { DEFAULT_COURSE_COVER, resolveUploadUrl } from '@/utils/upload-url'
 
+import { useUploadStore } from '@/store/modules/upload'
+
+const uploadStore = useUploadStore()
+const { uploadTasks } = storeToRefs(uploadStore)
+
 const loading = ref(false)
 const tableData = ref<any[]>([])
 const total = ref(0)
@@ -243,6 +276,20 @@ const queryParams = ref({
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editData = ref<Record<string, any>>({})
+
+const handleDismissUploadTask = (task: any) => {
+  uploadStore.removeTask(task.id)
+}
+
+const handleCancelUpload = (task: any) => {
+  uploadStore.cancelTask(task.id)
+}
+
+// 合并后的视频列表
+const combinedVideoData = computed(() => {
+  const currentEpisodeTasks = uploadTasks.value.filter(t => t.episodeId === currentEpisode.value.id)
+  return [...currentEpisodeTasks, ...videoData.value]
+})
 
 // 分类管理
 const showDetail = ref(false)
@@ -314,15 +361,25 @@ const handleEditVideo = (row: any) => {
   videoDialogVisible.value = true
 }
 
-const handleVideoSuccess = async (formData: any) => {
+const handleVideoSuccess = async (formData: any, file?: File) => {
   try {
-    if (isVideoEdit.value) {
-      await updateVideo(formData)
-    } else {
-      await addVideo(formData)
+    if (!file) {
+      if (isVideoEdit.value) {
+        await updateVideo(formData)
+      } else {
+        await addVideo(formData)
+      }
+      ElMessage.success(isVideoEdit.value ? '更新成功' : '新增成功')
+      loadVideos()
+      return
     }
-    ElMessage.success(isVideoEdit.value ? '更新成功' : '新增成功')
-    loadVideos()
+
+    // 使用全局 store 处理上传，这样切出页面也能继续
+    uploadStore.addTask(formData, file, isVideoEdit.value).then((success) => {
+      if (success) {
+        loadVideos()
+      }
+    })
   } catch (error) {
     // 拦截器处理
   }

@@ -5,9 +5,9 @@ import com.aliyun.oss.HttpMethod;
 import com.aliyun.oss.model.GeneratePresignedUrlRequest;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.OSSObject;
+import com.edu.javasb_back.config.AliyunOssProperties;
 import com.edu.javasb_back.config.GlobalConfigProperties;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,20 +28,20 @@ import java.util.List;
 @Service
 public class OssStorageService {
 
+    private static final int DEFAULT_RETRY_MAX = 3;
+
     @Autowired
     private GlobalConfigProperties globalConfigProperties;
 
     @Autowired
     private OSS ossClient;
 
-    @Value("${aliyun.oss.bucket}")
-    private String bucket;
+    @Autowired
+    private AliyunOssProperties aliyunOssProperties;
 
-    @Value("${aliyun.oss.endpoint}")
-    private String endpoint;
-
-    @Value("${aliyun.oss.cdn-base-url}")
-    private String cdnBaseUrl;
+    private String bucket() {
+        return aliyunOssProperties.getBucket();
+    }
 
     public String upload(MultipartFile file, String objectKey) throws IOException {
         if (file == null || file.isEmpty()) {
@@ -67,7 +67,7 @@ public class OssStorageService {
             if (StringUtils.hasText(contentType)) {
                 metadata.setContentType(contentType);
             }
-            client.putObject(bucket, normalizedKey, inputStream, metadata);
+            client.putObject(bucket(), normalizedKey, inputStream, metadata);
             return null;
         });
         return buildUrl(normalizedKey);
@@ -85,7 +85,7 @@ public class OssStorageService {
             throw new IllegalArgumentException("当前 URL 不是可识别的 OSS 地址");
         }
         return execute(client -> {
-            try (OSSObject object = client.getObject(bucket, objectKey);
+            try (OSSObject object = client.getObject(bucket(), objectKey);
                  InputStream inputStream = object.getObjectContent()) {
                 return inputStream.readAllBytes();
             }
@@ -104,7 +104,7 @@ public class OssStorageService {
         Path tempFile = Files.createTempFile(tempDir, "oss_", suffix);
 
         execute(client -> {
-            try (OSSObject object = client.getObject(bucket, objectKey);
+            try (OSSObject object = client.getObject(bucket(), objectKey);
                  InputStream inputStream = object.getObjectContent()) {
                 Files.copy(inputStream, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 return null;
@@ -118,7 +118,7 @@ public class OssStorageService {
         String normalizedKey = normalizeObjectKey(objectKey);
         long ttl = Math.max(expireMillis, 60_000L);
         return execute(client -> {
-            GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucket, normalizedKey, HttpMethod.PUT);
+            GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucket(), normalizedKey, HttpMethod.PUT);
             request.setExpiration(new Date(System.currentTimeMillis() + ttl));
             if (StringUtils.hasText(contentType)) {
                 request.setContentType(contentType);
@@ -139,24 +139,21 @@ public class OssStorageService {
         String trimmedUrl = url.trim();
         
         // Try CDN base URL
-        String cdnUrl = normalizedBaseUrl();
-        if (StringUtils.hasText(cdnUrl) && trimmedUrl.startsWith(cdnUrl)) {
-            String rawKey = trimmedUrl.substring(cdnUrl.length()).trim();
-            return normalizeObjectKey(rawKey);
+        for (String prefix : supportedUrlPrefixes()) {
+            if (StringUtils.hasText(prefix) && trimmedUrl.startsWith(prefix)) {
+                String rawKey = trimmedUrl.substring(prefix.length()).trim();
+                return normalizeObjectKey(rawKey);
+            }
         }
-
-        // Try raw OSS URL: https://{bucket}.{endpoint}/
-        String ossUrl = "https://" + bucket + "." + endpoint + "/";
-        if (trimmedUrl.startsWith(ossUrl)) {
-            String rawKey = trimmedUrl.substring(ossUrl.length()).trim();
-            return normalizeObjectKey(rawKey);
-        }
-
         return null;
     }
 
     public String buildUrl(String objectKey) {
-        return normalizedBaseUrl() + normalizeObjectKey(objectKey);
+        String baseUrl = normalizedBaseUrl();
+        if (StringUtils.hasText(baseUrl)) {
+            return baseUrl + normalizeObjectKey(objectKey);
+        }
+        return rawOssBaseUrl() + normalizeObjectKey(objectKey);
     }
 
     public String toCdnUrl(String url) {
@@ -182,12 +179,7 @@ public class OssStorageService {
     }
 
     private String normalizedBaseUrl() {
-        String baseUrl = cdnBaseUrl;
-        if (!StringUtils.hasText(baseUrl)) {
-            return "";
-        }
-        String normalized = baseUrl.trim();
-        return normalized.endsWith("/") ? normalized : normalized + "/";
+        return aliyunOssProperties.getNormalizedCdnBaseUrl();
     }
 
     private List<String> supportedUrlPrefixes() {
@@ -195,6 +187,11 @@ public class OssStorageService {
         String cdnPrefix = normalizedBaseUrl();
         if (StringUtils.hasText(cdnPrefix)) {
             prefixes.add(cdnPrefix);
+        }
+
+        String acceleratePrefix = aliyunOssProperties.getNormalizedAccelerateBaseUrl();
+        if (StringUtils.hasText(acceleratePrefix) && !prefixes.contains(acceleratePrefix)) {
+            prefixes.add(acceleratePrefix);
         }
 
         String rawOssPrefix = rawOssBaseUrl();
@@ -205,18 +202,19 @@ public class OssStorageService {
     }
 
     private String rawOssBaseUrl() {
-        if (!StringUtils.hasText(bucket)) {
+        if (!StringUtils.hasText(bucket())) {
             return "";
         }
         try {
-            URI endpointUri = URI.create(endpoint.startsWith("http://") || endpoint.startsWith("https://")
-                    ? endpoint
-                    : "https://" + endpoint);
+            String endpointHost = aliyunOssProperties.getEndpointHost();
+            URI endpointUri = URI.create(endpointHost.startsWith("http://") || endpointHost.startsWith("https://")
+                    ? endpointHost
+                    : "https://" + endpointHost);
             String host = endpointUri.getHost();
             if (!StringUtils.hasText(host)) {
                 return "";
             }
-            return "https://" + bucket + "." + host + "/";
+            return "https://" + bucket() + "." + host + "/";
         } catch (Exception ignored) {
             return "";
         }
@@ -234,7 +232,7 @@ public class OssStorageService {
         String objectKey = extractObjectKey(url);
         if (StringUtils.hasText(objectKey)) {
             execute(client -> {
-                client.deleteObject(bucket, objectKey);
+                client.deleteObject(bucket(), objectKey);
                 return null;
             });
         }
@@ -252,14 +250,17 @@ public class OssStorageService {
     }
 
     private void validateConfig() {
-        if (!StringUtils.hasText(bucket) || !StringUtils.hasText(normalizedBaseUrl())) {
-            throw new IllegalStateException("OSS 配置不完整，请检查 aliyun.oss.bucket 和 aliyun.oss.cdn-base-url");
+        if (!StringUtils.hasText(bucket()) || !StringUtils.hasText(aliyunOssProperties.getEndpointHost())) {
+            throw new IllegalStateException("OSS 配置不完整，请检查 aliyun.oss.bucket 和 aliyun.oss.endpoint");
         }
     }
 
     private <T> T execute(OssCallback<T> callback) throws IOException {
         validateConfig();
-        int maxRetries = 3;
+        int maxRetries = aliyunOssProperties.getUpload() != null
+                && aliyunOssProperties.getUpload().getRetryMax() != null
+                ? Math.max(1, aliyunOssProperties.getUpload().getRetryMax())
+                : DEFAULT_RETRY_MAX;
         int retryCount = 0;
         Exception lastException = null;
 
