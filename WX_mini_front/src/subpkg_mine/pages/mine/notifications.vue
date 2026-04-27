@@ -32,15 +32,15 @@
 
     <scroll-view scroll-y class="content-scroll">
       <view v-if="filteredNotifications.length" class="notification-list">
-        <view v-for="(group, date) in groupedNotifications" :key="date" class="date-group">
+        <view v-for="group in groupedNotifications" :key="group.date" class="date-group">
           <view class="date-header">
             <view class="date-line"></view>
-            <text class="date-text">{{ formatGroupDate(date) }}</text>
+            <text class="date-text">{{ formatGroupDate(group.date) }}</text>
             <view class="date-line"></view>
           </view>
           
           <view
-            v-for="item in group"
+            v-for="item in group.items"
             :key="item.id"
             class="msg-card"
             :class="['level-' + (item.level || 'info'), { 'is-new': item.isNew }]"
@@ -108,6 +108,23 @@ const categories = [
 
 const unreadCount = computed(() => notifications.value.filter(item => item.isNew).length)
 
+const normalizeNotificationItem = (item: Partial<NotificationItem>): NotificationItem => {
+  const rawTime = String(item.time || '').trim()
+  const normalizedTime = rawTime ? rawTime.replace('T', ' ') : ''
+
+  return {
+    id: String(item.id || ''),
+    category: String(item.category || 'system').trim().toLowerCase(),
+    level: String(item.level || 'info').trim().toLowerCase(),
+    title: String(item.title || ''),
+    content: String(item.content || ''),
+    time: normalizedTime,
+    actionText: item.actionText ? String(item.actionText) : '',
+    actionPath: item.actionPath ? String(item.actionPath) : '',
+    isNew: Boolean(item.isNew)
+  }
+}
+
 const filteredNotifications = computed(() => {
   if (currentCategory.value === 'all') return notifications.value
   
@@ -120,13 +137,18 @@ const filteredNotifications = computed(() => {
 })
 
 const groupedNotifications = computed(() => {
-  const groups: Record<string, NotificationItem[]> = {}
+  const groups = new Map<string, NotificationItem[]>()
   filteredNotifications.value.forEach(item => {
-    const date = item.time.split(' ')[0]
-    if (!groups[date]) groups[date] = []
-    groups[date].push(item)
+    const date = item.time?.split(' ')[0] || '未知时间'
+    const currentGroup = groups.get(date) || []
+    currentGroup.push(item)
+    groups.set(date, currentGroup)
   })
-  return groups
+
+  return Array.from(groups.entries()).map(([date, items]) => ({
+    date,
+    items
+  }))
 })
 
 const loadNotifications = async () => {
@@ -143,10 +165,9 @@ const loadNotifications = async () => {
     const notificationRes = await getMineNotificationsApi(50)
 
     if (notificationRes.code === 200) {
-      notifications.value = (Array.isArray(notificationRes.data) ? notificationRes.data : []).map((item: NotificationItem) => ({
-        ...item,
-        isNew: !!item.isNew
-      }))
+      notifications.value = (Array.isArray(notificationRes.data) ? notificationRes.data : [])
+        .map((item: NotificationItem) => normalizeNotificationItem(item))
+        .filter((item: NotificationItem) => !!item.id && !!item.title)
     } else {
       notifications.value = []
     }
