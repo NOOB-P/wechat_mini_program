@@ -32,15 +32,15 @@
 
     <scroll-view scroll-y class="content-scroll">
       <view v-if="filteredNotifications.length" class="notification-list">
-        <view v-for="(group, date) in groupedNotifications" :key="date" class="date-group">
+        <view v-for="group in groupedNotifications" :key="group.date" class="date-group">
           <view class="date-header">
             <view class="date-line"></view>
-            <text class="date-text">{{ formatGroupDate(date) }}</text>
+            <text class="date-text">{{ formatGroupDate(group.date) }}</text>
             <view class="date-line"></view>
           </view>
           
           <view
-            v-for="item in group"
+            v-for="item in group.items"
             :key="item.id"
             class="msg-card"
             :class="['level-' + (item.level || 'info'), { 'is-new': item.isNew }]"
@@ -120,12 +120,18 @@ const filteredNotifications = computed(() => {
 })
 
 const groupedNotifications = computed(() => {
-  const groups: Record<string, NotificationItem[]> = {}
+  const groups: { date: string, items: NotificationItem[] }[] = []
+  
   filteredNotifications.value.forEach(item => {
-    const date = item.time.split(' ')[0]
-    if (!groups[date]) groups[date] = []
-    groups[date].push(item)
+    const date = item.time ? item.time.split(' ')[0] : '未知日期'
+    let group = groups.find(g => g.date === date)
+    if (!group) {
+      group = { date, items: [] }
+      groups.push(group)
+    }
+    group.items.push(item)
   })
+  
   return groups
 })
 
@@ -223,10 +229,11 @@ onShow(() => {
 
 <style lang="scss" scoped>
 .notification-page {
-  min-height: 100vh;
+  height: 100vh;
   background: #f4f7fa;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .status-bar {

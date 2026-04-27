@@ -10,28 +10,39 @@ const emit = defineEmits(['click', 'more'])
 <template>
   <view class="recommend-section">
     <view class="section-header">
-      <text class="section-title">推荐课程</text>
-      <text class="section-more" @click="emit('more')">更多</text>
+      <view class="title-left">
+        <view class="title-line"></view>
+        <text class="section-title">推荐课程</text>
+      </view>
+      <view class="section-more" @click="emit('more')">
+        <text>查看全部</text>
+        <wd-icon name="arrow-right" size="14px" color="#999" />
+      </view>
     </view>
 
-    <view class="recommend-list">
+    <view class="recommend-grid">
       <view
-        class="recommend-item"
+        class="course-card"
         v-for="course in recommendCourses"
         :key="course.id"
         @click="emit('click', course)"
       >
-        <view class="img-wrap">
-          <image :src="course.image" mode="aspectFill" class="item-img" />
-          <view class="svip-tag" v-if="!isSVIPUser">SVIP</view>
-        </view>
-        <view class="item-info">
-          <view class="name-wrap">
-            <text class="item-name">{{ course.name }}</text>
+        <view class="card-top">
+          <image :src="course.image" mode="aspectFill" class="course-img" />
+          <view class="svip-badge" v-if="!isSVIPUser">
+            <text class="badge-text">SVIP</text>
           </view>
-          <view class="item-bottom">
-            <text class="item-price">￥{{ course.price }}</text>
-            <wd-button type="primary" size="small" plain>去学习</wd-button>
+        </view>
+        <view class="card-content">
+          <text class="course-name">{{ course.name }}</text>
+          <view class="card-footer">
+            <view class="price-box">
+              <text class="currency">￥</text>
+              <text class="price">{{ course.price }}</text>
+            </view>
+            <view class="action-btn">
+              <text>去学习</text>
+            </view>
           </view>
         </view>
       </view>
@@ -40,109 +51,148 @@ const emit = defineEmits(['click', 'more'])
 </template>
 
 <style lang="scss" scoped>
+.recommend-section {
+  width: 100%;
+  margin-top: 40rpx;
+}
+
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
+  padding: 0 4rpx;
 
-  .section-title {
-    font-size: 32rpx;
-    font-weight: bold;
-    color: #333;
+  .title-left {
+    display: flex;
+    align-items: center;
+    
+    .title-line {
+      width: 8rpx;
+      height: 32rpx;
+      background: linear-gradient(180deg, #4d80f0 0%, #2b5ae1 100%);
+      border-radius: 4rpx;
+      margin-right: 16rpx;
+    }
+
+    .section-title {
+      font-size: 34rpx;
+      font-weight: 600;
+      color: #1a1a1a;
+      letter-spacing: 1rpx;
+    }
   }
 
   .section-more {
-    font-size: 24rpx;
+    display: flex;
+    align-items: center;
+    font-size: 26rpx;
     color: #999;
+    
+    text {
+      margin-right: 4rpx;
+    }
   }
 }
 
-.recommend-list {
-  .recommend-item {
-    background-color: #fff;
-    border-radius: 20rpx;
-    padding: 24rpx;
-    margin-bottom: 20rpx;
+.recommend-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+  width: 100%;
+
+  .course-card {
+    width: calc(50% - 10rpx);
+    background: #ffffff;
+    border-radius: 24rpx;
+    overflow: hidden;
     display: flex;
-    gap: 24rpx;
-    box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.02);
+    flex-direction: column;
+    box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease;
 
-    .img-wrap {
+    &:active {
+      transform: scale(0.98);
+    }
+
+    .card-top {
       position: relative;
-      width: 220rpx;
-      height: 132rpx;
-      border-radius: 16rpx;
-      overflow: hidden;
-      flex-shrink: 0;
+      width: 100%;
+      height: 200rpx;
+      background-color: #f0f2f5;
 
-      .item-img {
+      .course-img {
         width: 100%;
         height: 100%;
         display: block;
       }
 
-      .svip-tag {
+      .svip-badge {
         position: absolute;
         top: 0;
         left: 0;
-        background: linear-gradient(135deg, #333 0%, #1a1a1a 100%);
-        color: #f6d365;
-        font-size: 20rpx;
-        padding: 4rpx 12rpx;
-        border-radius: 16rpx 0 16rpx 0;
-        z-index: 1;
+        background: linear-gradient(135deg, #3a3a3a 0%, #1a1a1a 100%);
+        padding: 4rpx 16rpx;
+        border-radius: 0 0 16rpx 0;
+        box-shadow: 2rpx 2rpx 8rpx rgba(0,0,0,0.2);
+
+        .badge-text {
+          color: #f6d365;
+          font-size: 20rpx;
+          font-weight: bold;
+          font-style: italic;
+        }
       }
     }
 
-    .item-info {
-      flex: 1;
+    .card-content {
+      padding: 20rpx;
       display: flex;
       flex-direction: column;
-      min-height: 132rpx;
-      overflow: hidden;
+      flex: 1;
 
-      .name-wrap {
-        display: flex;
-        align-items: flex-start;
-        margin-bottom: 8rpx;
-        width: 100%;
-        min-width: 0;
-      }
-
-      .item-name {
-        width: 100%;
-        font-size: 30rpx;
+      .course-name {
+        font-size: 28rpx;
+        color: #333333;
         font-weight: 500;
-        color: #333;
-        line-height: 1.4;
+        line-height: 1.5;
+        height: 84rpx; // 保持两行高度
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        word-break: break-all;
+        margin-bottom: 16rpx;
       }
 
-      .item-bottom {
+      .card-footer {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-top: auto;
-        width: 100%;
-        gap: 20rpx;
 
-        .item-price {
-          font-size: 32rpx;
-          font-weight: bold;
-          color: #f44336;
-          flex-shrink: 0;
+        .price-box {
+          display: flex;
+          align-items: baseline;
+          color: #ff4d4f;
+
+          .currency {
+            font-size: 24rpx;
+            font-weight: bold;
+          }
+
+          .price {
+            font-size: 34rpx;
+            font-weight: bold;
+          }
         }
 
-        :deep(.wd-button) {
-          margin: 0 !important;
-          margin-left: auto !important;
-          flex-shrink: 0;
-          min-width: 112rpx;
+        .action-btn {
+          background: #f0f4ff;
+          color: #2b5ae1;
+          font-size: 22rpx;
+          padding: 8rpx 20rpx;
+          border-radius: 30rpx;
+          font-weight: 500;
         }
       }
     }
