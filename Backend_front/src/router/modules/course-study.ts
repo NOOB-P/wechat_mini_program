@@ -5,6 +5,7 @@ export const courseStudyRoutes: AppRouteRecord = {
   path: '/course-study',
   component: RoutesAlias.Layout,
   name: 'CourseStudy',
+  redirect: '/course-study/course',
   meta: {
     title: '课程与自习室',
     icon: 'ri:book-open-line',
@@ -16,19 +17,10 @@ export const courseStudyRoutes: AppRouteRecord = {
       name: 'CourseManage',
       component: '/course-study/course',
       meta: {
-        title: '公益课程管理',
+        title: '课程管理',
         authMark: 'course:manage:list'
       }
-    },
-    {
-      path: 'svip-course',
-      name: 'SvipCourseManage',
-      component: '/course-study/svip-course',
-      meta: {
-        title: 'SVIP 课程管理',
-        authMark: 'course:manage:list'
-      }
-    },
+    }
     // {
     //   path: 'study-room',
     //   name: 'StudyRoomManage',

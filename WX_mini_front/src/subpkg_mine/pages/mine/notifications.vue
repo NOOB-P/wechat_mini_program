@@ -244,10 +244,11 @@ onShow(() => {
 
 <style lang="scss" scoped>
 .notification-page {
-  min-height: 100vh;
+  height: 100vh;
   background: #f4f7fa;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .status-bar {

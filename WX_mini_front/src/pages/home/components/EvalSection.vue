@@ -30,12 +30,11 @@ const emit = defineEmits(['click'])
   margin-bottom: 24rpx;
 
   .eval-grid {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 20rpx;
 
     .eval-item {
-      flex: 1;
       background-color: transparent;
       display: flex;
       justify-content: center;

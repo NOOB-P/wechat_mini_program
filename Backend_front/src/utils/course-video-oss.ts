@@ -74,7 +74,7 @@ const clearCheckpoint = (storageKey: string) => {
 }
 
 export const uploadCourseVideoByOss = (file: File, onProgress?: UploadProgressCallback) => {
-  let client: OSS | null = null
+  let client: any = null
   let isCancelled = false
 
   const promise = (async () => {
@@ -116,7 +116,7 @@ export const uploadCourseVideoByOss = (file: File, onProgress?: UploadProgressCa
         checkpoint,
         mime: file.type || 'video/mp4',
         timeout,
-        progress: (p, cpt) => {
+        progress: (p: any, cpt: any) => {
           if (isCancelled) {
             client?.cancel()
             return
