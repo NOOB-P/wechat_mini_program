@@ -1,18 +1,11 @@
-/**
- * 快速入口配置
- * 包含：应用列表、快速链接等配置
- */
-import { WEB_LINKS } from '@/utils/constants'
 import type { FastEnterConfig } from '@/types/config'
 
 const fastEnterConfig: FastEnterConfig = {
-  // 显示条件（屏幕宽度）
   minWidth: 1200,
-  // 应用列表
   applications: [
     {
       name: '数据统计',
-      description: '全站数据概览与分析',
+      description: '全站数据总览与分析',
       icon: 'ri:pie-chart-line',
       iconColor: '#377dff',
       enabled: true,
@@ -45,7 +38,6 @@ const fastEnterConfig: FastEnterConfig = {
       enabled: true,
       order: 4,
       routeName: 'ExamHub'
-
     },
     {
       name: '会员套餐',
@@ -75,23 +67,14 @@ const fastEnterConfig: FastEnterConfig = {
       routeName: 'VipOrderManage'
     },
     {
-      name: '公益课程',
-      description: '在线课程管理与发布',
+      name: '课程管理',
+      description: '统一管理普通课程与 SVIP 课程',
       icon: 'ri:medal-line',
       iconColor: '#4cd964',
       enabled: true,
       order: 5,
       routeName: 'CourseManage'
     },
-    // {
-    //   name: '自习室报名',
-    //   description: 'AI 自习室预约报名管理',
-    //   icon: 'ri:robot-line',
-    //   iconColor: '#5ac8fa',
-    //   enabled: true,
-    //   order: 6,
-    //   routeName: 'StudyRoomManage'
-    // },
     {
       name: 'FAQ 管理',
       description: '常见问题解答配置',
@@ -129,45 +112,7 @@ const fastEnterConfig: FastEnterConfig = {
       routeName: 'Log'
     }
   ],
-  // 快速链接
-  quickLinks: [
-    // {
-    //   name: '登录',
-    //   enabled: true,
-    //   order: 1,
-    //   routeName: 'Login'
-    // },
-    // {
-    //   name: '注册',
-    //   enabled: true,
-    //   order: 2,
-    //   routeName: 'Register'
-    // },
-    // {
-    //   name: '忘记密码',
-    //   enabled: true,
-    //   order: 3,
-    //   routeName: 'ForgetPassword'
-    // },
-    // {
-    //   name: '定价',
-    //   enabled: true,
-    //   order: 4,
-    //   routeName: 'Pricing'
-    // },
-    // {
-    //   name: '个人中心',
-    //   enabled: true,
-    //   order: 5,
-    //   routeName: 'UserCenter'
-    // },
-    // {
-    //   name: '留言管理',
-    //   enabled: true,
-    //   order: 6,
-    //   routeName: 'ArticleComment'
-    // }
-  ]
+  quickLinks: []
 }
 
 export default Object.freeze(fastEnterConfig)

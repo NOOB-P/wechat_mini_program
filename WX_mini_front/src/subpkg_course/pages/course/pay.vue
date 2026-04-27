@@ -52,13 +52,14 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 
-import { confirmCourseVirtualPayApi, createCoursePayApi, getCourseDetailApi } from '@/api/course'
-import { confirmVipVirtualPayApi, createVipPayApi } from '@/api/vip'
+import { cancelCourseOrderApi, confirmCourseVirtualPayApi, createCoursePayApi, getCourseDetailApi } from '@/api/course'
+import { cancelVipOrderApi, confirmVipVirtualPayApi, createVipPayApi } from '@/api/vip'
 import { confirmPrintVirtualPayApi, createPrintPayApi } from '@/api/order'
 import {
   PAYMENT_WECHAT_BIND_OPTIONS,
   refreshWechatUserInfo,
-  runWithWechatBindGuard
+  runWithWechatBindGuard,
+  syncWechatSessionKey
 } from '@/utils/wechat-bind'
 import { requestWechatPaymentByType } from '@/utils/wechat-pay'
 
@@ -92,6 +93,31 @@ const loadCourseDetail = async (id: string) => {
 }
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+const getOrderTab = () => {
+  return order.value.type === 'VIP' ? 'vip' : order.value.type === 'print' ? 'print' : 'course'
+}
+
+const redirectToOrderList = () => {
+  uni.redirectTo({
+    url: `/subpkg_mine/pages/mine/order-list?tab=${getOrderTab()}`
+  })
+}
+
+const cancelClosedVirtualOrder = async () => {
+  if (!order.value?.orderNo) {
+    return
+  }
+
+  if (order.value.type === 'VIP') {
+    await cancelVipOrderApi(order.value.orderNo, { silent: true })
+    return
+  }
+
+  if (order.value.type === 'course') {
+    await cancelCourseOrderApi(order.value.orderNo, { silent: true })
+  }
+}
 
 const confirmCourseVirtualPayWithRetry = async (orderNo: string, security: Record<string, any>) => {
   for (let index = 0; index < 3; index += 1) {
@@ -159,6 +185,7 @@ const fetchPayParams = async () => {
         : createCoursePayApi
   return runWithWechatBindGuard(async () => {
     loading.value = true
+    await syncWechatSessionKey()
     return await payApi(order.value.orderNo)
   }, PAYMENT_WECHAT_BIND_OPTIONS)
 }
@@ -177,9 +204,12 @@ const handlePay = async () => {
     return
   }
 
+  let currentPaymentType = ''
+
   try {
     const payRes = await fetchPayParams()
     const paymentType = payRes.data?.paymentType
+    currentPaymentType = paymentType
     const payParams = payRes.data?.payParams || {}
     await requestWechatPaymentByType(paymentType, payParams)
 
@@ -225,15 +255,47 @@ const handlePay = async () => {
     if (error?.code === 'WECHAT_BIND_CANCELLED' || error?.code === 'WECHAT_BIND_REQUIRED') {
       return
     }
+    if (error?.code === 'ORDER_CLOSED') {
+      toast.show('支付已超时或失败，订单已保存至待支付列表')
+      setTimeout(() => {
+        redirectToOrderList()
+      }, 1000)
+      return
+    }
     if (error?.code === 'PAY_CANCEL') {
-      toast.show('已取消支付')
+      if (order.value.type === 'VIP') {
+        try {
+          await cancelVipOrderApi(order.value.orderNo, { silent: true })
+        } catch (e) {
+          console.warn('cancel vip order failed', e)
+        }
+        toast.show('已取消支付')
+        setTimeout(() => {
+          uni.navigateBack()
+        }, 1000)
+        return
+      }
+      toast.show('已取消支付，订单已保存至待支付列表')
+      setTimeout(() => {
+        redirectToOrderList()
+      }, 1000)
       return
     }
     if (error?.code === 'PAY_CONFIRM_FAILED') {
       uni.showToast({ title: error.msg, icon: 'none' })
+      setTimeout(() => {
+        redirectToOrderList()
+      }, 1000)
       return
     }
-    // API 错误已在 request.ts 中通过 uni.showToast 提示，此处不再重复使用 toast.error
+    console.error('pay failed', error)
+    // 其他错误也跳转到订单列表，因为订单已经创建了
+    if (error?.msg) {
+      uni.showToast({ title: error.msg, icon: 'none' })
+      setTimeout(() => {
+        redirectToOrderList()
+      }, 1000)
+    }
   } finally {
     loading.value = false
   }

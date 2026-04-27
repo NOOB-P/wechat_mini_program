@@ -108,27 +108,29 @@ public class VipOrderSchemaInitializer {
         boolean hasSvipExpireTime = hasColumn("sys_accounts", "svip_expire_time");
         boolean hasVipExpireTime = hasColumn("sys_accounts", "vip_expire_time");
 
-        if (hasIsSvip && hasIsVip) {
-            jdbcTemplate.update(
-                    "UPDATE sys_accounts SET vip_type = CASE " +
-                            "WHEN COALESCE(is_svip, 0) = 1 THEN 2 " +
-                            "WHEN (" + (hasVipExpireTime ? "vip_expire_time IS NOT NULL AND vip_expire_time >= NOW()" : "0=1") + ") OR COALESCE(is_vip, 0) = 1 THEN 1 " +
-                            "ELSE 0 END " +
-                            "WHERE vip_type = 0 OR vip_type IS NULL"
-            );
-            return;
-        }
-
         StringBuilder sql = new StringBuilder("UPDATE sys_accounts SET vip_type = CASE ");
+        boolean hasAnyCondition = false;
+
+        if (hasIsSvip) {
+            sql.append("WHEN COALESCE(is_svip, 0) = 1 THEN 2 ");
+            hasAnyCondition = true;
+        }
         if (hasSvipExpireTime) {
             sql.append("WHEN svip_expire_time IS NOT NULL AND svip_expire_time >= NOW() THEN 2 ");
+            hasAnyCondition = true;
+        }
+        if (hasIsVip) {
+            sql.append("WHEN COALESCE(is_vip, 0) = 1 THEN 1 ");
+            hasAnyCondition = true;
         }
         if (hasVipExpireTime) {
             sql.append("WHEN vip_expire_time IS NOT NULL AND vip_expire_time >= NOW() THEN 1 ");
+            hasAnyCondition = true;
         }
+
         sql.append("ELSE 0 END WHERE vip_type = 0 OR vip_type IS NULL");
 
-        if (hasSvipExpireTime || hasVipExpireTime) {
+        if (hasAnyCondition) {
             jdbcTemplate.update(sql.toString());
         }
     }

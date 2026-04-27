@@ -268,56 +268,49 @@ const handlePay = async () => {
   }
 
   try {
-    const { createRes, payRes } = await runWithWechatBindGuard(async () => {
+    const createRes = await runWithWechatBindGuard(async () => {
       submitting.value = true
-      const createRes = await createVipOrderApi({
+      return await createVipOrderApi({
         packageType: currentConfig.value.title,
         tierCode: currentConfig.value.tierCode,
         period: selectedPlan.duration,
         durationMonths: selectedPlan.durationMonths,
         price: selectedPlan.price,
         pricingId: selectedPlan.id
-      })
-      const orderNo = createRes?.data?.orderNo
-      if (!orderNo) {
-        throw new Error(createRes?.msg || '会员订单创建失败')
-      }
-      const payRes = await createVipPayApi(orderNo)
-      return { createRes, payRes }
+      }, { silent: true })
     }, PAYMENT_WECHAT_BIND_OPTIONS)
-    const orderNo = createRes?.data?.orderNo
-    if (!orderNo) {
+
+    const orderData = createRes?.data
+    if (!orderData?.orderNo) {
       throw new Error(createRes?.msg || '会员订单创建失败')
     }
-    await requestWechatPaymentByType(payRes.data?.paymentType, payRes.data?.payParams || {})
 
-    if (payRes.data?.paymentType === 'VIRTUAL' || payRes.data?.paymentType === 'FREE') {
-      try {
-        await confirmVipVirtualPayWithRetry(orderNo, payRes.data?.security || {})
-      } catch (confirmError) {
-        console.warn('Payment confirm failed, relying on backend notify', confirmError)
-        toast.show('支付已提交，会员状态更新中...')
-        await wait(2000)
-      }
-    }
+    // 跳转到订单支付页面
+    const orderInfo = encodeURIComponent(JSON.stringify({
+      orderNo: orderData.orderNo,
+      title: `会员充值 - ${orderData.packageType}`,
+      price: orderData.price,
+      createTime: orderData.createTime,
+      tierCode: orderData.tierCode
+    }))
 
-    await refreshUserInfoAfterPay()
-    toast.success('开通成功')
-    redirectAfterSuccess()
+    uni.navigateTo({
+      url: `/subpkg_course/pages/course/pay?type=vip&order=${orderInfo}`
+    })
   } catch (error: any) {
+    if (error?.code === 400 && error?.msg?.includes('同类型的待支付订单')) {
+      uni.navigateTo({
+        url: '/subpkg_mine/pages/mine/order-list?tab=vip'
+      })
+      return
+    }
     if (error?.code === 'WECHAT_BIND_CANCELLED' || error?.code === 'WECHAT_BIND_REQUIRED') {
       return
     }
-    if (error?.code === 'PAY_CANCEL') {
-      toast.show('已取消支付')
-      return
+    console.error('create vip order failed', error)
+    if (error?.msg) {
+      uni.showToast({ title: `Error ${error.code}:${error.msg}`, icon: 'none' })
     }
-    if (error?.code === 'PAY_CONFIRM_FAILED') {
-      uni.showToast({ title: error.msg, icon: 'none' })
-      return
-    }
-    console.error('pay vip failed', error)
-    // API 错误已在 request.ts 中通过 uni.showToast 提示，此处不再重复使用 toast.error
   } finally {
     submitting.value = false
   }

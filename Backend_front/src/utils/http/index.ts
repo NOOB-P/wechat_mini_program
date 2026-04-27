@@ -91,7 +91,12 @@ axiosInstance.interceptors.response.use(
     const { code, msg } = response.data
     if (code === ApiStatus.success) return response
     if (code === ApiStatus.unauthorized) handleUnauthorizedError(msg)
-    if (code >= 500) handleInternalServerError(msg)
+    
+    // 业务返回的 500 错误（正常 JSON 响应），仅提示错误，不执行登出跳转
+    if (code >= 500) {
+      throw createHttpError(msg || $t('httpMsg.internalServerError'), code)
+    }
+
     throw createHttpError(msg || $t('httpMsg.requestFailed'), code)
   },
   (error) => {

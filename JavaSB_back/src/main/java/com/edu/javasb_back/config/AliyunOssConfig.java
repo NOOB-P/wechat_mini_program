@@ -2,7 +2,7 @@ package com.edu.javasb_back.config;
 
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -12,23 +12,22 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class AliyunOssConfig {
 
-    @Value("${aliyun.oss.endpoint}")
-    private String endpoint;
+    @Autowired
+    private AliyunOssProperties aliyunOssProperties;
 
-    @Value("${app.config.oss-access-key-id}")
-    private String accessKeyId;
-
-    @Value("${app.config.oss-access-key-secret}")
-    private String accessKeySecret;
+    @Autowired
+    private GlobalConfigProperties globalConfigProperties;
 
     @Bean(destroyMethod = "shutdown")
     public OSS ossClient() {
-        String finalEndpoint = endpoint;
-        if (finalEndpoint != null
-                && !finalEndpoint.startsWith("http://")
-                && !finalEndpoint.startsWith("https://")) {
-            finalEndpoint = "https://" + finalEndpoint;
-        }
-        return new OSSClientBuilder().build(finalEndpoint, accessKeyId, accessKeySecret);
+        String endpointHost = aliyunOssProperties.getEndpointHost();
+        String finalEndpoint = endpointHost.startsWith("http://") || endpointHost.startsWith("https://")
+                ? endpointHost
+                : "https://" + endpointHost;
+        return new OSSClientBuilder().build(
+                finalEndpoint,
+                globalConfigProperties.getOssAccessKeyId(),
+                globalConfigProperties.getOssAccessKeySecret()
+        );
     }
 }

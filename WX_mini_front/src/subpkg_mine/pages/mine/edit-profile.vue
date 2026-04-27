@@ -1,6 +1,5 @@
 <template>
   <view class="edit-profile-container">
-    <wd-toast id="wd-toast" />
     
     <!-- 头部头像区域 -->
     <view class="avatar-card">
@@ -70,9 +69,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import { getMineInfoApi, updateMineInfoApi, uploadAvatarApi } from '@/api/mine'
 import { getAvatarPath, resolveAvatarSrc } from '@/utils/avatar'
-import { useToast } from 'wot-design-uni'
 
-const toast = useToast()
 const DEFAULT_AVATAR = 'https://img.yzcdn.cn/vant/cat.jpeg'
 const avatarRenderKey = ref(0)
 
@@ -117,12 +114,12 @@ const onChooseAvatar = async (e: any) => {
     uni.hideLoading()
     if (uploadRes.code === 200) {
       profileForm.avatar = getAvatarPath(uploadRes.data)
-      toast.success('头像上传成功')
+      uni.showToast({ title: '头像上传成功', icon: 'success' })
     } else {
       profileForm.avatar = previousAvatar
       profileForm.avatarPreview = previousAvatarPreview
       avatarRenderKey.value += 1
-      toast.error(uploadRes.msg || '头像上传失败')
+      uni.showToast({ title: uploadRes.msg || '头像上传失败', icon: 'none' })
     }
   } catch (error) {
     uni.hideLoading()
@@ -130,7 +127,7 @@ const onChooseAvatar = async (e: any) => {
     profileForm.avatarPreview = previousAvatarPreview
     avatarRenderKey.value += 1
     console.error('上传头像错误:', error)
-    toast.error('网络错误')
+    uni.showToast({ title: '网络错误', icon: 'none' })
   }
 }
 
@@ -148,7 +145,7 @@ onMounted(() => {
 
 const handleSave = async () => {
   if (!profileForm.nickname) {
-    toast.show('昵称不能为空')
+    uni.showToast({ title: '昵称不能为空', icon: 'none' })
     return
   }
   
@@ -170,19 +167,16 @@ const handleSave = async () => {
         email: profileForm.email,
         avatar: avatarPath
       })
-      toast.success('保存成功')
+      uni.showToast({ title: '保存成功', icon: 'success' })
       setTimeout(() => {
-        uni.hideLoading()
         uni.navigateBack()
       }, 1500)
     } else {
-      uni.hideLoading()
-      toast.error(res.msg || '保存失败')
+      uni.showToast({ title: res.msg || '保存失败', icon: 'none' })
     }
   } catch (error) {
-    uni.hideLoading()
     console.error('保存失败:', error)
-    toast.error('网络错误，请稍后重试')
+    uni.showToast({ title: '网络错误，请稍后重试', icon: 'none' })
   }
 }
 </script>

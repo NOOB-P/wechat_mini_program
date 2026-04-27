@@ -87,6 +87,17 @@ aliyun:
     endpoint: ${app.config.oss-endpoint}
     bucket: ${app.config.oss-bucket}
     cdn-base-url: ${app.config.oss-public-base-url}
+    region: ${ALIYUN_OSS_REGION:oss-cn-hangzhou}
+    accelerate-endpoint: ${ALIYUN_OSS_ACCELERATE_ENDPOINT:oss-accelerate.aliyuncs.com}
+    accelerate-base-url: ${ALIYUN_OSS_ACCELERATE_BASE_URL:https://back-resources.oss-accelerate.aliyuncs.com/}
+    sts-endpoint: ${ALIYUN_OSS_STS_ENDPOINT:sts.cn-hangzhou.aliyuncs.com}
+    sts-role-arn: ${ALIYUN_OSS_STS_ROLE_ARN:acs:ram::1957476321854268:role/oss-sts-upload-role}
+    sts-duration-seconds: ${ALIYUN_OSS_STS_DURATION_SECONDS:3600}
+    upload:
+      multipart-part-size-bytes: ${ALIYUN_OSS_UPLOAD_PART_SIZE_BYTES:1048576}
+      multipart-parallel: ${ALIYUN_OSS_UPLOAD_PARALLEL:5}
+      retry-max: ${ALIYUN_OSS_UPLOAD_RETRY_MAX:3}
+      timeout-millis: ${ALIYUN_OSS_UPLOAD_TIMEOUT_MILLIS:600000}
 
 
 wechat:

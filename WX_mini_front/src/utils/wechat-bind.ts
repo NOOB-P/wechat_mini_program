@@ -54,6 +54,7 @@ export const PAYMENT_WECHAT_BIND_OPTIONS: EnsureWechatBindOptions = {
 let pendingPromise: Promise<any> | null = null
 let pendingHandlers: PendingHandlers | null = null
 let bindPromise: Promise<any> | null = null
+let sessionSyncPromise: Promise<any> | null = null
 
 const shouldAbortForcedBind = (message = '') => {
   return /已绑定.*其他用户|其他用户已绑定|已被绑定到其他用户/i.test(message)
@@ -220,6 +221,24 @@ export const bindWechatAccount = async (successMessage = '微信绑定成功') =
   })
 
   return bindPromise
+}
+
+export const syncWechatSessionKey = async () => {
+  if (sessionSyncPromise) {
+    return sessionSyncPromise
+  }
+
+  sessionSyncPromise = (async () => {
+    const code = await getWechatLoginCode()
+    const bindRes = await bindWechatOpenidApi(code)
+    return refreshWechatUserInfo(bindRes.data || {})
+  })().catch((error: any) => {
+    throw createWechatBindError('WECHAT_BIND_FAILED', error?.msg || error?.message || '同步微信支付会话失败')
+  }).finally(() => {
+    sessionSyncPromise = null
+  })
+
+  return sessionSyncPromise
 }
 
 export const unbindWechatAccount = async () => {

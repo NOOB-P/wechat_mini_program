@@ -96,18 +96,19 @@ const emit = defineEmits(['click', 'more'])
 }
 
 .recommend-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 20rpx;
   width: 100%;
 
   .course-card {
-    width: calc(50% - 10rpx);
+    width: 100%;
     background: #ffffff;
     border-radius: 24rpx;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
     box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.04);
     transition: transform 0.2s ease;
 
