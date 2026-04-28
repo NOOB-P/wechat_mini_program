@@ -290,8 +290,8 @@ public class VipServiceImpl implements VipService {
         config.put("deliveryConfigs", deliveryConfigs);
 
         Map<String, Object> globalParams = new HashMap<>();
-        globalParams.put("minAmount", 5.00);
-        globalParams.put("bindingFee", 2.00);
+        globalParams.put("minAmount", 0.00);
+        globalParams.put("bindingFee", 0.00);
         config.put("globalParams", globalParams);
 
         return Result.success("获取成功", config);
@@ -333,11 +333,9 @@ public class VipServiceImpl implements VipService {
         pages = Math.max(pages, minQuantity);
 
         BigDecimal paperCost = paperUnitPrice.multiply(new BigDecimal(pages));
-        BigDecimal bindingFee = new BigDecimal("2.00"); // 装订费配置
-        BigDecimal minAmount = new BigDecimal("5.00");  // 起印金额配置
+        BigDecimal bindingFee = BigDecimal.ZERO; // 装订费已去除
         
         BigDecimal totalBase = paperCost.add(bindingFee);
-        if (totalBase.compareTo(minAmount) < 0) totalBase = minAmount;
         
         // 计算运费
         DeliveryConfig delivery = deliveryConfigRepository.findAll().stream()
