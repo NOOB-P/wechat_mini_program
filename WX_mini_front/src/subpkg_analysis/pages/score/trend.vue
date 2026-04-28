@@ -186,6 +186,7 @@ const loading = ref(false)
 const showPopup = ref(false)
 const selectedExam = ref<any>(null)
 const examId = ref('')
+const subjectFullScoreMap = ref<Record<string, number>>({})
 const toast = useToast()
 
 const fetchTrendData = async () => {
@@ -253,7 +254,9 @@ const getChartValue = (item: any) => {
 
 const getChartHeight = (item: any) => {
   const val = getChartValue(item)
-  const max = currentSubject.value === '总分' ? 750 : 150
+  const max = currentSubject.value === '总分'
+    ? Object.values(subjectFullScoreMap.value).reduce((sum, score) => sum + Number(score || 0), 0) || 750
+    : Number(subjectFullScoreMap.value[currentSubject.value] || 100)
   return (val / max * 100) + '%'
 }
 
@@ -267,6 +270,13 @@ const getChartColor = (index: number) => {
 onLoad((options) => {
   const currentScoreData = uni.getStorageSync('currentScoreData')
   examId.value = options?.examId || currentScoreData?.examId || ''
+  const subjects = Array.isArray(currentScoreData?.subjects) ? currentScoreData.subjects : []
+  subjectFullScoreMap.value = subjects.reduce((acc: Record<string, number>, item: any) => {
+    if (item?.name) {
+      acc[item.name] = Number(item.fullScore || 0)
+    }
+    return acc
+  }, {})
 })
 
 onMounted(() => {

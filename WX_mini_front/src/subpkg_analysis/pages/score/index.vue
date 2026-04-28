@@ -204,6 +204,24 @@
         <view class="d-title">纸质打印服务下单</view>
         
         <view class="form-section">
+          <view class="sec-title">打印内容</view>
+          <view class="config-row subject-config-row">
+            <text class="label">打印科目</text>
+            <view class="options delivery-options">
+              <view
+                v-for="option in wrongBookFilterOptions"
+                :key="`print-${option.value}`"
+                class="opt-btn"
+                :class="{active: printSubject === option.value}"
+                @click="printSubject = option.value"
+              >
+                {{ option.label }}
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="form-section">
           <view class="sec-title">纸张配置</view>
           <view class="config-row">
             <text class="label">纸张规格</text>
@@ -341,6 +359,7 @@ const aiReportData = ref<any>(null)
 const aiReportExamId = ref('')
 
 const showPrintDialog = ref(false)
+const printSubject = ref('all')
 const printForm = ref({
   address: '',
   phone: '',
@@ -372,6 +391,14 @@ const currentDisplayLabel = ref('加载中...')
 // 动态计算当前选中的配送配置
 const currentDeliveryConfig = computed(() => {
   return printConfig.value.deliveryConfigs.find((d: any) => d.method === printForm.value.deliveryMethod)
+})
+
+const currentPaperConfig = computed(() => {
+  return printConfig.value.paperConfigs.find((p: any) =>
+    p.size === printForm.value.paperSize &&
+    p.side === printForm.value.printSide &&
+    p.color === printForm.value.color
+  )
 })
 
 const normalizedWrongBookData = computed(() =>
@@ -416,18 +443,18 @@ const filteredWrongBookData = computed(() => {
   return normalizedWrongBookData.value.filter((item: any) => item.subject === selectedWrongSubject.value)
 })
 
+const printableWrongBookData = computed(() => {
+  if (printSubject.value === 'all') {
+    return normalizedWrongBookData.value
+  }
+  return normalizedWrongBookData.value.filter((item: any) => item.subject === printSubject.value)
+})
+
 // 动态计算预估费用
 const estimatedPrice = computed(() => {
-  // 基础纸张费用
-  const paperConfig = printConfig.value.paperConfigs.find((p: any) => 
-    p.size === printForm.value.paperSize && 
-    p.side === printForm.value.printSide && 
-    p.color === printForm.value.color
-  )
-  
-  // 根据当前筛选的错题数量计算页数（假设两道错题占一页）
-  const pageCount = Math.ceil(filteredWrongBookData.value.length / 2) || 1
-  let paperCost = paperConfig ? paperConfig.price * pageCount : 0
+  const minQuantity = Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)
+  const pageCount = Math.max(Math.ceil(printableWrongBookData.value.length / 2) || 1, minQuantity)
+  let paperCost = currentPaperConfig.value ? currentPaperConfig.value.price * pageCount : 0
   
   // 加上装订费
   let totalCost = paperCost + (printConfig.value.globalParams.bindingFee || 0)
@@ -693,6 +720,12 @@ watch(scoreData, (newVal) => {
   }
 }, { immediate: true })
 
+watch(showPrintDialog, (visible) => {
+  if (visible) {
+    printSubject.value = selectedWrongSubject.value || 'all'
+  }
+})
+
 const submitPrint = async () => {
   if (!printForm.value.address || !printForm.value.phone) {
     return toast.show('请填写完整信息')
@@ -708,8 +741,11 @@ const submitPrint = async () => {
       ...printForm.value,
       userName: userInfo?.name || userInfo?.nickname || '微信用户',
       userPhone: printForm.value.phone || userInfo?.phone,
-      documentName: `${scoreData.value?.examName || '错题集'}-${selectedWrongSubject.value === 'all' ? '全部科目' : selectedWrongSubject.value}`,
-      pages: Math.ceil(filteredWrongBookData.value.length / 2) || 1 // 假设两道错题占一页
+      documentName: `${scoreData.value?.examName || '错题集'}-${printSubject.value === 'all' ? '全部科目' : printSubject.value}`,
+      pages: Math.max(
+        Math.ceil(printableWrongBookData.value.length / 2) || 1,
+        Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)
+      )
     }
     
     const res = await submitPrintOrderApi(orderData)

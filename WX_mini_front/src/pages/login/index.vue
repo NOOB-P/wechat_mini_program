@@ -40,7 +40,7 @@
               <wd-input v-model="phone" placeholder="请输入手机号" type="number" :maxlength="11" no-border />
             </view>
             <view class="input-item">
-              <wd-input v-model="password" placeholder="请输入密码" show-password type="password" :maxlength="20" no-border />
+              <wd-input v-model="password" placeholder="请输入密码" show-password type="text" :maxlength="20" no-border />
             </view>
           </view>
         </wd-tab>

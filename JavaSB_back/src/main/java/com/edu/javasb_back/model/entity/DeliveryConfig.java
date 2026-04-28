@@ -19,6 +19,9 @@ public class DeliveryConfig {
     @Column(nullable = false, length = 50)
     private String name; // 标准快递, 极速达, 自提
 
+    @Column(name = "code", length = 50)
+    private String code; // standard, express, pickup
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price; // 基础运费
 
@@ -33,6 +36,8 @@ public class DeliveryConfig {
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+    public String getCode() { return code; }
+    public void setCode(String code) { this.code = code; }
     public BigDecimal getPrice() { return price; }
     public void setPrice(BigDecimal price) { this.price = price; }
     public BigDecimal getFreeLimit() { return freeLimit; }

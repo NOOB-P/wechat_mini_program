@@ -10,14 +10,15 @@
         :src="courseInfo.videoUrl"
         :poster="courseInfo.cover"
         controls
-        object-fit="cover"
+        :object-fit="videoObjectFit"
+        :show-center-play-btn="false"
+        @play="onVideoPlay"
+        @ended="onVideoEnded"
+        @fullscreenchange="onFullscreenChange"
         @error="onVideoError"
       ></video>
       <view v-else class="video-placeholder">
         <wd-img :src="courseInfo.cover || 'https://img.yzcdn.cn/vant/cat.jpeg'" width="100%" height="100%" mode="aspectFill" />
-        <view class="play-icon-mask">
-          <wd-icon name="play-circle-filled" size="64px" color="rgba(255,255,255,0.8)" />
-        </view>
       </view>
     </view>
 
@@ -29,7 +30,7 @@
         <text class="c-price free" v-else>免费</text>
       </view>
       <view class="meta-row">
-        <text class="meta-item"><wd-icon name="user" size="14px" /> {{ courseInfo.studentCount || 0 }}人已学习</text>
+        <text class="meta-item"><wd-icon name="user" size="14px" /> {{ displayStudentCount }}人已学习</text>
         <text class="meta-item"><wd-icon name="time" size="14px" /> 共 {{ courseInfo.chapterCount || 1 }} 节</text>
       </view>
     </view>
@@ -121,7 +122,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { getCourseDetailApi, collectCourseApi, recordLearningApi, buyCourseApi } from '@/api/course'
@@ -132,9 +133,15 @@ const courseInfo = ref<any>({})
 const currentTab = ref('intro')
 const isCollected = ref(false)
 const isPurchased = ref(false)
-const currentChapter = ref(0)
+const currentChapter = ref(-1)
 const chapters = ref<any[]>([])
 const currentVideoIndex = ref(-1)
+const isVideoFullscreen = ref(false)
+const hasCountedLearning = ref(false)
+const displayStudentCount = computed(() => {
+  return Number(courseInfo.value?.studentCount ?? courseInfo.value?.buyers ?? 0)
+})
+const videoObjectFit = computed(() => (isVideoFullscreen.value ? 'contain' : 'cover'))
 
 const loadCourseDetail = async (id: string) => {
   try {
@@ -173,15 +180,12 @@ const loadCourseDetail = async (id: string) => {
         data.videoUrl = __VITE_SERVER_BASEURL__ + data.videoUrl
       }
       
+      data.studentCount = Number(data.studentCount ?? data.buyers ?? 0)
       courseInfo.value = data
       isCollected.value = !!data.isCollected
       isPurchased.value = !!data.isPurchased
-      
-      // 设置默认播放视频
-      setDefaultVideo()
-
-      if (!courseInfo.value.studentCount) courseInfo.value.studentCount = data.buyers || 0
       courseInfo.value.chapterCount = chapters.value.length
+      hasCountedLearning.value = Number(data.progress || 0) > 0
     }
   } catch (e) {
     uni.hideLoading()
@@ -189,18 +193,25 @@ const loadCourseDetail = async (id: string) => {
   }
 }
 
-const setDefaultVideo = () => {
+const selectFirstPlayableVideo = () => {
   if (chapters.value.length > 0) {
-    const firstChapter = chapters.value[0]
-    if (firstChapter.videoList && firstChapter.videoList.length > 0) {
-      courseInfo.value.videoUrl = firstChapter.videoList[0].videoUrl
-      currentChapter.value = 0
-      currentVideoIndex.value = 0
-    } else if (firstChapter.videoUrl) {
-      courseInfo.value.videoUrl = firstChapter.videoUrl
-      currentChapter.value = 0
+    for (let cIndex = 0; cIndex < chapters.value.length; cIndex += 1) {
+      const chapter = chapters.value[cIndex]
+      if (chapter.videoList && chapter.videoList.length > 0 && chapter.videoList[0].videoUrl) {
+        currentChapter.value = cIndex
+        currentVideoIndex.value = 0
+        courseInfo.value.videoUrl = chapter.videoList[0].videoUrl
+        return true
+      }
+      if (chapter.videoUrl) {
+        currentChapter.value = cIndex
+        currentVideoIndex.value = -1
+        courseInfo.value.videoUrl = chapter.videoUrl
+        return true
+      }
     }
   }
+  return false
 }
 
 const playVideo = (cIndex: number, vIndex: number) => {
@@ -230,6 +241,20 @@ onLoad((options: any) => {
 const onVideoError = (e: any) => {
   console.error('视频播放错误:', e)
   toast.show('视频加载失败，请稍后重试')
+}
+
+const onVideoPlay = () => {
+  if (currentChapter.value < 0) {
+    selectFirstPlayableVideo()
+  }
+}
+
+const onVideoEnded = () => {
+  isVideoFullscreen.value = false
+}
+
+const onFullscreenChange = (event: any) => {
+  isVideoFullscreen.value = !!event?.detail?.fullScreen
 }
 
 const handleCollect = async () => {
@@ -269,7 +294,10 @@ const handleAction = async () => {
       toast.error(e.msg || e.message || '网络错误')
     }
   } else {
-    // 直接学习
+    if (!courseInfo.value.videoUrl && !selectFirstPlayableVideo()) {
+      toast.info('当前课程暂无可播放视频')
+      return
+    }
     startLearning()
   }
 }
@@ -295,12 +323,24 @@ const playChapter = (index: number) => {
 
 const startLearning = async () => {
   currentTab.value = 'outline'
+  if (!courseInfo.value.videoUrl && !selectFirstPlayableVideo()) {
+    return
+  }
   try {
     // 记录学习进度，简单传个 10 表示已开始
     await recordLearningApi({
       courseId: courseInfo.value.id,
       progress: 10
     })
+    if (!hasCountedLearning.value) {
+      const nextCount = Number(courseInfo.value.studentCount ?? courseInfo.value.buyers ?? 0) + 1
+      courseInfo.value.studentCount = nextCount
+      if (!courseInfo.value.price || Number(courseInfo.value.price) <= 0) {
+        courseInfo.value.buyers = nextCount
+      }
+      courseInfo.value.progress = 1
+      hasCountedLearning.value = true
+    }
   } catch (e) {
     console.error('记录学习失败:', e)
   }
@@ -348,18 +388,6 @@ onShareTimeline(() => {
     width: 100%;
     height: 100%;
     position: relative;
-    
-    .play-icon-mask {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
   }
 }
 

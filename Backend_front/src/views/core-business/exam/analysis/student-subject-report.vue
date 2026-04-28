@@ -8,7 +8,6 @@
         </span>
       </template>
       <template #extra>
-        <el-button type="primary" size="small" @click="handlePrint">打印报告</el-button>
       </template>
     </el-page-header>
 
@@ -188,9 +187,6 @@
     })
   }
 
-  const handlePrint = () => {
-    window.print()
-  }
 
   const compareLabel = (score: number, average: number, target: string) => {
     const diff = Number((Number(score || 0) - Number(average || 0)).toFixed(1))
