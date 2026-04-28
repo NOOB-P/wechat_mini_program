@@ -1,8 +1,7 @@
 package com.edu.javasb_back.utils;
 
-import java.time.LocalDateTime;
-
 import com.edu.javasb_back.model.entity.SysAccount;
+import java.time.LocalDateTime;
 
 public final class VipTypeUtils {
 
@@ -11,6 +10,21 @@ public final class VipTypeUtils {
     public static final int SVIP = 2;
 
     private VipTypeUtils() {
+    }
+
+    public static boolean normalizeAccountVipType(SysAccount account) {
+        if (account == null) {
+            return false;
+        }
+        Integer currentVipType = account.getVipType();
+        LocalDateTime vipExpireTime = account.getVipExpireTime();
+        Integer newVipType = resolveTargetVipType(currentVipType, vipExpireTime);
+
+        if (!newVipType.equals(currentVipType)) {
+            account.setVipType(newVipType);
+            return true;
+        }
+        return false;
     }
 
     public static boolean isVip(Integer vipType) {
@@ -28,24 +42,8 @@ public final class VipTypeUtils {
         return NONE;
     }
 
-    public static boolean normalizeAccountVipType(SysAccount account) {
-        if (account == null) {
-            return false;
-        }
-        Integer targetVipType = resolveVipType(
-                account.getVipType(),
-                account.getVipExpireTime(),
-                LocalDateTime.now()
-        );
-        Integer currentVipType = account.getVipType() == null ? NONE : account.getVipType();
-        if (!currentVipType.equals(targetVipType)) {
-            account.setVipType(targetVipType);
-            if (targetVipType == NONE) {
-                account.setVipConfigId(null);
-            }
-            return true;
-        }
-        return false;
+    public static Integer resolveTargetVipType(Integer currentVipType, LocalDateTime vipExpireTime) {
+        return resolveVipType(currentVipType, vipExpireTime, LocalDateTime.now());
     }
 
     public static Integer resolveVipTypeByTierCode(String tierCode) {

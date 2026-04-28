@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.util.StringUtils;
 
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
@@ -44,19 +45,16 @@ public class AdminCourseController {
     @PreAuthorize("hasAuthority('course:manage:list')")
     @GetMapping("/list")
     public Result<Map<String, Object>> getCourseList(
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) Boolean isSvipOnly,
             @RequestParam(required = false) Boolean isFree,
             @RequestParam(required = false) Integer isRecommend) {
-        Result<List<Course>> result = courseService.getAllCourses(type, isSvipOnly, isFree, isRecommend);
-        if (result.getCode() == 200) {
-            List<Course> list = result.getData();
-            return Result.success(Map.of(
-                    "list", list,
-                    "total", list.size()
-            ));
+        if (!StringUtils.hasText(type)) {
+            type = null;
         }
-        return Result.error(result.getMsg());
+        return courseService.getAllCoursesPaged(current, size, type, isSvipOnly, isFree, isRecommend);
     }
 
     @LogOperation("管理端：新增课程")

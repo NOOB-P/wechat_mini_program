@@ -6,7 +6,10 @@
         <text class="exam-title">{{ paperData.examName }}</text>
         <view class="score-info">
           <text class="score-text">得分: <text class="highlight">{{ paperData.score }}</text> / {{ paperData.fullScore }}</text>
-          <wd-button type="primary" size="small" plain @click="downloadPaper">下载试卷</wd-button>
+          <view class="download-actions">
+            <wd-button type="primary" size="small" plain @click="downloadAnswerSheet">下载答卷</wd-button>
+            <wd-button type="primary" size="small" plain @click="downloadExamPaper">下载试卷</wd-button>
+          </view>
         </view>
       </view>
 
@@ -91,7 +94,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onHide, onUnload } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { getPaperDetailApi } from '@/subpkg_analysis/api/paper'
 
@@ -123,7 +126,9 @@ const loadData = async () => {
         myPaperImages,
         examPaperImages,
         questionScores: res.data?.questionScores || res.data?.answers || [],
-        originalDownloadUrl: resolveAssetUrl(res.data?.originalDownloadUrl || res.data?.downloadUrl)
+        originalDownloadUrl: resolveAssetUrl(res.data?.originalDownloadUrl || res.data?.downloadUrl),
+        examPaperDownloadUrl: resolveAssetUrl(res.data?.examPaperDownloadUrl),
+        examPaperDownloadUrls: examPaperImages
       }
     } else {
       toast.error(res.msg || '获取试卷失败')
@@ -138,6 +143,14 @@ onLoad((query: Record<string, string>) => {
   routeParams.value.examId = decodeURIComponent(query.examId || query.exam || '')
   routeParams.value.subject = decodeURIComponent(query.subject || '')
   loadData()
+})
+
+onHide(() => {
+  uni.hideLoading()
+})
+
+onUnload(() => {
+  uni.hideLoading()
 })
 
 const resolveAssetUrl = (url?: string) => {
@@ -176,58 +189,181 @@ const previewImage = (urls: string[], current: number) => {
   })
 }
 
-const downloadPaper = () => {
-  const downloadUrl = paperData.value?.originalDownloadUrl
-  if (!downloadUrl) {
-    return toast.show('暂无下载链接')
-  }
-  
-  uni.showLoading({ title: '下载中...', mask: true })
-  
-  uni.downloadFile({
-    url: downloadUrl,
-    success: (res) => {
-      if (res.statusCode === 200) {
-        const filePath = res.tempFilePath
-        const isImage = /\.(png|jpg|jpeg|webp|bmp)$/i.test(downloadUrl)
-        if (isImage) {
-          uni.saveImageToPhotosAlbum({
-            filePath,
-            success: () => {
-              uni.hideLoading()
-              toast.success('原卷已保存到相册')
-            },
-            fail: (err) => {
-              uni.hideLoading()
-              console.error('保存原卷失败:', err)
-              toast.error('保存原卷失败')
-            }
-          })
+const ensureAlbumPermission = () => {
+  return new Promise<boolean>((resolve) => {
+    uni.getSetting({
+      success: (settingRes) => {
+        if (settingRes.authSetting['scope.writePhotosAlbum']) {
+          resolve(true)
           return
         }
-        uni.openDocument({
-          filePath: filePath,
-          showMenu: true, // 允许转发/保存
-          success: () => {
-            uni.hideLoading()
-          },
-          fail: (err) => {
-            uni.hideLoading()
-            console.error('打开文件失败:', err)
-            toast.error('无法打开该类型文件')
+
+        uni.authorize({
+          scope: 'scope.writePhotosAlbum',
+          success: () => resolve(true),
+          fail: () => {
+            uni.showModal({
+              title: '需要相册权限',
+              content: '保存图片到相册需要授权，请前往设置开启相册权限。',
+              success: (modalRes) => {
+                if (!modalRes.confirm) {
+                  resolve(false)
+                  return
+                }
+                uni.openSetting({
+                  success: (openRes) => {
+                    resolve(!!openRes.authSetting['scope.writePhotosAlbum'])
+                  },
+                  fail: () => resolve(false)
+                })
+              },
+              fail: () => resolve(false)
+            })
           }
         })
-      } else {
-        uni.hideLoading()
-        toast.error('下载失败')
-      }
-    },
-    fail: (err) => {
-      uni.hideLoading()
-      console.error('下载文件错误:', err)
-      toast.error('网络错误，下载失败')
-    }
+      },
+      fail: () => resolve(false)
+    })
   })
+}
+
+const saveImageAsset = async (filePath: string) => {
+  const granted = await ensureAlbumPermission()
+  if (!granted) {
+    toast.show('未开启相册权限，无法保存图片')
+    return false
+  }
+
+  return new Promise<boolean>((resolve) => {
+    uni.saveImageToPhotosAlbum({
+      filePath,
+      success: () => resolve(true),
+      fail: (err) => {
+        console.error('save image failed', err)
+        resolve(false)
+      }
+    })
+  })
+}
+
+const downloadSingleAsset = async (downloadUrl: string, successText: string) => {
+  if (!downloadUrl) {
+    toast.show('暂无下载链接')
+    return
+  }
+
+  uni.showLoading({ title: '下载中...', mask: true })
+  try {
+    const downloadRes = await new Promise<any>((resolve, reject) => {
+      uni.downloadFile({
+        url: downloadUrl,
+        success: (res) => {
+          if (res.statusCode === 200) {
+            resolve(res)
+            return
+          }
+          reject(new Error('下载失败'))
+        },
+        fail: reject
+      })
+    })
+
+    const filePath = downloadRes.tempFilePath
+    const isImage = /\.(png|jpg|jpeg|webp|bmp)$/i.test(downloadUrl)
+    if (isImage) {
+      const saved = await saveImageAsset(filePath)
+      if (saved) {
+        toast.success(successText)
+      } else {
+        toast.show('保存失败，请检查相册权限')
+      }
+      return
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      uni.openDocument({
+        filePath,
+        showMenu: true,
+        success: () => resolve(),
+        fail: reject
+      })
+    })
+  } catch (err) {
+    console.error('download asset failed', err)
+    toast.show('下载失败')
+  } finally {
+    uni.hideLoading()
+  }
+}
+
+const downloadMultiImageAssets = async (urls: string[], successText: string) => {
+  const validUrls = urls.filter(Boolean)
+  if (!validUrls.length) {
+    toast.show('暂无下载链接')
+    return
+  }
+
+  const granted = await ensureAlbumPermission()
+  if (!granted) {
+    toast.show('未开启相册权限，无法保存图片')
+    return
+  }
+
+  uni.showLoading({ title: '下载中...', mask: true })
+  try {
+    let successCount = 0
+    for (const url of validUrls) {
+      const downloadRes = await new Promise<any>((resolve, reject) => {
+        uni.downloadFile({
+          url,
+          success: (res) => {
+            if (res.statusCode === 200) {
+              resolve(res)
+              return
+            }
+            reject(new Error('下载失败'))
+          },
+          fail: reject
+        })
+      })
+
+      const saved = await saveImageAsset(downloadRes.tempFilePath)
+      if (saved) {
+        successCount += 1
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`${successText}${successCount > 1 ? `（${successCount}张）` : ''}`)
+    } else {
+      toast.show('保存失败，请检查相册权限')
+    }
+  } catch (err) {
+    console.error('download multi assets failed', err)
+    toast.show('下载失败')
+  } finally {
+    uni.hideLoading()
+  }
+}
+
+const downloadAnswerSheet = async () => {
+  const urls = paperData.value?.myPaperImages || []
+  const directUrl = paperData.value?.originalDownloadUrl
+  if (urls.length > 1) {
+    await downloadMultiImageAssets(urls, '答卷已保存到相册')
+    return
+  }
+  await downloadSingleAsset(urls[0] || directUrl, '答卷已保存到相册')
+}
+
+const downloadExamPaper = async () => {
+  const urls = paperData.value?.examPaperDownloadUrls || paperData.value?.examPaperImages || []
+  const directUrl = paperData.value?.examPaperDownloadUrl
+  if (urls.length > 1) {
+    await downloadMultiImageAssets(urls, '试卷已保存到相册')
+    return
+  }
+  await downloadSingleAsset(urls[0] || directUrl, '试卷已保存到相册')
 }
 </script>
 
@@ -279,8 +415,14 @@ const downloadPaper = () => {
       }
     }
 
+    .download-actions {
+      display: flex;
+      align-items: center;
+      gap: 12rpx;
+      flex-shrink: 0;
+    }
+
     :deep(.wd-button) {
-      margin-left: auto;
       flex-shrink: 0;
     }
   }

@@ -1,6 +1,7 @@
 package com.edu.javasb_back.service;
 
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.model.entity.PrintOrder;
 import java.util.List;
 import java.util.Map;
 
@@ -23,7 +24,7 @@ public interface VipService {
     /**
      * 提交打印订单
      */
-    Result<Void> submitPrintOrder(Long uid, Map<String, Object> orderData);
+    Result<PrintOrder> submitPrintOrder(Long uid, Map<String, Object> orderData);
 
     Result<Map<String, Object>> getRechargeDisplayConfig(Long uid);
 }

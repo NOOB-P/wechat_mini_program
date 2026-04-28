@@ -199,70 +199,68 @@
     </scroll-view>
 
     <!-- 打印下单弹窗 -->
-    <wd-popup v-model="showPrintDialog" position="bottom" custom-style="height: 75%; padding: 40rpx; border-radius: 32rpx 32rpx 0 0;">
-      <scroll-view scroll-y style="height: 100%;">
-        <view class="print-dialog">
-          <view class="d-title">纸质打印服务下单</view>
-          
-          <view class="form-section">
-            <view class="sec-title">纸张配置</view>
-            <view class="config-row">
-              <text class="label">纸张规格</text>
-              <view class="options">
-                <view class="opt-btn" :class="{active: printForm.paperSize === 'A4'}" @click="printForm.paperSize = 'A4'">A4</view>
-                <view class="opt-btn" :class="{active: printForm.paperSize === 'A3'}" @click="printForm.paperSize = 'A3'">A3</view>
-              </view>
-            </view>
-            <view class="config-row">
-              <text class="label">单/双面</text>
-              <view class="options">
-                <view class="opt-btn" :class="{active: printForm.printSide === '单面'}" @click="printForm.printSide = '单面'">单面</view>
-                <view class="opt-btn" :class="{active: printForm.printSide === '双面'}" @click="printForm.printSide = '双面'">双面</view>
-              </view>
-            </view>
-            <view class="config-row">
-              <text class="label">颜色</text>
-              <view class="options">
-                <view class="opt-btn" :class="{active: printForm.color === '黑白'}" @click="printForm.color = '黑白'">黑白</view>
-                <view class="opt-btn" :class="{active: printForm.color === '彩色'}" @click="printForm.color = '彩色'">彩色</view>
-              </view>
+    <wd-popup v-model="showPrintDialog" position="bottom" custom-style="padding: 40rpx 40rpx calc(40rpx + var(--window-bottom)); border-radius: 32rpx 32rpx 0 0;">
+      <view class="print-dialog">
+        <view class="d-title">纸质打印服务下单</view>
+        
+        <view class="form-section">
+          <view class="sec-title">纸张配置</view>
+          <view class="config-row">
+            <text class="label">纸张规格</text>
+            <view class="options">
+              <view class="opt-btn" :class="{active: printForm.paperSize === 'A4'}" @click="printForm.paperSize = 'A4'">A4</view>
+              <view class="opt-btn" :class="{active: printForm.paperSize === 'A3'}" @click="printForm.paperSize = 'A3'">A3</view>
             </view>
           </view>
-
-          <view class="form-section">
-            <view class="sec-title">配送配置</view>
-            <view class="config-row">
-              <text class="label">配送方式</text>
-              <view class="options delivery-options">
-                <view 
-                  v-for="d in printConfig.deliveryConfigs" 
-                  :key="d.method"
-                  class="opt-btn" 
-                  :class="{active: printForm.deliveryMethod === d.method}" 
-                  @click="printForm.deliveryMethod = d.method"
-                >
-                  {{ d.name }}
-                </view>
-              </view>
+          <view class="config-row">
+            <text class="label">单/双面</text>
+            <view class="options">
+              <view class="opt-btn" :class="{active: printForm.printSide === '单面'}" @click="printForm.printSide = '单面'">单面</view>
+              <view class="opt-btn" :class="{active: printForm.printSide === '双面'}" @click="printForm.printSide = '双面'">双面</view>
             </view>
-            <view class="delivery-desc" v-if="currentDeliveryConfig">
-              <wd-icon name="info-circle" size="14px" />
-              {{ currentDeliveryConfig.desc }}（基础运费：￥{{ currentDeliveryConfig.baseFee }}，满￥{{ currentDeliveryConfig.freeThreshold }}免邮）
+          </view>
+          <view class="config-row">
+            <text class="label">颜色</text>
+            <view class="options">
+              <view class="opt-btn" :class="{active: printForm.color === '黑白'}" @click="printForm.color = '黑白'">黑白</view>
+              <view class="opt-btn" :class="{active: printForm.color === '彩色'}" @click="printForm.color = '彩色'">彩色</view>
             </view>
-            <wd-input v-model="printForm.address" placeholder="请输入收件地址/线下取件点" no-border />
-            <wd-input v-model="printForm.phone" placeholder="联系电话" no-border />
-          </view>
-
-          <view class="price-preview">
-            <text>预估费用：</text>
-            <text class="price">￥{{ estimatedPrice }}</text>
-          </view>
-
-          <view class="d-action">
-            <wd-button type="primary" block @click="submitPrint">确认下单</wd-button>
           </view>
         </view>
-      </scroll-view>
+
+        <view class="form-section">
+          <view class="sec-title">配送配置</view>
+          <view class="config-row">
+            <text class="label">配送方式</text>
+            <view class="options delivery-options">
+              <view 
+                v-for="d in printConfig.deliveryConfigs" 
+                :key="d.method"
+                class="opt-btn" 
+                :class="{active: printForm.deliveryMethod === d.method}" 
+                @click="printForm.deliveryMethod = d.method"
+              >
+                {{ d.name }}
+              </view>
+            </view>
+          </view>
+          <view class="delivery-desc" v-if="currentDeliveryConfig">
+            <wd-icon name="info-circle" size="14px" />
+            {{ currentDeliveryConfig.desc }}（基础运费：￥{{ currentDeliveryConfig.baseFee }}，满￥{{ currentDeliveryConfig.freeThreshold }}免邮）
+          </view>
+          <wd-input v-model="printForm.address" placeholder="请输入收件地址/线下取件点" no-border />
+          <wd-input v-model="printForm.phone" placeholder="联系电话" no-border />
+        </view>
+
+        <view class="price-preview">
+          <text>预估费用：</text>
+          <text class="price">￥{{ estimatedPrice }}</text>
+        </view>
+
+        <view class="d-action">
+          <wd-button type="primary" block @click="submitPrint">确认下单</wd-button>
+        </view>
+      </view>
     </wd-popup>
 
     <wd-toast id="wd-toast" />
@@ -717,8 +715,18 @@ const submitPrint = async () => {
     const res = await submitPrintOrderApi(orderData)
     uni.hideLoading()
     if (res.code === 200) {
-      toast.success(res.msg || '下单成功')
       showPrintDialog.value = false
+      // 跳转到支付页面
+      const payOrderData = {
+        orderNo: res.data.orderNo,
+        title: res.data.documentName,
+        price: res.data.totalPrice,
+        createTime: res.data.createTime
+      }
+      const orderDataStr = encodeURIComponent(JSON.stringify(payOrderData))
+      uni.navigateTo({
+        url: `/subpkg_course/pages/course/pay?order=${orderDataStr}&type=print`
+      })
     } else {
       toast.error('下单失败')
     }

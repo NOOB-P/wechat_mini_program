@@ -61,6 +61,10 @@
         </view>
       </view>
       <view class="recommend-grid">
+        <view class="recommend-item" @click="navTo('/subpkg_course/pages/course/index')">
+          <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_course.png'" mode="aspectFill" />
+          <text class="recommend-text">精选课程</text>
+        </view>
         <view class="recommend-item" @click="showNotOpenTip">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_ai.png'" mode="aspectFill" />
           <text class="recommend-text">精选AI</text>
@@ -68,10 +72,6 @@
         <view class="recommend-item" @click="showNotOpenTip">
           <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_tutor.png'" mode="aspectFill" />
           <text class="recommend-text">精选家教</text>
-        </view>
-        <view class="recommend-item" @click="navTo('/subpkg_course/pages/course/index')">
-          <image class="recommend-img" :src="staticBaseUrl + '/resource/recommend_course.png'" mode="aspectFill" />
-          <text class="recommend-text">精选课程</text>
         </view>
       </view>
     </view>

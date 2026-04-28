@@ -37,6 +37,8 @@ public interface PrintOrderService {
 
     Result<String> confirmVirtualPayment(Long uid, String orderNo, Map<String, Object> securityData);
 
+    Result<Void> cancelOrder(Long uid, String orderNo);
+
     void paySuccess(String orderNo);
     /**
      * 导出打印订单

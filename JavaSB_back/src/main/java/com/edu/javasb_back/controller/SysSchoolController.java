@@ -5,7 +5,7 @@ import com.edu.javasb_back.model.entity.SysSchool;
 import com.edu.javasb_back.model.vo.SchoolNodeVO;
 import com.edu.javasb_back.service.OrganizationImportService;
 import com.edu.javasb_back.service.SysSchoolService;
-import com.edu.javasb_back.util.TemplateDownloadUtils;
+import com.edu.javasb_back.utils.TemplateDownloadUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;

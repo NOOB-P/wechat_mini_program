@@ -17,15 +17,15 @@ export const recordLearningApi = (data: { courseId: string; progress: number }) 
 }
 
 export const getMyCoursesApi = () => {
-  return request({ url: '/api/app/mine/course/list', method: 'GET' })
+  return request({ url: '/api/app/mine/course/list', method: 'GET', silent: true })
 }
 
 export const getMyCollectionsApi = () => {
-  return request({ url: '/api/app/mine/collection/list', method: 'GET' })
+  return request({ url: '/api/app/mine/collection/list', method: 'GET', silent: true })
 }
 
 export const getMyStudyRecordsApi = () => {
-  return request({ url: '/api/app/mine/record/list', method: 'GET' })
+  return request({ url: '/api/app/mine/record/list', method: 'GET', silent: true })
 }
 
 export const getPurchasedCoursesApi = () => {

@@ -1,4 +1,4 @@
-package com.edu.javasb_back.util;
+package com.edu.javasb_back.utils;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;

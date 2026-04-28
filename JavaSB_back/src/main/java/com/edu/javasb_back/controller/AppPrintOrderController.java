@@ -66,4 +66,13 @@ public class AppPrintOrderController {
         Map<String, Object> security = data == null ? null : (Map<String, Object>) data.get("security");
         return printOrderService.confirmVirtualPayment(uid, data == null ? null : (String) data.get("orderNo"), security);
     }
+
+    @LogOperation("小程序取消打印订单")
+    @PostMapping("/cancel")
+    public Result<Void> cancelPrintOrder(@RequestBody Map<String, Object> params) {
+        Long uid = getCurrentUid();
+        if (uid == null) return Result.error(401, "请先登录");
+        String orderNo = (String) params.get("orderNo");
+        return printOrderService.cancelOrder(uid, orderNo);
+    }
 }

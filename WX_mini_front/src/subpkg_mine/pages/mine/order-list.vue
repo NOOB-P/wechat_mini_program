@@ -126,6 +126,9 @@
                     {{ getPrintStatusText(item.orderStatus) }}
                   </text>
                   <view class="actions-group">
+                    <view v-if="item.orderStatus === 1" class="cancel-btn" @click.stop="handleCancelOrder(item, 'print')">
+                      取消
+                    </view>
                     <view v-if="item.orderStatus === 1" class="action-link" :class="{ 'pay-btn': item.orderStatus === 1 }">
                       <text>{{ item.orderStatus === 1 ? '去支付' : '详情' }}</text>
                       <wd-icon name="arrow-right" size="14px" v-if="item.orderStatus !== 1" />
@@ -148,7 +151,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { getPurchasedCoursesApi, getMyPrintOrdersApi, getMyVipOrdersApi } from '@/api/order'
+import { getPurchasedCoursesApi, getMyPrintOrdersApi, getMyVipOrdersApi, cancelPrintOrderApi } from '@/api/order'
 import { cancelCourseOrderApi } from '@/api/course'
 import { cancelVipOrderApi } from '@/api/vip'
 import { useToast } from 'wot-design-uni'
@@ -212,9 +215,7 @@ const handleCancelOrder = async (item: any, type: 'course' | 'vip' | 'print') =>
     } else if (type === 'vip') {
       res = await cancelVipOrderApi(item.orderNo)
     } else {
-      // 打印订单暂不支持取消接口，或者需要单独实现
-      uni.showToast({ title: '暂不支持取消打印订单', icon: 'none' })
-      return
+      res = await cancelPrintOrderApi(item.orderNo)
     }
 
     if (res.code === 200) {

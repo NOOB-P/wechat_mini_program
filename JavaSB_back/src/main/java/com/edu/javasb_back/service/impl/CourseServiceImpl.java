@@ -2,11 +2,13 @@ package com.edu.javasb_back.service.impl;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -45,9 +47,15 @@ public class CourseServiceImpl implements CourseService {
     @Autowired
     private OssStorageService ossStorageService;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @Override
     public Result<List<Course>> getGeneralCourseList(Integer isRecommend) {
-        return Result.success(normalizeCourses(courseRepository.findAllCoursesFilteredSql("general", null, null, isRecommend)));
+        // 如果是请求推荐课程（isRecommend 为 1），则取消分类限制，返回所有分类下的推荐课程
+        // 如果不是请求推荐课程，则保持原样，只返回“精选课程”分类（general）下的数据
+        String type = (isRecommend != null && isRecommend == 1) ? null : "general";
+        return Result.success(normalizeCourses(courseRepository.findAllCoursesFilteredSql(type, null, null, isRecommend)));
     }
 
     @Override
@@ -153,7 +161,34 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Result<List<Map<String, Object>>> getMyStudyRecords(Long uid) {
-        List<Map<String, Object>> records = courseRepository.findStudyRecordsSql(uid);
+        List<Map<String, Object>> records = jdbcTemplate.query(
+                """
+                SELECT
+                    c.id AS id,
+                    c.title AS title,
+                    c.cover AS cover,
+                    c.type AS type,
+                    COALESCE(usr.progress, 0) AS progress,
+                    usr.last_study_time AS lastStudyTime
+                FROM courses c
+                INNER JOIN user_study_records usr ON c.id = usr.course_id
+                WHERE usr.user_uid = ?
+                ORDER BY usr.last_study_time DESC
+                """,
+                (rs, rowNum) -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", rs.getString("id"));
+                    item.put("title", rs.getString("title"));
+                    item.put("cover", rs.getString("cover"));
+                    item.put("type", rs.getString("type"));
+                    item.put("progress", rs.getInt("progress"));
+                    java.sql.Timestamp lastStudyTime = rs.getTimestamp("lastStudyTime");
+                    item.put("lastStudyTime", lastStudyTime == null ? null : lastStudyTime.toLocalDateTime().toString());
+                    return item;
+                },
+                uid
+        );
+
         for (Map<String, Object> item : records) {
             Object cover = item.get("cover");
             if (cover instanceof String coverUrl) {
@@ -166,6 +201,27 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public Result<List<Course>> getAllCourses(String type, Boolean isSvipOnly, Boolean isFree, Integer isRecommend) {
         return Result.success(normalizeCourses(courseRepository.findAllCoursesFilteredSql(type, isSvipOnly, isFree, isRecommend)));
+    }
+
+    @Override
+    public Result<Map<String, Object>> getAllCoursesPaged(int current, int size, String type, Boolean isSvipOnly, Boolean isFree, Integer isRecommend) {
+        List<Course> all = normalizeCourses(courseRepository.findAllCoursesFilteredSql(type, isSvipOnly, isFree, isRecommend));
+        int total = all.size();
+        int fromIndex = (current - 1) * size;
+        int toIndex = Math.min(fromIndex + size, total);
+        
+        List<Course> pagedList = List.of();
+        if (fromIndex < total) {
+            pagedList = all.subList(fromIndex, toIndex);
+        }
+        
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("list", pagedList);
+        data.put("total", total);
+        data.put("current", current);
+        data.put("size", size);
+        
+        return Result.success(data);
     }
 
     @Override

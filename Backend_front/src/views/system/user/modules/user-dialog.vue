@@ -152,6 +152,7 @@
   const submitLoading = ref(false)
   const vipDurationTouched = ref(false)
   const vipLegacyDurationLabel = ref('')
+  const previousVipType = ref(0)
   
   // 角色列表
   const roleList = ref<any[]>([])
@@ -273,6 +274,7 @@
         studentId: (row.boundStudents && row.boundStudents.length > 0) ? row.boundStudents[0].id : '',
         parentName: row.parentName || ''
       })
+      previousVipType.value = Number(row.vipType || 0)
     } else {
       Object.assign(formData, {
         id: undefined,
@@ -294,6 +296,7 @@
         studentId: '',
         parentName: ''
       })
+      previousVipType.value = 0
     }
 
     vipLegacyDurationLabel.value = formData.vipDurationMonths === 0 ? describeLegacyDuration(row?.vipStartTime, row?.vipExpireTime) : ''
@@ -387,14 +390,19 @@
   const handleVipTypeChange = (val: string | number | boolean | undefined) => {
     const vipType = Number(val || 0)
     if (vipType >= 1) {
+      const vipTypeChanged = previousVipType.value !== vipType
+      if (vipTypeChanged && (!formData.vipDurationMonths || formData.vipDurationMonths === 0)) {
+        formData.vipDurationMonths = 1
+      }
       ensureVipStartTime()
       if (!formData.vipDurationMonths) {
         formData.vipDurationMonths = 1
       }
-      if (!formData.vipExpireTime || formData.vipDurationMonths > 0) {
+      if (vipTypeChanged || !formData.vipExpireTime || formData.vipDurationMonths > 0) {
         formData.vipExpireTime = addMonths(formData.vipStartTime, formData.vipDurationMonths || 1)
       }
     }
+    previousVipType.value = vipType
   }
 
   const buildSubmitData = () => {

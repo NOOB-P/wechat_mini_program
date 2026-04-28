@@ -13,19 +13,6 @@
           @clear="handleSearch"
         />
       </view>
-      
-      <view class="tab-section">
-        <view 
-          class="tab-item" 
-          :class="{ active: currentTab === 'all' }" 
-          @click="handleTabChange('all')"
-        >全部试卷</view>
-        <view 
-          class="tab-item" 
-          :class="{ active: currentTab === 'recommend' }" 
-          @click="handleTabChange('recommend')"
-        >编辑精选</view>
-      </view>
     </view>
 
     <!-- 列表滚动区域 -->
@@ -74,7 +61,6 @@ import { getPaperListApi, incrementPaperDownloadApi } from '@/subpkg_resource/ap
 const keyword = ref('')
 const subject = ref('')
 const type = ref('')
-const currentTab = ref('all')
 const list = ref<any[]>([])
 const loading = ref(false)
 
@@ -98,10 +84,7 @@ onLoad((options: any) => {
 })
 
 const filteredList = computed(() => {
-  if (currentTab.value === 'recommend') {
-    return list.value.filter(item => item.isRecommend)
-  }
-  return list.value
+  return list.value.filter(item => item.isRecommend)
 })
 
 const loadData = async () => {
@@ -122,10 +105,6 @@ const loadData = async () => {
 
 const handleSearch = () => {
   loadData()
-}
-
-const handleTabChange = (tab: string) => {
-  currentTab.value = tab
 }
 
 const formatTags = (tags: any) => {
@@ -212,36 +191,6 @@ export default {
 
   :deep(.wd-search__input) {
     font-size: 28rpx;
-  }
-}
-
-.tab-section {
-  display: flex;
-  padding: 0 30rpx 20rpx;
-  gap: 40rpx;
-
-  .tab-item {
-    font-size: 28rpx;
-    color: #666;
-    position: relative;
-    padding-bottom: 10rpx;
-
-    &.active {
-      color: #1a5f8e;
-      font-weight: bold;
-
-      &::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 40rpx;
-        height: 4rpx;
-        background: #1a5f8e;
-        border-radius: 2rpx;
-      }
-    }
   }
 }
 

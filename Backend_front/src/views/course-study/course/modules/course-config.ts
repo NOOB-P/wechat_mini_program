@@ -13,7 +13,7 @@ export const courseScopeOptions = [
 ] as const
 
 export const createCourseCategories = (): CourseCategory[] => [
-  { id: 'general', name: '常规课程', count: 0 },
+  { id: 'general', name: '精选课程', count: 0 },
   { id: 'talk', name: '学霸说', count: 0 },
   { id: 'family', name: '家庭教育', count: 0 },
   { id: 'sync', name: '同步/专题课', count: 0 }

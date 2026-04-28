@@ -1,146 +1,104 @@
 <template>
   <div class="paper-manage">
-    <!-- 第一层：类型管理 -->
-    <div v-if="currentLevel === 1">
-      <el-card shadow="never">
-        <template #header>
-          <div class="card-header">
-            <span class="title">名校试卷管理 - 类型</span>
-            <div class="actions">
-              <el-button type="success" @click="handleSubjectManage">全局科目管理</el-button>
-            </div>
+    <el-card shadow="never">
+      <template #header>
+        <div class="card-header">
+          <span class="title">名校试卷管理</span>
+          <div class="actions">
+            <el-button type="success" @click="handleSubjectManage">全局科目管理</el-button>
+            <el-button type="primary" @click="handleAdd">新增试卷</el-button>
           </div>
-        </template>
-        <el-table :data="typeData" border stripe v-loading="loading">
-          <el-table-column prop="id" label="类型ID" width="120" align="center" />
-          <el-table-column prop="name" label="类型名称" min-width="150" />
-          <el-table-column prop="count" label="试卷数量" width="120" align="center" />
-          <el-table-column label="操作" width="150" align="center" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="enterGrade(row)">进入管理</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
-    </div>
-
-    <!-- 第二层：年级管理 -->
-    <div v-else-if="currentLevel === 2">
-      <el-card shadow="never">
-        <template #header>
-          <div class="card-header">
-            <div class="flex items-center">
-              <el-button link @click="currentLevel = 1">
-                <el-icon><ArrowLeft /></el-icon> 返回类型列表
-              </el-button>
-              <span class="title ml-4">{{ currentTypeName }} - 年级列表</span>
-            </div>
-            <div class="actions">
-              <el-button type="primary" @click="handleAddNewGrade">新增年级</el-button>
-            </div>
-          </div>
-        </template>
-        <el-table :data="gradeData" border stripe v-loading="loading">
-          <el-table-column prop="name" label="年级名称" min-width="150" />
-          <el-table-column prop="count" label="试卷数量" width="120" align="center" />
-          <el-table-column label="操作" width="150" align="center" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="enterSubject(row)">进入管理</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
-    </div>
-
-    <!-- 第三层：科目管理 -->
-    <div v-else-if="currentLevel === 3">
-      <el-card shadow="never">
-        <template #header>
-          <div class="card-header">
-            <div class="flex items-center">
-              <el-button link @click="currentLevel = 2">
-                <el-icon><ArrowLeft /></el-icon> 返回年级列表
-              </el-button>
-              <span class="title ml-4">{{ currentTypeName }} - {{ currentGradeName }} - 科目列表</span>
-            </div>
-          </div>
-        </template>
-        <el-table :data="subjectData" border stripe v-loading="loading">
-          <el-table-column prop="name" label="科目名称" min-width="150" />
-          <el-table-column prop="count" label="试卷数量" width="120" align="center" />
-          <el-table-column label="操作" width="150" align="center" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="enterPaperList(row)">进入管理</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
-    </div>
-
-    <!-- 第四层：试卷列表管理 -->
-    <div v-else-if="currentLevel === 4">
-      <el-card shadow="never">
-        <template #header>
-          <div class="card-header">
-            <div class="flex items-center">
-              <el-button link @click="currentLevel = 3">
-                <el-icon><ArrowLeft /></el-icon> 返回科目列表
-              </el-button>
-              <span class="title ml-4">{{ currentTypeName }} - {{ currentGradeName }} - {{ currentSubjectName }} - 试卷列表</span>
-            </div>
-            <div class="actions">
-              <el-button type="primary" @click="handleAdd">新增试卷</el-button>
-            </div>
-          </div>
-        </template>
-
-        <!-- 搜索栏 -->
-        <div class="search-bar">
-          <el-form :inline="true" :model="queryParams">
-            <el-form-item label="关键词">
-              <el-input v-model="queryParams.keyword" placeholder="搜索标题" clearable @clear="handleQuery" />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="handleQuery">查询</el-button>
-              <el-button @click="resetQuery">重置</el-button>
-            </el-form-item>
-          </el-form>
         </div>
+      </template>
 
-        <!-- 数据表格 -->
-        <el-table :data="paperList" v-loading="loading" border stripe>
-          <el-table-column prop="sortOrder" label="排序" width="80" align="center" />
-          <el-table-column prop="title" label="试卷标题" min-width="250" show-overflow-tooltip />
-          <el-table-column prop="year" label="年份" width="100" align="center" />
-          <el-table-column prop="downloads" label="下载量" width="100" align="center" />
-          <el-table-column prop="isRecommend" label="推荐" width="80" align="center">
-            <template #default="{ row }">
-              <el-switch v-model="row.isRecommend" @change="handleStatusChange(row)" />
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="150" align="center" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-              <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+      <div class="search-bar">
+        <el-form :inline="true" :model="queryParams">
+          <el-form-item label="类型">
+            <el-select v-model="queryParams.type" placeholder="全部类型" clearable style="width: 160px">
+              <el-option v-for="item in paperTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="年级">
+            <el-select
+              v-model="queryParams.grade"
+              placeholder="全部年级"
+              clearable
+              filterable
+              style="width: 160px"
+            >
+              <el-option v-for="item in gradeOptions" :key="item" :label="item" :value="item" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="科目">
+            <el-select
+              v-model="queryParams.subject"
+              placeholder="全部科目"
+              clearable
+              filterable
+              style="width: 160px"
+            >
+              <el-option v-for="item in subjects" :key="item.id" :label="item.name" :value="item.name" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="推荐">
+            <el-select v-model="queryParams.isRecommend" placeholder="全部" clearable style="width: 120px">
+              <el-option label="推荐" :value="true" />
+              <el-option label="不推荐" :value="false" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="关键词">
+            <el-input
+              v-model="queryParams.keyword"
+              placeholder="搜索标题"
+              clearable
+              style="width: 220px"
+              @keyup.enter="handleQuery"
+            />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="handleQuery">查询</el-button>
+            <el-button @click="resetQuery">重置</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
 
-        <!-- 分页 -->
-        <div class="pagination-container">
-          <el-pagination
-            v-model:current-page="queryParams.pageNum"
-            v-model:page-size="queryParams.pageSize"
-            :total="total"
-            layout="total, sizes, prev, pager, next, jumper"
-            @size-change="getList"
-            @current-change="getList"
-          />
-        </div>
-      </el-card>
-    </div>
+      <el-table :data="paperList" v-loading="loading" border stripe>
+        <el-table-column prop="sortOrder" label="排序" width="80" align="center" />
+        <el-table-column prop="title" label="试卷标题" min-width="260" show-overflow-tooltip />
+        <el-table-column label="类型" width="120" align="center">
+          <template #default="{ row }">
+            <span>{{ getTypeLabel(row.type) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="grade" label="年级" min-width="110" align="center" show-overflow-tooltip />
+        <el-table-column prop="subject" label="科目" width="110" align="center" />
+        <el-table-column prop="year" label="年份" width="100" align="center" />
+        <el-table-column prop="downloads" label="下载量" width="100" align="center" />
+        <el-table-column prop="isRecommend" label="推荐" width="90" align="center">
+          <template #default="{ row }">
+            <span>{{ row.isRecommend ? '是' : '否' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
+            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <!-- 试卷编辑弹窗 -->
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="queryParams.pageNum"
+          v-model:page-size="queryParams.pageSize"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="getList"
+          @current-change="getList"
+        />
+      </div>
+    </el-card>
+
     <el-dialog :title="dialog.title" v-model="dialog.visible" width="600px" append-to-body>
       <el-form ref="paperFormRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="试卷标题" prop="title">
@@ -149,14 +107,24 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="科目" prop="subject">
-              <el-select v-model="form.subject" placeholder="选择科目" style="width: 100%">
-                <el-option v-for="item in subjects" :key="item.id" :label="item.name" :value="item.name" />
-              </el-select>
+              <el-input
+                v-model="form.subject"
+                placeholder="请选择科目"
+                readonly
+                @click="openSubjectPicker"
+                class="cursor-pointer"
+              >
+                <template #suffix>
+                  <el-icon class="cursor-pointer" @click.stop="openSubjectPicker"><ArrowRight /></el-icon>
+                </template>
+              </el-input>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="年级" prop="grade">
-              <el-input v-model="form.grade" placeholder="如：高三" />
+              <el-select v-model="form.grade" placeholder="请选择年级" style="width: 100%">
+                <el-option v-for="item in formGradeOptions" :key="item" :label="item" :value="item" />
+              </el-select>
             </el-form-item>
           </el-col>
         </el-row>
@@ -169,9 +137,7 @@
           <el-col :span="12">
             <el-form-item label="试卷类型" prop="type">
               <el-select v-model="form.type" placeholder="选择类型" style="width: 100%">
-                <el-option label="名校试卷" value="FAMOUS" />
-                <el-option label="月考试卷" value="MONTHLY" />
-                <el-option label="联考试卷" value="JOINT" />
+                <el-option v-for="item in paperTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -198,8 +164,8 @@
         </el-form-item>
         <el-form-item label="是否推荐">
           <el-radio-group v-model="form.isRecommend">
-            <el-radio :label="true">推荐</el-radio>
-            <el-radio :label="false">不推荐</el-radio>
+            <el-radio :value="true">推荐</el-radio>
+            <el-radio :value="false">不推荐</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
@@ -211,7 +177,37 @@
       </template>
     </el-dialog>
 
-    <!-- 科目管理弹窗 -->
+    <el-dialog
+      v-model="subjectPickerVisible"
+      title="选择学科"
+      width="520px"
+      append-to-body
+      align-center
+      class="subject-select-dialog"
+    >
+      <div class="subject-select-content">
+        <el-input
+          v-model="subjectSearchKeyword"
+          placeholder="搜索学科"
+          clearable
+          :prefix-icon="Search"
+          class="mb-4"
+        />
+        <div class="subject-grid">
+          <div
+            v-for="item in filteredSubjectOptions"
+            :key="item"
+            class="subject-item"
+            :class="{ active: form.subject === item }"
+            @click="selectSubject(item)"
+          >
+            {{ item }}
+            <el-icon v-if="form.subject === item" class="check-icon"><Check /></el-icon>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
+
     <el-dialog title="科目管理" v-model="subjectDialog.visible" width="700px">
       <div style="margin-bottom: 20px">
         <el-button type="primary" size="small" @click="handleAddSubject">新增科目</el-button>
@@ -230,7 +226,6 @@
       </el-table>
     </el-dialog>
 
-    <!-- 科目编辑弹窗 -->
     <el-dialog :title="subjectEditDialog.title" v-model="subjectEditDialog.visible" width="400px" append-to-body>
       <el-form :model="subjectForm" label-width="80px">
         <el-form-item label="科目名称">
@@ -255,77 +250,111 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowRight, Check, Search } from '@element-plus/icons-vue'
 import {
-  getPaperListApi,
-  savePaperApi,
   deletePaperApi,
-  getSubjectsApi,
-  saveSubjectApi,
   deleteSubjectApi,
-  uploadPaperApi,
-  getTypeStatsApi,
   getGradeStatsApi,
-  getSubjectStatsApi
+  getPaperListApi,
+  getSubjectsApi,
+  savePaperApi,
+  saveSubjectApi,
+  uploadPaperApi
 } from '@/api/course-study/paper'
+
+type PaperTypeValue = 'FAMOUS' | 'MONTHLY' | 'JOINT'
+
+const paperTypeOptions: Array<{ label: string; value: PaperTypeValue }> = [
+  { label: '名校试卷', value: 'FAMOUS' },
+  { label: '月考试卷', value: 'MONTHLY' },
+  { label: '联考试卷', value: 'JOINT' }
+]
+
+const defaultSubjectOptions = [
+  '语文',
+  '数学',
+  '英语',
+  '物理',
+  '化学',
+  '生物',
+  '政治',
+  '历史',
+  '地理',
+  '科学',
+  '信息技术',
+  '音乐',
+  '美术',
+  '体育',
+  '劳动',
+  '综合实践'
+]
+
+const formGradeOptions = [
+  '一年级',
+  '二年级',
+  '三年级',
+  '四年级',
+  '五年级',
+  '六年级',
+  '初一',
+  '初二',
+  '初三',
+  '七年级',
+  '八年级',
+  '九年级',
+  '高一',
+  '高二',
+  '高三'
+]
+
+const paperTypeLabelMap = paperTypeOptions.reduce<Record<string, string>>((map, item) => {
+  map[item.value] = item.label
+  return map
+}, {})
 
 const loading = ref(false)
 const uploadLoading = ref(false)
 const submitLoading = ref(false)
-const currentLevel = ref(1)
 const total = ref(0)
 const paperList = ref<any[]>([])
 const subjects = ref<any[]>([])
-const typeData = ref<any[]>([
-  { id: 'FAMOUS', name: '名校试卷', count: 0 },
-  { id: 'MONTHLY', name: '月考试卷', count: 0 },
-  { id: 'JOINT', name: '联考试卷', count: 0 }
-])
-const gradeData = ref<any[]>([])
-const subjectData = ref<any[]>([])
-const currentType = ref('')
-const currentTypeName = ref('')
-const currentGradeName = ref('')
-const currentSubjectName = ref('')
-const manualGrades = reactive<Record<string, string[]>>({})
+const gradeOptions = ref<string[]>([])
 
-const typeMap: Record<string, string> = {
-  FAMOUS: '名校试卷',
-  MONTHLY: '月考试卷',
-  JOINT: '联考试卷'
-}
-
-// 年级排序权重
 const gradeWeightMap: Record<string, number> = {
-  '一年级': 10, '小学一年级': 10,
-  '二年级': 20, '小学二年级': 20,
-  '三年级': 30, '小学三年级': 30,
-  '四年级': 40, '小学四年级': 40,
-  '五年级': 50, '小学五年级': 50,
-  '六年级': 60, '小学六年级': 60,
-  '初一': 70, '七年级': 70,
-  '初二': 80, '八年级': 80,
-  '初三': 90, '九年级': 90,
+  '一年级': 10,
+  '小学一年级': 10,
+  '二年级': 20,
+  '小学二年级': 20,
+  '三年级': 30,
+  '小学三年级': 30,
+  '四年级': 40,
+  '小学四年级': 40,
+  '五年级': 50,
+  '小学五年级': 50,
+  '六年级': 60,
+  '小学六年级': 60,
+  '初一': 70,
+  '七年级': 70,
+  '初二': 80,
+  '八年级': 80,
+  '初三': 90,
+  '九年级': 90,
   '高一': 100,
   '高二': 110,
   '高三': 120
 }
 
-const getGradeWeight = (name: string) => {
-  for (const key in gradeWeightMap) {
-    if (name.includes(key)) return gradeWeightMap[key]
-  }
-  return 999 // 未知年级排最后
-}
-
-// 排序函数
-const sortGrades = (list: any[]) => {
-  return list.sort((a, b) => getGradeWeight(a.name) - getGradeWeight(b.name))
-}
-
-const queryParams = reactive({
+const queryParams = reactive<{
+  pageNum: number
+  pageSize: number
+  keyword: string
+  subject: string
+  grade: string
+  type: string
+  isRecommend: boolean | null
+}>({
   pageNum: 1,
   pageSize: 10,
   keyword: '',
@@ -341,12 +370,12 @@ const dialog = reactive({
 })
 
 const form = ref({
-  id: null,
+  id: null as number | null,
   title: '',
   subject: '',
   grade: '',
   year: '',
-  type: 'FAMOUS',
+  type: 'FAMOUS' as PaperTypeValue,
   tags: '',
   filePath: '',
   isRecommend: false,
@@ -356,165 +385,161 @@ const form = ref({
 const rules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
   subject: [{ required: true, message: '请选择科目', trigger: 'change' }],
+  grade: [{ required: true, message: '请选择年级', trigger: 'change' }],
   type: [{ required: true, message: '请选择类型', trigger: 'change' }]
 }
 
 const paperFormRef = ref()
+const subjectPickerVisible = ref(false)
+const subjectSearchKeyword = ref('')
 
-// 科目管理相关
 const subjectDialog = reactive({
   visible: false
 })
+
 const subjectEditDialog = reactive({
   title: '',
   visible: false
 })
+
 const subjectForm = ref({
-  id: null,
+  id: null as number | null,
   name: '',
   icon: '',
   color: '#409EFF',
   sortOrder: 0
 })
 
-// 加载类型统计
-const loadTypeStats = async () => {
-  loading.value = true
-  try {
-    const res = await getTypeStatsApi()
-    if (res) {
-      typeData.value = res
+const subjectPickerOptions = computed(() => {
+  const names = subjects.value.map((item) => item.name).filter(Boolean)
+  return Array.from(new Set([...names, ...defaultSubjectOptions]))
+})
+
+const filteredSubjectOptions = computed(() => {
+  const keyword = subjectSearchKeyword.value.trim()
+  if (!keyword) {
+    return subjectPickerOptions.value
+  }
+  return subjectPickerOptions.value.filter((item) => item.includes(keyword))
+})
+
+const getGradeWeight = (name: string) => {
+  for (const key in gradeWeightMap) {
+    if (name.includes(key)) {
+      return gradeWeightMap[key]
     }
-  } catch (error) {
-    console.error('获取类型统计失败:', error)
-  } finally {
-    loading.value = false
   }
+  return 999
 }
 
-// 进入年级管理
-const enterGrade = async (row: any) => {
-  currentType.value = row.id
-  currentTypeName.value = row.name
-  loading.value = true
+const getTypeLabel = (type: string) => paperTypeLabelMap[type] || type || '-'
+
+const loadGradeOptions = async () => {
   try {
-    const res = await getGradeStatsApi(row.id)
-    let list = res || []
-    
-    // 合并手动新增的年级
-    const manual = manualGrades[currentType.value] || []
-    manual.forEach(name => {
-      if (!list.find((g: any) => g.name === name)) {
-        list.push({ name, count: 0 })
+    const results = await Promise.allSettled(paperTypeOptions.map((item) => getGradeStatsApi(item.value)))
+    const grades = new Set<string>()
+    results.forEach((result) => {
+      if (result.status !== 'fulfilled' || !Array.isArray(result.value)) {
+        return
       }
+      result.value.forEach((item: any) => {
+        if (item?.name) {
+          grades.add(item.name)
+        }
+      })
     })
-
-    gradeData.value = sortGrades(list)
-    currentLevel.value = 2
+    gradeOptions.value = Array.from(grades).sort((a, b) => {
+      const weightDiff = getGradeWeight(a) - getGradeWeight(b)
+      return weightDiff !== 0 ? weightDiff : a.localeCompare(b, 'zh-CN')
+    })
   } catch (error) {
-    console.error('获取年级统计失败:', error)
-  } finally {
-    loading.value = false
+    console.error('获取年级筛选项失败:', error)
   }
 }
 
-// 进入科目管理
-const enterSubject = async (row: any) => {
-  currentGradeName.value = row.name
-  loading.value = true
-  try {
-    const res = await getSubjectStatsApi(currentType.value, row.name)
-    subjectData.value = res || []
-    currentLevel.value = 3
-  } catch (error) {
-    console.error('获取科目统计失败:', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-// 进入试卷列表
-const enterPaperList = (row: any) => {
-  currentSubjectName.value = row.name
-  queryParams.type = currentType.value
-  queryParams.grade = currentGradeName.value
-  queryParams.subject = currentSubjectName.value
-  queryParams.pageNum = 1
-  currentLevel.value = 4
-  getList()
-}
-
-// 获取列表数据
 const getList = async () => {
   loading.value = true
   try {
     const res = await getPaperListApi(queryParams)
-    if (res) {
-      paperList.value = res.records
-      total.value = res.total
-    }
+    paperList.value = res?.records || []
+    total.value = res?.total || 0
   } finally {
     loading.value = false
   }
 }
 
-// 搜索查询
+const loadSubjects = async () => {
+  const res = await getSubjectsApi()
+  subjects.value = res || []
+}
+
 const handleQuery = () => {
   queryParams.pageNum = 1
   getList()
 }
 
-// 重置查询
 const resetQuery = () => {
   queryParams.keyword = ''
+  queryParams.subject = ''
+  queryParams.grade = ''
+  queryParams.type = ''
+  queryParams.isRecommend = null
   handleQuery()
 }
 
-// 状态切换
-const handleStatusChange = async (row: any) => {
-  try {
-    await savePaperApi(row)
-    ElMessage.success('操作成功')
-  } catch (error) {
-    row.isRecommend = !row.isRecommend
-  }
-}
-
-// 重置表单
 const resetForm = () => {
   form.value = {
     id: null,
     title: '',
-    subject: currentSubjectName.value || '',
-    grade: currentGradeName.value || '',
+    subject: queryParams.subject || '',
+    grade: queryParams.grade || '',
     year: new Date().getFullYear().toString(),
-    type: currentType.value || 'FAMOUS',
+    type: (queryParams.type as PaperTypeValue) || 'FAMOUS',
     tags: '',
     filePath: '',
     isRecommend: false,
     sortOrder: 1
   }
-  if (paperFormRef.value) {
-    paperFormRef.value.resetFields()
-  }
+  subjectSearchKeyword.value = ''
+  paperFormRef.value?.clearValidate()
 }
 
-// 新增按钮
 const handleAdd = () => {
   resetForm()
   dialog.title = '新增试卷'
   dialog.visible = true
 }
 
-// 编辑按钮
 const handleEdit = (row: any) => {
-  resetForm()
-  form.value = { ...row }
+  form.value = {
+    id: row.id ?? null,
+    title: row.title || '',
+    subject: row.subject || '',
+    grade: row.grade || '',
+    year: row.year || '',
+    type: row.type || 'FAMOUS',
+    tags: row.tags || '',
+    filePath: row.filePath || '',
+    isRecommend: !!row.isRecommend,
+    sortOrder: row.sortOrder || 1
+  }
+  subjectSearchKeyword.value = ''
+  paperFormRef.value?.clearValidate()
   dialog.title = '编辑试卷'
   dialog.visible = true
 }
 
-// 删除按钮
+const openSubjectPicker = () => {
+  subjectSearchKeyword.value = ''
+  subjectPickerVisible.value = true
+}
+
+const selectSubject = (subject: string) => {
+  form.value.subject = subject
+  subjectPickerVisible.value = false
+  paperFormRef.value?.validateField?.('subject')
+}
+
 const handleDelete = (row: any) => {
   ElMessageBox.confirm('确定要删除该试卷吗？', '警告', {
     type: 'warning'
@@ -522,27 +547,27 @@ const handleDelete = (row: any) => {
     await deletePaperApi(row.id)
     ElMessage.success('删除成功')
     getList()
+    loadGradeOptions()
   })
 }
 
-// 提交表单
 const submitForm = async () => {
   paperFormRef.value.validate(async (valid: boolean) => {
-    if (valid) {
-      submitLoading.value = true
-      try {
-        await savePaperApi(form.value)
-        ElMessage.success('保存成功')
-        dialog.visible = false
-        getList()
-      } finally {
-        submitLoading.value = false
-      }
+    if (!valid) {
+      return
+    }
+    submitLoading.value = true
+    try {
+      await savePaperApi(form.value)
+      ElMessage.success('保存成功')
+      dialog.visible = false
+      await Promise.all([getList(), loadGradeOptions()])
+    } finally {
+      submitLoading.value = false
     }
   })
 }
 
-// 上传相关
 const beforeUpload = (file: any) => {
   const isLt50M = file.size / 1024 / 1024 < 50
   if (!isLt50M) {
@@ -555,7 +580,7 @@ const handleUpload = async (options: any) => {
   const { file } = options
   const formData = new FormData()
   formData.append('file', file)
-  
+
   uploadLoading.value = true
   try {
     const res = await uploadPaperApi(formData)
@@ -570,15 +595,9 @@ const handleUpload = async (options: any) => {
   }
 }
 
-// 科目管理
 const handleSubjectManage = () => {
   subjectDialog.visible = true
   loadSubjects()
-}
-
-const loadSubjects = async () => {
-  const res = await getSubjectsApi()
-  subjects.value = res || []
 }
 
 const handleAddSubject = () => {
@@ -610,45 +629,38 @@ const handleDeleteSubject = (row: any) => {
   ElMessageBox.confirm('确定删除该科目吗？', '提示').then(async () => {
     await deleteSubjectApi(row.id)
     ElMessage.success('删除成功')
-    loadSubjects()
-  })
-}
-
-const handleAddNewGrade = () => {
-  ElMessageBox.prompt('请输入年级名称（如：高三）', '新增年级', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消'
-  }).then(({ value }) => {
-    if (value) {
-      if (!manualGrades[currentType.value]) {
-        manualGrades[currentType.value] = []
-      }
-      if (!manualGrades[currentType.value].includes(value)) {
-        manualGrades[currentType.value].push(value)
-      }
-      enterGrade({ id: currentType.value, name: currentTypeName.value })
+    await loadSubjects()
+    if (queryParams.subject === row.name) {
+      queryParams.subject = ''
+      getList()
     }
   })
 }
 
 onMounted(() => {
-  loadTypeStats()
+  getList()
   loadSubjects()
+  loadGradeOptions()
 })
 </script>
 
 <style scoped lang="scss">
 .paper-manage {
   padding: 20px;
-  
+
   .card-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    
+    justify-content: space-between;
+
     .title {
       font-size: 18px;
       font-weight: bold;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
     }
   }
 
@@ -660,9 +672,59 @@ onMounted(() => {
   }
 
   .pagination-container {
-    margin-top: 20px;
     display: flex;
     justify-content: flex-end;
+    margin-top: 20px;
   }
+}
+
+.cursor-pointer {
+  cursor: pointer;
+
+  :deep(input) {
+    cursor: pointer;
+  }
+}
+
+.subject-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.subject-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+
+  &:hover {
+    color: var(--el-color-primary);
+    background-color: var(--el-color-primary-light-9);
+    border-color: var(--el-color-primary);
+  }
+
+  &.active {
+    color: var(--el-color-primary);
+    background-color: var(--el-color-primary-light-9);
+    border-color: var(--el-color-primary);
+    font-weight: bold;
+  }
+}
+
+.check-icon {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 12px;
 }
 </style>

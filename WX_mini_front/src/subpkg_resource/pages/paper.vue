@@ -82,17 +82,8 @@
 
       <!-- 列表区域 - 极简白卡片 -->
       <view class="list-container">
-        <view class="list-tabs">
-          <view 
-            class="tab-pill" 
-            :class="{ active: currentTab === 'all' }" 
-            @click="handleTabChange('all')"
-          >全部试卷</view>
-          <view 
-            class="tab-pill" 
-            :class="{ active: currentTab === 'recommend' }" 
-            @click="handleTabChange('recommend')"
-          >编辑精选</view>
+        <view class="section-header">
+          <text class="section-title">精选推荐</text>
         </view>
         
         <view class="paper-list">
@@ -141,14 +132,9 @@ import { getPaperListApi, getPaperSubjectsApi, incrementPaperDownloadApi } from 
 const keyword = ref('')
 const list = ref<any[]>([])
 const subjects = ref<any[]>([])
-const currentTab = ref('all')
 
 const filteredList = computed(() => {
-  let result = list.value
-  if (currentTab.value === 'recommend') {
-    result = result.filter(item => item.isRecommend)
-  }
-  return result
+  return list.value.filter(item => item.isRecommend)
 })
 
 const formatTags = (tags: any) => {
@@ -198,10 +184,6 @@ const handleSpecial = (type: string) => {
   uni.navigateTo({
     url: `/subpkg_resource/pages/paper-list?type=${type}`
   })
-}
-
-const handleTabChange = (tab: string) => {
-  currentTab.value = tab
 }
 
 const handleItemClick = async (item: any) => {
@@ -535,31 +517,6 @@ onMounted(() => {
 /* 列表容器 */
 .list-container {
   margin-top: 20rpx;
-}
-
-.list-tabs {
-  display: flex;
-  gap: 24rpx;
-  margin-bottom: 32rpx;
-  padding: 0 10rpx;
-}
-
-.tab-pill {
-  padding: 12rpx 32rpx;
-  border-radius: 32rpx;
-  font-size: 28rpx;
-  color: #8c8c8c;
-  background: #fff;
-  border: 1rpx solid #f0f3f5;
-  transition: all 0.3s;
-
-  &.active {
-    color: #fff;
-    background: #1a5f8e;
-    border-color: #1a5f8e;
-    font-weight: bold;
-    box-shadow: 0 6rpx 16rpx rgba(26, 95, 142, 0.2);
-  }
 }
 
 .paper-item-card {

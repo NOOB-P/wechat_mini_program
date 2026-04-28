@@ -15,7 +15,7 @@ import com.edu.javasb_back.model.entity.Course;
 public interface CourseRepository extends JpaRepository<Course, String> {
 
     /**
-     * 使用 SQL 原生语句查询所有常规课程列表
+     * 使用 SQL 原生语句查询所有精选课程列表
      */
     @Query(value = "SELECT * FROM courses WHERE type = 'general' AND status = 1 ORDER BY create_time DESC", nativeQuery = true)
     List<Course> findAllGeneralCoursesSql();
@@ -93,7 +93,17 @@ public interface CourseRepository extends JpaRepository<Course, String> {
     /**
      * 查询学习记录 (返回 Map 以便包含 progress)
      */
-    @Query(value = "SELECT c.*, usr.progress FROM courses c JOIN user_study_records usr ON c.id = usr.course_id WHERE usr.user_uid = :uid ORDER BY usr.last_study_time DESC", nativeQuery = true)
+    @Query(value = "SELECT " +
+                   "c.id AS id, " +
+                   "c.title AS title, " +
+                   "c.cover AS cover, " +
+                   "c.type AS type, " +
+                   "COALESCE(usr.progress, 0) AS progress, " +
+                   "usr.last_study_time AS lastStudyTime " +
+                   "FROM courses c " +
+                   "JOIN user_study_records usr ON c.id = usr.course_id " +
+                   "WHERE usr.user_uid = :uid " +
+                   "ORDER BY usr.last_study_time DESC", nativeQuery = true)
     List<Map<String, Object>> findStudyRecordsSql(@Param("uid") Long uid);
 
     /**
