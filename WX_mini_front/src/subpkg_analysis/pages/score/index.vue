@@ -453,7 +453,7 @@ const printableWrongBookData = computed(() => {
 // 动态计算预估费用
 const estimatedPrice = computed(() => {
   const minQuantity = Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)
-  const pageCount = Math.max(Math.ceil(printableWrongBookData.value.length / 2) || 1, minQuantity)
+  const pageCount = Math.max(Math.ceil(filteredWrongBookData.value.length / 2) || 1, minQuantity)
   let paperCost = currentPaperConfig.value ? currentPaperConfig.value.price * pageCount : 0
   
   // 加上装订费
