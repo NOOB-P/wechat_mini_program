@@ -224,18 +224,19 @@ const currentDeliveryConfig = computed(() => {
   return printConfig.value.deliveryConfigs.find((d: any) => d.method === printForm.value.deliveryMethod)
 })
 
-// 动态计算预估费用
-const estimatedPrice = computed(() => {
-  // 基础纸张费用
-  const paperConfig = printConfig.value.paperConfigs.find((p: any) => 
-    p.size === printForm.value.paperSize && 
-    p.side === printForm.value.printSide && 
+const currentPaperConfig = computed(() => {
+  return printConfig.value.paperConfigs.find((p: any) =>
+    p.size === printForm.value.paperSize &&
+    p.side === printForm.value.printSide &&
     p.color === printForm.value.color
   )
-  
-  // 使用表单中的页数
-  const pageCount = printForm.value.pages || 20
-  let paperCost = paperConfig ? paperConfig.price * pageCount : 0
+})
+
+// 动态计算预估费用
+const estimatedPrice = computed(() => {
+  const minQuantity = Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)
+  const pageCount = Math.max(printForm.value.pages || 20, minQuantity)
+  let paperCost = currentPaperConfig.value ? currentPaperConfig.value.price * pageCount : 0
   
   // 加上装订费
   let totalCost = paperCost + (printConfig.value.globalParams.bindingFee || 0)
@@ -306,12 +307,22 @@ const submitPrint = async () => {
     const docName = `错题本_${new Date().toLocaleDateString().replace(/\//g, '')}_${printForm.value.paperSize}`
     const res = await submitPrintOrderApi({
       ...printForm.value,
+      pages: Math.max(printForm.value.pages || 20, Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)),
       documentName: docName
     })
     uni.hideLoading()
     if (res.code === 200) {
-      toast.success(res.msg || '下单成功')
       showPrintDialog.value = false
+      const payOrderData = {
+        orderNo: res.data.orderNo,
+        title: res.data.documentName,
+        price: res.data.totalPrice,
+        createTime: res.data.createTime
+      }
+      const orderDataStr = encodeURIComponent(JSON.stringify(payOrderData))
+      uni.navigateTo({
+        url: `/subpkg_course/pages/course/pay?order=${orderDataStr}&type=print`
+      })
     } else {
       toast.error(res.msg || '下单失败')
     }

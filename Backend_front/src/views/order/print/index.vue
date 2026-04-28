@@ -83,6 +83,13 @@
         </el-table-column>
         <el-table-column label="页数" prop="pages" width="80" align="center" />
         <el-table-column label="配送方式" prop="deliveryMethod" width="100" align="center" />
+        <el-table-column
+          label="收货地址"
+          prop="deliveryAddress"
+          min-width="220"
+          align="center"
+          :show-overflow-tooltip="true"
+        />
         <el-table-column label="订单总额" width="100" align="center">
           <template #default="scope">
             <span class="text-red-500 font-bold">¥{{ (scope.row.totalPrice || 0).toFixed(2) }}</span>

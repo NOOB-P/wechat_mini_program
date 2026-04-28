@@ -9,6 +9,7 @@ import com.edu.javasb_back.service.PrintConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.List;
@@ -52,6 +53,9 @@ public class PrintConfigServiceImpl implements PrintConfigService {
     @Override
     @Transactional
     public Result<Void> updateDeliveryConfigs(List<DeliveryConfig> deliveryConfigs) {
+        for (DeliveryConfig deliveryConfig : deliveryConfigs) {
+            ensureDeliveryCode(deliveryConfig);
+        }
         deliveryConfigRepository.saveAll(deliveryConfigs);
         return Result.success(null);
     }
@@ -59,6 +63,7 @@ public class PrintConfigServiceImpl implements PrintConfigService {
     @Override
     @Transactional
     public Result<DeliveryConfig> saveDeliveryConfig(DeliveryConfig deliveryConfig) {
+        ensureDeliveryCode(deliveryConfig);
         DeliveryConfig saved = deliveryConfigRepository.save(deliveryConfig);
         return Result.success(saved);
     }
@@ -68,5 +73,25 @@ public class PrintConfigServiceImpl implements PrintConfigService {
     public Result<Void> deleteDeliveryConfig(Long id) {
         deliveryConfigRepository.deleteById(id);
         return Result.success(null);
+    }
+
+    private void ensureDeliveryCode(DeliveryConfig deliveryConfig) {
+        if (deliveryConfig == null || StringUtils.hasText(deliveryConfig.getCode())) {
+            return;
+        }
+        String name = deliveryConfig.getName();
+        if ("标准快递".equals(name)) {
+            deliveryConfig.setCode("standard");
+            return;
+        }
+        if ("极速达".equals(name)) {
+            deliveryConfig.setCode("express");
+            return;
+        }
+        if ("自提".equals(name)) {
+            deliveryConfig.setCode("pickup");
+            return;
+        }
+        deliveryConfig.setCode("delivery_" + System.currentTimeMillis());
     }
 }

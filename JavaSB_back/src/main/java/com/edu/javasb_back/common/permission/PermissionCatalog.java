@@ -234,7 +234,7 @@ public final class PermissionCatalog {
             ),
             new PermissionGroup(
                     PAPER_MANAGE_LIST,
-                    "名校试卷管理",
+                    "试卷管理",
                     "/paper-manage/index",
                     "ri:file-paper-2-line",
                     List.of(

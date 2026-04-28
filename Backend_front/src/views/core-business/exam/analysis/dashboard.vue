@@ -9,7 +9,6 @@
       </template>
       <template #extra>
         <div class="flex items-center">
-          <el-button type="primary" size="small">导出分析报告</el-button>
         </div>
       </template>
     </el-page-header>

@@ -3,7 +3,7 @@
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
-          <span class="title">名校试卷管理</span>
+          <span class="title">试卷管理</span>
           <div class="actions">
             <el-button type="success" @click="handleSubjectManage">全局科目管理</el-button>
             <el-button type="primary" @click="handleAdd">新增试卷</el-button>

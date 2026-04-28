@@ -49,6 +49,9 @@ public class PrintOrder {
     @Column(name = "delivery_method", nullable = false, length = 50)
     private String deliveryMethod; // 标准快递/极速达/自提
 
+    @Column(name = "delivery_address", length = 255)
+    private String deliveryAddress; // 收件地址/自提点
+
     @Column(name = "total_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal totalPrice;
 
@@ -82,6 +85,8 @@ public class PrintOrder {
     public void setPrintType(String printType) { this.printType = printType; }
     public String getDeliveryMethod() { return deliveryMethod; }
     public void setDeliveryMethod(String deliveryMethod) { this.deliveryMethod = deliveryMethod; }
+    public String getDeliveryAddress() { return deliveryAddress; }
+    public void setDeliveryAddress(String deliveryAddress) { this.deliveryAddress = deliveryAddress; }
     public BigDecimal getTotalPrice() { return totalPrice; }
     public void setTotalPrice(BigDecimal totalPrice) { this.totalPrice = totalPrice; }
     public Integer getOrderStatus() { return orderStatus; }

@@ -67,7 +67,6 @@
               style="width: 200px"
               clearable
             />
-            <el-button type="primary" size="small">导出报表</el-button>
           </div>
         </div>
       </template>

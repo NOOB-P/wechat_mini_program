@@ -76,7 +76,7 @@ public class AdminPrintOrderController {
             @RequestParam(required = false) String endDate) {
         Integer finalStatus = status != null ? status : orderStatus;
         List<PrintOrder> orders = printOrderService.getPrintOrderExportList(orderNo, userName, finalStatus, startDate, endDate);
-        List<String> headers = List.of("订单号", "用户名", "手机号", "文档名称", "打印规格", "页数", "配送方式", "订单金额", "订单状态", "下单时间", "更新时间");
+        List<String> headers = List.of("订单号", "用户名", "手机号", "文档名称", "打印规格", "页数", "配送方式", "收货地址", "订单金额", "订单状态", "下单时间", "更新时间");
         List<List<String>> rows = orders.stream()
                 .map(order -> List.of(
                         valueOf(order.getOrderNo()),
@@ -86,6 +86,7 @@ public class AdminPrintOrderController {
                         valueOf(order.getPrintType()),
                         order.getPages() == null ? "" : order.getPages().toString(),
                         valueOf(order.getDeliveryMethod()),
+                        valueOf(order.getDeliveryAddress()),
                         formatAmount(order.getTotalPrice()),
                         resolveOrderStatus(order.getOrderStatus()),
                         formatDateTime(order.getCreateTime()),

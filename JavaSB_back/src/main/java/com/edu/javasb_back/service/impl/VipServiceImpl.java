@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.DeliveryConfig;
@@ -271,6 +272,7 @@ public class VipServiceImpl implements VipService {
             m.put("side", p.getSide());
             m.put("color", p.getColor());
             m.put("price", p.getPrice());
+            m.put("minQuantity", p.getMinQuantity());
             return m;
         }).collect(Collectors.toList());
         config.put("paperConfigs", paperConfigs);
@@ -278,7 +280,7 @@ public class VipServiceImpl implements VipService {
         List<DeliveryConfig> deliveries = deliveryConfigRepository.findAll();
         List<Map<String, Object>> deliveryConfigs = deliveries.stream().map(d -> {
             Map<String, Object> m = new HashMap<>();
-            m.put("method", d.getName().equals("标准快递") ? "standard" : d.getName().equals("极速达") ? "express" : "pickup");
+            m.put("method", resolveDeliveryCode(d));
             m.put("name", d.getName());
             m.put("baseFee", d.getPrice());
             m.put("freeThreshold", d.getFreeLimit());
@@ -302,12 +304,13 @@ public class VipServiceImpl implements VipService {
         String paperSize = (String) orderData.get("paperSize");
         String printSide = (String) orderData.get("printSide");
         String color = (String) orderData.get("color");
-        Integer pages = (Integer) orderData.get("pages");
+        Integer pages = parseInteger(orderData.get("pages"));
         if (pages == null) pages = 20; // 默认页数，实际应从小程序传参
         
         String deliveryMethod = (String) orderData.get("deliveryMethod");
         String userName = (String) orderData.get("userName");
         String userPhone = (String) orderData.get("userPhone");
+        String deliveryAddress = (String) orderData.get("address");
         String documentName = (String) orderData.get("documentName");
         if (documentName == null) documentName = "错题打印文档_" + System.currentTimeMillis();
 
@@ -316,12 +319,18 @@ public class VipServiceImpl implements VipService {
         String finalPaperSize = paperSize;
         String finalPrintSide = printSide;
         String finalColor = color;
-        BigDecimal paperUnitPrice = paperPriceRepository.findAll().stream()
+        PaperPrice matchedPaperPrice = paperPriceRepository.findAll().stream()
                 .filter(p -> p.getType().equalsIgnoreCase(finalPaperSize) && 
                             p.getSide().equals(finalPrintSide) && 
                             p.getColor().equals(finalColor))
-                .map(PaperPrice::getPrice)
-                .findFirst().orElse(new BigDecimal("0.50")); // 默认兜底价
+                .findFirst()
+                .orElse(null);
+
+        BigDecimal paperUnitPrice = matchedPaperPrice == null ? new BigDecimal("0.50") : matchedPaperPrice.getPrice();
+        int minQuantity = matchedPaperPrice == null || matchedPaperPrice.getMinQuantity() == null
+                ? 1
+                : Math.max(matchedPaperPrice.getMinQuantity(), 1);
+        pages = Math.max(pages, minQuantity);
 
         BigDecimal paperCost = paperUnitPrice.multiply(new BigDecimal(pages));
         BigDecimal bindingFee = new BigDecimal("2.00"); // 装订费配置
@@ -331,12 +340,10 @@ public class VipServiceImpl implements VipService {
         if (totalBase.compareTo(minAmount) < 0) totalBase = minAmount;
         
         // 计算运费
-        String methodName = "standard".equals(deliveryMethod) ? "标准快递" : 
-                           "express".equals(deliveryMethod) ? "极速达" : "自提";
-        
         DeliveryConfig delivery = deliveryConfigRepository.findAll().stream()
-                .filter(d -> d.getName().equals(methodName))
+                .filter(d -> resolveDeliveryCode(d).equals(deliveryMethod))
                 .findFirst().orElse(null);
+        String methodName = delivery != null ? delivery.getName() : resolveDeliveryName(deliveryMethod);
                 
         BigDecimal shippingFee = BigDecimal.ZERO;
         if (delivery != null) {
@@ -359,6 +366,7 @@ public class VipServiceImpl implements VipService {
         order.setPages(pages);
         order.setPrintType(paperSize + "/" + printSide + "/" + color);
         order.setDeliveryMethod(methodName);
+        order.setDeliveryAddress(deliveryAddress);
         order.setTotalPrice(finalPrice);
         order.setOrderStatus(1); // 1-待支付
 
@@ -381,5 +389,46 @@ public class VipServiceImpl implements VipService {
         notificationService.saveNotification(notification);
 
         return Result.success("订单已提交，请前往支付", order);
+    }
+
+    private Integer parseInteger(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Integer integerValue) {
+            return integerValue;
+        }
+        if (value instanceof Number numberValue) {
+            return numberValue.intValue();
+        }
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (Exception exception) {
+            return null;
+        }
+    }
+
+    private String resolveDeliveryCode(DeliveryConfig deliveryConfig) {
+        if (deliveryConfig == null) {
+            return "";
+        }
+        if (StringUtils.hasText(deliveryConfig.getCode())) {
+            return deliveryConfig.getCode().trim();
+        }
+        return switch (deliveryConfig.getName()) {
+            case "标准快递" -> "standard";
+            case "极速达" -> "express";
+            case "自提" -> "pickup";
+            default -> deliveryConfig.getId() == null ? "" : "delivery_" + deliveryConfig.getId();
+        };
+    }
+
+    private String resolveDeliveryName(String deliveryCode) {
+        return switch (deliveryCode == null ? "" : deliveryCode) {
+            case "standard" -> "标准快递";
+            case "express" -> "极速达";
+            case "pickup" -> "自提";
+            default -> deliveryCode;
+        };
     }
 }

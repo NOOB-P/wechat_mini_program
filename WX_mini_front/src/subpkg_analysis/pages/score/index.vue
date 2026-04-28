@@ -374,6 +374,14 @@ const currentDeliveryConfig = computed(() => {
   return printConfig.value.deliveryConfigs.find((d: any) => d.method === printForm.value.deliveryMethod)
 })
 
+const currentPaperConfig = computed(() => {
+  return printConfig.value.paperConfigs.find((p: any) =>
+    p.size === printForm.value.paperSize &&
+    p.side === printForm.value.printSide &&
+    p.color === printForm.value.color
+  )
+})
+
 const normalizedWrongBookData = computed(() =>
   (wrongBookData.value || []).map((item: any) => ({
     ...item,
@@ -418,16 +426,9 @@ const filteredWrongBookData = computed(() => {
 
 // 动态计算预估费用
 const estimatedPrice = computed(() => {
-  // 基础纸张费用
-  const paperConfig = printConfig.value.paperConfigs.find((p: any) => 
-    p.size === printForm.value.paperSize && 
-    p.side === printForm.value.printSide && 
-    p.color === printForm.value.color
-  )
-  
-  // 根据当前筛选的错题数量计算页数（假设两道错题占一页）
-  const pageCount = Math.ceil(filteredWrongBookData.value.length / 2) || 1
-  let paperCost = paperConfig ? paperConfig.price * pageCount : 0
+  const minQuantity = Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)
+  const pageCount = Math.max(Math.ceil(filteredWrongBookData.value.length / 2) || 1, minQuantity)
+  let paperCost = currentPaperConfig.value ? currentPaperConfig.value.price * pageCount : 0
   
   // 加上装订费
   let totalCost = paperCost + (printConfig.value.globalParams.bindingFee || 0)
@@ -709,7 +710,10 @@ const submitPrint = async () => {
       userName: userInfo?.name || userInfo?.nickname || '微信用户',
       userPhone: printForm.value.phone || userInfo?.phone,
       documentName: `${scoreData.value?.examName || '错题集'}-${selectedWrongSubject.value === 'all' ? '全部科目' : selectedWrongSubject.value}`,
-      pages: Math.ceil(filteredWrongBookData.value.length / 2) || 1 // 假设两道错题占一页
+      pages: Math.max(
+        Math.ceil(filteredWrongBookData.value.length / 2) || 1,
+        Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)
+      )
     }
     
     const res = await submitPrintOrderApi(orderData)
