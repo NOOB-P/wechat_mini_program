@@ -25,6 +25,7 @@ public interface CourseService {
 
     // 管理端接口
     Result<List<Course>> getAllCourses(String type, Boolean isSvipOnly, Boolean isFree, Integer isRecommend);
+    Result<Map<String, Object>> getAllCoursesPaged(int current, int size, String type, Boolean isSvipOnly, Boolean isFree, Integer isRecommend);
     Result<Void> addCourse(Course course);
     Result<Void> updateCourse(Course course);
     Result<Void> deleteCourse(String id);

@@ -32,6 +32,7 @@ import com.edu.javasb_back.service.SysNotificationService;
 import com.edu.javasb_back.service.VipService;
 import com.edu.javasb_back.utils.VipTypeUtils;
 import java.time.LocalDateTime;
+
 @Service
 public class VipServiceImpl implements VipService {
 
@@ -88,8 +89,15 @@ public class VipServiceImpl implements VipService {
             return false;
         }
 
-        boolean changed = false;
-        return VipTypeUtils.normalizeAccountVipType(account);
+        Integer targetType = VipTypeUtils.resolveTargetVipType(account.getVipType(), account.getVipExpireTime());
+        if (!targetType.equals(account.getVipType() == null ? VipTypeUtils.NONE : account.getVipType())) {
+            account.setVipType(targetType);
+            if (targetType == VipTypeUtils.NONE) {
+                account.setVipConfigId(null);
+            }
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -289,7 +297,7 @@ public class VipServiceImpl implements VipService {
 
     @Override
     @Transactional
-    public Result<Void> submitPrintOrder(Long uid, Map<String, Object> orderData) {
+    public Result<PrintOrder> submitPrintOrder(Long uid, Map<String, Object> orderData) {
         // 1. 参数提取
         String paperSize = (String) orderData.get("paperSize");
         String printSide = (String) orderData.get("printSide");
@@ -372,6 +380,6 @@ public class VipServiceImpl implements VipService {
         notification.setActionPath("/subpkg_mine/pages/mine/order-list?tab=print");
         notificationService.saveNotification(notification);
 
-        return Result.success("订单已提交，请前往支付", null);
+        return Result.success("订单已提交，请前往支付", order);
     }
 }

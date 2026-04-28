@@ -2,6 +2,7 @@ package com.edu.javasb_back.service.impl;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -197,6 +198,27 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public Result<List<Course>> getAllCourses(String type, Boolean isSvipOnly, Boolean isFree, Integer isRecommend) {
         return Result.success(normalizeCourses(courseRepository.findAllCoursesFilteredSql(type, isSvipOnly, isFree, isRecommend)));
+    }
+
+    @Override
+    public Result<Map<String, Object>> getAllCoursesPaged(int current, int size, String type, Boolean isSvipOnly, Boolean isFree, Integer isRecommend) {
+        List<Course> all = normalizeCourses(courseRepository.findAllCoursesFilteredSql(type, isSvipOnly, isFree, isRecommend));
+        int total = all.size();
+        int fromIndex = (current - 1) * size;
+        int toIndex = Math.min(fromIndex + size, total);
+        
+        List<Course> pagedList = List.of();
+        if (fromIndex < total) {
+            pagedList = all.subList(fromIndex, toIndex);
+        }
+        
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("list", pagedList);
+        data.put("total", total);
+        data.put("current", current);
+        data.put("size", size);
+        
+        return Result.success(data);
     }
 
     @Override

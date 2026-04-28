@@ -1,53 +1,35 @@
 <template>
   <div class="page-container">
-    <div v-if="!showDetail && !showEpisodeManagement">
-      <el-card shadow="never">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <span class="font-bold">课程分类管理</span>
-          </div>
-        </template>
-        <el-table :data="categoryData" border>
-          <el-table-column prop="id" label="分类 ID" width="120" />
-          <el-table-column prop="name" label="分类名称" min-width="150" />
-          <el-table-column prop="count" label="课程数量" width="120" />
-          <el-table-column label="操作" width="150" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="enterCategory(row)">进入管理</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-card>
-    </div>
-
-    <div v-else-if="showDetail && !showEpisodeManagement">
+    <div v-if="!showEpisodeManagement">
       <el-card shadow="never">
         <template #header>
           <div class="flex items-center justify-between gap-4 flex-wrap">
-            <div class="flex items-center">
-              <el-button link @click="showDetail = false">
-                <el-icon><ArrowLeft /></el-icon>
-                返回分类
-              </el-button>
-              <span class="ml-4 font-bold">{{ currentCategory.name }} - 课程列表</span>
-            </div>
-            <div class="flex items-center gap-3 flex-wrap">
-              <el-radio-group v-model="courseScope" size="small" @change="handleCourseScopeChange">
-                <el-radio-button v-for="option in courseScopeOptions" :key="option.value" :label="option.value">
-                  {{ option.label }}
-                </el-radio-button>
-              </el-radio-group>
-              <el-button type="primary" @click="handleAdd">新增课程</el-button>
-            </div>
+            <span class="font-bold">课程管理</span>
+            <el-button type="primary" @click="handleAdd">新增课程</el-button>
           </div>
         </template>
+        <div class="search-bar">
+          <el-form :inline="true">
+            <el-form-item label="课程分类">
+              <el-select v-model="selectedCategory" placeholder="请选择课程分类" clearable @change="handleFilterChange" style="width: 160px">
+                <el-option label="全部" value="" />
+                <el-option v-for="category in categoryOptions" :key="category.id" :label="category.name" :value="category.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="课程范围">
+              <el-select v-model="courseScope" placeholder="请选择课程范围" @change="handleFilterChange" style="width: 160px">
+                <el-option v-for="option in courseScopeOptions" :key="option.value" :label="option.label" :value="option.value" />
+              </el-select>
+            </el-form-item>
+          </el-form>
+        </div>
         <el-table :data="tableData" border v-loading="loading">
           <el-table-column prop="title" label="课程名称" min-width="180" />
-          <el-table-column prop="type" label="类型" width="120">
+          <el-table-column prop="type" label="分类" width="120">
             <template #default="{ row }">
-              <el-tag v-if="row.type === 'general'">常规</el-tag>
-              <el-tag v-else-if="row.type === 'sync'" type="success">同步</el-tag>
-              <el-tag v-else-if="row.type === 'family'" type="warning">家教</el-tag>
+              <el-tag v-if="row.type === 'general'">精选课程</el-tag>
+              <el-tag v-else-if="row.type === 'sync'" type="success">同步/专题课</el-tag>
+              <el-tag v-else-if="row.type === 'family'" type="warning">家庭教育</el-tag>
               <el-tag v-else-if="row.type === 'talk'" type="danger">学霸说</el-tag>
             </template>
           </el-table-column>
@@ -101,6 +83,18 @@
             </template>
           </el-table-column>
         </el-table>
+
+        <div class="mt-4 flex justify-end">
+          <el-pagination
+            v-model:current-page="queryParams.current"
+            v-model:page-size="queryParams.size"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="total"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+          />
+        </div>
       </el-card>
     </div>
 
@@ -230,7 +224,7 @@ import { DEFAULT_COURSE_COVER, resolveUploadUrl } from '@/utils/upload-url'
 import CourseDialog from './modules/course-dialog.vue'
 import EpisodeDialog from './modules/episode-dialog.vue'
 import VideoDialog from './modules/video-dialog.vue'
-import { createCourseCategories, courseScopeOptions, type CourseCategory, type CourseScope } from './modules/course-config'
+import { createCourseCategories, courseScopeOptions, type CourseScope } from './modules/course-config'
 
 const uploadStore = useUploadStore()
 const { uploadTasks } = storeToRefs(uploadStore)
@@ -244,21 +238,21 @@ const videoDialogVisible = ref(false)
 const isEdit = ref(false)
 const isEpisodeEdit = ref(false)
 const isVideoEdit = ref(false)
-const showDetail = ref(false)
 const showEpisodeManagement = ref(false)
 const showEpisodeVideoManagement = ref(false)
 const tableData = ref<any[]>([])
 const episodeData = ref<any[]>([])
 const videoData = ref<any[]>([])
+const total = ref(0)
 const editData = ref<Record<string, any>>({})
 const episodeEditData = ref<Record<string, any> | undefined>(undefined)
 const videoEditData = ref<Record<string, any> | undefined>(undefined)
 const currentCourse = ref<Record<string, any>>({ id: '', title: '' })
 const currentEpisode = ref<Record<string, any>>({ id: '', title: '', sortOrder: 0 })
-const currentCategory = ref<CourseCategory>({ id: '', name: '', count: 0 })
-const categoryData = ref(createCourseCategories())
+const categoryOptions = createCourseCategories()
+const selectedCategory = ref('')
 const courseScope = ref<CourseScope>('all')
-const queryParams = ref<CourseListParams>({ current: 1, size: 10, type: '' })
+const queryParams = ref<CourseListParams>({ current: 1, size: 10 })
 const combinedVideoData = computed(() => {
   const currentEpisodeTasks = uploadTasks.value.filter(task => task.episodeId === currentEpisode.value.id)
   return [...currentEpisodeTasks, ...videoData.value]
@@ -270,6 +264,9 @@ const normalizeCourseRow = (row: any) => ({
 
 const buildListParams = (): CourseListParams => {
   const params: CourseListParams = { ...queryParams.value }
+  if (!params.type) {
+    delete params.type
+  }
   if (courseScope.value === 'normal') {
     params.isSvipOnly = false
   } else if (courseScope.value === 'svip') {
@@ -283,49 +280,46 @@ const buildListParams = (): CourseListParams => {
 const handleDismissUploadTask = (task: any) => uploadStore.removeTask(task.id)
 const handleCancelUpload = (task: any) => uploadStore.cancelTask(task.id)
 
-const enterCategory = (row: CourseCategory) => {
-  currentCategory.value = { ...row }
-  queryParams.value.type = row.id
-  showDetail.value = true
+const handleFilterChange = () => {
+  queryParams.value.current = 1
+  queryParams.value.type = selectedCategory.value || undefined
   loadData()
 }
 
-const handleCourseScopeChange = () => {
-  if (showDetail.value) {
-    loadData()
-  }
+const handleSizeChange = (val: number) => {
+  queryParams.value.size = val
+  queryParams.value.current = 1
+  loadData()
 }
+
+const handleCurrentChange = (val: number) => {
+  queryParams.value.current = val
+  loadData()
+}
+
 const enterCourseManagement = (row: any) => {
   currentCourse.value = row
   showEpisodeManagement.value = true
   loadEpisodes()
 }
+
 const enterEpisodeVideoManagement = (row: any) => {
   currentEpisode.value = { ...row }
   showEpisodeVideoManagement.value = true
   loadVideos()
 }
-const loadCategories = async () => {
-  try {
-    const data = await getCourseList({ current: 1, size: 1000 })
-    const courses = Array.isArray(data) ? data : (data.list || [])
-    categoryData.value = createCourseCategories().map(category => ({
-      ...category,
-      count: courses.filter((course: any) => course.type === category.id).length
-    }))
-  } catch (error) {
-    console.error('加载课程分类统计失败:', error)
-  }
-}
+
 const loadData = async () => {
   loading.value = true
   try {
     const data = await getCourseList(buildListParams())
     if (Array.isArray(data)) {
       tableData.value = data.map(normalizeCourseRow)
+      total.value = data.length
       return
     }
     tableData.value = Array.isArray(data?.list) ? data.list.map(normalizeCourseRow) : []
+    total.value = data?.total || 0
   } catch (error) {
     console.error('加载课程数据失败:', error)
   } finally {
@@ -357,7 +351,7 @@ const loadVideos = async () => {
 const handleAdd = () => {
   isEdit.value = false
   editData.value = {
-    type: currentCategory.value.id || 'general',
+    type: selectedCategory.value || 'general',
     price: 0,
     isSvipOnly: courseScope.value === 'svip',
     status: 1
@@ -378,26 +372,25 @@ const handleSuccess = async (formData: any) => {
     }
     ElMessage.success(isEdit.value ? '更新成功' : '新增成功')
     loadData()
-    loadCategories()
   } catch (error) {}
 }
+
 const handleDelete = (row: any) => {
   ElMessageBox.confirm('确定要删除该课程吗?', '提示', { type: 'warning' }).then(async () => {
     try {
       await deleteCourse(row.id)
       ElMessage.success('删除成功')
       loadData()
-      loadCategories()
     } catch (error) {}
   })
 }
+
 const handleStatus = async (row: any) => {
   const status = row.status === 1 ? 0 : 1
   try {
     await changeCourseStatus(row.id, status)
     ElMessage.success(status === 1 ? '上架成功' : '下架成功')
     loadData()
-    loadCategories()
   } catch (error) {}
 }
 const handleAddEpisode = () => {
@@ -480,14 +473,19 @@ const handleDeleteVideo = (row: any) => {
     } catch (error) {}
   })
 }
+
 onMounted(() => {
-  loadCategories()
+  loadData()
 })
 </script>
 
 <style scoped lang="scss">
 .page-container {
   padding: 20px;
+}
+
+.search-bar {
+  padding: 0 0 20px;
 }
 
 .price-text {

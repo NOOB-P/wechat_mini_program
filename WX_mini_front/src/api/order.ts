@@ -15,6 +15,10 @@ export const confirmPrintVirtualPayApi = (orderNo: string, security: Record<stri
   return request({ url: '/api/app/order/print/pay/confirm', method: 'POST', data: { orderNo, security } })
 }
 
+export const cancelPrintOrderApi = (orderNo: string) => {
+  return request({ url: '/api/app/order/print/cancel', method: 'POST', data: { orderNo } })
+}
+
 /**
  * 获取已购课程
  */

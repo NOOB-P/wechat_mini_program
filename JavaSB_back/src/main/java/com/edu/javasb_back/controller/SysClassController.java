@@ -25,7 +25,7 @@ import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.SysClass;
 import com.edu.javasb_back.service.OrganizationImportService;
 import com.edu.javasb_back.service.SysClassService;
-import com.edu.javasb_back.util.TemplateDownloadUtils;
+import com.edu.javasb_back.utils.TemplateDownloadUtils;
 
 @RestController
 @RequestMapping("/api/system/class")

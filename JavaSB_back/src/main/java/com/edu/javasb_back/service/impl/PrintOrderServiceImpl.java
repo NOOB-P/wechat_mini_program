@@ -248,6 +248,22 @@ public class PrintOrderServiceImpl implements PrintOrderService {
         printOrderRepository.save(order);
     }
 
+    @Override
+    @Transactional
+    public Result<Void> cancelOrder(Long uid, String orderNo) {
+        Optional<PrintOrder> orderOptional = printOrderRepository.findByOrderNoAndUserUid(orderNo, uid);
+        if (orderOptional.isEmpty()) {
+            return Result.error("订单不存在");
+        }
+        PrintOrder order = orderOptional.get();
+        if (order.getOrderStatus() != 1) {
+            return Result.error("只能取消待支付订单");
+        }
+        order.setOrderStatus(0); // 0-已取消
+        printOrderRepository.save(order);
+        return Result.success("订单已取消", null);
+    }
+
     private String normalizeKeyword(String keyword) {
         return (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
     }

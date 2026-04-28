@@ -26,7 +26,7 @@
             <el-col :span="12">
               <el-form-item label="课程类型" prop="type">
                 <el-select v-model="form.type" placeholder="请选择类型" class="w-full">
-                  <el-option label="常规课程" value="general" />
+                  <el-option label="精选课程" value="general" />
                   <el-option label="学霸说" value="talk" />
                   <el-option label="家庭教育" value="family" />
                   <el-option label="同步/专题课" value="sync" />

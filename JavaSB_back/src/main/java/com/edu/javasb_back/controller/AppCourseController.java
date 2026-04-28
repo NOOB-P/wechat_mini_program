@@ -44,7 +44,7 @@ public class AppCourseController {
         }
     }
 
-    @LogOperation("获取常规课程列表")
+    @LogOperation("获取精选课程列表")
     @GetMapping("/course/list")
     public Result<List<Course>> getCourseList() {
         Result<List<Course>> result = courseService.getGeneralCourseList();

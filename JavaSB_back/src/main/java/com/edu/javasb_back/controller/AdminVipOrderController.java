@@ -4,7 +4,7 @@ import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.VipOrder;
 import com.edu.javasb_back.service.VipOrderService;
-import com.edu.javasb_back.util.ExcelExportUtils;
+import com.edu.javasb_back.utils.ExcelExportUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
