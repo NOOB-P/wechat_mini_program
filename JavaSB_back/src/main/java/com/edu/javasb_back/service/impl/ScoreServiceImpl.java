@@ -1146,6 +1146,11 @@ public class ScoreServiceImpl implements ScoreService {
         if (raw instanceof Map<?, ?> map) {
             Object fullScore = map.get("fullScore");
             if (fullScore instanceof Number number) return number.doubleValue();
+            Object totalScore = map.get("totalScore");
+            if (totalScore instanceof Number number) return number.doubleValue();
+            if (totalScore instanceof String text && StringUtils.hasText(text)) {
+                try { return Double.parseDouble(text); } catch (Exception ignored) {}
+            }
             Object score = map.get("score");
             if (score instanceof Number number) return number.doubleValue();
         }

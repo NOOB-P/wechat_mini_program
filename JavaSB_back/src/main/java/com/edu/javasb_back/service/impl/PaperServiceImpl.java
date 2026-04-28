@@ -1,10 +1,12 @@
 package com.edu.javasb_back.service.impl;
 
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.config.GlobalConfigProperties;
 import com.edu.javasb_back.model.entity.ExamPaper;
 import com.edu.javasb_back.model.entity.PaperSubject;
 import com.edu.javasb_back.repository.ExamPaperRepository;
 import com.edu.javasb_back.repository.PaperSubjectRepository;
+import com.edu.javasb_back.service.OssStorageService;
 import com.edu.javasb_back.service.PaperService;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +16,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -22,6 +28,8 @@ import java.util.Map;
 
 @Service
 public class PaperServiceImpl implements PaperService {
+
+    private static final String DEFAULT_PAPER_PATH = "/uploads/papers/demo.pdf";
 
     @Autowired
     private ExamPaperRepository paperRepository;
@@ -31,6 +39,12 @@ public class PaperServiceImpl implements PaperService {
 
     @Autowired
     private jakarta.persistence.EntityManager entityManager;
+
+    @Autowired
+    private GlobalConfigProperties globalConfigProperties;
+
+    @Autowired
+    private OssStorageService ossStorageService;
 
     @Override
     public Page<ExamPaper> getPaperList(String keyword, String subject, String grade, String type, Boolean isRecommend, Pageable pageable) {
@@ -73,6 +87,7 @@ public class PaperServiceImpl implements PaperService {
                 isRecommend,
                 PageRequest.of(pageNum - 1, pageSize, Sort.by("sortOrder").ascending().and(Sort.by("createTime").ascending()))
         );
+        page.getContent().forEach(this::normalizePaperResource);
 
         Map<String, Object> resultData = new HashMap<>();
         resultData.put("records", page.getContent());
@@ -92,6 +107,7 @@ public class PaperServiceImpl implements PaperService {
                 isRecommend,
                 PageRequest.of(pageNum - 1, pageSize, Sort.by("createTime").descending())
         );
+        page.getContent().forEach(this::normalizePaperResource);
         return Result.success(page.getContent());
     }
 
@@ -214,20 +230,22 @@ public class PaperServiceImpl implements PaperService {
     @Override
     @org.springframework.transaction.annotation.Transactional
     public ExamPaper savePaper(ExamPaper paper) {
+        int targetSort = normalizeTargetSort(paper.getSortOrder());
+        paper.setSortOrder(targetSort);
         if (paper.getId() == null) {
             // 新增：处理冲突并保存
-            optimizePaperSort(paper.getType(), paper.getGrade(), paper.getSubject(), paper.getSortOrder(), null);
+            optimizePaperSort(targetSort, null);
             ExamPaper saved = paperRepository.save(paper);
-            normalizePaperSort(paper.getType(), paper.getGrade(), paper.getSubject());
+            normalizePaperSort();
             return saved;
         } else {
             // 更新：检查排序是否变化
             ExamPaper old = paperRepository.findById(paper.getId()).orElse(null);
-            if (old != null && !old.getSortOrder().equals(paper.getSortOrder())) {
-                optimizePaperSort(paper.getType(), paper.getGrade(), paper.getSubject(), paper.getSortOrder(), paper.getId());
+            if (old != null && !old.getSortOrder().equals(targetSort)) {
+                optimizePaperSort(targetSort, paper.getId());
             }
             ExamPaper saved = paperRepository.save(paper);
-            normalizePaperSort(paper.getType(), paper.getGrade(), paper.getSubject());
+            normalizePaperSort();
             return saved;
         }
     }
@@ -236,26 +254,16 @@ public class PaperServiceImpl implements PaperService {
     @org.springframework.transaction.annotation.Transactional
     public void deletePaper(Long id) {
         paperRepository.findById(id).ifPresent(paper -> {
-            String type = paper.getType();
-            String grade = paper.getGrade();
-            String subject = paper.getSubject();
             paperRepository.deleteById(id);
-            normalizePaperSort(type, grade, subject);
+            normalizePaperSort();
         });
     }
 
     /**
      * 优化试卷排序逻辑
      */
-    private void optimizePaperSort(String type, String grade, String subject, Integer targetSort, Long excludeId) {
-        Specification<ExamPaper> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("type"), type));
-            predicates.add(cb.equal(root.get("grade"), grade));
-            predicates.add(cb.equal(root.get("subject"), subject));
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-        List<ExamPaper> list = paperRepository.findAll(spec, Sort.by("sortOrder").ascending().and(Sort.by("createTime").ascending()));
+    private void optimizePaperSort(Integer targetSort, Long excludeId) {
+        List<ExamPaper> list = paperRepository.findAll(Sort.by("sortOrder").ascending().and(Sort.by("createTime").ascending()));
         
         int currentSort = targetSort;
         for (ExamPaper p : list) {
@@ -271,15 +279,8 @@ public class PaperServiceImpl implements PaperService {
     /**
      * 归一化试卷排序逻辑
      */
-    private void normalizePaperSort(String type, String grade, String subject) {
-        Specification<ExamPaper> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("type"), type));
-            predicates.add(cb.equal(root.get("grade"), grade));
-            predicates.add(cb.equal(root.get("subject"), subject));
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-        List<ExamPaper> list = paperRepository.findAll(spec, Sort.by("sortOrder").ascending().and(Sort.by("createTime").ascending()));
+    private void normalizePaperSort() {
+        List<ExamPaper> list = paperRepository.findAll(Sort.by("sortOrder").ascending().and(Sort.by("createTime").ascending()));
         
         for (int i = 0; i < list.size(); i++) {
             ExamPaper p = list.get(i);
@@ -293,7 +294,9 @@ public class PaperServiceImpl implements PaperService {
 
     @Override
     public ExamPaper getPaperById(Long id) {
-        return paperRepository.findById(id).orElse(null);
+        ExamPaper paper = paperRepository.findById(id).orElse(null);
+        normalizePaperResource(paper);
+        return paper;
     }
 
     @Override
@@ -317,5 +320,47 @@ public class PaperServiceImpl implements PaperService {
     @Override
     public void deleteSubject(Long id) {
         subjectRepository.deleteById(id);
+    }
+
+    private void normalizePaperResource(ExamPaper paper) {
+        if (paper == null) {
+            return;
+        }
+        paper.setFilePath(resolvePaperFilePath(paper.getFilePath()));
+    }
+
+    private String resolvePaperFilePath(String filePath) {
+        if (!StringUtils.hasText(filePath)) {
+            return DEFAULT_PAPER_PATH;
+        }
+        String normalized = filePath.trim();
+        if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+            return normalized;
+        }
+        if (ossStorageService.isOssUrl(normalized)) {
+            return ossStorageService.toCdnUrl(normalized);
+        }
+        if (normalized.startsWith("/uploads/papers/") && localPaperExists(normalized)) {
+            return normalized;
+        }
+        return DEFAULT_PAPER_PATH;
+    }
+
+    private boolean localPaperExists(String resourcePath) {
+        try {
+            Path paperRoot = Paths.get(globalConfigProperties.getPaperDir()).toAbsolutePath().normalize();
+            Path resolvedPath = paperRoot.resolve(resourcePath.substring("/uploads/papers/".length())).normalize();
+            return resolvedPath.startsWith(paperRoot) && Files.exists(resolvedPath);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private int normalizeTargetSort(Integer sortOrder) {
+        if (sortOrder == null || sortOrder < 1) {
+            int currentSize = (int) paperRepository.count();
+            return currentSize + 1;
+        }
+        return sortOrder;
     }
 }

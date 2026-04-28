@@ -495,7 +495,17 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         try {
             Map<String, Object> raw = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
             Map<String, Double> result = new LinkedHashMap<>();
-            raw.forEach((key, value) -> result.put(key, asDouble(value)));
+            raw.forEach((key, value) -> {
+                if (value instanceof Map<?, ?> nestedMap) {
+                    Object totalScore = nestedMap.get("totalScore");
+                    if (totalScore == null) {
+                        totalScore = nestedMap.get("fullScore");
+                    }
+                    result.put(key, asDouble(totalScore));
+                    return;
+                }
+                result.put(key, asDouble(value));
+            });
             return result;
         } catch (Exception ignored) {
             return Collections.emptyMap();
