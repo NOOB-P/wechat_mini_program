@@ -205,7 +205,7 @@ export const bindWechatAccount = async (successMessage = '微信绑定成功') =
 
   bindPromise = (async () => {
     const code = await getWechatLoginCode()
-    const bindRes = await bindWechatOpenidApi(code)
+    const bindRes = await bindWechatOpenidApi(code, { silent: true })
     const userInfo = await refreshWechatUserInfo(bindRes.data || {})
     if (successMessage) {
       uni.showToast({
@@ -230,7 +230,7 @@ export const syncWechatSessionKey = async () => {
 
   sessionSyncPromise = (async () => {
     const code = await getWechatLoginCode()
-    const bindRes = await bindWechatOpenidApi(code)
+    const bindRes = await bindWechatOpenidApi(code, { silent: true })
     return refreshWechatUserInfo(bindRes.data || {})
   })().catch((error: any) => {
     throw createWechatBindError('WECHAT_BIND_FAILED', error?.msg || error?.message || '同步微信支付会话失败')
@@ -304,10 +304,6 @@ export const confirmWechatBind = async () => {
     if (shouldAbortForcedBind(errorMessage)) {
       closePopup()
       rejectPending(createWechatBindError('WECHAT_BIND_FAILED', errorMessage))
-      uni.showToast({
-        title: errorMessage,
-        icon: 'none'
-      })
       return
     }
 

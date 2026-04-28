@@ -42,6 +42,7 @@
         <view class="section-title">
           <view class="blue-bar"></view>
           <text>各科成绩</text>
+          <text class="title-tip">(点击卡片查看详细分析)</text>
         </view>
         <view class="subject-grid">
           <view 
@@ -938,6 +939,13 @@ watch(
       background: #1a5f8e;
       border-radius: 4rpx;
       margin-right: 12rpx;
+    }
+
+    .title-tip {
+      font-size: 24rpx;
+      font-weight: normal;
+      color: #94a3b8;
+      margin-left: 12rpx;
     }
   }
 }

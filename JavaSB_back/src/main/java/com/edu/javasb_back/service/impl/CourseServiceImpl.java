@@ -51,8 +51,11 @@ public class CourseServiceImpl implements CourseService {
     private JdbcTemplate jdbcTemplate;
 
     @Override
-    public Result<List<Course>> getGeneralCourseList() {
-        return Result.success(normalizeCourses(courseRepository.findAllGeneralCoursesSql()));
+    public Result<List<Course>> getGeneralCourseList(Integer isRecommend) {
+        // 如果是请求推荐课程（isRecommend 为 1），则取消分类限制，返回所有分类下的推荐课程
+        // 如果不是请求推荐课程，则保持原样，只返回“精选课程”分类（general）下的数据
+        String type = (isRecommend != null && isRecommend == 1) ? null : "general";
+        return Result.success(normalizeCourses(courseRepository.findAllCoursesFilteredSql(type, null, null, isRecommend)));
     }
 
     @Override

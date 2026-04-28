@@ -76,7 +76,7 @@
         <el-table-column prop="downloads" label="下载量" width="100" align="center" />
         <el-table-column prop="isRecommend" label="推荐" width="90" align="center">
           <template #default="{ row }">
-            <el-switch v-model="row.isRecommend" @change="handleStatusChange(row)" />
+            <span>{{ row.isRecommend ? '是' : '否' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150" align="center" fixed="right">
@@ -485,15 +485,6 @@ const resetQuery = () => {
   queryParams.type = ''
   queryParams.isRecommend = null
   handleQuery()
-}
-
-const handleStatusChange = async (row: any) => {
-  try {
-    await savePaperApi(row)
-    ElMessage.success('操作成功')
-  } catch (error) {
-    row.isRecommend = !row.isRecommend
-  }
 }
 
 const resetForm = () => {
