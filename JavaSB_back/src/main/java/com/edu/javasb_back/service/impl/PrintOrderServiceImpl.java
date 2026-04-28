@@ -2,6 +2,7 @@ package com.edu.javasb_back.service.impl;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.common.WechatBindRequiredException;
+import com.edu.javasb_back.model.entity.SysAccount;
 import com.edu.javasb_back.service.WechatPayService;
 import com.edu.javasb_back.model.entity.PrintOrder;
 import com.edu.javasb_back.repository.SysAccountRepository;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -175,17 +177,25 @@ public class PrintOrderServiceImpl implements PrintOrderService {
         }
 
         try {
-            Map<String, Object> payPackage = wechatPayService.createVirtualPaymentParams(
+            SysAccount account = sysAccountRepository.findById(uid)
+                    .orElseThrow(() -> new IllegalArgumentException("用户不存在"));
+            String openid = account.getWxid();
+            if (!StringUtils.hasText(openid)) {
+                return Result.wechatBindRequired("未绑定微信，请先绑定");
+            }
+
+            Map<String, Object> payParams = wechatPayService.createJsapiPayParams(
                     order.getOrderNo(),
-                    buildPrintGoodsId(order),
+                    "打印服务-" + order.getDocumentName(),
                     order.getTotalPrice(),
-                    uid);
+                    openid,
+                    "print"
+            );
 
             Map<String, Object> result = new HashMap<>();
             result.put("orderNo", order.getOrderNo());
-            result.put("paymentType", payPackage.get("paymentType"));
-            result.put("payParams", payPackage.get("payParams"));
-            result.put("security", payPackage.get("security"));
+            result.put("paymentType", "WECHAT");
+            result.put("payParams", payParams);
             result.put("documentName", order.getDocumentName());
             return Result.success("获取支付参数成功", result);
         } catch (WechatBindRequiredException e) {

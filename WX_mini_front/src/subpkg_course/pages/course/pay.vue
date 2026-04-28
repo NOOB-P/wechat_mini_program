@@ -241,7 +241,9 @@ const handlePay = async () => {
       }
 
       if (order.value.type === 'print') {
-        uni.navigateBack()
+        uni.redirectTo({
+          url: '/subpkg_mine/pages/mine/order-list?tab=print'
+        })
         return
       }
 
