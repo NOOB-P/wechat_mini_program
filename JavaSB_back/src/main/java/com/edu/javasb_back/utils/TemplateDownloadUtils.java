@@ -1,4 +1,4 @@
-package com.edu.javasb_back.util;
+package com.edu.javasb_back.utils;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;

@@ -241,9 +241,7 @@ const handlePay = async () => {
       }
 
       if (order.value.type === 'print') {
-        uni.redirectTo({
-          url: '/subpkg_mine/pages/mine/order-list?tab=print'
-        })
+        uni.navigateBack()
         return
       }
 
@@ -269,6 +267,13 @@ const handlePay = async () => {
         } catch (e) {
           console.warn('cancel vip order failed', e)
         }
+        toast.show('已取消支付')
+        setTimeout(() => {
+          uni.navigateBack()
+        }, 1000)
+        return
+      }
+      if (order.value.type === 'print') {
         toast.show('已取消支付')
         setTimeout(() => {
           uni.navigateBack()

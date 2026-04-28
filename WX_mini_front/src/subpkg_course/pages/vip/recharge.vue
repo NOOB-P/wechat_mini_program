@@ -308,8 +308,15 @@ const handlePay = async () => {
       return
     }
     console.error('create vip order failed', error)
-    if (error?.msg) {
-      uni.showToast({ title: `Error ${error.code}:${error.msg}`, icon: 'none' })
+    if (error?.code === 'WECHAT_BIND_FAILED') {
+      uni.showModal({
+        title: '绑定失败',
+        content: error.msg || '该微信账号绑定失败，请稍后再试',
+        showCancel: false,
+        confirmText: '我知道了'
+      })
+    } else {
+      uni.showToast({ title: error?.msg || error?.message || '操作失败', icon: 'none' })
     }
   } finally {
     submitting.value = false

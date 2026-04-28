@@ -7,7 +7,7 @@ import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.Course;
 
 public interface CourseService {
-    Result<List<Course>> getGeneralCourseList();
+    Result<List<Course>> getGeneralCourseList(Integer isRecommend);
     Result<Course> getCourseDetail(Long uid, String courseId);
     Result<List<Course>> getSyncCourseList(String subject, String grade);
     Result<List<Course>> getFamilyEduList(Long uid, String keyword, String filter);
@@ -25,6 +25,7 @@ public interface CourseService {
 
     // 管理端接口
     Result<List<Course>> getAllCourses(String type, Boolean isSvipOnly, Boolean isFree, Integer isRecommend);
+    Result<Map<String, Object>> getAllCoursesPaged(int current, int size, String type, Boolean isSvipOnly, Boolean isFree, Integer isRecommend);
     Result<Void> addCourse(Course course);
     Result<Void> updateCourse(Course course);
     Result<Void> deleteCourse(String id);

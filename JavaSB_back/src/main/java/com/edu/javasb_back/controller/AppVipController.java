@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.dto.SchoolVipOpenDTO;
+import com.edu.javasb_back.model.entity.PrintOrder;
 import com.edu.javasb_back.model.entity.VipOrder;
 import com.edu.javasb_back.service.VipOrderService;
 import com.edu.javasb_back.service.VipService;
@@ -134,7 +135,7 @@ public class AppVipController {
 
     @LogOperation("Submit print order")
     @PostMapping("/print/order")
-    public Result<Void> submitPrintOrder(@RequestBody Map<String, Object> orderData) {
+    public Result<PrintOrder> submitPrintOrder(@RequestBody Map<String, Object> orderData) {
         Long userUid = getCurrentUid();
         if (userUid == null) {
             return Result.error(401, "请先登录");

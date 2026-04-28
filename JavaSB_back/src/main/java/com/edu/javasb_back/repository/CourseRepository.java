@@ -15,7 +15,7 @@ import com.edu.javasb_back.model.entity.Course;
 public interface CourseRepository extends JpaRepository<Course, String> {
 
     /**
-     * 使用 SQL 原生语句查询所有常规课程列表
+     * 使用 SQL 原生语句查询所有精选课程列表
      */
     @Query(value = "SELECT * FROM courses WHERE type = 'general' AND status = 1 ORDER BY create_time DESC", nativeQuery = true)
     List<Course> findAllGeneralCoursesSql();

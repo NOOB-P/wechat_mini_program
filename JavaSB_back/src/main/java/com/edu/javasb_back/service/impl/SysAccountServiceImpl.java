@@ -1084,7 +1084,13 @@ public class SysAccountServiceImpl implements SysAccountService {
             target.setVipExpireTime(null);
         }
 
-        VipTypeUtils.normalizeAccountVipType(target);
+        Integer targetType = VipTypeUtils.resolveTargetVipType(target.getVipType(), target.getVipExpireTime());
+        if (!targetType.equals(target.getVipType() == null ? VipTypeUtils.NONE : target.getVipType())) {
+            target.setVipType(targetType);
+            if (targetType == VipTypeUtils.NONE) {
+                target.setVipConfigId(null);
+            }
+        }
         if (!VipTypeUtils.isVip(target.getVipType())) {
             target.setVipConfigId(null);
         } else if (target.getVipConfigId() == null) {

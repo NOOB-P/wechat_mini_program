@@ -2,6 +2,7 @@ package com.edu.javasb_back.service.impl;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,8 +51,11 @@ public class CourseServiceImpl implements CourseService {
     private JdbcTemplate jdbcTemplate;
 
     @Override
-    public Result<List<Course>> getGeneralCourseList() {
-        return Result.success(normalizeCourses(courseRepository.findAllGeneralCoursesSql()));
+    public Result<List<Course>> getGeneralCourseList(Integer isRecommend) {
+        // 如果是请求推荐课程（isRecommend 为 1），则取消分类限制，返回所有分类下的推荐课程
+        // 如果不是请求推荐课程，则保持原样，只返回“精选课程”分类（general）下的数据
+        String type = (isRecommend != null && isRecommend == 1) ? null : "general";
+        return Result.success(normalizeCourses(courseRepository.findAllCoursesFilteredSql(type, null, null, isRecommend)));
     }
 
     @Override
@@ -197,6 +201,27 @@ public class CourseServiceImpl implements CourseService {
     @Override
     public Result<List<Course>> getAllCourses(String type, Boolean isSvipOnly, Boolean isFree, Integer isRecommend) {
         return Result.success(normalizeCourses(courseRepository.findAllCoursesFilteredSql(type, isSvipOnly, isFree, isRecommend)));
+    }
+
+    @Override
+    public Result<Map<String, Object>> getAllCoursesPaged(int current, int size, String type, Boolean isSvipOnly, Boolean isFree, Integer isRecommend) {
+        List<Course> all = normalizeCourses(courseRepository.findAllCoursesFilteredSql(type, isSvipOnly, isFree, isRecommend));
+        int total = all.size();
+        int fromIndex = (current - 1) * size;
+        int toIndex = Math.min(fromIndex + size, total);
+        
+        List<Course> pagedList = List.of();
+        if (fromIndex < total) {
+            pagedList = all.subList(fromIndex, toIndex);
+        }
+        
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("list", pagedList);
+        data.put("total", total);
+        data.put("current", current);
+        data.put("size", size);
+        
+        return Result.success(data);
     }
 
     @Override
