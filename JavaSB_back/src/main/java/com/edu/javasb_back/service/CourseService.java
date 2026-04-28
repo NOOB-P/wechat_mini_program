@@ -7,7 +7,7 @@ import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.model.entity.Course;
 
 public interface CourseService {
-    Result<List<Course>> getGeneralCourseList();
+    Result<List<Course>> getGeneralCourseList(Integer isRecommend);
     Result<Course> getCourseDetail(Long uid, String courseId);
     Result<List<Course>> getSyncCourseList(String subject, String grade);
     Result<List<Course>> getFamilyEduList(Long uid, String keyword, String filter);

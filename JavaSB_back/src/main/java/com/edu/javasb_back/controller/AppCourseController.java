@@ -46,8 +46,8 @@ public class AppCourseController {
 
     @LogOperation("获取常规课程列表")
     @GetMapping("/course/list")
-    public Result<List<Course>> getCourseList() {
-        Result<List<Course>> result = courseService.getGeneralCourseList();
+    public Result<List<Course>> getCourseList(@RequestParam(required = false) Integer isRecommend) {
+        Result<List<Course>> result = courseService.getGeneralCourseList(isRecommend);
         Long uid = getCurrentUid();
         if (uid != null && result.getData() != null) {
             result.getData().forEach(course -> course.setIsPurchased(orderService.isCoursePurchased(uid, course.getId())));

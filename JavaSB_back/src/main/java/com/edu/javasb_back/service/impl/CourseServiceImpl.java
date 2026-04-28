@@ -46,8 +46,8 @@ public class CourseServiceImpl implements CourseService {
     private OssStorageService ossStorageService;
 
     @Override
-    public Result<List<Course>> getGeneralCourseList() {
-        return Result.success(normalizeCourses(courseRepository.findAllGeneralCoursesSql()));
+    public Result<List<Course>> getGeneralCourseList(Integer isRecommend) {
+        return Result.success(normalizeCourses(courseRepository.findAllCoursesFilteredSql("general", null, null, isRecommend)));
     }
 
     @Override

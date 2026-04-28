@@ -20,7 +20,7 @@
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="课程名称" prop="title">
-                <el-input v-model="form.title" placeholder="请输入课程名称" />
+                <el-input v-model="form.title" placeholder="请输入课程名" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -81,17 +81,17 @@
             </el-col>
             <el-col :span="12">
               <el-form-item label="道具ID" prop="midasProductId">
-                <el-input v-model="form.midasProductId" placeholder="请输入米大师道具ID" />
+                <el-input v-model="form.midasProductId" placeholder="请输入道具ID" />
               </el-form-item>
             </el-col>
           </el-row>
 
           <el-row :gutter="20">
-            <el-col :span="12">
+            <!-- <el-col :span="12">
               <el-form-item label="作者/讲师" prop="author">
                 <el-input v-model="form.author" placeholder="请输入作者姓名" />
               </el-form-item>
-            </el-col>
+            </el-col> -->
             <el-col :span="12">
               <el-form-item label="已学人数" prop="buyers">
                 <el-input-number v-model="form.buyers" :min="0" class="w-full" />
@@ -99,13 +99,13 @@
             </el-col>
           </el-row>
 
-          <el-row :gutter="20">
+          <!-- <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="总节数" prop="episodes">
                 <el-input-number v-model="form.episodes" :min="0" class="w-full" />
               </el-form-item>
             </el-col>
-          </el-row>
+          </el-row> -->
         </el-col>
 
         <!-- 中间分割线 -->
@@ -463,7 +463,7 @@ const handleClosed = () => {
 }
 
 .right-section {
-  flex: 0 0 350px;
+  flex: 0 0 320px;
   padding-left: 20px;
 }
 

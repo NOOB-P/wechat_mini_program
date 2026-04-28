@@ -7,7 +7,7 @@ export const courseStudyRoutes: AppRouteRecord = {
   name: 'CourseStudy',
   redirect: '/course-study/course',
   meta: {
-    title: '课程与自习室',
+    title: '课程管理',
     icon: 'ri:book-open-line',
     sort: 4
   },
@@ -18,6 +18,8 @@ export const courseStudyRoutes: AppRouteRecord = {
       component: '/course-study/course',
       meta: {
         title: '课程管理',
+        isHide: true,
+        activePath: '/course-study',
         authMark: 'course:manage:list'
       }
     }
