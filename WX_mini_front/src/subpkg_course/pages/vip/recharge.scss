@@ -178,6 +178,7 @@
 
 .bottom-bar {
   position: fixed;
+  right: 0;
   bottom: 0;
   left: 0;
   z-index: 100;
@@ -185,11 +186,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  height: 120rpx;
-  padding: 0 40rpx;
+  height: calc(120rpx + env(safe-area-inset-bottom));
+  padding: 0 40rpx env(safe-area-inset-bottom);
   background: #fff;
   box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.05);
+}
+
+.price-info {
+  display: flex;
+  align-items: baseline;
+  flex: 1;
 }
 
 .label {
@@ -211,6 +217,7 @@
 
 .pay-btn {
   width: 240rpx !important;
+  margin-left: auto !important;
   border: none !important;
   border-radius: 40rpx !important;
   background: linear-gradient(135deg, #1a5f8e 0%, #00897b 100%) !important;

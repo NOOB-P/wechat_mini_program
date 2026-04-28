@@ -429,12 +429,14 @@ const formatTime = (time?: string) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20rpx 40rpx;
+  height: calc(100rpx + env(safe-area-inset-bottom));
+  padding: 0 40rpx env(safe-area-inset-bottom);
   background: #fff;
   box-shadow: 0 -4rpx 12rpx rgba(0, 0, 0, 0.05);
 }
 
 .total {
+  flex: 1;
   font-size: 28rpx;
   color: #333;
 }
@@ -447,5 +449,6 @@ const formatTime = (time?: string) => {
 
 .bottom-bar :deep(.wd-button) {
   width: 240rpx;
+  margin-left: auto;
 }
 </style>
