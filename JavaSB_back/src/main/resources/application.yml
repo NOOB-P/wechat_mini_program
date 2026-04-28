@@ -63,7 +63,7 @@ app:
     oss-bucket: ${ALIYUN_OSS_BUCKET:back-resources}
     oss-access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID:}
     oss-access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:}
-    oss-public-base-url: ${ALIYUN_OSS_PUBLIC_BASE_URL:https://cdn.youtihui.com/}
+    oss-public-base-url: ${ALALIYUN_OSS_PUBLIC_BASE_URL:https://cdn.youtihui.com/}
     qwen-api-key: ${QWEN_API_KEY:sk-6cf983c5f39b45edb304ae6fde0325c0}
     qwen-chat-url: ${QWEN_CHAT_URL:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
     qwen-model: ${QWEN_MODEL:qwen3.6-plus}
