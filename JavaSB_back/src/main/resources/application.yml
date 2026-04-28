@@ -14,8 +14,10 @@ spring:
           password: root123
           driver-class-name: com.mysql.cj.jdbc.Driver
           hikari:
-            max-lifetime: 600000
-            idle-timeout: 300000
+            max-lifetime: 180000
+            idle-timeout: 120000
+            keepalive-time: 60000
+            validation-timeout: 5000
             minimum-idle: 5
             maximum-pool-size: 20
             connection-timeout: 30000
@@ -26,8 +28,10 @@ spring:
           password: root123
           driver-class-name: com.mysql.cj.jdbc.Driver
           hikari:
-            max-lifetime: 600000
-            idle-timeout: 300000
+            max-lifetime: 180000
+            idle-timeout: 120000
+            keepalive-time: 60000
+            validation-timeout: 5000
             minimum-idle: 5
             maximum-pool-size: 20
             connection-timeout: 30000
@@ -68,7 +72,7 @@ app:
     qwen-chat-url: ${QWEN_CHAT_URL:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
     qwen-model: ${QWEN_MODEL:qwen3.6-plus}
     qwen-prompt-version: ${QWEN_PROMPT_VERSION:qwen-score-report-v1}
-    aliyun-ocr-access-key-id: ${ALIYUN_OCR_ACCESS_KEY_ID:}
+    aliyun-ocr-access-key-id: ${ALIYUN_OCR_ACCESS_KEY_ID:c}
     aliyun-ocr-access-key-secret: ${ALIYUN_OCR_ACCESS_KEY_SECRET:}
     aliyun-ocr-endpoint: ${ALIYUN_OCR_ENDPOINT:ocr-api.cn-hangzhou.aliyuncs.com}
     aliyun-ocr-subject-default: ${ALIYUN_OCR_SUBJECT_DEFAULT:default}

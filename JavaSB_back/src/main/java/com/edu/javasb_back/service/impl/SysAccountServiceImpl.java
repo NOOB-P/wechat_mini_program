@@ -1048,22 +1048,33 @@ public class SysAccountServiceImpl implements SysAccountService {
         }
 
         Integer requestedVipType = resolveRequestedVipType(source);
+        Integer previousVipType = target.getVipType() == null ? VipTypeUtils.NONE : target.getVipType();
+        boolean membershipTypeChanged = !Objects.equals(previousVipType, requestedVipType);
+        LocalDateTime now = LocalDateTime.now();
+
         target.setVipType(requestedVipType);
         target.setVipConfigId(resolveVipConfigId(source.getVipConfigId(), requestedVipType));
 
         if (requestedVipType >= VipTypeUtils.VIP) {
             LocalDateTime vipStartTime = source.getVipStartTime() != null ? source.getVipStartTime() : target.getVipStartTime();
-            if (vipStartTime == null) {
-                vipStartTime = LocalDateTime.now();
+            if (vipStartTime == null || (membershipTypeChanged && (target.getVipExpireTime() == null || !target.getVipExpireTime().isAfter(now)))) {
+                vipStartTime = now;
             }
             target.setVipStartTime(vipStartTime);
 
             LocalDateTime vipExpireTime = source.getVipExpireTime() != null ? source.getVipExpireTime() : target.getVipExpireTime();
-            if (vipExpireTime == null) {
+            if (source.getVipDurationMonths() != null && source.getVipDurationMonths() > 0) {
                 vipExpireTime = resolveMembershipExpireTime(
                         vipStartTime,
                         null,
                         source.getVipDurationMonths(),
+                        1
+                );
+            } else if (vipExpireTime == null || !vipExpireTime.isAfter(now)) {
+                vipExpireTime = resolveMembershipExpireTime(
+                        vipStartTime,
+                        null,
+                        1,
                         1
                 );
             }
@@ -1086,9 +1097,21 @@ public class SysAccountServiceImpl implements SysAccountService {
             return VipTypeUtils.NONE;
         }
         Integer vipType = account.getVipType();
-        if (vipType != null) {
+        if (vipType != null && vipType > VipTypeUtils.NONE) {
             return Math.max(vipType, VipTypeUtils.NONE);
         }
+
+        if (account.getVipConfigId() != null) {
+            VipConfig vipConfig = vipConfigRepository.findById(account.getVipConfigId()).orElse(null);
+            if (vipConfig != null && VipTypeUtils.isVip(vipConfig.getTypeValue())) {
+                return vipConfig.getTypeValue();
+            }
+        }
+
+        if (account.getVipExpireTime() != null && account.getVipExpireTime().isAfter(LocalDateTime.now())) {
+            return VipTypeUtils.VIP;
+        }
+
         return VipTypeUtils.NONE;
     }
 

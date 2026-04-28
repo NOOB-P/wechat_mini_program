@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -44,6 +45,9 @@ public class CourseServiceImpl implements CourseService {
 
     @Autowired
     private OssStorageService ossStorageService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Override
     public Result<List<Course>> getGeneralCourseList() {
@@ -153,7 +157,34 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Result<List<Map<String, Object>>> getMyStudyRecords(Long uid) {
-        List<Map<String, Object>> records = courseRepository.findStudyRecordsSql(uid);
+        List<Map<String, Object>> records = jdbcTemplate.query(
+                """
+                SELECT
+                    c.id AS id,
+                    c.title AS title,
+                    c.cover AS cover,
+                    c.type AS type,
+                    COALESCE(usr.progress, 0) AS progress,
+                    usr.last_study_time AS lastStudyTime
+                FROM courses c
+                INNER JOIN user_study_records usr ON c.id = usr.course_id
+                WHERE usr.user_uid = ?
+                ORDER BY usr.last_study_time DESC
+                """,
+                (rs, rowNum) -> {
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", rs.getString("id"));
+                    item.put("title", rs.getString("title"));
+                    item.put("cover", rs.getString("cover"));
+                    item.put("type", rs.getString("type"));
+                    item.put("progress", rs.getInt("progress"));
+                    java.sql.Timestamp lastStudyTime = rs.getTimestamp("lastStudyTime");
+                    item.put("lastStudyTime", lastStudyTime == null ? null : lastStudyTime.toLocalDateTime().toString());
+                    return item;
+                },
+                uid
+        );
+
         for (Map<String, Object> item : records) {
             Object cover = item.get("cover");
             if (cover instanceof String coverUrl) {
