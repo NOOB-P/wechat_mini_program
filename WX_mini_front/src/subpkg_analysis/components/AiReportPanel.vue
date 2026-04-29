@@ -17,8 +17,8 @@
       <view class="report-card hero-card">
         <view class="card-header">
           <view>
-            <view class="card-title">AI 成绩报告</view>
-            <view class="card-subtitle">只总结强势点、薄弱点，并定向推送错题</view>
+            <view class="card-title">错题举一反三</view>
+            <view class="card-subtitle">总结薄弱点并延伸到相似错题，帮助持续复盘</view>
           </view>
           <view class="meta-wrap">
             <text class="meta-tag">{{ reportData.cached ? '缓存报告' : '新生成' }}</text>

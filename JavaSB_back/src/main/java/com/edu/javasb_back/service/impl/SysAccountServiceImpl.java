@@ -755,32 +755,46 @@ public class SysAccountServiceImpl implements SysAccountService {
             int bindFailedCount = 0;
             StringBuilder skippedDetails = new StringBuilder();
             StringBuilder bindFailedDetails = new StringBuilder();
+            List<String> successDetails = new ArrayList<>();
+            List<String> skippedDetailItems = new ArrayList<>();
+            List<String> bindFailedDetailItems = new ArrayList<>();
 
             for (ParentImportDTO dto : listener.getList()) {
-                String username = trim(dto.getUsername());
-                String nickname = trim(dto.getNickname());
+                String province = trim(dto.getProvince());
+                String city = trim(dto.getCity());
+                String schoolName = trim(dto.getSchool());
+                String className = trim(dto.getClassName());
+                String studentName = trim(dto.getStudentName());
                 String phone = trim(dto.getPhone());
-                String password = trim(dto.getPassword());
-                String studentNo = trim(dto.getStudentNo());
+                String username = phone;
+                String nickname = StringUtils.hasText(studentName) ? studentName + "家长" : "xx家长";
 
-                if (username == null || nickname == null || phone == null) {
+                if (province == null || city == null || schoolName == null || className == null || studentName == null || phone == null) {
                     skippedCount++;
-                    appendDetail(skippedDetails, username != null ? username : phone, "必填字段缺失");
+                    String detail = buildDetail(phone != null ? phone : schoolName, "必填字段缺失");
+                    skippedDetails.append(skippedDetails.length() > 0 ? "；" : "").append(detail);
+                    skippedDetailItems.add(detail);
                     continue;
                 }
                 if (!phone.matches("^1[3-9]\\d{9}$")) {
                     skippedCount++;
-                    appendDetail(skippedDetails, username, "手机号格式不正确");
+                    String detail = buildDetail(phone, "手机号格式不正确");
+                    skippedDetails.append(skippedDetails.length() > 0 ? "；" : "").append(detail);
+                    skippedDetailItems.add(detail);
                     continue;
                 }
                 if (accountRepository.existsByUsername(username)) {
                     skippedCount++;
-                    appendDetail(skippedDetails, username, "用户名已存在");
+                    String detail = buildDetail(phone, "用户名已存在");
+                    skippedDetails.append(skippedDetails.length() > 0 ? "；" : "").append(detail);
+                    skippedDetailItems.add(detail);
                     continue;
                 }
                 if (accountRepository.existsByPhone(phone)) {
                     skippedCount++;
-                    appendDetail(skippedDetails, username, "手机号已存在");
+                    String detail = buildDetail(phone, "手机号已存在");
+                    skippedDetails.append(skippedDetails.length() > 0 ? "；" : "").append(detail);
+                    skippedDetailItems.add(detail);
                     continue;
                 }
 
@@ -794,27 +808,27 @@ public class SysAccountServiceImpl implements SysAccountService {
                 int requestedVipType = parseVipTypeFlag(dto.getVipType());
                 account.setVipType(requestedVipType);
 
-                String rawPassword = password;
-                if (!StringUtils.hasText(rawPassword)) {
-                    rawPassword = phone.length() >= 6 ? phone.substring(phone.length() - 6) : "123456";
-                }
+                String rawPassword = phone.length() >= 6 ? phone.substring(phone.length() - 6) : "123456";
                 account.setPassword(passwordEncoder.encode(rawPassword));
                 applyMembershipState(account, account);
                 accountRepository.save(account);
                 successCount++;
+                successDetails.add(String.format("%s / %s / 用户名:%s", nickname, phone, username));
 
-                if (studentNo != null) {
-                    Optional<SysStudent> studentOpt = studentRepository.findByStudentNo(studentNo);
-                    if (studentOpt.isPresent()) {
-                        Result<Void> bindResult = bindStudentById(account.getUid(), studentOpt.get().getId());
-                        if (bindResult.getCode() != 200) {
-                            bindFailedCount++;
-                            appendDetail(bindFailedDetails, username, bindResult.getMsg());
-                        }
-                    } else {
+                Optional<SysStudent> studentOpt = resolveStudentForParentImport(province, city, schoolName, className, studentName);
+                if (studentOpt.isPresent()) {
+                    Result<Void> bindResult = bindStudentById(account.getUid(), studentOpt.get().getId());
+                    if (bindResult.getCode() != 200) {
                         bindFailedCount++;
-                        appendDetail(bindFailedDetails, username, "未找到学号为 " + studentNo + " 的学生");
+                        String detail = buildDetail(phone, bindResult.getMsg());
+                        bindFailedDetails.append(bindFailedDetails.length() > 0 ? "；" : "").append(detail);
+                        bindFailedDetailItems.add(detail);
                     }
+                } else {
+                    bindFailedCount++;
+                    String detail = buildDetail(phone, "未找到匹配学生，请检查学校、班级和学生姓名");
+                    bindFailedDetails.append(bindFailedDetails.length() > 0 ? "；" : "").append(detail);
+                    bindFailedDetailItems.add(detail);
                 }
             }
 
@@ -838,6 +852,9 @@ public class SysAccountServiceImpl implements SysAccountService {
             data.put("skippedCount", skippedCount);
             data.put("bindFailedCount", bindFailedCount);
             data.put("message", message.toString());
+            data.put("successDetails", successDetails);
+            data.put("skippedDetails", skippedDetailItems);
+            data.put("bindFailedDetails", bindFailedDetailItems);
             return Result.success(message.toString(), data);
         } catch (ExcelAnalysisException e) {
             return Result.error(e.getMessage());
@@ -868,6 +885,12 @@ public class SysAccountServiceImpl implements SysAccountService {
 
         if (updateData.getNickname() != null) {
             account.setNickname(updateData.getNickname());
+        }
+        if (StringUtils.hasText(updateData.getUsername()) && !updateData.getUsername().equals(account.getUsername())) {
+            if (accountRepository.existsByUsername(updateData.getUsername())) {
+                return Result.error("用户名已被其他用户使用");
+            }
+            account.setUsername(updateData.getUsername());
         }
         if (updateData.getEmail() != null) {
             account.setEmail(updateData.getEmail());
@@ -1153,6 +1176,32 @@ public class SysAccountServiceImpl implements SysAccountService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
+    private Optional<SysStudent> resolveStudentForParentImport(
+            String province,
+            String city,
+            String schoolName,
+            String className,
+            String studentName) {
+        if (!StringUtils.hasText(province) || !StringUtils.hasText(city) || !StringUtils.hasText(schoolName)
+                || !StringUtils.hasText(className) || !StringUtils.hasText(studentName)) {
+            return Optional.empty();
+        }
+
+        Optional<SysSchool> schoolOpt = sysSchoolRepository.findFirstByProvinceAndCityAndName(province, city, schoolName);
+        if (schoolOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        List<SysStudent> students = studentRepository.findBySchoolId(schoolOpt.get().getSchoolId()).stream()
+                .filter(item -> className.equals(trim(item.getClassName())))
+                .filter(item -> studentName.equals(trim(item.getName())))
+                .toList();
+        if (students.size() != 1) {
+            return Optional.empty();
+        }
+        return Optional.of(students.get(0));
+    }
+
     private int parseVipTypeFlag(String value) {
         if (!StringUtils.hasText(value)) {
             return VipTypeUtils.NONE;
@@ -1175,6 +1224,10 @@ public class SysAccountServiceImpl implements SysAccountService {
             builder.append("；");
         }
         builder.append("[").append(key != null ? key : "未知").append(": ").append(message).append("]");
+    }
+
+    private String buildDetail(String key, String message) {
+        return "[" + (key != null ? key : "未知") + ": " + message + "]";
     }
 
     private Result<Void> validateAccountEnabled(SysAccount account) {

@@ -4,7 +4,7 @@
       <view class="subject-badge">{{ item.subject }}</view>
       <view class="source-pill">{{ item.source || '当前试卷' }}</view>
       <view class="score-badge">
-        <text class="score-main">{{ formatScore(item.myScore) }}/{{ formatScore(item.highestScore) }}</text>
+        <text class="score-main">{{ formatScore(item.myScore) }}/{{ formatScore(item.fullScore ?? item.highestScore) }}</text>
         <text class="score-caption">分数</text>
       </view>
       <view class="meta-stack">
@@ -30,16 +30,14 @@
     </view>
 
     <view class="card-bottom">
-      <view class="info-chip">
-        <text class="chip-label">我的得分</text>
-        <text class="chip-value danger">{{ formatScore(item.myScore) }} 分</text>
+      <view v-if="item.difficulty" class="info-chip compact">
+        <text class="chip-label">难度</text>
+        <text class="chip-value soft-danger">{{ item.difficulty }}</text>
       </view>
-      <view class="info-chip">
-        <text class="chip-label">小题最高分</text>
-        <text class="chip-value success">{{ formatScore(item.highestScore) }} 分</text>
+      <view v-if="item.tags?.length" class="info-chip compact">
+        <text class="chip-label">知识点</text>
+        <text class="chip-value info">{{ item.tags[0] }}</text>
       </view>
-      <view v-if="item.difficulty" class="tag-chip danger-soft">{{ item.difficulty }}</view>
-      <view v-if="item.tags?.length" class="tag-chip">{{ item.tags[0] }}</view>
     </view>
   </view>
 </template>
@@ -229,20 +227,23 @@ const formatScore = (value: unknown) => {
 }
 
 .card-bottom {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16rpx;
   margin-top: 20rpx;
 }
 
 .info-chip {
-  min-width: 180rpx;
   padding: 18rpx 20rpx;
   border-radius: 18rpx;
   background: #f8fafc;
   display: flex;
   flex-direction: column;
   gap: 10rpx;
+
+  &.compact {
+    justify-content: center;
+  }
 }
 
 .chip-label {
@@ -262,22 +263,13 @@ const formatScore = (value: unknown) => {
   &.success {
     color: #16a34a;
   }
-}
 
-.tag-chip {
-  padding: 0 18rpx;
-  min-height: 72rpx;
-  border-radius: 18rpx;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #eff4ff;
-  color: #4d63a8;
-  font-size: 24rpx;
-
-  &.danger-soft {
-    background: #fff1f2;
+  &.soft-danger {
     color: #ef4444;
+  }
+
+  &.info {
+    color: #4d63a8;
   }
 }
 </style>

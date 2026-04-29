@@ -55,9 +55,9 @@
               <template #content>
                 <div class="text-xs leading-6 text-gray-600 p-2">
                   <p>1. 仅导入家长账号，角色固定为“家长”。</p>
-                  <p>2. 模板必填列：用户名、昵称、手机号；密码留空默认 `123456`。</p>
-                  <p>3. `会员类型` 列支持填写 `NORMAL/VIP/SVIP` 或 `0/1/2`，`学生学号` 为可选绑定字段。</p>
-                  <p>4. 若用户名或手机号已存在，系统会自动跳过并在结果里提示。</p>
+                  <p>2. 导入列：省、市、校、班级、学生姓名、手机号、会员类型。</p>
+                  <p>3. 用户名默认手机号，昵称默认“学生姓名+家长”，密码默认手机号后六位。</p>
+                  <p>4. 会员类型填写 0/1/2；若学生匹配失败，账号仍会导入成功。</p>
                 </div>
               </template>
               <div class="instructions-trigger">
@@ -140,15 +140,54 @@
               <template #icon v-if="!parentImportLoading">
                 <el-icon><Upload /></el-icon>
               </template>
-              {{ parentImportLoading ? '正在导入家长账号...' : '确认开始批量导入' }}
+              {{ parentImportLoading ? '正在导入家长账号...' : '确认开始家长批量导入' }}
             </el-button>
             <div class="flex justify-center mt-1">
               <el-button link type="primary" @click="downloadParentTemplate" class="download-link">
-                <el-icon class="mr-1"><Document /></el-icon>还没有模板？点击下载家长导入模板.xlsx
+                <el-icon class="mr-1"><Document /></el-icon>点击下载家长批量导入模板.xlsx
               </el-button>
             </div>
           </div>
         </div>
+      </ElDialog>
+
+      <ElDialog v-model="parentImportResultVisible" title="家长批量导入结果" width="720px">
+        <div class="result-summary">
+          <ElTag type="success">成功 {{ parentImportResult.successCount }}</ElTag>
+          <ElTag type="warning">跳过 {{ parentImportResult.skippedCount }}</ElTag>
+          <ElTag type="danger">绑定失败 {{ parentImportResult.bindFailedCount }}</ElTag>
+        </div>
+
+        <div class="result-section" v-if="parentImportResult.successDetails.length">
+          <div class="result-title success">成功导入</div>
+          <div class="result-list">
+            <div v-for="(item, index) in parentImportResult.successDetails" :key="`success-${index}`" class="result-item">
+              {{ item }}
+            </div>
+          </div>
+        </div>
+
+        <div class="result-section" v-if="parentImportResult.skippedDetails.length">
+          <div class="result-title warning">跳过明细</div>
+          <div class="result-list">
+            <div v-for="(item, index) in parentImportResult.skippedDetails" :key="`skipped-${index}`" class="result-item">
+              {{ item }}
+            </div>
+          </div>
+        </div>
+
+        <div class="result-section" v-if="parentImportResult.bindFailedDetails.length">
+          <div class="result-title danger">绑定失败明细</div>
+          <div class="result-list">
+            <div v-for="(item, index) in parentImportResult.bindFailedDetails" :key="`bind-${index}`" class="result-item">
+              {{ item }}
+            </div>
+          </div>
+        </div>
+
+        <template #footer>
+          <ElButton type="primary" @click="parentImportResultVisible = false">知道了</ElButton>
+        </template>
       </ElDialog>
     </ElCard>
   </div>
@@ -179,6 +218,15 @@
   const parentImportLoading = ref(false)
   const parentFileList = ref<any[]>([])
   const parentUploadRef = ref<any>()
+  const parentImportResultVisible = ref(false)
+  const parentImportResult = ref({
+    successCount: 0,
+    skippedCount: 0,
+    bindFailedCount: 0,
+    successDetails: [] as string[],
+    skippedDetails: [] as string[],
+    bindFailedDetails: [] as string[]
+  })
 
   // 角色列表缓存，用于表格渲染
   const roleMap = ref<Record<string, string>>({})
@@ -489,6 +537,7 @@
   const handleOpenParentImport = () => {
     parentFileList.value = []
     parentImportVisible.value = true
+    parentImportResultVisible.value = false
   }
 
   const handleParentFileChange = (uploadFile: any, uploadFiles: any) => {
@@ -524,12 +573,24 @@
           try {
             const formData = new FormData()
             formData.append('file', file.raw)
-            // fetchImportParentUsers 内部使用 request，非 200 会抛出异常进入 catch
             const res = await fetchImportParentUsers(formData)
-            
+
+            const payload = res?.data || res || {}
             file.status = 'success'
             file.errorMsg = ''
-            return { name: file.name, success: true, message: res?.message || '导入成功' }
+            return {
+              name: file.name,
+              success: true,
+              message: payload.message || '导入成功',
+              data: {
+                successCount: Number(payload.successCount || 0),
+                skippedCount: Number(payload.skippedCount || 0),
+                bindFailedCount: Number(payload.bindFailedCount || 0),
+                successDetails: Array.isArray(payload.successDetails) ? payload.successDetails : [],
+                skippedDetails: Array.isArray(payload.skippedDetails) ? payload.skippedDetails : [],
+                bindFailedDetails: Array.isArray(payload.bindFailedDetails) ? payload.bindFailedDetails : []
+              }
+            }
           } catch (error: any) {
             file.status = 'fail'
             file.errorMsg = error.message || '网络错误'
@@ -543,6 +604,25 @@
       if (successItems.length > 0) {
         ElMessage.success(`成功导入 ${successItems.length} 个文件`)
         refreshData()
+        const merged = {
+          successCount: 0,
+          skippedCount: 0,
+          bindFailedCount: 0,
+          successDetails: [] as string[],
+          skippedDetails: [] as string[],
+          bindFailedDetails: [] as string[]
+        }
+        successItems.forEach((item: any) => {
+          const data = item.value?.data || {}
+          merged.successCount += Number(data.successCount || 0)
+          merged.skippedCount += Number(data.skippedCount || 0)
+          merged.bindFailedCount += Number(data.bindFailedCount || 0)
+          merged.successDetails.push(...(data.successDetails || []))
+          merged.skippedDetails.push(...(data.skippedDetails || []))
+          merged.bindFailedDetails.push(...(data.bindFailedDetails || []))
+        })
+        parentImportResult.value = merged
+        parentImportResultVisible.value = true
       }
       
       const failItems = results.filter((r: any) => !r.value?.success)
@@ -617,6 +697,47 @@
   .download-link {
     font-size: 13px;
     text-decoration: underline;
+  }
+
+  .result-summary {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .result-section {
+    margin-bottom: 18px;
+  }
+
+  .result-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 10px;
+
+    &.success { color: #67c23a; }
+    &.warning { color: #e6a23c; }
+    &.danger { color: #f56c6c; }
+  }
+
+  .result-list {
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #ebeef5;
+  }
+
+  .result-item {
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.7;
+    padding: 4px 0;
+    border-bottom: 1px dashed #e2e8f0;
+
+    &:last-child {
+      border-bottom: none;
+    }
   }
 
   .rotating {
