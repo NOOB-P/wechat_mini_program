@@ -8,6 +8,8 @@ import com.edu.javasb_back.model.dto.PaperOcrAutoCutDTO;
 import com.edu.javasb_back.model.dto.PaperRegionOcrDTO;
 import com.edu.javasb_back.service.ExamProjectService;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -112,8 +114,8 @@ public class ExamProjectController {
     @LogOperation("下载成绩导入模板")
     @PreAuthorize("hasAuthority('exam:project:score-template')")
     @GetMapping("/scores/template")
-    public void downloadScoreTemplate(HttpServletResponse response) {
-        examProjectService.downloadScoreTemplate(response);
+    public ResponseEntity<Resource> downloadScoreTemplate() {
+        return examProjectService.downloadScoreTemplate();
     }
 
     @LogOperation("导入成绩")
@@ -124,6 +126,15 @@ public class ExamProjectController {
             @RequestParam String subjectName,
             @RequestParam MultipartFile file) {
         return examProjectService.importScores(projectId, subjectName, file);
+    }
+
+    @LogOperation("导出成绩")
+    @PreAuthorize("hasAuthority('exam:project:score-export')")
+    @GetMapping("/scores/export")
+    public ResponseEntity<Resource> exportScores(
+            @RequestParam String projectId,
+            @RequestParam(required = false) String subjectName) {
+        return examProjectService.exportScores(projectId, subjectName);
     }
 
     @LogOperation("批量导入试卷")

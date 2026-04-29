@@ -292,6 +292,7 @@ export function fetchImportAnswerSheetZip(params: {
   return api.post<BatchImportResult>({
     url: '/api/system/exam-project/papers/import',
     data: formData,
+    timeout: PAPER_UPLOAD_TIMEOUT,
     showSuccessMessage: false,
     headers: {
       'Content-Type': 'multipart/form-data'
@@ -299,6 +300,18 @@ export function fetchImportAnswerSheetZip(params: {
   })
 }
 
+/**
+ * 获取任务进度
+ */
+export function fetchTaskProgress(taskId: string) {
+  return api.get<any>({
+    url: `/api/system/task/progress/${taskId}`
+  })
+}
+
+/**
+ * 上传单个学生答题卡
+ */
 export function fetchUploadStudentAnswerSheet(params: {
   projectId: string
   subjectName: string

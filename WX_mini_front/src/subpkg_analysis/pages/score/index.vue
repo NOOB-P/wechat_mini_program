@@ -204,24 +204,6 @@
         <view class="d-title">纸质打印服务下单</view>
         
         <view class="form-section">
-          <view class="sec-title">打印内容</view>
-          <view class="config-row subject-config-row">
-            <text class="label">打印科目</text>
-            <view class="options delivery-options">
-              <view
-                v-for="option in wrongBookFilterOptions"
-                :key="`print-${option.value}`"
-                class="opt-btn"
-                :class="{active: printSubject === option.value}"
-                @click="printSubject = option.value"
-              >
-                {{ option.label }}
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <view class="form-section">
           <view class="sec-title">纸张配置</view>
           <view class="config-row">
             <text class="label">纸张规格</text>
@@ -734,7 +716,7 @@ const submitPrint = async () => {
       ...printForm.value,
       userName: userInfo?.name || userInfo?.nickname || '微信用户',
       userPhone: printForm.value.phone || userInfo?.phone,
-      documentName: `${scoreData.value?.examName || '错题集'}-${printSubject.value === 'all' ? '全部科目' : printSubject.value}`,
+      documentName: `${scoreData.value?.examName || '错题集'}-错题汇总`,
       pages: Math.max(
         Math.ceil(printableWrongBookData.value.length / 2) || 1,
         Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)
