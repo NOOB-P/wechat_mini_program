@@ -1926,12 +1926,13 @@ public class ScoreServiceImpl implements ScoreService {
                     originalRegions,
                     Math.min(personalScores.size(), bestScores.size())
             );
-            int questionCount = Math.min(personalScores.size(), fullScores.size());
+            int questionCount = personalScores.size();
             for (int index = 0; index < questionCount; index++) {
                 double bestScore = index < bestScores.size() ? bestScores.get(index) : 0D;
-                double fullScore = fullScores.get(index);
+                double rawFullScore = index < fullScores.size() ? fullScores.get(index) : 0D;
+                double fullScore = rawFullScore > 0 ? rawFullScore : bestScore;
                 double personal = personalScores.get(index);
-                if (fullScore <= 0 || personal >= fullScore) {
+                if (fullScore <= 0 || personal >= fullScore - 0.01) {
                     continue;
                 }
 
@@ -2030,8 +2031,9 @@ public class ScoreServiceImpl implements ScoreService {
             String questionNo = stringValue(region.get("questionNo"));
             String questionType = stringValue(region.get("questionType"));
             QuestionScoreMetrics metrics = buildQuestionScoreMetrics(scoreContexts, snapshot.examClass(), index);
-            double fullScore = index < fullScores.size() ? fullScores.get(index) : 0D;
+            double rawFullScore = index < fullScores.size() ? fullScores.get(index) : 0D;
             double highestScore = index < bestScores.size() ? bestScores.get(index) : metrics.highestScore();
+            double fullScore = rawFullScore > 0 ? rawFullScore : highestScore;
 
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("questionNo", normalizeQuestionNo(questionNo, index + 1));

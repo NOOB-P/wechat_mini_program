@@ -4,10 +4,10 @@
       <view class="toolbar-title-wrap">
         <text class="toolbar-title">错题筛选</text>
         <text class="toolbar-subtitle">{{ sourceLabel || '当前考试' }}</text>
-        <text class="toolbar-tip">全部下载全部错题，单科只下该科。</text>
+        <text class="toolbar-tip">(注：下方筛选用于导出某科目错题或委托打印某科目错题)</text>
       </view>
       <view class="toolbar-actions">
-        <wd-button size="small" plain custom-class="toolbar-btn" @click="emit('export')">下载</wd-button>
+        <wd-button size="small" plain custom-class="toolbar-btn" @click="emit('export')">导出错题</wd-button>
         <wd-button size="small" type="primary" plain custom-class="toolbar-btn" @click="emit('print')">委托打印</wd-button>
       </view>
     </view>

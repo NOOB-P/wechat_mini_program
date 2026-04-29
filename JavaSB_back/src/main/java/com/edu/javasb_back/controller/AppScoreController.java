@@ -113,6 +113,17 @@ public class AppScoreController {
     }
 
     /**
+     * 导出考试 AI 成绩报告 PDF
+     */
+    @LogOperation("导出AI成绩报告")
+    @GetMapping("/ai-report/export")
+    public Result<String> exportExamAiReport(@RequestParam String examId) {
+        Long uid = getCurrentUid();
+        if (uid == null) return Result.error(401, "请先登录");
+        return scoreAiReportService.exportExamAiReport(uid, examId);
+    }
+
+    /**
      * 导出错题集 PDF
      */
     @LogOperation("导出错题集")
