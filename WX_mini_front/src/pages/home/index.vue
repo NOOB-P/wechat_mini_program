@@ -76,9 +76,7 @@ onShow(() => {
 const handleGridClick = (type: string) => {
   if (type === 'analysis') {
     uni.navigateTo({ url: `/subpkg_analysis/pages/score/index?phone=${userInfo.value.phone || ''}` })
-  } else if (type === 'academic') {
-    uni.navigateTo({ url: '/subpkg_resource/pages/paper' })
-  } else if (type === 'character' || type === 'homework') {
+  } else if (type === 'academic' || type === 'character' || type === 'homework') {
     toast.show('敬请期待')
   }
 }

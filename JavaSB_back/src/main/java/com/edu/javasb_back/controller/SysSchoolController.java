@@ -60,7 +60,7 @@ public class SysSchoolController {
     @PreAuthorize("hasAnyAuthority('system:school:list','system:class:list','system:student:list','exam:project:list')")
     @GetMapping("/options")
     public Result<List<Map<String, Object>>> getSchoolOptions() {
-        Object records = sysSchoolService.getSchoolList(1, 1000, null, null, null, null).getData().get("records");
+        Object records = sysSchoolService.getSchoolList(1, 1000, null, null, null, null, null).getData().get("records");
         List<SysSchool> schools = records instanceof List<?> list
                 ? list.stream().filter(SysSchool.class::isInstance).map(SysSchool.class::cast).toList()
                 : List.of();
@@ -87,8 +87,9 @@ public class SysSchoolController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String province,
             @RequestParam(required = false) String city,
+            @RequestParam(required = false) String district,
             @RequestParam(required = false) String name) {
-        return sysSchoolService.getSchoolList(current, size, keyword, province, city, name);
+        return sysSchoolService.getSchoolList(current, size, keyword, province, city, district, name);
     }
 
     @PreAuthorize("hasAuthority('system:school:add')")

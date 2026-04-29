@@ -79,7 +79,8 @@ public class ExamProjectSchemaInitializer {
         Map<String, String> columns = new LinkedHashMap<>();
         columns.put("answer_sheet_url", "ALTER TABLE exam_student_scores ADD COLUMN answer_sheet_url VARCHAR(500) NULL COMMENT '学生试卷原卷路径' AFTER student_name");
         columns.put("answer_merge_info", "ALTER TABLE exam_student_scores ADD COLUMN answer_merge_info TEXT NULL COMMENT '答卷PDF/多图合并分页信息(JSON)' AFTER answer_sheet_url");
-        columns.put("score_entered", "ALTER TABLE exam_student_scores ADD COLUMN score_entered TINYINT(1) DEFAULT 0 COMMENT '成绩是否已录入' AFTER answer_merge_info");
+        columns.put("answer_sheet_layouts", "ALTER TABLE exam_student_scores ADD COLUMN answer_sheet_layouts TEXT NULL COMMENT '学生原卷框选布局(JSON)' AFTER answer_merge_info");
+        columns.put("score_entered", "ALTER TABLE exam_student_scores ADD COLUMN score_entered TINYINT(1) DEFAULT 0 COMMENT '成绩是否已录入' AFTER answer_sheet_layouts");
         columns.forEach((column, sql) -> addColumnIfMissing("exam_student_scores", column, sql));
     }
 

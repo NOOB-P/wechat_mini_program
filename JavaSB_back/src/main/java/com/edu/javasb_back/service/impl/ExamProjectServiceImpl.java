@@ -65,6 +65,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -72,6 +73,10 @@ import java.nio.file.StandardCopyOption;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -90,11 +95,16 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import org.springframework.scheduling.annotation.Async;
+import java.util.concurrent.ConcurrentHashMap;
+
 record ArchivePaperEntry(String entryPath, String fileName, byte[] content) {}
 record PaperAssetContext(String previewUrl, Path paperPath, Map<String, Object> mergeInfo, boolean mergeInfoChanged) {}
 record OcrExecutionResult(String requestId, String ocrSubject, String imageType, String cutType, int pageCount, List<Map<String, Object>> regions, List<Map<String, Object>> pageResults) {}
 record StoredPaperAsset(String url, Map<String, Object> mergeInfo) {}
 record RenderResult(byte[] bytes, Map<String, Object> mergeInfo) {}
+
+record OcrTaskStatus(String taskId, String status, int progress, String message, Object result, long startTime) {}
 
 record Prepared(
         boolean ok,
@@ -155,6 +165,12 @@ record FileMatch(boolean ok, boolean skipped, SysStudent student, String msg) {
 
 @Service
 public class ExamProjectServiceImpl implements ExamProjectService {
+
+    private final Map<String, OcrTaskStatus> ocrTasks = new ConcurrentHashMap<>();
+
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(20))
+            .build();
 
     private static final Logger log = LoggerFactory.getLogger(ExamProjectServiceImpl.class);
 
@@ -417,6 +433,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     item.put("hasScore", hasScore(score));
                     item.put("hasAnswerSheet", hasAnswerSheet(score));
                     item.put("answerSheetUrl", answerSheetUrl);
+                    item.put("answerSheetLayouts", score == null ? "[]" : score.getAnswerSheetLayouts());
                     item.put("updateTime", score != null ? score.getUpdateTime() : null);
                     return item;
                 })
@@ -1667,28 +1684,57 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     public Result<Void> savePaperLayout(PaperLayoutSaveDTO dto) {
         if (dto == null || !StringUtils.hasText(dto.getProjectId())) return Result.error("项目ID不能为空");
         if (!StringUtils.hasText(dto.getSubjectName())) return Result.error("学科名称不能为空");
-        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType())) {
-            return Result.error("布局类型错误，仅支持 template 或 original");
+        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType()) && !"student".equals(dto.getType())) {
+            return Result.error("布局类型错误，仅支持 template、original 或 student");
         }
         ExamSubject subject = findProjectSubjectByName(dto.getProjectId(), dto.getSubjectName());
         if (subject == null) return Result.error("项目中无学科数据: " + dto.getSubjectName());
 
+        List<Map<String, Object>> normalizedRegions = normalizeRegionDtos(dto.getRegions());
         if ("template".equals(dto.getType())) {
-            subject.setAnswersLayouts(jsonValue(normalizeRegionDtos(dto.getRegions())));
-        } else {
-            subject.setPaperLayouts(jsonValue(normalizeRegionDtos(dto.getRegions())));
+            subject.setAnswersLayouts(jsonValue(normalizedRegions));
+            examSubjectRepository.saveAndFlush(subject);
+            return Result.success("保存成功", null);
         }
-        examSubjectRepository.saveAndFlush(subject);
+
+        if ("original".equals(dto.getType())) {
+            subject.setPaperLayouts(jsonValue(normalizedRegions));
+            examSubjectRepository.saveAndFlush(subject);
+            syncBenchmarkScoresFromOriginalLayout(dto.getProjectId(), dto.getSubjectName(), normalizedRegions);
+            return Result.success("保存成功", null);
+        }
+
+        if (!StringUtils.hasText(dto.getStudentNo())) {
+            return Result.error("保存考生原卷框选时缺少学号");
+        }
+        ExamStudentScore targetScore = findStudentScoreRecord(dto.getProjectId(), dto.getSubjectName(), dto.getStudentNo());
+        if (targetScore == null) {
+            return Result.error("未找到对应考生试卷记录: " + dto.getStudentNo());
+        }
+        targetScore.setAnswerSheetLayouts(jsonValue(normalizedRegions));
+        examStudentScoreRepository.saveAndFlush(targetScore);
+
+        if (Boolean.TRUE.equals(dto.getApplyToAllStudents())) {
+            List<ExamStudentScore> subjectScores = examStudentScoreRepository.findBySubjectId(targetScore.getSubjectId());
+            for (ExamStudentScore score : subjectScores) {
+                score.setAnswerSheetLayouts(jsonValue(normalizedRegions));
+            }
+            examStudentScoreRepository.saveAllAndFlush(subjectScores);
+        }
         return Result.success("保存成功", null);
     }
 
     @Override
     @Transactional
     public Result<Map<String, Object>> autoCutPaperLayoutByOcr(PaperOcrAutoCutDTO dto) {
+        return autoCutPaperLayoutByOcr(dto, null);
+    }
+
+    private Result<Map<String, Object>> autoCutPaperLayoutByOcr(PaperOcrAutoCutDTO dto, String taskId) {
         if (dto == null || !StringUtils.hasText(dto.getProjectId())) return Result.error("项目ID不能为空");
         if (!StringUtils.hasText(dto.getSubjectName())) return Result.error("学科名称不能为空");
-        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType())) {
-            return Result.error("布局类型错误，仅支持 template 或 original");
+        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType()) && !"student".equals(dto.getType())) {
+            return Result.error("布局类型错误，仅支持 template、original 或 student");
         }
 
         if (!examProjectRepository.existsById(dto.getProjectId())) return Result.error("项目不存在");
@@ -1699,8 +1745,24 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         }
 
         try {
-            String paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
+            String paperUrl;
+            if ("student".equals(dto.getType())) {
+                if (!StringUtils.hasText(dto.getStudentNo())) {
+                    return Result.error("识别考生答题卡时缺少学号");
+                }
+                ExamStudentScore studentScore = findStudentScoreRecord(dto.getProjectId(), dto.getSubjectName(), dto.getStudentNo());
+                if (studentScore == null || !StringUtils.hasText(studentScore.getAnswerSheetUrl())) {
+                    return Result.error("未找到对应考生试卷或考生未上传试卷");
+                }
+                paperUrl = studentScore.getAnswerSheetUrl();
+            } else {
+                paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
+            }
+
+            if (taskId != null) ocrTasks.put(taskId, new OcrTaskStatus(taskId, "RUNNING", 15, "正在解析试卷资源...", null, System.currentTimeMillis()));
             PaperAssetContext paperContext = resolvePaperAssetContext(subject, dto.getType(), paperUrl, true);
+            
+            if (taskId != null) ocrTasks.put(taskId, new OcrTaskStatus(taskId, "RUNNING", 25, "正在执行分页面 OCR 识别...", null, System.currentTimeMillis()));
             OcrExecutionResult ocrExecutionResult = runPaperOcrByPages(
                     paperContext.paperPath(),
                     paperContext.previewUrl(),
@@ -1713,13 +1775,25 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             if (regions.isEmpty()) {
                 return Result.error("AI识别未识别出可切割的题目区域");
             }
+            if ("original".equals(dto.getType())) {
+                if (taskId != null) ocrTasks.put(taskId, new OcrTaskStatus(taskId, "RUNNING", 75, "正在识别知识点/分数...", null, System.currentTimeMillis()));
+                regions = enrichRegionsWithLlmMeta(regions);
+            }
 
+            if (taskId != null) ocrTasks.put(taskId, new OcrTaskStatus(taskId, "RUNNING", 95, "正在保存识别结果...", null, System.currentTimeMillis()));
             if ("template".equals(dto.getType())) {
                 subject.setAnswersLayouts(jsonValue(regions));
-            } else {
+                examSubjectRepository.saveAndFlush(subject);
+            } else if ("original".equals(dto.getType())) {
                 subject.setPaperLayouts(jsonValue(regions));
+                examSubjectRepository.saveAndFlush(subject);
+            } else if ("student".equals(dto.getType())) {
+                ExamStudentScore studentScore = findStudentScoreRecord(dto.getProjectId(), dto.getSubjectName(), dto.getStudentNo());
+                if (studentScore != null) {
+                    studentScore.setAnswerSheetLayouts(jsonValue(regions));
+                    examStudentScoreRepository.saveAndFlush(studentScore);
+                }
             }
-            examSubjectRepository.saveAndFlush(subject);
 
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("projectId", dto.getProjectId());
@@ -1738,6 +1812,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         } catch (IllegalArgumentException ex) {
             return Result.error(ex.getMessage());
         } catch (Exception ex) {
+            log.error("AI识别失败: {}", ex.getMessage(), ex);
             return Result.error("AI识别失败: " + ex.getMessage());
         }
     }
@@ -1747,8 +1822,8 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     public Result<Map<String, Object>> ocrPaperLayoutPage(PaperOcrAutoCutDTO dto) {
         if (dto == null || !StringUtils.hasText(dto.getProjectId())) return Result.error("项目ID不能为空");
         if (!StringUtils.hasText(dto.getSubjectName())) return Result.error("学科名称不能为空");
-        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType())) {
-            return Result.error("布局类型错误，仅支持 template 或 original");
+        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType()) && !"student".equals(dto.getType())) {
+            return Result.error("布局类型错误，仅支持 template、original 或 student");
         }
         if (dto.getPageIndex() == null || dto.getPageIndex() <= 0) {
             return Result.error("页码不能为空");
@@ -1761,8 +1836,21 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             return Result.error("项目中无学科数据: " + dto.getSubjectName());
         }
 
-        String paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
         try {
+            String paperUrl;
+            if ("student".equals(dto.getType())) {
+                if (!StringUtils.hasText(dto.getStudentNo())) {
+                    return Result.error("识别考生答题卡时缺少学号");
+                }
+                ExamStudentScore studentScore = findStudentScoreRecord(dto.getProjectId(), dto.getSubjectName(), dto.getStudentNo());
+                if (studentScore == null || !StringUtils.hasText(studentScore.getAnswerSheetUrl())) {
+                    return Result.error("未找到对应考生试卷或考生未上传试卷");
+                }
+                paperUrl = studentScore.getAnswerSheetUrl();
+            } else {
+                paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
+            }
+
             PaperAssetContext paperContext = resolvePaperAssetContext(subject, dto.getType(), paperUrl, true);
             Map<String, Object> pageResult = runSinglePaperOcrPage(
                     paperContext.paperPath(),
@@ -1773,15 +1861,37 @@ public class ExamProjectServiceImpl implements ExamProjectService {
                     dto.getImageType(),
                     resolveOcrCutType(dto.getType())
             );
-            mergePagedLayoutResult(
-                    subject,
-                    dto.getType(),
-                    dto.getPageIndex(),
-                    paperContext.mergeInfo(),
-                    nestedMap(pageResult.get("pageInfo")),
-                    mapList(pageResult.get("regions"))
-            );
-            examSubjectRepository.saveAndFlush(subject);
+            
+            if ("student".equals(dto.getType())) {
+                ExamStudentScore studentScore = findStudentScoreRecord(dto.getProjectId(), dto.getSubjectName(), dto.getStudentNo());
+                if (studentScore != null) {
+                    mergeStudentPagedLayoutResult(
+                            studentScore,
+                            dto.getPageIndex(),
+                            paperContext.mergeInfo(),
+                            nestedMap(pageResult.get("pageInfo")),
+                            mapList(pageResult.get("regions"))
+                    );
+                    examStudentScoreRepository.saveAndFlush(studentScore);
+                }
+            } else {
+                mergePagedLayoutResult(
+                        subject,
+                        dto.getType(),
+                        dto.getPageIndex(),
+                        paperContext.mergeInfo(),
+                        nestedMap(pageResult.get("pageInfo")),
+                        mapList(pageResult.get("regions"))
+                );
+                if ("original".equals(dto.getType())) {
+                    int totalPages = Math.max(asInt(paperContext.mergeInfo().get("pageCount"), 0), mapList(paperContext.mergeInfo().get("pages")).size());
+                    if (dto.getPageIndex() >= totalPages) {
+                        List<Map<String, Object>> mergedRegions = enrichRegionsWithLlmMeta(regionList(mapList(subject.getPaperLayouts())));
+                        subject.setPaperLayouts(jsonValue(mergedRegions));
+                    }
+                }
+                examSubjectRepository.saveAndFlush(subject);
+            }
             return Result.success("分页识别完成", pageResult);
         } catch (IllegalArgumentException ex) {
             return Result.error(ex.getMessage());
@@ -1794,8 +1904,8 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     public Result<Map<String, Object>> ocrPaperRegion(PaperRegionOcrDTO dto) {
         if (dto == null || !StringUtils.hasText(dto.getProjectId())) return Result.error("项目ID不能为空");
         if (!StringUtils.hasText(dto.getSubjectName())) return Result.error("学科名称不能为空");
-        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType())) {
-            return Result.error("布局类型错误，仅支持 template 或 original");
+        if (!"template".equals(dto.getType()) && !"original".equals(dto.getType()) && !"student".equals(dto.getType())) {
+            return Result.error("布局类型错误，仅支持 template、original 或 student");
         }
         if (dto.getWidth() == null || dto.getWidth() <= 0 || dto.getHeight() == null || dto.getHeight() <= 0) {
             return Result.error("题框坐标无效");
@@ -1808,10 +1918,9 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             return Result.error("项目中无学科数据: " + dto.getSubjectName());
         }
 
-        String paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
         Path tempPath = null;
         try {
-            PaperAssetContext paperContext = resolvePaperAssetContext(subject, dto.getType(), paperUrl, true);
+            PaperAssetContext paperContext = resolvePaperAssetContextForRegion(subject, dto);
             tempPath = cropRegionToTempImage(
                     paperContext.paperPath(),
                     clampRatio(dto.getX()),
@@ -1830,6 +1939,345 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         } finally {
             deleteTempFile(tempPath);
         }
+    }
+
+    @Override
+    public Result<Map<String, Object>> analyzePaperRegion(PaperRegionOcrDTO dto) {
+        Result<Map<String, Object>> ocrResult = ocrPaperRegion(dto);
+        if (ocrResult.getCode() != 200 || ocrResult.getData() == null) {
+            return ocrResult;
+        }
+        String questionText = asString(ocrResult.getData().get("questionText")).trim();
+        if (!StringUtils.hasText(questionText)) {
+            return Result.error("OCR 未识别到有效题目文本");
+        }
+        try {
+            Map<String, Object> analysis = analyzeQuestionMetaByLlm(questionText, dto.getPartTitle());
+            Map<String, Object> data = new LinkedHashMap<>(ocrResult.getData());
+            if (analysis.get("questionText") instanceof String llmQuestionText && StringUtils.hasText(llmQuestionText)) {
+                data.put("questionText", llmQuestionText.trim());
+            }
+            data.put("knowledgePoint", asString(analysis.get("knowledgePoint")).trim());
+            data.put("score", nullableRounded(analysis.get("score")));
+            data.put("analysis", analysis);
+            return Result.success("分析完成", data);
+        } catch (Exception ex) {
+            return Result.error("题目分析失败: " + ex.getMessage());
+        }
+    }
+
+    private PaperAssetContext resolvePaperAssetContextForRegion(ExamSubject subject, PaperRegionOcrDTO dto) throws Exception {
+        if ("student".equals(dto.getType())) {
+            if (!StringUtils.hasText(dto.getStudentNo())) {
+                throw new IllegalArgumentException("考生原卷识别缺少学号");
+            }
+            ExamStudentScore score = findStudentScoreRecord(subject.getProjectId(), subject.getSubjectName(), dto.getStudentNo());
+            if (score == null || !StringUtils.hasText(score.getAnswerSheetUrl())) {
+                throw new IllegalArgumentException("当前考生未上传原卷");
+            }
+            return resolveStudentPaperAssetContext(score, true);
+        }
+        String paperUrl = "template".equals(dto.getType()) ? subject.getAnswerUrl() : subject.getPaperUrl();
+        return resolvePaperAssetContext(subject, dto.getType(), paperUrl, true);
+    }
+
+    private PaperAssetContext resolveStudentPaperAssetContext(ExamStudentScore score, boolean persistIfMissing) throws Exception {
+        if (score == null || !StringUtils.hasText(score.getAnswerSheetUrl())) {
+            throw new IllegalArgumentException("考生原卷不存在");
+        }
+        return resolvePaperAssetContext(
+                score.getAnswerSheetUrl(),
+                score.getAnswerMergeInfo(),
+                persistIfMissing,
+                (previewUrl, mergeInfoJson) -> {
+                    score.setAnswerSheetUrl(previewUrl);
+                    score.setAnswerMergeInfo(mergeInfoJson);
+                }
+        );
+    }
+
+    private PaperAssetContext resolvePaperAssetContext(
+            String storedPaperUrl,
+            String mergeInfoJson,
+            boolean persistIfMissing,
+            java.util.function.BiConsumer<String, String> updater) throws Exception {
+        if (!StringUtils.hasText(storedPaperUrl)) {
+            throw new IllegalArgumentException("试卷资源不存在，请先上传");
+        }
+        Path storedPath = resolvePaperPath(storedPaperUrl);
+        if (storedPath == null || !Files.exists(storedPath)) {
+            throw new IllegalArgumentException("试卷文件不存在，请重新上传");
+        }
+
+        Map<String, Object> mergeInfo = resolvePaperMergeInfoFromJson(mergeInfoJson);
+        String previewUrl = normalizeStoredPaperPreviewUrl(storedPaperUrl);
+        boolean mergeInfoChanged = false;
+        Path previewPath = resolvePaperPath(previewUrl);
+        if (previewPath == null || !Files.exists(previewPath)) {
+            throw new IllegalArgumentException("试卷文件不存在，请重新上传");
+        }
+        if (!hasValidPaperMergeInfo(mergeInfo)) {
+            mergeInfo = derivePaperMergeInfo(storedPaperUrl, previewPath);
+            mergeInfoChanged = true;
+            if (persistIfMissing && updater != null) {
+                updater.accept(previewUrl, jsonMap(mergeInfo));
+            }
+        }
+        return new PaperAssetContext(previewUrl, previewPath, mergeInfo, mergeInfoChanged);
+    }
+
+    private Map<String, Object> resolvePaperMergeInfoFromJson(String mergeInfoJson) {
+        Map<String, Object> mergeInfo = map(mergeInfoJson);
+        return mergeInfo.isEmpty() ? Collections.emptyMap() : mergeInfo;
+    }
+
+    private ExamStudentScore findStudentScoreRecord(String projectId, String subjectName, String studentNo) {
+        if (!StringUtils.hasText(projectId) || !StringUtils.hasText(subjectName) || !StringUtils.hasText(studentNo)) {
+            return null;
+        }
+        ExamSubject subject = findProjectSubjectByName(projectId, subjectName);
+        if (subject == null) {
+            return null;
+        }
+        return examStudentScoreRepository.findBySubjectIdAndStudentNo(subject.getId(), normalizeStudentNo(studentNo)).orElse(null);
+    }
+
+    private void syncBenchmarkScoresFromOriginalLayout(String projectId, String subjectName, List<Map<String, Object>> regions) {
+        if (!StringUtils.hasText(projectId) || !StringUtils.hasText(subjectName) || regions == null) {
+            return;
+        }
+        ExamProject project = examProjectRepository.findById(projectId).orElse(null);
+        if (project == null) {
+            return;
+        }
+
+        Map<String, Object> benchmarks = new LinkedHashMap<>(map(project.getSubjectBenchmarks()));
+        Map<String, Object> subjectBenchmark = new LinkedHashMap<>(nestedMap(benchmarks.get(subjectName)));
+        List<Map<String, Object>> questions = new ArrayList<>(mapList(subjectBenchmark.get("questions")));
+
+        for (Map<String, Object> region : regions) {
+            Integer questionIndex = extractQuestionIndex(asString(region.get("questionNo")));
+            Double score = nullableRounded(region.get("score"));
+            if (questionIndex == null || questionIndex <= 0 || score == null) {
+                continue;
+            }
+            while (questions.size() < questionIndex) {
+                questions.add(new LinkedHashMap<>(Map.of("score", 0D)));
+            }
+            Map<String, Object> question = new LinkedHashMap<>(nestedMap(questions.get(questionIndex - 1)));
+            question.put("score", score);
+            questions.set(questionIndex - 1, question);
+        }
+
+        subjectBenchmark.put("questions", questions);
+        benchmarks.put(subjectName, subjectBenchmark);
+        project.setSubjectBenchmarks(jsonMap(benchmarks));
+        examProjectRepository.saveAndFlush(project);
+    }
+
+    private Integer extractQuestionIndex(String questionNo) {
+        String normalized = normalizeQuestionNo(questionNo, 0);
+        Matcher matcher = QUESTION_NUMBER_PATTERN.matcher(normalized);
+        if (!matcher.find()) {
+            return null;
+        }
+        return parseIntSafe(matcher.group(1));
+    }
+
+    private Map<String, Object> analyzeQuestionMetaByLlm(String questionText, String partTitle) {
+        if (!StringUtils.hasText(globalConfigProperties.getQwenApiKey()) || !StringUtils.hasText(globalConfigProperties.getQwenChatUrl())) {
+            throw new IllegalStateException("大模型配置缺失，请先配置 Qwen API");
+        }
+        try {
+            String userPrompt = "请分析以下题目文本并返回 JSON：\n" + questionText;
+            if (StringUtils.hasText(partTitle)) {
+                userPrompt = "题目所在大题说明：" + partTitle + "\n\n" + userPrompt;
+            }
+
+            Map<String, Object> requestBody = new LinkedHashMap<>();
+            requestBody.put("model", resolveQwenModel());
+            requestBody.put("enable_thinking", false);
+            requestBody.put("temperature", 0.1);
+            requestBody.put("response_format", Map.of("type", "json_object"));
+            requestBody.put("messages", List.of(
+                    Map.of(
+                            "role", "system",
+                            "content", """
+                                    你是一名严谨的中小学试题分析助手。
+                                    你需要从 OCR 题目文本中提取并规范化以下信息，并严格输出 JSON：
+                                    {
+                                      "questionText": "string",
+                                      "knowledgePoint": "string",
+                                      "score": 0.0
+                                    }
+                                    要求：
+                                    1. score 必须是数字（浮点数）。
+                                    2. 必须参考提供的“大题说明”（如“每小题3分”）来确定分值。
+                                    3. 如果题目文本中明确标注了该题的分值（如“本题5分”），以题目文本为准。
+                                    4. 如果大题说明和题目文本都没有分值，请根据题型（如选择题、填空题通常为3-5分，解答题通常为8-15分）给出一个最合理的预估分值，绝对不能返回 0 或 5.0（除非真的符合规则）。
+                                    5. knowledgePoint 用简洁中文概括主要知识点，多个知识点用顿号分隔。
+                                    6. questionText 返回识别出的纯净题干文本，去除冗余的题号。
+                                    7. 不要输出 markdown，不要解释。
+                                    """
+                    ),
+                    Map.of(
+                            "role", "user",
+                            "content", userPrompt
+                    )
+            ));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(globalConfigProperties.getQwenChatUrl()))
+                    .timeout(Duration.ofSeconds(45))
+                    .header("Authorization", "Bearer " + globalConfigProperties.getQwenApiKey().trim())
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(writeJson(requestBody), StandardCharsets.UTF_8))
+                    .build();
+
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("大模型调用失败，HTTP状态码：" + response.statusCode());
+            }
+
+            Map<String, Object> root = readJsonMap(response.body());
+            List<Map<String, Object>> choices = mapList(root.get("choices"));
+            Map<String, Object> firstChoice = choices.isEmpty() ? Collections.emptyMap() : choices.get(0);
+            String content = asString(nestedMap(firstChoice.get("message")).get("content")).trim();
+            if (!StringUtils.hasText(content)) {
+                throw new IllegalStateException("大模型未返回有效内容");
+            }
+            return readJsonMap(content);
+        } catch (Exception ex) {
+            throw new IllegalStateException("大模型分析失败: " + ex.getMessage(), ex);
+        }
+    }
+
+    private List<Map<String, Object>> enrichRegionsWithLlmMeta(List<Map<String, Object>> regions) {
+        if (regions == null || regions.isEmpty()) {
+            return Collections.emptyList();
+        }
+        if (!StringUtils.hasText(globalConfigProperties.getQwenApiKey()) || !StringUtils.hasText(globalConfigProperties.getQwenChatUrl())) {
+            log.warn("Qwen 配置缺失，跳过原卷识别后的分值/知识点分析");
+            return regions;
+        }
+        try {
+            Map<String, Map<String, String>> questionDataMap = new LinkedHashMap<>();
+            Set<String> partTitles = new LinkedHashSet<>();
+            for (Map<String, Object> region : regions) {
+                String questionNo = normalizeQuestionNo(asString(region.get("questionNo")), asInt(region.get("sortOrder"), 1));
+                String questionText = asString(region.get("questionText")).trim();
+                String partTitle = asString(region.get("partTitle")).trim();
+                if (!StringUtils.hasText(questionText)) {
+                    continue;
+                }
+                
+                Map<String, String> data = questionDataMap.computeIfAbsent(questionNo, k -> new HashMap<>());
+                data.merge("text", questionText, (left, right) -> left + "\n" + right);
+                if (StringUtils.hasText(partTitle)) {
+                    data.put("partTitle", partTitle);
+                    partTitles.add(partTitle);
+                }
+            }
+            if (questionDataMap.isEmpty()) {
+                return regions;
+            }
+
+            String userContent = "这是整份试卷（所有页面）合并后的完整题目数据，请结合大题说明进行全卷分析：\n";
+            if (!partTitles.isEmpty()) {
+                userContent = "【试卷大题结构说明】\n" + String.join("\n", partTitles) + "\n\n" + userContent;
+            }
+            userContent += writeJson(questionDataMap);
+
+            Map<String, Object> requestBody = new LinkedHashMap<>();
+            requestBody.put("model", resolveQwenModel());
+            requestBody.put("enable_thinking", false);
+            requestBody.put("temperature", 0.1);
+            requestBody.put("response_format", Map.of("type", "json_object"));
+            requestBody.put("messages", List.of(
+                    Map.of(
+                            "role", "system",
+                            "content", """
+                                    你是一名专业的中小学试卷全卷分析专家。
+                                    我会给你整份试卷（包含所有页面）按题号归纳后的完整 OCR 文本，以及试卷的大题结构说明。
+                                    你需要对全卷题目进行统一分析，并输出严格 JSON：
+                                    {
+                                      "questions": [
+                                        {
+                                          "questionNo": "第1题",
+                                          "score": 0.0,
+                                          "knowledgePoint": "字符串"
+                                        }
+                                      ]
+                                    }
+                                    要求：
+                                    1. 必须覆盖输入 JSON 中出现的所有题号。
+                                    2. score 返回数字（浮点数）。
+                                    3. 必须严格遵守大题说明中的分值规则（如“一、选择题...每小题3分”则该大题下所有小题均为3分）。
+                                    4. 如果题目文本中有冲突的明确分值（如“本题5分”），以题目文本为准。
+                                    5. 确保全卷各小题分值逻辑自洽，不要统一返回 0 或 5.0。
+                                    6. knowledgePoint 用中文简洁概括核心知识点。
+                                    7. 不要输出任何 markdown 或解释性文字，只输出 JSON。
+                                    """
+                    ),
+                    Map.of(
+                            "role", "user",
+                            "content", userContent
+                    )
+            ));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(globalConfigProperties.getQwenChatUrl()))
+                    .timeout(Duration.ofSeconds(60))
+                    .header("Authorization", "Bearer " + globalConfigProperties.getQwenApiKey().trim())
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(writeJson(requestBody), StandardCharsets.UTF_8))
+                    .build();
+
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("大模型调用失败，HTTP状态码：" + response.statusCode());
+            }
+
+            Map<String, Object> root = readJsonMap(response.body());
+            System.out.println("大模型调用响应: " + requestBody.get("messages"));
+            List<Map<String, Object>> choices = mapList(root.get("choices"));
+            Map<String, Object> firstChoice = choices.isEmpty() ? Collections.emptyMap() : choices.get(0);
+            String content = asString(nestedMap(firstChoice.get("message")).get("content")).trim();
+            if (!StringUtils.hasText(content)) {
+                return regions;
+            }
+
+            Map<String, Object> parsed = readJsonMap(content);
+            Map<String, Map<String, Object>> metaByQuestionNo = mapList(parsed.get("questions")).stream()
+                    .collect(Collectors.toMap(
+                            item -> normalizeQuestionNo(asString(item.get("questionNo")), 0),
+                            item -> item,
+                            (left, right) -> left,
+                            LinkedHashMap::new
+                    ));
+
+            List<Map<String, Object>> enriched = new ArrayList<>();
+            for (Map<String, Object> region : regions) {
+                Map<String, Object> row = new LinkedHashMap<>(region);
+                String questionNo = normalizeQuestionNo(asString(region.get("questionNo")), asInt(region.get("sortOrder"), 1));
+                Map<String, Object> meta = metaByQuestionNo.get(questionNo);
+                if (meta != null) {
+                    row.put("knowledgePoint", asString(meta.get("knowledgePoint")).trim());
+                    row.put("score", nullableRounded(meta.get("score")));
+                }
+                enriched.add(row);
+            }
+            return enriched;
+        } catch (Exception ex) {
+            log.warn("原卷识别后的题目分值/知识点分析失败: {}", ex.getMessage());
+            return regions;
+        }
+    }
+
+    private String resolveQwenModel() {
+        return StringUtils.hasText(globalConfigProperties.getQwenModel())
+                ? globalConfigProperties.getQwenModel().trim()
+                : "qwen-plus";
     }
 
     private ExamSubject findProjectSubjectByName(String projectId, String subjectName) {
@@ -1992,7 +2440,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     }
 
     private String resolveOcrCutType(String type) {
-        return "template".equals(type) ? "answer" : "question";
+        return ("template".equals(type) || "student".equals(type)) ? "answer" : "question";
     }
 
     private String json(List<String> values) {
@@ -2064,6 +2512,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             row.put("id", StringUtils.hasText(regionId) ? regionId : id("PR"));
             row.put("questionNo", normalizeQuestionNo(asString(mapValue.get("questionNo")), index));
             row.put("questionType", str(asString(mapValue.get("questionType"))));
+            row.put("partTitle", str(asString(mapValue.get("partTitle"))));
             row.put("knowledgePoint", str(asString(mapValue.get("knowledgePoint"))));
             row.put("questionText", normalizeQuestionText(mapValue.get("questionText"), mapValue.get("remark")));
             row.put("score", nullableRounded(mapValue.get("score")));
@@ -2090,6 +2539,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             row.put("id", StringUtils.hasText(item.getId()) ? item.getId().trim() : id("PR"));
             row.put("questionNo", normalizeQuestionNo(item.getQuestionNo(), sortOrder));
             row.put("questionType", str(item.getQuestionType()).trim());
+            row.put("partTitle", str(item.getPartTitle()).trim());
             row.put("knowledgePoint", str(item.getKnowledgePoint()).trim());
             row.put("questionText", normalizeQuestionText(item.getQuestionText(), null));
             row.put("score", item.getScore() == null ? null : round(item.getScore()));
@@ -2128,6 +2578,23 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     private double round(double value) { return Math.round(value * 100D) / 100D; }
     private String str(String value) { return value == null ? "" : value; }
     private String asString(Object value) { return value == null ? "" : String.valueOf(value); }
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception ex) {
+            throw new IllegalStateException("JSON序列化失败: " + ex.getMessage(), ex);
+        }
+    }
+    private Map<String, Object> readJsonMap(String json) {
+        if (!StringUtils.hasText(json)) {
+            return Collections.emptyMap();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception ex) {
+            throw new IllegalStateException("JSON解析失败: " + ex.getMessage(), ex);
+        }
+    }
     private String normalizeQuestionText(Object questionText, Object legacyRemark) {
         String resolved = asString(questionText).trim();
         if (StringUtils.hasText(resolved)) {
@@ -2461,8 +2928,8 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         for (Map<String, Object> region : pageRegions) mergedRegions.add(new LinkedHashMap<>(region));
 
         mergedRegions.sort(Comparator
-                .comparingDouble((Map<String, Object> item) -> clampRatio(item.get("y")))
-                .thenComparingDouble(item -> clampRatio(item.get("x"))));
+                .comparingDouble((Map<String, Object> item) -> asDouble(item.get("y"), 0D))
+                .thenComparingDouble(item -> asDouble(item.get("x"), 0D)));
         if ("template".equals(type)) {
             subject.setAnswersLayouts(jsonValue(normalizeOcrRegions(mergedRegions)));
         } else {
@@ -2471,15 +2938,54 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         if (hasValidPaperMergeInfo(mergeInfo)) savePaperMergeInfo(subject, type, mergeInfo);
     }
 
+    private void mergeStudentPagedLayoutResult(
+            ExamStudentScore studentScore,
+            Integer pageIndex,
+            Map<String, Object> mergeInfo,
+            Map<String, Object> pageInfo,
+            List<Map<String, Object>> pageRegions) {
+        if (studentScore == null) return;
+        if (pageRegions == null || pageRegions.isEmpty()) return;
+
+        List<Map<String, Object>> existingRegions = new ArrayList<>(mapList(studentScore.getAnswerSheetLayouts()));
+        List<Map<String, Object>> mergedRegions = new ArrayList<>();
+
+        if (pageIndex != null && pageIndex <= 1) existingRegions.clear();
+
+        for (Map<String, Object> region : existingRegions) {
+            if (!isRegionInPage(region, pageInfo)) mergedRegions.add(new LinkedHashMap<>(region));
+        }
+        for (Map<String, Object> region : pageRegions) mergedRegions.add(new LinkedHashMap<>(region));
+
+        mergedRegions.sort(Comparator
+                .comparingDouble((Map<String, Object> item) -> asDouble(item.get("y"), 0D))
+                .thenComparingDouble(item -> asDouble(item.get("x"), 0D)));
+
+        studentScore.setAnswerSheetLayouts(jsonValue(normalizeOcrRegions(mergedRegions)));
+        if (hasValidPaperMergeInfo(mergeInfo)) {
+            studentScore.setAnswerMergeInfo(jsonMap(mergeInfo));
+        }
+    }
+
     private boolean isRegionInPage(Map<String, Object> region, Map<String, Object> pageInfo) {
         if (region == null || region.isEmpty() || pageInfo == null || pageInfo.isEmpty()) return false;
-        double pageX = clampRatio(pageInfo.get("xRatio"));
-        double pageY = clampRatio(pageInfo.get("yRatio"));
-        double pageWidth = clampRatio(pageInfo.get("widthRatio"));
-        double pageHeight = clampRatio(pageInfo.get("heightRatio"));
-        double centerX = clampRatio(clampRatio(region.get("x")) + clampRatio(region.get("width")) / 2D);
-        double centerY = clampRatio(clampRatio(region.get("y")) + clampRatio(region.get("height")) / 2D);
-        return centerX >= pageX && centerX <= pageX + pageWidth && centerY >= pageY && centerY <= pageY + pageHeight;
+        
+        // 使用 asDouble 安全转换，防止类型转换异常
+        double pageX = asDouble(pageInfo.get("xRatio"), 0D);
+        double pageY = asDouble(pageInfo.get("yRatio"), 0D);
+        double pageWidth = asDouble(pageInfo.get("widthRatio"), 1D);
+        double pageHeight = asDouble(pageInfo.get("heightRatio"), 1D);
+        
+        double regionX = asDouble(region.get("x"), 0D);
+        double regionY = asDouble(region.get("y"), 0D);
+        double regionW = asDouble(region.get("width"), 0D);
+        double regionH = asDouble(region.get("height"), 0D);
+        
+        double centerX = regionX + regionW / 2D;
+        double centerY = regionY + regionH / 2D;
+        
+        return centerX >= pageX && centerX <= (pageX + pageWidth) 
+               && centerY >= pageY && centerY <= (pageY + pageHeight);
     }
 
     private OcrExecutionResult runPaperOcrByPages(
@@ -2630,5 +3136,43 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         height = Math.min(height, image.getHeight() - y);
         BufferedImage cropped = image.getSubimage(x, y, width, height);
         return writeBufferedImageToTemp(cropped, "paper-page");
+    }
+
+    @Override
+    public Result<String> startAutoCutTask(PaperOcrAutoCutDTO dto) {
+        String taskId = UUID.randomUUID().toString();
+        ocrTasks.put(taskId, new OcrTaskStatus(taskId, "PENDING", 0, "任务已提交", null, System.currentTimeMillis()));
+        
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                ocrTasks.put(taskId, new OcrTaskStatus(taskId, "RUNNING", 10, "正在识别试卷布局...", null, System.currentTimeMillis()));
+                Result<Map<String, Object>> result = autoCutPaperLayoutByOcr(dto, taskId);
+                if (result.getCode() == 200) {
+                    ocrTasks.put(taskId, new OcrTaskStatus(taskId, "COMPLETED", 100, "识别完成", result.getData(), System.currentTimeMillis()));
+                } else {
+                    ocrTasks.put(taskId, new OcrTaskStatus(taskId, "FAILED", 0, result.getMsg(), null, System.currentTimeMillis()));
+                }
+            } catch (Exception e) {
+                log.error("OCR 任务执行异常: {}", e.getMessage(), e);
+                ocrTasks.put(taskId, new OcrTaskStatus(taskId, "FAILED", 0, "系统内部错误: " + e.getMessage(), null, System.currentTimeMillis()));
+            }
+        });
+        
+        return Result.success("任务已启动", taskId);
+    }
+
+    @Override
+    public Result<Map<String, Object>> getOcrTaskStatus(String taskId) {
+        OcrTaskStatus status = ocrTasks.get(taskId);
+        if (status == null) {
+            return Result.error("未找到对应任务");
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("taskId", status.taskId());
+        data.put("status", status.status());
+        data.put("progress", status.progress());
+        data.put("message", status.message());
+        data.put("result", status.result());
+        return Result.success(data);
     }
 }

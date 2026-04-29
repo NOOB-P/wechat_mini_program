@@ -46,6 +46,22 @@
         </el-dropdown>
 
         <div class="current-tool-pill">{{ currentToolText }}</div>
+
+        <el-tooltip content="设置下一个选框的题号，创建后自动+1" placement="bottom">
+          <div v-if="!readonly" class="manual-no-setter">
+            <span class="setter-label">题号:</span>
+            <el-input-number
+              :model-value="manualQuestionNo"
+              @update:model-value="(val?: number) => emit('update:manualQuestionNo', Number(val || 1))"
+              size="small"
+              :min="1"
+              :precision="0"
+              :controls="false"
+              class="no-input"
+            />
+          </div>
+        </el-tooltip>
+
         <div class="scale-indicator">{{ scaleText }}</div>
       </div>
 
@@ -207,6 +223,17 @@
               >
                 AI识别题目
               </el-button>
+              <el-button
+                v-if="!readonly"
+                size="small"
+                type="success"
+                plain
+                class="section-ocr-btn"
+                :loading="regionOcrLoading"
+                @click="handleRegionAnalyze"
+              >
+                识别分值/知识点
+              </el-button>
             </div>
             <el-input
               v-model="regionForm.questionText"
@@ -269,7 +296,7 @@
     | 'moveLeft'
     | 'moveRight'
 
-  const MIN_REGION_SIZE = 0.01
+  const MIN_REGION_SIZE = 0.002
   const resizeDirections: ResizeDirection[] = ['nw', 'ne', 'sw', 'se']
 
   const props = withDefaults(
@@ -283,6 +310,7 @@
       showSave?: boolean
       hideToolbar?: boolean
       initialTool?: RegionTool
+      manualQuestionNo?: number
     }>(),
     {
       regions: () => [],
@@ -291,14 +319,17 @@
       regionOcrLoading: false,
       subjectName: '',
       showSave: true,
-      hideToolbar: false
+      hideToolbar: false,
+      manualQuestionNo: 1
     }
   )
 
   const emit = defineEmits<{
     'update:regions': [value: PaperRegionItem[]]
+    'update:manualQuestionNo': [value: number]
     save: [value: PaperRegionItem[]]
     'ocr-region': [value: PaperRegionItem]
+    'analyze-region': [value: PaperRegionItem]
   }>()
 
   const viewportRef = ref<HTMLElement>()
@@ -318,6 +349,7 @@
   const regionForm = reactive({
     questionNo: '',
     questionType: '',
+    partTitle: '',
     knowledgePoint: '',
     questionText: '',
     score: null as number | null
@@ -415,6 +447,12 @@
       localRegions.value = cloneRegions(regions || [])
       if (!localRegions.value.some((item) => item.id === selectedRegionId.value)) {
         selectedRegionId.value = localRegions.value[0]?.id || ''
+      }
+      // 初始化手动题号
+      if (props.manualQuestionNo === 1 && localRegions.value.length > 0) {
+        emit('update:manualQuestionNo', nextQuestionIndex())
+      } else if (localRegions.value.length === 0) {
+        emit('update:manualQuestionNo', 1)
       }
     },
     { immediate: true, deep: true }
@@ -680,7 +718,8 @@
     setScale(view.scale * factor, anchor)
   }
 
-  function handleToolboxCommand(command: ToolboxCommand) {
+  function handleToolboxCommand(command?: ToolboxCommand) {
+    if (!command) return
     if (props.interactionLocked) return
 
     if (command === 'addRegion' || command === 'drawMode') {
@@ -1015,16 +1054,17 @@
 
     if (interaction.mode === 'draw' && draftRegion.value) {
       const { width, height } = draftRegion.value
-      if (width >= 0.01 && height >= 0.01) {
+      if (width >= MIN_REGION_SIZE && height >= MIN_REGION_SIZE) {
         const sortOrder = localRegions.value.length + 1
         const region: PaperRegionItem = {
           ...draftRegion.value,
-          questionNo: normalizeQuestionNo('', nextQuestionIndex()),
+          questionNo: normalizeQuestionNo('', props.manualQuestionNo),
           sortOrder
         }
         localRegions.value = [...localRegions.value, region]
         selectedRegionId.value = region.id
         hoveredRegionId.value = region.id
+        emit('update:manualQuestionNo', props.manualQuestionNo + 1)
         emitRegions()
       }
       draftRegion.value = null
@@ -1049,6 +1089,7 @@
     editingRegionId.value = region.id
     regionForm.questionNo = region.questionNo || ''
     regionForm.questionType = region.questionType || ''
+    regionForm.partTitle = region.partTitle || ''
     regionForm.knowledgePoint = region.knowledgePoint || ''
     regionForm.questionText = region.questionText || ''
     regionForm.score = region.score ?? null
@@ -1069,6 +1110,7 @@
     }
     target.questionNo = normalizeQuestionNo(regionForm.questionNo.trim(), target.sortOrder)
     target.questionType = regionForm.questionType.trim()
+    target.partTitle = regionForm.partTitle.trim()
     target.knowledgePoint = regionForm.knowledgePoint.trim()
     target.questionText = regionForm.questionText.trim()
     target.score = regionForm.score ?? null
@@ -1085,9 +1127,20 @@
     emit('ocr-region', { ...target })
   }
 
+  function handleRegionAnalyze() {
+    const target = localRegions.value.find((item) => item.id === editingRegionId.value)
+    if (!target) {
+      ElMessage.warning('当前未找到可分析的题框')
+      return
+    }
+    emit('analyze-region', { ...target })
+  }
+
   function applyOcrRegionMeta(payload: {
     questionText?: string
     questionType?: string
+    partTitle?: string
+    knowledgePoint?: string
     score?: number | null
   }) {
     const target = localRegions.value.find((item) => item.id === editingRegionId.value)
@@ -1103,6 +1156,16 @@
       const nextType = payload.questionType.trim()
       regionForm.questionType = nextType
       target.questionType = nextType
+    }
+    if (payload.partTitle && payload.partTitle.trim()) {
+      const nextPartTitle = payload.partTitle.trim()
+      regionForm.partTitle = nextPartTitle
+      target.partTitle = nextPartTitle
+    }
+    if (payload.knowledgePoint !== undefined) {
+      const nextKnowledgePoint = String(payload.knowledgePoint || '').trim()
+      regionForm.knowledgePoint = nextKnowledgePoint
+      target.knowledgePoint = nextKnowledgePoint
     }
     if (payload.score !== undefined && payload.score !== null) {
       regionForm.score = payload.score
@@ -1247,6 +1310,39 @@
   .toolbox-arrow {
     margin-left: 6px;
     margin-right: 0;
+  }
+
+  .manual-no-setter {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    height: 32px;
+    background: #f8fbff;
+    border: 1px solid #dbe7f5;
+    border-radius: 8px;
+
+    .setter-label {
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 500;
+      margin-right: 4px;
+    }
+
+    .no-input {
+      width: 40px;
+
+      :deep(.el-input__wrapper) {
+        box-shadow: none !important;
+        background: transparent;
+        padding: 0;
+      }
+
+      :deep(.el-input__inner) {
+        text-align: left;
+        color: #2563eb;
+        font-weight: 600;
+      }
+    }
   }
 
   .scale-indicator {

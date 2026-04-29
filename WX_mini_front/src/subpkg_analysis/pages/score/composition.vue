@@ -27,7 +27,7 @@
           <view class="circle-content">
             <text class="score-num">{{ compositionData.score }}</text>
             <text class="score-total">/ {{ compositionData.fullScore }}</text>
-            <text class="subject-label">{{ currentSubject }}</text>
+            <text class="subject-label">{{ compositionData.subject || currentSubject }}</text>
           </view>
         </view>
         <view class="rank-info">
@@ -93,7 +93,7 @@
           <wd-icon name="chart-bar" size="20px" color="#4364f7" />
         </view>
         <view class="diagnostic-content">
-          <text class="analysis-text">{{ compositionData.analysis }}</text>
+          <text class="analysis-text">{{ displayAnalysisText }}</text>
         </view>
       </view>
 
@@ -101,12 +101,70 @@
       <view class="analysis-card advice-card">
         <view class="card-header">
           <text class="card-title">针对性提分建议</text>
-          <text class="advice-count">{{ compositionData.advice.length }}条</text>
+          <text class="advice-count">{{ displayAdviceList.length }}条</text>
         </view>
         <view class="advice-list">
-          <view class="advice-item" v-for="(adv, index) in compositionData.advice" :key="index">
+          <view class="advice-item" v-for="(adv, index) in displayAdviceList" :key="`${currentSubject}-${index}`">
             <view class="advice-index">{{ index + 1 }}</view>
             <text class="advice-text">{{ adv }}</text>
+          </view>
+        </view>
+      </view>
+
+      <view v-if="hasAiReportSection" class="analysis-card ai-report-card">
+        <view class="card-header">
+          <text class="card-title">AI 成绩报告</text>
+          <text class="card-subtitle">{{ currentSubject === '总分' ? '整体分析' : `${currentSubject}专项分析` }}</text>
+        </view>
+
+        <view v-if="currentSubject === '总分'">
+          <view class="ai-section" v-if="aiReportData?.summary?.strengths?.length">
+            <text class="ai-section-title">强势点</text>
+            <view class="ai-tag-list">
+              <view v-for="item in aiReportData.summary.strengths" :key="`s-${item}`" class="ai-tag good">{{ item }}</view>
+            </view>
+          </view>
+
+          <view class="ai-section" v-if="aiReportData?.summary?.weaknesses?.length">
+            <text class="ai-section-title">薄弱点</text>
+            <view class="ai-tag-list">
+              <view v-for="item in aiReportData.summary.weaknesses" :key="`w-${item}`" class="ai-tag warn">{{ item }}</view>
+            </view>
+          </view>
+
+          <view class="ai-section" v-if="aiReportData?.summary?.focusPoints?.length">
+            <text class="ai-section-title">重点关注</text>
+            <view v-for="item in aiReportData.summary.focusPoints" :key="`f-${item}`" class="ai-focus-item">{{ item }}</view>
+          </view>
+
+          <view class="ai-section" v-if="aiReportData?.subjectInsights?.length">
+            <text class="ai-section-title">学科洞察</text>
+            <view v-for="item in aiReportData.subjectInsights" :key="item.subjectName" class="ai-insight-card">
+              <view class="ai-insight-title">{{ item.subjectName }}</view>
+              <view class="ai-insight-line"><text class="ai-label">优势</text>{{ item.strength }}</view>
+              <view class="ai-insight-line"><text class="ai-label">短板</text>{{ item.weakness }}</view>
+              <view class="ai-insight-line"><text class="ai-label">对比</text>{{ item.comparison }}</view>
+            </view>
+          </view>
+        </view>
+
+        <view v-else>
+          <view v-if="currentAiInsight" class="ai-insight-card single">
+            <view class="ai-insight-title">{{ currentAiInsight.subjectName }}</view>
+            <view class="ai-insight-line"><text class="ai-label">优势</text>{{ currentAiInsight.strength }}</view>
+            <view class="ai-insight-line"><text class="ai-label">短板</text>{{ currentAiInsight.weakness }}</view>
+            <view class="ai-insight-line"><text class="ai-label">对比</text>{{ currentAiInsight.comparison }}</view>
+          </view>
+          <view v-if="currentAiWrongPushes.length">
+            <text class="ai-section-title">错题定向推送</text>
+            <view v-for="(item, index) in currentAiWrongPushes" :key="`${item.questionNo}-${index}`" class="ai-wrong-card">
+              <view class="ai-wrong-head">
+                <text>{{ item.questionNo }}</text>
+                <text class="ai-wrong-kp" v-if="item.knowledgePoint">{{ item.knowledgePoint }}</text>
+              </view>
+              <view class="ai-insight-line"><text class="ai-label">问题原因</text>{{ item.reason }}</view>
+              <view class="ai-insight-line"><text class="ai-label">改进建议</text>{{ item.suggestion }}</view>
+            </view>
           </view>
         </view>
       </view>
@@ -119,17 +177,58 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getScoreCompositionApi } from '@/subpkg_analysis/api/score'
+import { getAiExamReportApi, getScoreCompositionApi } from '@/subpkg_analysis/api/score'
 import { useToast } from 'wot-design-uni'
 
-const subjects = ref(['语文', '数学', '英语', '物理', '化学', '生物'])
-const currentSubject = ref('语文')
+const subjects = ref(['总分', '语文', '数学', '英语', '物理', '化学', '生物'])
+const currentSubject = ref('总分')
 const compositionData = ref<any>(null)
+const aiReportData = ref<any>(null)
 const loading = ref(false)
 const examId = ref('')
 const toast = useToast()
+
+const currentAiInsight = computed(() => {
+  return (aiReportData.value?.subjectInsights || []).find((item: any) => item.subjectName === currentSubject.value) || null
+})
+
+const currentAiWrongPushes = computed(() => {
+  return (aiReportData.value?.wrongQuestionPushes || []).filter((item: any) => item.subjectName === currentSubject.value)
+})
+
+const displayAnalysisText = computed(() => {
+  if (currentSubject.value === '总分') {
+    return aiReportData.value?.summary?.overallComment || compositionData.value?.analysis || '暂无分析'
+  }
+  if (currentAiInsight.value) {
+    return [currentAiInsight.value.strength, currentAiInsight.value.weakness, currentAiInsight.value.comparison]
+      .filter(Boolean)
+      .join(' ')
+  }
+  return compositionData.value?.analysis || '暂无分析'
+})
+
+const displayAdviceList = computed(() => {
+  if (currentSubject.value === '总分') {
+    const focusPoints = aiReportData.value?.summary?.focusPoints || []
+    return focusPoints.length ? focusPoints : (compositionData.value?.advice || [])
+  }
+  const subjectSuggestions = currentAiWrongPushes.value
+    .map((item: any) => item.suggestion)
+    .filter(Boolean)
+  if (subjectSuggestions.length) {
+    return Array.from(new Set(subjectSuggestions))
+  }
+  return compositionData.value?.advice || []
+})
+
+const hasAiReportSection = computed(() => {
+  if (!aiReportData.value) return false
+  if (currentSubject.value === '总分') return true
+  return !!currentAiInsight.value || currentAiWrongPushes.value.length > 0
+})
 
 const fetchCompositionData = async (subject: string) => {
   loading.value = true
@@ -144,6 +243,18 @@ const fetchCompositionData = async (subject: string) => {
     console.error('获取构成分析失败:', e)
   } finally {
     loading.value = false
+  }
+}
+
+const fetchAiReport = async () => {
+  if (!examId.value) return
+  try {
+    const res: any = await getAiExamReportApi({ examId: examId.value })
+    if (res.code === 200) {
+      aiReportData.value = res.data
+    }
+  } catch (e) {
+    console.error('获取 AI 成绩报告失败:', e)
   }
 }
 
@@ -179,11 +290,10 @@ onMounted(() => {
   // 尝试从缓存中读取当前考试的学科列表，如果没有则用默认的
   const historyData = uni.getStorageSync('currentAnalysisData')
   if (historyData && historyData.subjects) {
-    subjects.value = historyData.subjects.map((s: any) => s.name)
-    if (subjects.value.length > 0) {
-      currentSubject.value = subjects.value[0]
-    }
+    const subjectNames = historyData.subjects.map((s: any) => s.name).filter(Boolean)
+    subjects.value = ['总分', ...subjectNames]
   }
+  fetchAiReport()
   fetchCompositionData(currentSubject.value)
 })
 </script>
@@ -421,6 +531,93 @@ onMounted(() => {
       }
       .advice-text { font-size: 26rpx; color: #333; line-height: 1.5; }
     }
+  }
+}
+
+.ai-report-card {
+  .ai-section {
+    margin-bottom: 24rpx;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .ai-section-title {
+    display: block;
+    font-size: 28rpx;
+    font-weight: 700;
+    color: #1f2d3d;
+    margin-bottom: 14rpx;
+  }
+
+  .ai-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14rpx;
+  }
+
+  .ai-tag {
+    padding: 10rpx 18rpx;
+    border-radius: 16rpx;
+    font-size: 24rpx;
+
+    &.good {
+      background: #edf8f1;
+      color: #1f9d55;
+    }
+
+    &.warn {
+      background: #fff3ec;
+      color: #e67e22;
+    }
+  }
+
+  .ai-focus-item,
+  .ai-insight-card,
+  .ai-wrong-card {
+    background: #f8fafc;
+    border-radius: 18rpx;
+    padding: 22rpx;
+    margin-top: 14rpx;
+  }
+
+  .ai-insight-title {
+    font-size: 28rpx;
+    font-weight: 700;
+    color: #1f2d3d;
+    margin-bottom: 12rpx;
+  }
+
+  .ai-insight-line,
+  .ai-focus-item {
+    font-size: 25rpx;
+    line-height: 1.7;
+    color: #3a4658;
+  }
+
+  .ai-label {
+    color: #2563eb;
+    font-weight: 600;
+    margin-right: 10rpx;
+  }
+
+  .ai-wrong-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10rpx;
+    font-size: 25rpx;
+    font-weight: 600;
+    color: #1f2d3d;
+  }
+
+  .ai-wrong-kp {
+    font-size: 22rpx;
+    color: #2563eb;
+    background: #e8f0ff;
+    border-radius: 999rpx;
+    padding: 4rpx 14rpx;
   }
 }
 </style>

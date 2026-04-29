@@ -12,14 +12,14 @@
             :class="{ active: activeTab === 'template' }"
             @click="activeTab = 'template'"
           >
-            样板答题卡
+            答案解析
           </div>
           <div
             class="tab-item"
             :class="{ active: activeTab === 'original' }"
             @click="activeTab = 'original'"
           >
-            原卷
+            导入试卷和答案
           </div>
           <div
             class="tab-item"
@@ -66,6 +66,18 @@
                   编辑选框
                 </el-button>
               </el-button-group>
+
+              <div class="manual-no-setter" v-if="canUseEditor">
+                  <span class="setter-label">题号:</span>
+                  <el-input-number
+                    v-model="manualQuestionNo"
+                    size="small"
+                    :min="1"
+                    :precision="0"
+                    :controls="false"
+                    class="no-input"
+                  />
+                </div>
 
               <div class="toolbar-divider"></div>
 
@@ -123,6 +135,7 @@
             <PaperRegionEditor
               v-if="!isPdf(getFileUrl(activeTab))"
               ref="regionEditorRef"
+              v-model:manual-question-no="manualQuestionNo"
               :key="`${activeTab}-${getFileUrl(activeTab)}`"
               :image-url="resolveFileUrl(getFileUrl(activeTab))"
               :regions="getRegions(activeTab)"
@@ -134,6 +147,7 @@
               @update:regions="(regions) => handleRegionsChange(activeTab, regions)"
               @save="(regions) => savePaperRegions(activeTab, regions)"
               @ocr-region="handleRegionOcr"
+              @analyze-region="handleRegionAnalyze"
             >
             </PaperRegionEditor>
             <div v-if="ocrLoading && !isPdf(getFileUrl(activeTab))" class="editor-lock-mask">
@@ -178,7 +192,7 @@
         </div>
         <div v-else class="empty-upload">
           <div class="empty-message">
-            {{ activeTab === 'template' ? '样板答题卡' : '原卷' }}未上传，请上传后编辑
+            {{ activeTab === 'template' ? '答案解析' : '试卷' }}未上传，请上传后编辑
           </div>
           <el-upload
             drag
@@ -259,30 +273,125 @@
             >
           </div>
           <div v-if="selectedStudent.hasAnswerSheet" class="file-viewer">
+            <div class="workspace-toolbar">
+              <div class="workspace-toolbar__left">
+                <el-button-group>
+                  <el-button
+                    size="small"
+                    :type="studentRegionEditorRef?.tool === 'pan' ? 'primary' : 'default'"
+                    :disabled="ocrLoading"
+                    @click="handleStudentToolboxCommand('panMode')"
+                  >
+                    移动试卷
+                  </el-button>
+                  <el-button
+                    size="small"
+                    :type="studentRegionEditorRef?.tool === 'draw' ? 'primary' : 'default'"
+                    :disabled="ocrLoading"
+                    @click="handleStudentToolboxCommand('drawMode')"
+                  >
+                    创建选框
+                  </el-button>
+                  <el-button
+                    size="small"
+                    :type="studentRegionEditorRef?.tool === 'adjust' ? 'primary' : 'default'"
+                    :disabled="ocrLoading"
+                    @click="handleStudentToolboxCommand('adjustMode')"
+                  >
+                    编辑选框
+                  </el-button>
+                </el-button-group>
+
+                <div class="manual-no-setter" v-if="selectedStudent">
+                  <span class="setter-label">题号:</span>
+                  <el-input-number
+                    v-model="manualQuestionNo"
+                    size="small"
+                    :min="1"
+                    :precision="0"
+                    :controls="false"
+                    class="no-input"
+                  />
+                </div>
+
+                <div class="toolbar-divider"></div>
+
+                <el-tooltip
+                  :content="studentRegionEditorRef?.currentHintText || '请先上传考生原卷后开始编辑'"
+                  placement="bottom"
+                >
+                  <el-button size="small" class="tool-btn" :disabled="ocrLoading">
+                    <el-icon><InfoFilled /></el-icon> 提示
+                  </el-button>
+                </el-tooltip>
+
+                <div class="zoom-indicator" v-if="studentRegionEditorRef?.scale">
+                  {{ Math.round(studentRegionEditorRef.scale * 100) }}%
+                </div>
+              </div>
+
+              <div class="workspace-toolbar__right">
+                <el-button
+                  size="small"
+                  type="success"
+                  plain
+                  :disabled="ocrLoading"
+                  @click="applyStudentTemplate"
+                >
+                  设置模板
+                </el-button>
+
+                <el-upload
+                  action="#"
+                  :auto-upload="false"
+                  :show-file-list="false"
+                  :disabled="ocrLoading"
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  :on-change="(file: any) => handleStudentUpload(file)"
+                >
+                  <el-button size="small" :disabled="ocrLoading">重新上传</el-button>
+                </el-upload>
+
+                <el-button
+                  size="small"
+                  type="primary"
+                  :disabled="ocrLoading"
+                  @click="handleStudentAutoCut"
+                >
+                  AI识别
+                </el-button>
+
+                <el-button
+                  size="small"
+                  type="primary"
+                  :disabled="ocrLoading"
+                  @click="saveStudentPaperRegions(studentRegions, false)"
+                >
+                  保存
+                </el-button>
+
+                <span class="subject-name">{{ subjectName }}</span>
+              </div>
+            </div>
+
             <div class="image-content">
               <PaperRegionEditor
                 v-if="!isPdf(selectedStudent.answerSheetUrl)"
-                :key="`${selectedStudent.studentNo}-${selectedStudent.answerSheetUrl}`"
+                ref="studentRegionEditorRef"
+                v-model:manual-question-no="manualQuestionNo"
+                :key="`${selectedStudent.studentNo}-${selectedStudent.answerSheetUrl}-${selectedStudentLayoutVersion}`"
                 :image-url="resolveFileUrl(selectedStudent.answerSheetUrl)"
-                :regions="paperConfig.templateRegions"
+                :regions="studentRegions"
                 :subject-name="subjectName"
+                :hide-toolbar="true"
                 initial-tool="pan"
-                :show-save="false"
-                readonly
+                :interaction-locked="ocrLoading"
+                :region-ocr-loading="questionOcrLoading"
+                @update:regions="handleStudentRegionsChange"
+                @save="(regions) => saveStudentPaperRegions(regions, false)"
+                @ocr-region="handleStudentRegionOcr"
+                @analyze-region="handleStudentRegionAnalyze"
               >
-                <template #toolbar-extra>
-                  <el-upload
-                    action="#"
-                    :auto-upload="false"
-                    :show-file-list="false"
-                    accept=".pdf,.png,.jpg,.jpeg"
-                    :on-change="(file: any) => handleStudentUpload(file)"
-                  >
-                    <el-tooltip content="重新上传当前考生原卷" placement="bottom">
-                      <el-button size="small">重新上传</el-button>
-                    </el-tooltip>
-                  </el-upload>
-                </template>
               </PaperRegionEditor>
               <div v-else class="pdf-preview-wrapper">
                 <div class="preview-toolbar">
@@ -304,7 +413,7 @@
                 </div>
                 <div class="pdf-notice">
                   当前资源仍是旧版 PDF 记录，建议重新上传。系统会在上传后自动转换成长图 PNG，
-                  并继续沿用样板答题卡的框选结果。
+                  并继续沿用当前考生原卷框选结果。
                 </div>
                 <iframe
                   :src="resolveFileUrl(selectedStudent.answerSheetUrl)"
@@ -339,6 +448,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
   import PaperRegionEditor from './PaperRegionEditor.vue'
   import {
+    fetchAnalyzePaperQuestion,
     fetchAutoCutPaperLayout,
     fetchOcrPaperLayoutPage,
     fetchOcrPaperQuestion,
@@ -347,6 +457,8 @@
     fetchUploadStudentAnswerSheet,
     fetchPaperConfig,
     fetchUploadPublicPaper,
+    fetchStartAutoCutTask,
+    fetchOcrTaskStatus,
     normalizePaperRegions,
     type PaperMergeInfo,
     type PaperRegionItem
@@ -369,10 +481,14 @@
   const ocrLoading = ref(false)
   const questionOcrLoading = ref(false)
   const regionEditorRef = ref<any>(null)
+  const studentRegionEditorRef = ref<any>(null)
   const latestAutoCutRegionCount = ref(0)
+  const manualQuestionNo = ref(1)
   const PAPER_RESULT_CONFIRM_INTERVAL = 2000
   const PAPER_RESULT_CONFIRM_ATTEMPTS = 15
   const studentsLoaded = ref(false)
+  const studentRegions = ref<PaperRegionItem[]>([])
+  const selectedStudentLayoutVersion = ref(0)
 
   // 搜索和分页
   const searchKeyword = ref('')
@@ -472,6 +588,10 @@
     regionEditorRef.value?.handleToolboxCommand(command)
   }
 
+  function handleStudentToolboxCommand(command: string) {
+    studentRegionEditorRef.value?.handleToolboxCommand(command)
+  }
+
   function handleSaveRegions() {
     regionEditorRef.value?.save()
   }
@@ -492,38 +612,117 @@
     updateOcrProgress('AI识别中', '系统正在准备识别任务...', 0)
   }
 
-  async function runPagedAutoCut(type: PaperTab, mergeInfo: PaperMergeInfo) {
+  async function runPagedAutoCut(
+    type: PaperTab | 'student',
+    mergeInfo: PaperMergeInfo,
+    studentNo?: string
+  ) {
     const totalPages = Math.max(mergeInfo.pageCount || mergeInfo.pages?.length || 0, 1)
-    updateOcrProgress('分页中', `正在还原 PDF 分页信息，共 ${totalPages} 页...`, 8)
+    const isOriginal = type === 'original'
+    const totalSteps = isOriginal ? totalPages + 1 : totalPages
+    
+    updateOcrProgress('分页中', `正在还原 PDF 分页信息，共 ${totalPages} 页...`, 5)
     await wait(300)
 
     const mergedRegions: PaperRegionItem[] = []
     for (let pageIndex = 1; pageIndex <= totalPages; pageIndex++) {
       updateOcrProgress(
         'AI识别中',
-        `正在识别第 ${pageIndex}/${totalPages} 页，并同步到合成长图...`,
-        12 + (pageIndex - 1) * (78 / totalPages)
+        `正在识别第 ${pageIndex}/${totalPages} 页...`,
+        (pageIndex / totalSteps) * 90
       )
       const res = await fetchOcrPaperLayoutPage({
         projectId: props.projectId,
         subjectName: props.subjectName,
-        type,
+        type: type as any,
+        studentNo,
         pageIndex
       })
       mergedRegions.push(...res.regions)
       latestAutoCutRegionCount.value = mergedRegions.length
+    }
+
+    if (isOriginal) {
       updateOcrProgress(
         'AI识别中',
-        `第 ${pageIndex}/${totalPages} 页识别完成`,
-        12 + pageIndex * (78 / totalPages)
+        `正在识别知识点/分数 (${totalPages + 1}/${totalSteps})...`,
+        95
       )
+      // 这里可以调用后端的批量分析接口，或者在保存时由后端自动触发
+      // 目前逻辑是后端在 autoCutPaperLayoutByOcr 中处理，分页模式下我们需要手动触发一次保存并让后端分析
+      await fetchSavePaperLayout({
+        projectId: props.projectId,
+        subjectName: props.subjectName,
+        type: 'original',
+        regions: mergedRegions
+      })
+      // 重新加载以获取后端分析后的结果
+      const config = await refreshConfigSilently()
+      if (config) {
+        mergedRegions.length = 0
+        mergedRegions.push(...config.originalRegions)
+      }
     }
+
     return normalizePaperRegions(
       mergedRegions.map((region, index) => ({
         ...region,
         sortOrder: index + 1
       }))
     )
+  }
+
+  async function handleStudentAutoCut() {
+    if (!selectedStudent.value?.hasAnswerSheet) {
+      ElMessage.warning('请先上传考生答题卡后再执行 AI识别')
+      return
+    }
+
+    if (studentRegions.value.length > 0) {
+      try {
+        await ElMessageBox.confirm('AI识别会覆盖当前答题卡已有的框选结果，是否继续？', '覆盖确认', {
+          type: 'warning',
+          confirmButtonText: '继续识别',
+          cancelButtonText: '取消'
+        })
+      } catch {
+        return
+      }
+    }
+
+    ocrLoading.value = true
+    try {
+      const mergeInfo = selectedStudent.value.answerMergeInfo
+      let recognizedRegions: PaperRegionItem[] = []
+      if ((mergeInfo?.pageCount || 0) > 1) {
+        recognizedRegions = await runPagedAutoCut(
+          'student',
+          mergeInfo,
+          selectedStudent.value.studentNo
+        )
+      } else {
+        updateOcrProgress('AI识别中', '正在识别当前答题卡...', 35)
+        const res = await fetchAutoCutPaperLayout({
+          projectId: props.projectId,
+          subjectName: props.subjectName,
+          type: 'student',
+          studentNo: selectedStudent.value.studentNo
+        })
+        recognizedRegions = res.regions
+      }
+      studentRegions.value = recognizedRegions
+      await saveStudentPaperRegions(recognizedRegions, false)
+      studentRegionEditorRef.value?.handleToolboxCommand('adjustMode')
+      updateOcrProgress('AI识别完成', `已识别 ${recognizedRegions.length} 个题目区域`, 100)
+      ElMessage.success(`AI识别完成，已识别 ${recognizedRegions.length} 个题目区域`)
+      emit('saved')
+    } catch (e: any) {
+      console.error(e)
+      ElMessage.error(getErrorMessage(e, 'AI识别失败'))
+    } finally {
+      ocrLoading.value = false
+      resetOcrProgress()
+    }
   }
 
   async function handleAutoCut() {
@@ -534,8 +733,6 @@
 
     const currentType = activeTab.value as PaperTab
     const currentRegions = getRegions(currentType)
-    const previousSignature = getRegionSignature(currentRegions)
-    latestAutoCutRegionCount.value = currentRegions.length
     if (currentRegions.length > 0) {
       try {
         await ElMessageBox.confirm('AI识别会覆盖当前试卷已有的框选结果，是否继续？', '覆盖确认', {
@@ -550,55 +747,66 @@
 
     ocrLoading.value = true
     try {
-      const mergeInfo = getMergeInfo(currentType)
-      let recognizedRegions: PaperRegionItem[] = []
-      if ((mergeInfo?.pageCount || 0) > 1) {
-        recognizedRegions = await runPagedAutoCut(currentType, mergeInfo)
-      } else {
-        updateOcrProgress('AI识别中', '正在识别当前试卷...', 35)
-        const res = await fetchAutoCutPaperLayout({
-          projectId: props.projectId,
-          subjectName: props.subjectName,
-          type: currentType
-        })
-        recognizedRegions = res.regions
-      }
-      handleRegionsChange(currentType, recognizedRegions)
-      await fetchSavePaperLayout({
+      const taskId = await fetchStartAutoCutTask({
         projectId: props.projectId,
         subjectName: props.subjectName,
-        type: currentType,
-        regions: recognizedRegions
+        type: currentType
       })
-      await refreshConfigSilently()
-      regionEditorRef.value?.handleToolboxCommand('adjustMode')
-      updateOcrProgress('AI识别完成', `已识别 ${recognizedRegions.length} 个题目区域`, 100)
-      ElMessage.success(`AI识别完成，已识别 ${recognizedRegions.length} 个题目区域`)
-      emit('saved')
+      
+      localStorage.setItem(`ocr_task_${props.projectId}_${props.subjectName}_${currentType}`, taskId)
+      await pollOcrTask(taskId, currentType)
     } catch (e: any) {
       console.error(e)
-      if (shouldConfirmPaperResult(e)) {
-        ElMessage.info('AI识别响应较慢，正在确认后台识别结果...')
-        const confirmedConfig = await confirmAutoCutResult(
-          currentType,
-          previousSignature,
-          latestAutoCutRegionCount.value
-        )
-        if (confirmedConfig) {
-          const confirmedRegions = getPaperRegionsByType(confirmedConfig, currentType)
-          handleRegionsChange(currentType, confirmedRegions)
+      ElMessage.error(getErrorMessage(e, 'AI识别启动失败'))
+      ocrLoading.value = false
+    }
+  }
+
+  async function pollOcrTask(taskId: string, type: PaperTab) {
+    const MAX_RETRIES = 60
+    const INTERVAL = 3000
+    
+    for (let i = 0; i < MAX_RETRIES; i++) {
+      try {
+        const task = await fetchOcrTaskStatus(taskId)
+        updateOcrProgress('AI识别中', task.message || '系统正在识别中...', task.progress || 10)
+        
+        if (task.status === 'COMPLETED') {
+          const recognizedRegions = normalizePaperRegions(task.result?.regions || [])
+          handleRegionsChange(type, recognizedRegions)
+          await refreshConfigSilently()
           regionEditorRef.value?.handleToolboxCommand('adjustMode')
-          ElMessage.success(`AI识别已完成，已识别 ${confirmedRegions.length} 个题目区域`)
+          updateOcrProgress('AI识别完成', `已识别 ${recognizedRegions.length} 个题目区域`, 100)
+          ElMessage.success(`AI识别完成，已识别 ${recognizedRegions.length} 个题目区域`)
+          localStorage.removeItem(`ocr_task_${props.projectId}_${props.subjectName}_${type}`)
+          ocrLoading.value = false
           emit('saved')
           return
         }
-        ElMessage.error('AI识别请求超时，暂未确认最终结果，请稍后刷新查看')
-        return
+        
+        if (task.status === 'FAILED') {
+          throw new Error(task.message || '识别任务失败')
+        }
+      } catch (e: any) {
+        console.error('轮询 OCR 任务失败:', e)
+        if (i === MAX_RETRIES - 1) {
+          ElMessage.error(getErrorMessage(e, 'AI识别任务超时或失败'))
+          ocrLoading.value = false
+        }
       }
-      ElMessage.error(getErrorMessage(e, 'AI识别失败'))
-    } finally {
-      ocrLoading.value = false
-      resetOcrProgress()
+      await wait(INTERVAL)
+    }
+  }
+
+  async function checkPendingOcrTask() {
+    const types: PaperTab[] = ['template', 'original']
+    for (const type of types) {
+      const taskId = localStorage.getItem(`ocr_task_${props.projectId}_${props.subjectName}_${type}`)
+      if (taskId) {
+        ocrLoading.value = true
+        activeTab.value = type
+        pollOcrTask(taskId, type)
+      }
     }
   }
 
@@ -608,6 +816,7 @@
 
   onMounted(() => {
     reloadCurrentView()
+    checkPendingOcrTask()
   })
 
   watch(
@@ -812,7 +1021,25 @@
     )
     if (matched) {
       selectedStudent.value = { ...matched }
+      syncStudentRegions(selectedStudent.value)
     }
+  }
+
+  function parseStudentLayouts(layouts?: string | null) {
+    if (!layouts) {
+      return normalizePaperRegions(paperConfig.value.templateRegions)
+    }
+    try {
+      return normalizePaperRegions(JSON.parse(layouts))
+    } catch (error) {
+      console.warn('解析考生原卷布局失败，回退为空布局', error)
+      return normalizePaperRegions(paperConfig.value.templateRegions)
+    }
+  }
+
+  function syncStudentRegions(student: any) {
+    studentRegions.value = parseStudentLayouts(student?.answerSheetLayouts)
+    selectedStudentLayoutVersion.value += 1
   }
 
   async function reloadCurrentView() {
@@ -880,6 +1107,61 @@
 
   function enterStudentPaper(student: any) {
     selectedStudent.value = { ...student }
+    syncStudentRegions(student)
+  }
+
+  function handleStudentRegionsChange(regions: PaperRegionItem[]) {
+    studentRegions.value = normalizePaperRegions(regions)
+  }
+
+  async function saveStudentPaperRegions(regions: PaperRegionItem[], applyToAllStudents: boolean) {
+    if (!selectedStudent.value) {
+      ElMessage.warning('请先选择考生')
+      return
+    }
+    loading.value = true
+    try {
+      const normalizedRegions = normalizePaperRegions(regions)
+      await fetchSavePaperLayout({
+        projectId: props.projectId,
+        subjectName: props.subjectName,
+        type: 'student',
+        studentNo: selectedStudent.value.studentNo,
+        applyToAllStudents,
+        regions: normalizedRegions
+      })
+      studentRegions.value = normalizedRegions
+      selectedStudent.value.answerSheetLayouts = JSON.stringify(normalizedRegions)
+      ElMessage.success(applyToAllStudents ? '模板已应用到全部学生试卷' : '当前考生原卷框选已保存')
+      await loadStudents({ force: true })
+      emit('saved')
+    } catch (error: any) {
+      console.error(error)
+      ElMessage.error(error.message || '保存考生原卷框选失败')
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function applyStudentTemplate() {
+    if (!selectedStudent.value) {
+      ElMessage.warning('请先选择考生')
+      return
+    }
+    try {
+      await ElMessageBox.confirm(
+        '将当前考生原卷的全部框选坐标设为模板，并同步到该学科所有学生原卷，是否继续？',
+        '设置模板',
+        {
+          type: 'warning',
+          confirmButtonText: '确认同步',
+          cancelButtonText: '取消'
+        }
+      )
+      await saveStudentPaperRegions(studentRegions.value, true)
+    } catch {
+      return
+    }
   }
 
   async function handleStudentUpload(file: any) {
@@ -899,6 +1181,7 @@
       ElMessage.success('上传成功')
       selectedStudent.value.hasAnswerSheet = true
       selectedStudent.value.answerSheetUrl = url
+      syncStudentRegions(selectedStudent.value)
       await loadStudents({ force: true })
       emit('saved')
     } catch (e: any) {
@@ -983,6 +1266,7 @@
         projectId: props.projectId,
         subjectName: props.subjectName,
         type: currentType,
+        partTitle: region.partTitle,
         x: region.x,
         y: region.y,
         width: region.width,
@@ -998,12 +1282,125 @@
       regionEditorRef.value?.applyOcrRegionMeta({
         questionText: questionText,
         questionType: res.questionType,
+        knowledgePoint: res.knowledgePoint,
         score: res.score
       })
       ElMessage.success('题目 OCR 内容已回填')
     } catch (e: any) {
       console.error(e)
       ElMessage.error(getErrorMessage(e, '题目识别失败'))
+    } finally {
+      questionOcrLoading.value = false
+    }
+  }
+
+  async function handleRegionAnalyze(region: PaperRegionItem) {
+    if (questionOcrLoading.value) {
+      return
+    }
+    const currentType = activeTab.value as PaperTab
+    questionOcrLoading.value = true
+    try {
+      const res = await fetchAnalyzePaperQuestion({
+        projectId: props.projectId,
+        subjectName: props.subjectName,
+        type: currentType,
+        partTitle: region.partTitle,
+        x: region.x,
+        y: region.y,
+        width: region.width,
+        height: region.height
+      })
+
+      let questionText = res.questionText
+      if (props.subjectName === '数学' && questionText) {
+        questionText = formatMathOcrText(questionText)
+      }
+
+      regionEditorRef.value?.applyOcrRegionMeta({
+        questionText,
+        questionType: res.questionType,
+        knowledgePoint: res.knowledgePoint,
+        score: res.score
+      })
+      ElMessage.success('分值与知识点已回填')
+    } catch (error: any) {
+      console.error(error)
+      ElMessage.error(getErrorMessage(error, '题目分析失败'))
+    } finally {
+      questionOcrLoading.value = false
+    }
+  }
+
+  async function handleStudentRegionOcr(region: PaperRegionItem) {
+    if (!selectedStudent.value || questionOcrLoading.value) {
+      return
+    }
+    questionOcrLoading.value = true
+    try {
+      const res = await fetchOcrPaperQuestion({
+        projectId: props.projectId,
+        subjectName: props.subjectName,
+        type: 'student',
+        studentNo: selectedStudent.value.studentNo,
+        partTitle: region.partTitle,
+        x: region.x,
+        y: region.y,
+        width: region.width,
+        height: region.height
+      })
+
+      let questionText = res.questionText
+      if (props.subjectName === '数学' && questionText) {
+        questionText = formatMathOcrText(questionText)
+      }
+      studentRegionEditorRef.value?.applyOcrRegionMeta({
+        questionText,
+        questionType: res.questionType,
+        knowledgePoint: res.knowledgePoint,
+        score: res.score
+      })
+      ElMessage.success('题目 OCR 内容已回填')
+    } catch (error: any) {
+      console.error(error)
+      ElMessage.error(getErrorMessage(error, '题目识别失败'))
+    } finally {
+      questionOcrLoading.value = false
+    }
+  }
+
+  async function handleStudentRegionAnalyze(region: PaperRegionItem) {
+    if (!selectedStudent.value || questionOcrLoading.value) {
+      return
+    }
+    questionOcrLoading.value = true
+    try {
+      const res = await fetchAnalyzePaperQuestion({
+        projectId: props.projectId,
+        subjectName: props.subjectName,
+        type: 'student',
+        studentNo: selectedStudent.value.studentNo,
+        partTitle: region.partTitle,
+        x: region.x,
+        y: region.y,
+        width: region.width,
+        height: region.height
+      })
+
+      let questionText = res.questionText
+      if (props.subjectName === '数学' && questionText) {
+        questionText = formatMathOcrText(questionText)
+      }
+      studentRegionEditorRef.value?.applyOcrRegionMeta({
+        questionText,
+        questionType: res.questionType,
+        knowledgePoint: res.knowledgePoint,
+        score: res.score
+      })
+      ElMessage.success('分值与知识点已回填')
+    } catch (error: any) {
+      console.error(error)
+      ElMessage.error(getErrorMessage(error, '题目分析失败'))
     } finally {
       questionOcrLoading.value = false
     }
@@ -1140,6 +1537,39 @@
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
+    }
+
+    .manual-no-setter {
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      height: 32px;
+      background: #f8fbff;
+      border: 1px solid #dbe7f5;
+      border-radius: 8px;
+
+      .setter-label {
+        font-size: 13px;
+        color: #64748b;
+        font-weight: 500;
+        margin-right: 4px;
+      }
+
+      .no-input {
+        width: 40px;
+
+        :deep(.el-input__wrapper) {
+          box-shadow: none !important;
+          background: transparent;
+          padding: 0;
+        }
+
+        :deep(.el-input__inner) {
+          text-align: left;
+          color: #2563eb;
+          font-weight: 600;
+        }
+      }
     }
 
     .toolbar-divider {

@@ -116,25 +116,11 @@
           <text class="card-title">多维度诊断</text>
         </view>
         <view class="insight-content">
-          <view class="insight-item">
-            <view class="insight-icon"><wd-icon name="user" size="16px" color="#4364f7" /></view>
+          <view class="insight-item" v-for="(item, index) in diagnosisCards" :key="`${currentSubject}-${index}`">
+            <view class="insight-icon"><wd-icon :name="item.icon" size="16px" :color="item.color" /></view>
             <view class="insight-text">
-              <view class="i-title">群体参与</view>
-              <view class="i-desc">本次共有 <text class="bold">{{ distributionData.studentCount }}</text> 名同学参与，样本覆盖全面。</view>
-            </view>
-          </view>
-          <view class="insight-item">
-            <view class="insight-icon"><wd-icon name="chart-bar" size="16px" color="#fa9d3b" /></view>
-            <view class="insight-text">
-              <view class="i-title">正态分布</view>
-              <view class="i-desc">班级重心位于 <text class="bold">{{ getMostPopulatedRange(distributionData.levels) }}</text> 区间，竞争较为激烈。</view>
-            </view>
-          </view>
-          <view class="insight-item">
-            <view class="insight-icon"><wd-icon name="check-circle" size="16px" color="#07c160" /></view>
-            <view class="insight-text">
-              <view class="i-title">进阶建议</view>
-              <view class="i-desc">您已进入第一梯队，接下来的重点应放在 <text class="bold">难题攻克</text> 与 <text class="bold">细节提分</text> 上。</view>
+              <view class="i-title">{{ item.title }}</view>
+              <view class="i-desc">{{ item.desc }}</view>
             </view>
           </view>
         </view>
@@ -146,18 +132,11 @@
           <text class="card-title">个性化提升建议</text>
         </view>
         <view class="path-list">
-          <view class="path-item">
-            <view class="p-num">01</view>
+          <view class="path-item" v-for="(item, index) in improvementSuggestions" :key="`${currentSubject}-suggest-${index}`">
+            <view class="p-num">{{ String(index + 1).padStart(2, '0') }}</view>
             <view class="p-content">
-              <text class="p-title">巩固优势学科</text>
-              <text class="p-desc">针对英语、物理等高分科目，保持每日精炼，防止产生生疏感。</text>
-            </view>
-          </view>
-          <view class="path-item">
-            <view class="p-num">02</view>
-            <view class="p-content">
-              <text class="p-title">突破瓶颈科目</text>
-              <text class="p-desc">数学科目存在一定的波动，建议加强压轴题型的分类训练，总结解题套路。</text>
+              <text class="p-title">{{ currentSubject === '总分' ? `总分提升建议 ${index + 1}` : `${currentSubject}专项建议 ${index + 1}` }}</text>
+              <text class="p-desc">{{ item }}</text>
             </view>
           </view>
         </view>
@@ -171,17 +150,102 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getScoreDistributionApi } from '@/subpkg_analysis/api/score'
+import { getAiExamReportApi, getScoreDistributionApi } from '@/subpkg_analysis/api/score'
 import { useToast } from 'wot-design-uni'
 
-const subjects = ref(['语文', '数学', '英语', '物理', '化学', '生物'])
-const currentSubject = ref('语文')
+const subjects = ref(['总分', '语文', '数学', '英语', '物理', '化学', '生物'])
+const currentSubject = ref('总分')
 const distributionData = ref<any>(null)
+const aiReportData = ref<any>(null)
 const loading = ref(false)
 const examId = ref('')
 const toast = useToast()
+
+const currentAiInsight = computed(() => {
+  return (aiReportData.value?.subjectInsights || []).find((item: any) => item.subjectName === currentSubject.value) || null
+})
+
+const currentAiWrongPushes = computed(() => {
+  return (aiReportData.value?.wrongQuestionPushes || []).filter((item: any) => item.subjectName === currentSubject.value)
+})
+
+const diagnosisCards = computed(() => {
+  if (!distributionData.value) return []
+
+  const cards = [
+    {
+      icon: 'user',
+      color: '#4364f7',
+      title: '群体参与',
+      desc: `本次共有 ${distributionData.value.studentCount} 名同学参与，样本覆盖全面。`
+    },
+    {
+      icon: 'chart-bar',
+      color: '#fa9d3b',
+      title: '分布重心',
+      desc: `当前成绩主要集中在 ${getMostPopulatedRange(distributionData.value.levels)} 区间，能够反映本次整体竞争强度。`
+    }
+  ]
+
+  if (currentSubject.value === '总分') {
+    const focusPoints = aiReportData.value?.summary?.focusPoints || []
+    const overallComment = aiReportData.value?.summary?.overallComment || ''
+    cards.push({
+      icon: 'check-circle',
+      color: '#07c160',
+      title: 'AI 总评',
+      desc: focusPoints[0] || overallComment || 'AI 正在持续观察本次总分表现，建议结合整体报告继续调整节奏。'
+    })
+    return cards
+  }
+
+  if (currentAiInsight.value) {
+    cards.push({
+      icon: 'check-circle',
+      color: '#07c160',
+      title: 'AI 学科洞察',
+      desc: [currentAiInsight.value.strength, currentAiInsight.value.weakness, currentAiInsight.value.comparison]
+        .filter(Boolean)
+        .join(' ')
+    })
+  } else {
+    cards.push({
+      icon: 'check-circle',
+      color: '#07c160',
+      title: '进阶建议',
+      desc: '建议继续围绕当前学科的失分点做定向巩固，逐步提升稳定性与上限。'
+    })
+  }
+
+  return cards
+})
+
+const improvementSuggestions = computed(() => {
+  if (currentSubject.value === '总分') {
+    const focusPoints = aiReportData.value?.summary?.focusPoints || []
+    if (focusPoints.length) {
+      return focusPoints
+    }
+  }
+
+  const aiSuggestions = currentAiWrongPushes.value
+    .map((item: any) => item.suggestion)
+    .filter(Boolean)
+  if (aiSuggestions.length) {
+    return Array.from(new Set(aiSuggestions))
+  }
+
+  if (currentAiInsight.value) {
+    return [currentAiInsight.value.weakness, currentAiInsight.value.comparison].filter(Boolean)
+  }
+
+  return [
+    '保持当前节奏，优先巩固基础题与中档题得分稳定性。',
+    '针对高频失分点做专题训练，并及时复盘错题原因。'
+  ]
+})
 
 const fetchDistributionData = async (subject: string) => {
   loading.value = true
@@ -196,6 +260,18 @@ const fetchDistributionData = async (subject: string) => {
     console.error('获取分布数据失败:', e)
   } finally {
     loading.value = false
+  }
+}
+
+const fetchAiReport = async () => {
+  if (!examId.value) return
+  try {
+    const res: any = await getAiExamReportApi({ examId: examId.value })
+    if (res.code === 200) {
+      aiReportData.value = res.data
+    }
+  } catch (e) {
+    console.error('获取 AI 成绩报告失败:', e)
   }
 }
 
@@ -230,11 +306,10 @@ onLoad((options) => {
 onMounted(() => {
   const historyData = uni.getStorageSync('currentAnalysisData')
   if (historyData && historyData.subjects) {
-    subjects.value = historyData.subjects.map((s: any) => s.name)
-    if (subjects.value.length > 0) {
-      currentSubject.value = subjects.value[0]
-    }
+    const subjectNames = historyData.subjects.map((s: any) => s.name).filter(Boolean)
+    subjects.value = ['总分', ...subjectNames]
   }
+  fetchAiReport()
   fetchDistributionData(currentSubject.value)
 })
 </script>

@@ -60,14 +60,27 @@ public class AliyunPaperOcrService {
         try {
             return executeWithRetry(() -> {
                 Client client = createClient();
-                StructedCallResult structedCallResult = callPaperStructed(client, paperPath, resolvedSubject);
-                List<Map<String, Object>> regions = parseStructuredRegions(structedCallResult.data());
-                if (regions.isEmpty()) {
-                    regions = callPaperCut(client, paperPath, resolvedSubject, resolvedImageType, resolvedCutType);
+                List<Map<String, Object>> regions;
+                String requestId;
+
+                if ("answer".equals(resolvedCutType)) {
+                    // 答案切割直接使用 RecognizeEduPaperCut
+                    CutCallResult cutCallResult = callPaperCut(client, paperPath, resolvedSubject, resolvedImageType, resolvedCutType);
+                    regions = cutCallResult.regions();
+                    requestId = cutCallResult.requestId();
+                } else {
+                    StructedCallResult structedCallResult = callPaperStructed(client, paperPath, resolvedSubject);
+                    regions = parseStructuredRegions(structedCallResult.data());
+                    requestId = structedCallResult.requestId();
+                    if (regions.isEmpty()) {
+                        CutCallResult cutCallResult = callPaperCut(client, paperPath, resolvedSubject, resolvedImageType, resolvedCutType);
+                        regions = cutCallResult.regions();
+                        requestId = cutCallResult.requestId();
+                    }
                 }
 
                 SegmentResult result = new SegmentResult();
-                result.setRequestId(structedCallResult.requestId());
+                result.setRequestId(requestId);
                 result.setOcrSubject(resolvedSubject);
                 result.setImageType(resolvedImageType);
                 result.setCutType(resolvedCutType);
@@ -218,7 +231,7 @@ public class AliyunPaperOcrService {
         }
     }
 
-    private List<Map<String, Object>> callPaperCut(
+    private CutCallResult callPaperCut(
             Client client,
             Path paperPath,
             String subjectCode,
@@ -244,10 +257,16 @@ public class AliyunPaperOcrService {
                         : "阿里云切题 OCR 识别失败";
                 throw new IllegalStateException(message);
             }
-            if (!StringUtils.hasText(response.getBody().getData())) {
-                throw new IllegalStateException("阿里云切题 OCR 未返回题目坐标数据");
+            String requestId = response.getBody().getRequestId();
+            String data = response.getBody().getData();
+            if (!StringUtils.hasText(data)) {
+                log.warn("阿里云切题 OCR 未返回题目坐标数据, requestId: {}", requestId);
+                return new CutCallResult(requestId, new ArrayList<>());
             }
-            return parseCutRegions(response.getBody().getData());
+            return new CutCallResult(requestId, parseCutRegions(data));
+        } catch (Exception e) {
+            log.error("调用阿里云切题 OCR 异常: {}", e.getMessage());
+            throw e;
         }
     }
 
@@ -291,6 +310,7 @@ public class AliyunPaperOcrService {
                 region.put("id", createRegionId());
                 region.put("questionNo", resolveStructuredQuestionNo(subjectNode, questionText, sortOrder));
                 region.put("questionType", questionType);
+                region.put("partTitle", partTitle);
                 region.put("knowledgePoint", "");
                 region.put("questionText", questionText);
                 region.put("score", resolveScore(questionText));
@@ -800,6 +820,10 @@ public class AliyunPaperOcrService {
     private record StructedCallResult(
             String requestId,
             String data) {}
+
+    private record CutCallResult(
+            String requestId,
+            List<Map<String, Object>> regions) {}
 
     private static class BoundingBox {
         private double minX = Double.MAX_VALUE;

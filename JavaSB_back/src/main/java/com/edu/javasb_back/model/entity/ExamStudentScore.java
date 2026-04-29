@@ -36,6 +36,9 @@ public class ExamStudentScore {
     @Column(name = "answer_merge_info", columnDefinition = "TEXT")
     private String answerMergeInfo;
 
+    @Column(name = "answer_sheet_layouts", columnDefinition = "TEXT")
+    private String answerSheetLayouts;
+
     @Column(name = "score_entered")
     private Boolean scoreEntered;
 
@@ -85,6 +88,9 @@ public class ExamStudentScore {
 
     public String getAnswerMergeInfo() { return answerMergeInfo; }
     public void setAnswerMergeInfo(String answerMergeInfo) { this.answerMergeInfo = answerMergeInfo; }
+
+    public String getAnswerSheetLayouts() { return answerSheetLayouts; }
+    public void setAnswerSheetLayouts(String answerSheetLayouts) { this.answerSheetLayouts = answerSheetLayouts; }
 
     public Boolean getScoreEntered() { return scoreEntered; }
     public void setScoreEntered(Boolean scoreEntered) { this.scoreEntered = scoreEntered; }

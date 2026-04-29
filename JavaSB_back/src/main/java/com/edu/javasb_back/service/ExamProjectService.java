@@ -58,6 +58,16 @@ public interface ExamProjectService {
     Result<Void> savePaperLayout(PaperLayoutSaveDTO dto);
 
     /**
+     * OCR 自动切割试卷题目区域 (异步启动)
+     */
+    Result<String> startAutoCutTask(PaperOcrAutoCutDTO dto);
+
+    /**
+     * 获取 OCR 任务状态
+     */
+    Result<Map<String, Object>> getOcrTaskStatus(String taskId);
+
+    /**
      * OCR 自动切割试卷题目区域
      */
     Result<Map<String, Object>> autoCutPaperLayoutByOcr(PaperOcrAutoCutDTO dto);
@@ -71,6 +81,8 @@ public interface ExamProjectService {
      * OCR 识别单个题框文本
      */
     Result<Map<String, Object>> ocrPaperRegion(PaperRegionOcrDTO dto);
+
+    Result<Map<String, Object>> analyzePaperRegion(PaperRegionOcrDTO dto);
 
     /**
      * 保存单个学生成绩

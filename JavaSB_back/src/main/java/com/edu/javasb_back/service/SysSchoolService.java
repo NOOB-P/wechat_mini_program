@@ -13,7 +13,7 @@ public interface SysSchoolService {
     Result<List<String>> getCities(String province);
     Result<List<SysSchool>> getSchoolsByCity(String city);
     Result<Void> addSchool(SysSchool school);
-    Result<java.util.Map<String, Object>> getSchoolList(int page, int size, String keyword, String province, String city, String name);
+    Result<java.util.Map<String, Object>> getSchoolList(int page, int size, String keyword, String province, String city, String district, String name);
     Result<Void> updateSchool(SysSchool school);
     default Result<Void> deleteSchool(Long id) {
         return deleteSchool(id, false);

@@ -43,6 +43,7 @@ export interface ProjectScoreItem {
   className: string
   hasAnswerSheet: boolean
   answerSheetUrl?: string | null
+  answerSheetLayouts?: string | null
   hasScore: boolean
   totalScore: number | null
   updateTime?: string | number[] | null
@@ -87,6 +88,7 @@ export interface PaperRegionItem {
   id: string
   questionNo: string
   questionType: string
+  partTitle?: string
   knowledgePoint: string
   questionText: string
   remark?: string
@@ -149,11 +151,13 @@ export interface PaperOcrPageResult {
 export interface PaperQuestionOcrResult {
   projectId: string
   subjectName: string
-  type: 'template' | 'original'
+  type: 'template' | 'original' | 'student'
   requestId: string
   questionText: string
   questionType: string
   score: number | null
+  knowledgePoint?: string
+  analysis?: Record<string, any>
 }
 
 export function normalizePaperRegion(
@@ -165,6 +169,7 @@ export function normalizePaperRegion(
     id: String(region?.id || ''),
     questionNo: normalizeQuestionNo(region?.questionNo, sortOrder),
     questionType: String(region?.questionType || '').trim(),
+    partTitle: String(region?.partTitle || '').trim(),
     knowledgePoint: String(region?.knowledgePoint || '').trim(),
     questionText: String(region?.questionText || region?.remark || '').trim(),
     score: region?.score ?? null,
@@ -388,7 +393,9 @@ export function fetchPaperConfig(params: { projectId: string; subjectName: strin
 export function fetchSavePaperLayout(params: {
   projectId: string
   subjectName: string
-  type: 'template' | 'original'
+  type: 'template' | 'original' | 'student'
+  studentNo?: string
+  applyToAllStudents?: boolean
   regions: PaperRegionItem[]
 }) {
   return api.post<void>({
@@ -403,7 +410,8 @@ export function fetchSavePaperLayout(params: {
 export function fetchAutoCutPaperLayout(params: {
   projectId: string
   subjectName: string
-  type: 'template' | 'original'
+  type: 'template' | 'original' | 'student'
+  studentNo?: string
   imageType?: string
 }) {
   return api
@@ -419,10 +427,36 @@ export function fetchAutoCutPaperLayout(params: {
     }))
 }
 
+export function fetchStartAutoCutTask(params: {
+  projectId: string
+  subjectName: string
+  type: 'template' | 'original' | 'student'
+  studentNo?: string
+  imageType?: string
+}) {
+  return api.post<string>({
+    url: '/api/system/exam-project/papers/layout/ocr-auto/start',
+    data: params
+  })
+}
+
+export function fetchOcrTaskStatus(taskId: string) {
+  return api.get<{
+    taskId: string
+    status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+    progress: number
+    message: string
+    result: any
+  }>({
+    url: `/api/system/exam-project/papers/layout/ocr-auto/status/${taskId}`
+  })
+}
+
 export function fetchOcrPaperLayoutPage(params: {
   projectId: string
   subjectName: string
-  type: 'template' | 'original'
+  type: 'template' | 'original' | 'student'
+  studentNo?: string
   pageIndex: number
   imageType?: string
 }) {
@@ -442,7 +476,9 @@ export function fetchOcrPaperLayoutPage(params: {
 export function fetchOcrPaperQuestion(params: {
   projectId: string
   subjectName: string
-  type: 'template' | 'original'
+  type: 'template' | 'original' | 'student'
+  studentNo?: string
+  partTitle?: string
   imageType?: string
   x: number
   y: number
@@ -451,6 +487,26 @@ export function fetchOcrPaperQuestion(params: {
 }) {
   return api.post<PaperQuestionOcrResult>({
     url: '/api/system/exam-project/papers/layout/ocr-question',
+    data: params,
+    timeout: PAPER_OCR_TIMEOUT,
+    showErrorMessage: false
+  })
+}
+
+export function fetchAnalyzePaperQuestion(params: {
+  projectId: string
+  subjectName: string
+  type: 'template' | 'original' | 'student'
+  studentNo?: string
+  partTitle?: string
+  imageType?: string
+  x: number
+  y: number
+  width: number
+  height: number
+}) {
+  return api.post<PaperQuestionOcrResult>({
+    url: '/api/system/exam-project/papers/layout/analyze-question',
     data: params,
     timeout: PAPER_OCR_TIMEOUT,
     showErrorMessage: false

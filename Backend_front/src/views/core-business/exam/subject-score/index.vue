@@ -36,7 +36,7 @@
           <span class="list-count">项目ID: {{ projectId }}</span>
         </div>
         <div class="list-header__right">
-          <el-button type="success" :icon="Upload" @click="handleBatchUpload('answerSheet')">导入试卷</el-button>
+          <el-button type="success" :icon="Upload" @click="handleBatchUpload('answerSheet')">导入学生原卷</el-button>
           <el-button type="warning" :icon="Upload" @click="handleBatchUpload('score')">导入成绩</el-button>
           <el-button type="primary" :icon="Download" @click="handleExport">导出成绩单</el-button>
         </div>

@@ -5,6 +5,8 @@ public class PaperRegionOcrDTO {
     private String projectId;
     private String subjectName;
     private String type;
+    private String studentNo;
+    private String partTitle;
     private String imageType;
     private Double x;
     private Double y;
@@ -33,6 +35,22 @@ public class PaperRegionOcrDTO {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public String getStudentNo() {
+        return studentNo;
+    }
+
+    public void setStudentNo(String studentNo) {
+        this.studentNo = studentNo;
+    }
+
+    public String getPartTitle() {
+        return partTitle;
+    }
+
+    public void setPartTitle(String partTitle) {
+        this.partTitle = partTitle;
     }
 
     public String getImageType() {
