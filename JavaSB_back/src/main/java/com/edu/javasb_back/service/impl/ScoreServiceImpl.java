@@ -22,6 +22,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -77,6 +79,7 @@ record QuestionScoreMetrics(
 
 @Service
 public class ScoreServiceImpl implements ScoreService {
+    private static final Pattern QUESTION_NUMBER_PATTERN = Pattern.compile("(\\d+)");
 
     @Autowired
     private ExamRepository examRepository;
@@ -1265,7 +1268,10 @@ public class ScoreServiceImpl implements ScoreService {
 
             List<ExamStudentScore> projectScores = findProjectSubjectScores(snapshot, subjectName);
             List<Double> bestScores = resolveBestQuestionScores(projectScores);
-            List<Map<String, Object>> regions = resolveSubjectRegions(classSubject, "original");
+            List<Map<String, Object>> regions = alignRegionsToQuestionScores(
+                    resolveSubjectRegions(classSubject, "original"),
+                    Math.min(personalScores.size(), bestScores.size())
+            );
             int questionCount = Math.min(personalScores.size(), bestScores.size());
             for (int index = 0; index < questionCount; index++) {
                 double bestScore = bestScores.get(index);
@@ -1319,11 +1325,12 @@ public class ScoreServiceImpl implements ScoreService {
 
     private List<Map<String, Object>> buildPaperAnswers(ProjectSnapshot snapshot, ExamSubject classSubject, ExamStudentScore studentScore) {
         List<Double> personalScores = parseQuestionScores(studentScore.getQuestionScores());
-        List<Map<String, Object>> regions = resolveSubjectRegions(classSubject, "original");
+        List<Map<String, Object>> rawRegions = resolveSubjectRegions(classSubject, "original");
         List<QuestionScoreContext> scoreContexts = buildQuestionScoreContexts(snapshot, classSubject.getSubjectName());
 
+        int count = Math.max(personalScores.size(), Math.max(rawRegions.size(), resolveQuestionCount(scoreContexts)));
+        List<Map<String, Object>> regions = alignRegionsToQuestionScores(rawRegions, count);
         List<Map<String, Object>> answers = new ArrayList<>();
-        int count = Math.max(personalScores.size(), Math.max(regions.size(), resolveQuestionCount(scoreContexts)));
         for (int index = 0; index < count; index++) {
             double personal = index < personalScores.size() ? personalScores.get(index) : 0D;
             Map<String, Object> region = index < regions.size() ? regions.get(index) : Collections.emptyMap();
@@ -1346,6 +1353,39 @@ public class ScoreServiceImpl implements ScoreService {
             answers.add(row);
         }
         return answers;
+    }
+
+    private List<Map<String, Object>> alignRegionsToQuestionScores(List<Map<String, Object>> regions, int questionCount) {
+        if (questionCount <= 0) {
+            return regions == null ? Collections.emptyList() : regions;
+        }
+        if (regions == null || regions.isEmpty()) {
+            return Collections.nCopies(questionCount, Collections.emptyMap());
+        }
+
+        Map<Integer, Map<String, Object>> indexedRegions = new LinkedHashMap<>();
+        List<Map<String, Object>> fallbackRegions = new ArrayList<>();
+        for (Map<String, Object> region : regions) {
+            Integer questionIndex = extractQuestionIndex(stringValue(region.get("questionNo")));
+            if (questionIndex != null && questionIndex > 0) {
+                indexedRegions.putIfAbsent(questionIndex, region);
+            } else {
+                fallbackRegions.add(region);
+            }
+        }
+
+        List<Map<String, Object>> aligned = new ArrayList<>();
+        for (int index = 1; index <= questionCount; index++) {
+            Map<String, Object> region = indexedRegions.get(index);
+            if (region == null && index - 1 < regions.size()) {
+                region = regions.get(index - 1);
+            }
+            if (region == null && !fallbackRegions.isEmpty()) {
+                region = fallbackRegions.remove(0);
+            }
+            aligned.add(region == null ? Collections.emptyMap() : region);
+        }
+        return aligned;
     }
 
     private List<String> collectPaperImages(String url) {
@@ -1667,5 +1707,25 @@ public class ScoreServiceImpl implements ScoreService {
         }
         String normalized = raw.replaceAll("[^0-9]", "");
         return StringUtils.hasText(normalized) ? normalized : String.valueOf(fallback);
+    }
+
+    private Integer extractQuestionIndex(String questionNo) {
+        String normalized = normalizeQuestionNo(questionNo, 0);
+        Matcher matcher = QUESTION_NUMBER_PATTERN.matcher(normalized);
+        if (!matcher.find()) {
+            return null;
+        }
+        return parseIntSafe(matcher.group(1));
+    }
+
+    private Integer parseIntSafe(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

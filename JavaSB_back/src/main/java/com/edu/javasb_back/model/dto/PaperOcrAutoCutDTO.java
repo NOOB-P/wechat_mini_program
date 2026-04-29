@@ -5,6 +5,7 @@ public class PaperOcrAutoCutDTO {
     private String projectId;
     private String subjectName;
     private String type;
+    private String studentNo;
     private String imageType;
     private Integer pageIndex;
 
@@ -22,6 +23,14 @@ public class PaperOcrAutoCutDTO {
 
     public void setSubjectName(String subjectName) {
         this.subjectName = subjectName;
+    }
+
+    public String getStudentNo() {
+        return studentNo;
+    }
+
+    public void setStudentNo(String studentNo) {
+        this.studentNo = studentNo;
     }
 
     public String getType() {

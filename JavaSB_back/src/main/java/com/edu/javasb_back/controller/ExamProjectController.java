@@ -171,6 +171,18 @@ public class ExamProjectController {
         return examProjectService.savePaperLayout(dto);
     }
 
+    @LogOperation("OCR 自动切割试卷 (异步)")
+    @PostMapping("/papers/layout/ocr-auto/start")
+    public Result<String> startAutoCutTask(@RequestBody PaperOcrAutoCutDTO dto) {
+        return examProjectService.startAutoCutTask(dto);
+    }
+
+    @LogOperation("获取 OCR 任务状态")
+    @GetMapping("/papers/layout/ocr-auto/status/{taskId}")
+    public Result<Map<String, Object>> getOcrTaskStatus(@PathVariable String taskId) {
+        return examProjectService.getOcrTaskStatus(taskId);
+    }
+
     @LogOperation("OCR 自动切割试卷")
     @PostMapping("/papers/layout/ocr-auto")
     public Result<Map<String, Object>> autoCutPaperLayoutByOcr(@RequestBody PaperOcrAutoCutDTO dto) {

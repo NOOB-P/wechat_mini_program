@@ -7,6 +7,8 @@ public class PaperLayoutSaveDTO {
     private String projectId;
     private String subjectName;
     private String type;
+    private String studentNo;
+    private Boolean applyToAllStudents;
     private List<PaperRegionDTO> regions;
 
     public String getProjectId() { return projectId; }
@@ -18,6 +20,12 @@ public class PaperLayoutSaveDTO {
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
 
+    public String getStudentNo() { return studentNo; }
+    public void setStudentNo(String studentNo) { this.studentNo = studentNo; }
+
+    public Boolean getApplyToAllStudents() { return applyToAllStudents; }
+    public void setApplyToAllStudents(Boolean applyToAllStudents) { this.applyToAllStudents = applyToAllStudents; }
+
     public List<PaperRegionDTO> getRegions() { return regions; }
     public void setRegions(List<PaperRegionDTO> regions) { this.regions = regions; }
 
@@ -25,6 +33,7 @@ public class PaperLayoutSaveDTO {
         private String id;
         private String questionNo;
         private String questionType;
+        private String partTitle;
         private String knowledgePoint;
         private String questionText;
         private Double score;
@@ -42,6 +51,9 @@ public class PaperLayoutSaveDTO {
 
         public String getQuestionType() { return questionType; }
         public void setQuestionType(String questionType) { this.questionType = questionType; }
+
+        public String getPartTitle() { return partTitle; }
+        public void setPartTitle(String partTitle) { this.partTitle = partTitle; }
 
         public String getKnowledgePoint() { return knowledgePoint; }
         public void setKnowledgePoint(String knowledgePoint) { this.knowledgePoint = knowledgePoint; }

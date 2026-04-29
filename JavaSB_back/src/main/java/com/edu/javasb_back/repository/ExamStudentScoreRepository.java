@@ -10,6 +10,8 @@ import java.util.List;
 
 @Repository
 public interface ExamStudentScoreRepository extends JpaRepository<ExamStudentScore, Long> {
+    List<ExamStudentScore> findBySubjectId(String subjectId);
+
     List<ExamStudentScore> findBySubjectIdIn(List<String> subjectIds);
 
     java.util.Optional<ExamStudentScore> findBySubjectIdAndStudentNo(String subjectId, String studentNo);
