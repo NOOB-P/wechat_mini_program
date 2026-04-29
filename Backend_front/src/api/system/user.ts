@@ -51,10 +51,7 @@ export function fetchAddUser(data: any) {
 export function fetchEditUser(id: number, data: any) {
   return api.put<any>({
     url: `/api/system/user/edit/${id}`,
-    data: {
-      ...buildUserPayload(data),
-      username: undefined
-    }
+    data: buildUserPayload(data)
   })
 }
 

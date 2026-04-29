@@ -92,7 +92,7 @@
             :class="{ active: currentMainTab === 'wrong_push' }"
             @click="currentMainTab = 'wrong_push'"
           >
-            AI成绩分析
+            错题举一反三
             <view class="line" v-if="currentMainTab === 'wrong_push'"></view>
           </view>
         </view>
@@ -790,9 +790,11 @@ watch(
 .filter-bar {
   background: #e0effe;
   padding: 20rpx 30rpx 24rpx;
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 99; // 降低层级，确保低于弹窗的遮罩层（通常为1000+）
+  left: 0;
+  right: 0;
+  z-index: 99;
   display: flex;
   justify-content: center;
   width: 100%;
@@ -879,6 +881,7 @@ watch(
   flex: 1;
   min-height: 0;
   padding: 30rpx;
+  padding-top: 150rpx;
   box-sizing: border-box;
 
   &::-webkit-scrollbar {

@@ -76,8 +76,8 @@
               <text class="no">{{ ans.questionNo }}</text>
               <text class="type" v-if="ans.type">({{ ans.type }})</text>
             </view>
-            <text class="col my-score-col" :class="{ 'perfect': ans.myScore >= ans.highestScore && ans.highestScore > 0 }">
-              {{ formatScore(ans.myScore) }}/{{ formatScore(ans.highestScore) }}
+            <text class="col my-score-col" :class="{ 'perfect': ans.myScore >= ans.fullScore && ans.fullScore > 0 }">
+              {{ formatScore(ans.myScore) }}/{{ formatScore(ans.fullScore || ans.highestScore) }}
             </text>
             <text class="col">{{ formatScore(ans.classAvgScore) }}</text>
             <text class="col">{{ formatScore(ans.gradeAvgScore) }}</text>

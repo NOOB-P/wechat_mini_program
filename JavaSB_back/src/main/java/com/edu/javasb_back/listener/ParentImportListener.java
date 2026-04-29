@@ -1,6 +1,7 @@
 package com.edu.javasb_back.listener;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -11,16 +12,23 @@ import com.edu.javasb_back.model.dto.ParentImportDTO;
 
 public class ParentImportListener extends AnalysisEventListener<ParentImportDTO> {
     private final List<ParentImportDTO> list = new ArrayList<>();
-    private static final String[] EXPECTED_HEADERS = {"用户名", "昵称", "手机号", "密码", "会员类型", "学生学号"};
+    private static final String[] EXPECTED_HEADERS = {"省", "市", "校", "班级", "学生姓名", "手机号", "会员类型"};
 
     @Override
     public void invokeHeadMap(Map<Integer, String> headMap, AnalysisContext context) {
-        if (headMap.size() != EXPECTED_HEADERS.length) {
+        List<String> headers = headMap.entrySet().stream()
+                .sorted(Comparator.comparingInt(Map.Entry::getKey))
+                .map(Map.Entry::getValue)
+                .map(this::normalizeHeader)
+                .filter(header -> header != null && !header.isEmpty())
+                .toList();
+
+        if (headers.size() != EXPECTED_HEADERS.length) {
             throw new ExcelAnalysisException("检查格式：列数量不正确，应为 " + EXPECTED_HEADERS.length + " 列");
         }
         for (int i = 0; i < EXPECTED_HEADERS.length; i++) {
-            String header = headMap.get(i);
-            if (header == null || !EXPECTED_HEADERS[i].equals(header.trim())) {
+            String header = headers.get(i);
+            if (!EXPECTED_HEADERS[i].equals(header)) {
                 throw new ExcelAnalysisException("检查格式：第 " + (i + 1) + " 列标题应为 [" + EXPECTED_HEADERS[i] + "]");
             }
         }
@@ -29,7 +37,7 @@ public class ParentImportListener extends AnalysisEventListener<ParentImportDTO>
     @Override
     public void invoke(ParentImportDTO data, AnalysisContext context) {
         // 如果是说明行，跳过
-        if (data.getUsername() != null && data.getUsername().contains("说明：")) {
+        if (data.getProvince() != null && data.getProvince().contains("说明：")) {
             return;
         }
         
@@ -39,6 +47,13 @@ public class ParentImportListener extends AnalysisEventListener<ParentImportDTO>
 
     private boolean isEmpty(String str) {
         return str == null || str.trim().isEmpty();
+    }
+
+    private String normalizeHeader(String header) {
+        if (header == null) {
+            return null;
+        }
+        return header.replace("\uFEFF", "").trim();
     }
 
     @Override

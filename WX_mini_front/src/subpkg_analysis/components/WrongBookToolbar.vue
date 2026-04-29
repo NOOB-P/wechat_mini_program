@@ -4,6 +4,7 @@
       <view class="toolbar-title-wrap">
         <text class="toolbar-title">错题筛选</text>
         <text class="toolbar-subtitle">{{ sourceLabel || '当前考试' }}</text>
+        <text class="toolbar-tip">全部下载全部错题，单科只下该科。</text>
       </view>
       <view class="toolbar-actions">
         <wd-button size="small" plain custom-class="toolbar-btn" @click="emit('export')">下载</wd-button>
@@ -79,6 +80,12 @@ const emit = defineEmits<{
   .toolbar-subtitle {
     font-size: 22rpx;
     color: #8a97a6;
+    line-height: 1.4;
+  }
+
+  .toolbar-tip {
+    font-size: 20rpx;
+    color: #9aa8b7;
     line-height: 1.4;
   }
 

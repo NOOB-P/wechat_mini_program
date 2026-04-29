@@ -1482,15 +1482,17 @@ public class ScoreServiceImpl implements ScoreService {
 
             List<ExamStudentScore> projectScores = findProjectSubjectScores(snapshot, subjectName);
             List<Double> bestScores = resolveBestQuestionScores(projectScores);
+            List<Double> fullScores = resolveQuestionFullScores(snapshot.benchmarks(), subjectName, projectScores);
             List<Map<String, Object>> regions = alignRegionsToQuestionScores(
                     resolveSubjectRegions(classSubject, "original"),
-                    Math.min(personalScores.size(), bestScores.size())
+                    Math.min(personalScores.size(), fullScores.size())
             );
-            int questionCount = Math.min(personalScores.size(), bestScores.size());
+            int questionCount = Math.min(personalScores.size(), fullScores.size());
             for (int index = 0; index < questionCount; index++) {
-                double bestScore = bestScores.get(index);
+                double bestScore = index < bestScores.size() ? bestScores.get(index) : 0D;
+                double fullScore = fullScores.get(index);
                 double personal = personalScores.get(index);
-                if (bestScore <= 0 || personal >= bestScore) {
+                if (fullScore <= 0 || personal >= fullScore) {
                     continue;
                 }
 
@@ -1499,7 +1501,17 @@ public class ScoreServiceImpl implements ScoreService {
                 String regionQuestionNo = stringValue(region.get("questionNo"));
                 String regionQuestionType = stringValue(region.get("questionType"));
                 String regionKnowledgePoint = stringValue(region.get("knowledgePoint"));
-                double mastery = bestScore <= 0 ? 0D : (personal / bestScore) * 100D;
+                final int questionIndex = index;
+                List<Double> questionScoreList = projectScores.stream()
+                        .map(item -> parseQuestionScores(item.getQuestionScores()))
+                        .filter(list -> list.size() > questionIndex)
+                        .map(list -> list.get(questionIndex))
+                        .filter(Objects::nonNull)
+                        .toList();
+                double averageScore = average(questionScoreList);
+                double difficultyBase = bestScore > 0 ? bestScore : fullScore;
+                double difficultyPercent = difficultyBase <= 0 ? 0D : (averageScore / difficultyBase) * 100D;
+                double mastery = fullScore <= 0 ? 0D : (personal / fullScore) * 100D;
 
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put("id", snapshot.project().getId() + "_" + subjectName + "_" + (index + 1));
@@ -1509,12 +1521,15 @@ public class ScoreServiceImpl implements ScoreService {
                 row.put("questionNo", normalizeQuestionNo(regionQuestionNo, index + 1));
                 row.put("question", StringUtils.hasText(regionQuestionText) ? regionQuestionText : "第" + (index + 1) + "题");
                 row.put("tags", buildWrongQuestionTags(regionKnowledgePoint, regionQuestionType));
-                row.put("difficulty", buildDifficultyLabel(mastery));
                 row.put("mastery", (int) Math.max(0, Math.min(100, Math.round(mastery))));
                 row.put("myScore", roundScore(personal));
+                row.put("fullScore", roundScore(fullScore));
                 row.put("highestScore", roundScore(bestScore));
-                row.put("wrongReason", buildWrongReason(personal, bestScore));
-                row.put("explanation", buildWrongExplanation(subjectName, index + 1, personal, bestScore));
+                row.put("avgScore", roundScore(averageScore));
+                row.put("difficultyRate", roundScore(difficultyPercent));
+                row.put("difficulty", buildDifficultyLabel(difficultyPercent));
+                row.put("wrongReason", buildWrongReason(personal, fullScore));
+                row.put("explanation", buildWrongExplanation(subjectName, index + 1, personal, fullScore));
                 row.put("paperUrl", ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl()));
                 row.put("paperRegion", buildPaperRegion(region, ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl())));
                 
@@ -1541,8 +1556,14 @@ public class ScoreServiceImpl implements ScoreService {
         List<Double> personalScores = parseQuestionScores(studentScore.getQuestionScores());
         List<Map<String, Object>> rawRegions = resolveSubjectRegions(classSubject, "original");
         List<QuestionScoreContext> scoreContexts = buildQuestionScoreContexts(snapshot, classSubject.getSubjectName());
+        List<ExamStudentScore> projectScores = findProjectSubjectScores(snapshot, classSubject.getSubjectName());
+        List<Double> fullScores = resolveQuestionFullScores(snapshot.benchmarks(), classSubject.getSubjectName(), projectScores);
+        List<Double> bestScores = resolveBestQuestionScores(projectScores);
 
-        int count = Math.max(personalScores.size(), Math.max(rawRegions.size(), resolveQuestionCount(scoreContexts)));
+        int count = Math.max(
+                Math.max(personalScores.size(), rawRegions.size()),
+                Math.max(resolveQuestionCount(scoreContexts), Math.max(fullScores.size(), bestScores.size()))
+        );
         List<Map<String, Object>> regions = alignRegionsToQuestionScores(rawRegions, count);
         List<Map<String, Object>> answers = new ArrayList<>();
         for (int index = 0; index < count; index++) {
@@ -1551,18 +1572,21 @@ public class ScoreServiceImpl implements ScoreService {
             String questionNo = stringValue(region.get("questionNo"));
             String questionType = stringValue(region.get("questionType"));
             QuestionScoreMetrics metrics = buildQuestionScoreMetrics(scoreContexts, snapshot.examClass(), index);
+            double fullScore = index < fullScores.size() ? fullScores.get(index) : 0D;
+            double highestScore = index < bestScores.size() ? bestScores.get(index) : metrics.highestScore();
 
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("questionNo", normalizeQuestionNo(questionNo, index + 1));
             row.put("type", StringUtils.hasText(questionType) ? questionType : "题目");
             row.put("questionText", stringValue(region.get("questionText")));
             row.put("myScore", roundScore(personal));
-            row.put("highestScore", roundScore(metrics.highestScore()));
+            row.put("fullScore", roundScore(fullScore));
+            row.put("highestScore", roundScore(highestScore));
             row.put("classAvgScore", roundScore(metrics.classAvgScore()));
             row.put("schoolAvgScore", roundScore(metrics.schoolAvgScore()));
             row.put("gradeAvgScore", roundScore(metrics.gradeAvgScore()));
             row.put("projectAvgScore", roundScore(metrics.projectAvgScore()));
-            row.put("isBest", metrics.highestScore() > 0 && personal >= metrics.highestScore());
+            row.put("isBest", fullScore > 0 && personal >= fullScore);
             row.put("paperRegion", buildPaperRegion(region, ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl())));
             answers.add(row);
         }
@@ -1884,6 +1908,32 @@ public class ScoreServiceImpl implements ScoreService {
             }
         }
         return bestScores;
+    }
+
+    private List<Double> resolveQuestionFullScores(Map<String, Object> benchmarks, String subjectName, List<ExamStudentScore> scores) {
+        Object raw = benchmarks.get(subjectName);
+        if (raw instanceof Map<?, ?> map) {
+            Object questions = map.get("questions");
+            if (questions instanceof Collection<?> collection) {
+                List<Double> result = new ArrayList<>();
+                for (Object item : collection) {
+                    if (item instanceof Map<?, ?> questionMap) {
+                        Object score = questionMap.get("score");
+                        if (score == null) {
+                            score = questionMap.get("fullScore");
+                        }
+                        if (score == null) {
+                            score = questionMap.get("totalScore");
+                        }
+                        result.add(numberValue(score));
+                    }
+                }
+                if (!result.isEmpty()) {
+                    return result;
+                }
+            }
+        }
+        return resolveBestQuestionScores(scores);
     }
 
     private Map<String, Object> parseJsonMap(String json) {
