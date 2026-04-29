@@ -201,6 +201,12 @@ public class ExamProjectController {
         return examProjectService.ocrPaperRegion(dto);
     }
 
+    @LogOperation("AI 分析单个题目")
+    @PostMapping("/papers/layout/analyze-question")
+    public Result<Map<String, Object>> analyzePaperRegion(@RequestBody PaperRegionOcrDTO dto) {
+        return examProjectService.analyzePaperRegion(dto);
+    }
+
     @LogOperation("保存单个学生成绩")
     @PreAuthorize("hasAuthority('exam:project:score-save')")
     @PostMapping("/scores/save")

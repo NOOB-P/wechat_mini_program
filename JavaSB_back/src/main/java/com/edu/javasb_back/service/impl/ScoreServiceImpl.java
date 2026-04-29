@@ -1,5 +1,10 @@
 package com.edu.javasb_back.service.impl;
 
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.Files;
@@ -85,6 +90,113 @@ public class ScoreServiceImpl implements ScoreService {
             String studentNo,
             String classId,
             double totalScore) {}
+
+    private static final int PAGE_WIDTH = 1240;
+    private static final int PAGE_HEIGHT = 1754;
+    private static final int PAGE_MARGIN = 70;
+
+    private class PdfRenderContext {
+        private final PDDocument document;
+        private BufferedImage currentCanvas;
+        private Graphics2D currentGraphics;
+        private int currentY;
+        private final int contentWidth = PAGE_WIDTH - PAGE_MARGIN * 2;
+
+        public PdfRenderContext(PDDocument document) {
+            this.document = document;
+            this.currentY = PAGE_MARGIN;
+            createNewPage();
+        }
+
+        private void createNewPage() {
+            if (currentGraphics != null) {
+                currentGraphics.dispose();
+                appendCurrentPage();
+            }
+            currentCanvas = createWrongBookPageCanvas(PAGE_WIDTH, PAGE_HEIGHT);
+            currentGraphics = createWrongBookGraphics(currentCanvas);
+            currentY = PAGE_MARGIN;
+        }
+
+        private void appendCurrentPage() {
+            try {
+                PDPage page = new PDPage(PDRectangle.A4);
+                document.addPage(page);
+                PDImageXObject pdImage = LosslessFactory.createFromImage(document, currentCanvas);
+                try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                    contentStream.drawImage(pdImage, 0, 0, PDRectangle.A4.getWidth(), PDRectangle.A4.getHeight());
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to append page", e);
+            }
+        }
+
+        public void finish() {
+            if (currentGraphics != null) {
+                currentGraphics.dispose();
+                appendCurrentPage();
+                currentGraphics = null;
+            }
+        }
+
+        public void drawQuestion(String title, List<String> sectionTitles, List<BufferedImage> sectionImages) {
+            // Check if we need a new page for the title
+            int titleHeight = 60; // Approximate
+            if (currentY + titleHeight > PAGE_HEIGHT - PAGE_MARGIN) {
+                createNewPage();
+            }
+
+            currentY = drawWrappedText(currentGraphics, title, PAGE_MARGIN, currentY, contentWidth, createUiFont(30, true), new Color(15, 23, 42), 44);
+            currentY += 24;
+
+            for (int i = 0; i < sectionImages.size(); i++) {
+                BufferedImage image = sectionImages.get(i);
+                String sectionTitle = sectionTitles.get(i);
+                int sectionHeaderHeight = 40;
+
+                float scale = (float) contentWidth / image.getWidth();
+                int drawWidth = contentWidth;
+                int drawHeight = Math.round(image.getHeight() * scale);
+
+                // If this section (header + part of image) can't fit, start a new page
+                // We at least want to fit the header and a bit of the image
+                if (currentY + sectionHeaderHeight + Math.min(drawHeight, 150) > PAGE_HEIGHT - PAGE_MARGIN) {
+                    createNewPage();
+                    // Redraw question title (续) on new page if it's not the first section
+                    currentY = drawWrappedText(currentGraphics, title + "（续）", PAGE_MARGIN, currentY, contentWidth, createUiFont(28, true), new Color(15, 23, 42), 40);
+                    currentY += 24;
+                }
+
+                currentGraphics.setColor(new Color(37, 99, 235));
+                currentGraphics.setFont(createUiFont(24, true));
+                currentGraphics.drawString(sectionTitle, PAGE_MARGIN, currentY + 24);
+                currentY += sectionHeaderHeight;
+
+                // If the image itself is too tall for the remaining page, we need to handle it.
+                // Since user wants "width first", we check if it fits. If not, we might have to move to new page.
+                int remainingHeight = PAGE_HEIGHT - PAGE_MARGIN - currentY;
+                if (drawHeight > remainingHeight) {
+                    // If it's the first thing on the page and still too tall, we have to scale it down 
+                    // to fit the page height, otherwise it will be cut off.
+                    if (currentY > PAGE_MARGIN + 100) { 
+                        createNewPage();
+                        remainingHeight = PAGE_HEIGHT - PAGE_MARGIN - currentY;
+                    }
+                    
+                    if (drawHeight > remainingHeight) {
+                        scale = (float) remainingHeight / image.getHeight();
+                        drawWidth = Math.round(image.getWidth() * scale);
+                        drawHeight = remainingHeight;
+                    }
+                }
+
+                int drawX = PAGE_MARGIN + (contentWidth - drawWidth) / 2;
+                currentGraphics.drawImage(image, drawX, currentY, drawWidth, drawHeight, null);
+                currentY += drawHeight + 40; // Space between sections
+            }
+            currentY += 20; // Extra space between questions
+        }
+    }
 
     @Autowired
     private ExamRepository examRepository;
@@ -531,75 +643,89 @@ public class ScoreServiceImpl implements ScoreService {
                 .collect(Collectors.groupingBy(q -> (String) q.get("subject"), LinkedHashMap::new, Collectors.toList()));
 
         try (PDDocument document = new PDDocument()) {
-            PDPage currentPage = null;
-            PDPageContentStream contentStream = null;
-            float pageWidth = PDRectangle.A4.getWidth();
-            float pageHeight = PDRectangle.A4.getHeight();
-            float margin = 50;
-            float gap = 30; // 题目之间的间距
-            float currentY = 0; // 当前页面剩余高度的起始 Y 坐标
+            Map<String, BufferedImage> sourceImageCache = new HashMap<>();
+            List<Path> tempFiles = new ArrayList<>();
+
+            appendImagePage(document, buildWrongBookCoverImage(student, snapshot, onlySubject, wrongQuestions.size()));
+
+            PdfRenderContext context = new PdfRenderContext(document);
+
+            Map<String, ExamSubject> subjectMap = snapshot.classSubjects().stream()
+                    .collect(Collectors.toMap(ExamSubject::getSubjectName, item -> item, (a, b) -> a, LinkedHashMap::new));
 
             for (Map.Entry<String, List<Map<String, Object>>> entry : groupedQuestions.entrySet()) {
-                List<Map<String, Object>> questions = entry.getValue();
-
-                for (Map<String, Object> q : questions) {
-                    String sliceUrl = (String) q.get("sliceImageUrl");
-                    if (!StringUtils.hasText(sliceUrl)) continue;
-
-                    Path imgPath = ossStorageService.downloadToTempFile(sliceUrl);
-                    if (imgPath == null || !Files.exists(imgPath)) continue;
-
-                    try {
-                        BufferedImage bimg = ImageIO.read(imgPath.toFile());
-                        if (bimg == null) continue;
-
-                        PDImageXObject pdImage = LosslessFactory.createFromImage(document, bimg);
-                        
-                        // 计算缩放后的尺寸
-                        float imgWidth = pdImage.getWidth();
-                        float imgHeight = pdImage.getHeight();
-                        float maxWidth = pageWidth - 2 * margin;
-                        float scale = Math.min(maxWidth / imgWidth, 1.0f); // 仅缩小不放大
-                        
-                        float drawWidth = imgWidth * scale;
-                        float drawHeight = imgHeight * scale;
-
-                        // 检查当前页面是否放得下
-                        if (currentPage == null || (currentY - drawHeight) < margin) {
-                            if (contentStream != null) {
-                                contentStream.close();
-                            }
-                            currentPage = new PDPage(PDRectangle.A4);
-                            document.addPage(currentPage);
-                            contentStream = new PDPageContentStream(document, currentPage);
-                            currentY = pageHeight - margin;
-                        }
-
-                        float x = (pageWidth - drawWidth) / 2;
-                        float y = currentY - drawHeight;
-                        
-                        contentStream.drawImage(pdImage, x, y, drawWidth, drawHeight);
-                        currentY = y - gap; // 更新下一个题目的起始高度
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    } finally {
-                        try { Files.deleteIfExists(imgPath); } catch (Exception ignored) {}
-                    }
+                String subjectName = entry.getKey();
+                ExamSubject classSubject = subjectMap.get(subjectName);
+                if (classSubject == null) {
+                    continue;
                 }
-                
-                // 不同科目之间增加更大的间距
-                currentY -= gap; 
-            }
+                ExamStudentScore studentScore = examStudentScoreRepository
+                        .findBySubjectIdAndStudentNo(classSubject.getId(), student.getStudentNo())
+                        .orElse(null);
+                if (studentScore == null) {
+                    continue;
+                }
 
-            if (contentStream != null) {
-                contentStream.close();
-            }
+                List<Map<String, Object>> originalRegions = resolveSubjectRegions(classSubject, "original");
+                List<Map<String, Object>> answerRegions = resolveSubjectRegions(classSubject, "template");
+                List<Map<String, Object>> studentRegions = resolveStudentRegions(studentScore);
 
+                for (Map<String, Object> wrongQuestion : entry.getValue()) {
+                    String questionNo = stringValue(wrongQuestion.get("questionNo"));
+
+                    List<BufferedImage> sectionImages = new ArrayList<>();
+                    List<String> sectionTitles = new ArrayList<>();
+
+                    BufferedImage questionImage = buildSectionComposite(
+                            StringUtils.hasText(classSubject.getPaperUrl()) ? classSubject.getPaperUrl() : (String) wrongQuestion.get("sliceImageUrl"),
+                            collectRegionsByQuestionNo(originalRegions, questionNo),
+                            sourceImageCache,
+                            tempFiles
+                    );
+                    if (questionImage == null) {
+                        questionImage = loadStandaloneImage((String) wrongQuestion.get("sliceImageUrl"), sourceImageCache, tempFiles);
+                    }
+                    if (questionImage != null) {
+                        sectionTitles.add("题目");
+                        sectionImages.add(questionImage);
+                    }
+
+                    BufferedImage answerImage = buildSectionComposite(
+                            classSubject.getAnswerUrl(),
+                            collectRegionsByQuestionNo(answerRegions, questionNo),
+                            sourceImageCache,
+                            tempFiles
+                    );
+                    if (answerImage != null) {
+                        sectionTitles.add("答案与解析");
+                        sectionImages.add(answerImage);
+                    }
+
+                    BufferedImage studentImage = buildSectionComposite(
+                            studentScore.getAnswerSheetUrl(),
+                            collectRegionsByQuestionNo(StringUtils.hasText(studentScore.getAnswerSheetLayouts()) ? studentRegions : answerRegions, questionNo),
+                            sourceImageCache,
+                            tempFiles
+                    );
+                    if (studentImage != null) {
+                        sectionTitles.add("学生答案");
+                        sectionImages.add(studentImage);
+                    }
+
+                    if (sectionImages.isEmpty()) {
+                        continue;
+                    }
+
+                    String title = buildWrongQuestionTitle(wrongQuestion);
+                    context.drawQuestion(title, sectionTitles, sectionImages);
+                }
+            }
+            context.finish();
+
+            cleanupTempFiles(tempFiles);
             if (document.getNumberOfPages() == 0) {
                 return Result.error("导出失败：无法处理错题图片");
             }
-
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             document.save(baos);
             
@@ -611,6 +737,317 @@ public class ScoreServiceImpl implements ScoreService {
         } catch (Exception e) {
             e.printStackTrace();
             return Result.error("导出失败：" + e.getMessage());
+        }
+    }
+
+    private List<Map<String, Object>> resolveStudentRegions(ExamStudentScore score) {
+        if (score == null || !StringUtils.hasText(score.getAnswerSheetLayouts())) {
+            return Collections.emptyList();
+        }
+        Object regionNode = readJsonValue(score.getAnswerSheetLayouts());
+        if (!(regionNode instanceof Collection<?> collection)) {
+            return Collections.emptyList();
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Object item : collection) {
+            if (item instanceof Map<?, ?> map) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                map.forEach((key, value) -> row.put(String.valueOf(key), value));
+                rows.add(row);
+            }
+        }
+        return rows;
+    }
+
+    private List<Map<String, Object>> collectRegionsByQuestionNo(List<Map<String, Object>> regions, String questionNo) {
+        if (regions == null || regions.isEmpty()) {
+            return Collections.emptyList();
+        }
+        String normalizedTarget = normalizeQuestionNo(questionNo, 0);
+        return regions.stream()
+                .filter(region -> normalizedTarget.equals(normalizeQuestionNo(stringValue(region.get("questionNo")), 0)))
+                .toList();
+    }
+
+    private BufferedImage loadStandaloneImage(String url, Map<String, BufferedImage> cache, List<Path> tempFiles) {
+        if (!StringUtils.hasText(url)) {
+            return null;
+        }
+        if (cache.containsKey(url)) {
+            return cache.get(url);
+        }
+        Path imagePath = null;
+        try {
+            imagePath = resolvePaperPath(url);
+            if (imagePath == null || !Files.exists(imagePath)) {
+                return null;
+            }
+            BufferedImage image = ImageIO.read(imagePath.toFile());
+            if (image != null) {
+                cache.put(url, image);
+                if (ossStorageService.isOssUrl(url)) {
+                    tempFiles.add(imagePath);
+                }
+            }
+            return image;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private BufferedImage buildSectionComposite(
+            String sourceUrl,
+            List<Map<String, Object>> regions,
+            Map<String, BufferedImage> cache,
+            List<Path> tempFiles) {
+        if (!StringUtils.hasText(sourceUrl) || regions == null || regions.isEmpty()) {
+            return null;
+        }
+        BufferedImage sourceImage = loadStandaloneImage(sourceUrl, cache, tempFiles);
+        if (sourceImage == null) {
+            return null;
+        }
+
+        List<BufferedImage> parts = new ArrayList<>();
+        for (Map<String, Object> region : regions) {
+            BufferedImage cropped = cropRegionImage(sourceImage, region);
+            if (cropped != null) {
+                parts.add(cropped);
+            }
+        }
+        if (parts.isEmpty()) {
+            return null;
+        }
+        return stitchImagesVertically(parts, 18, 24, new Color(248, 250, 252));
+    }
+
+    private BufferedImage cropRegionImage(BufferedImage sourceImage, Map<String, Object> region) {
+        if (sourceImage == null || region == null || region.isEmpty()) {
+            return null;
+        }
+        double xRatio = clampRatio(numberValue(region.get("x")));
+        double yRatio = clampRatio(numberValue(region.get("y")));
+        double widthRatio = clampRatio(numberValue(region.get("width")));
+        double heightRatio = clampRatio(numberValue(region.get("height")));
+        int x = Math.min((int) Math.floor(xRatio * sourceImage.getWidth()), Math.max(sourceImage.getWidth() - 1, 0));
+        int y = Math.min((int) Math.floor(yRatio * sourceImage.getHeight()), Math.max(sourceImage.getHeight() - 1, 0));
+        int width = Math.max((int) Math.ceil(widthRatio * sourceImage.getWidth()), 1);
+        int height = Math.max((int) Math.ceil(heightRatio * sourceImage.getHeight()), 1);
+        width = Math.min(width, sourceImage.getWidth() - x);
+        height = Math.min(height, sourceImage.getHeight() - y);
+        if (width <= 0 || height <= 0) {
+            return null;
+        }
+        return sourceImage.getSubimage(x, y, width, height);
+    }
+
+    private BufferedImage stitchImagesVertically(List<BufferedImage> images, int gap, int padding, Color backgroundColor) {
+        int width = images.stream().mapToInt(BufferedImage::getWidth).max().orElse(1) + padding * 2;
+        int height = images.stream().mapToInt(BufferedImage::getHeight).sum()
+                + Math.max(images.size() - 1, 0) * gap
+                + padding * 2;
+        BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = canvas.createGraphics();
+        try {
+            graphics.setColor(backgroundColor);
+            graphics.fillRect(0, 0, width, height);
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            int currentY = padding;
+            for (BufferedImage image : images) {
+                int x = padding + (width - padding * 2 - image.getWidth()) / 2;
+                graphics.drawImage(image, x, currentY, null);
+                currentY += image.getHeight() + gap;
+            }
+        } finally {
+            graphics.dispose();
+        }
+        return canvas;
+    }
+
+    private String buildWrongQuestionTitle(Map<String, Object> wrongQuestion) {
+        String questionNo = stringValue(wrongQuestion.get("questionNo"));
+        String knowledgePoint = stringValue(wrongQuestion.get("knowledgePoint"));
+        String scoreText = roundScore(numberValue(wrongQuestion.get("myScore"))) + "/" + roundScore(numberValue(wrongQuestion.get("highestScore")));
+        StringBuilder builder = new StringBuilder();
+        builder.append(StringUtils.hasText(questionNo) ? questionNo : "题目");
+        if (StringUtils.hasText(knowledgePoint)) {
+            builder.append("  |  ").append(knowledgePoint);
+        }
+        builder.append("  |  ").append(scoreText).append("分");
+        return builder.toString();
+    }
+
+    private BufferedImage buildWrongBookCoverImage(SysStudent student, ProjectSnapshot snapshot, String onlySubject, int wrongCount) {
+        int width = PAGE_WIDTH;
+        int height = PAGE_HEIGHT;
+        BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = canvas.createGraphics();
+        try {
+            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            // 背景色
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, width, height);
+
+            // 装饰性顶部蓝色区块
+            graphics.setColor(new Color(37, 99, 235));
+            graphics.fillRect(0, 0, width, 400);
+
+            // 主标题
+            graphics.setColor(Color.WHITE);
+            graphics.setFont(createUiFont(72, true));
+            String mainTitle = "个人错题本";
+            FontMetrics mainMetrics = graphics.getFontMetrics();
+            graphics.drawString(mainTitle, (width - mainMetrics.stringWidth(mainTitle)) / 2, 220);
+
+            // 副标题 (产品名)
+            graphics.setFont(createUiFont(32, false));
+            String subTitle = "优题慧 · 智能考试分析系统";
+            FontMetrics subMetrics = graphics.getFontMetrics();
+            graphics.drawString(subTitle, (width - subMetrics.stringWidth(subTitle)) / 2, 280);
+
+            // 中间内容区块
+            int cardX = 140;
+            int cardY = 350;
+            int cardWidth = width - cardX * 2;
+            int cardHeight = 850;
+
+            // 阴影效果
+            graphics.setColor(new Color(0, 0, 0, 20));
+            graphics.fillRoundRect(cardX + 8, cardY + 8, cardWidth, cardHeight, 40, 40);
+
+            // 卡片背景
+            graphics.setColor(Color.WHITE);
+            graphics.fillRoundRect(cardX, cardY, cardWidth, cardHeight, 40, 40);
+            graphics.setColor(new Color(226, 232, 240));
+            graphics.setStroke(new java.awt.BasicStroke(2));
+            graphics.drawRoundRect(cardX, cardY, cardWidth, cardHeight, 40, 40);
+
+            // 试卷名称
+            graphics.setColor(new Color(15, 23, 42));
+            graphics.setFont(createUiFont(36, true));
+            String examName = snapshot.project().getName();
+            int examY = cardY + 100;
+            drawCenteredString(graphics, examName, cardX, examY, cardWidth);
+
+            // 分割线
+            graphics.setColor(new Color(226, 232, 240));
+            graphics.drawLine(cardX + 80, examY + 60, cardX + cardWidth - 80, examY + 60);
+
+            // 信息列表
+            int infoStartX = cardX + 120;
+            int infoY = examY + 160;
+            int infoGap = 80;
+            graphics.setFont(createUiFont(28, false));
+            
+            String[][] infoItems = {
+                {"学    校：", stringValue(student.getSchool())},
+                {"姓    名：", stringValue(student.getName())},
+                {"班    级：", stringValue(student.getGrade()) + " " + stringValue(student.getClassName())},
+                {"学    号：", stringValue(student.getStudentNo())},
+                {"科    目：", StringUtils.hasText(onlySubject) ? onlySubject : "全部科目"},
+                {"错题数量：", wrongCount + " 题"},
+                {"生成时间：", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))}
+            };
+
+            for (String[] item : infoItems) {
+                graphics.setColor(new Color(100, 116, 139));
+                graphics.drawString(item[0], infoStartX, infoY);
+                graphics.setColor(new Color(15, 23, 42));
+                graphics.drawString(item[1], infoStartX + 160, infoY);
+                infoY += infoGap;
+            }
+
+            // 底部页脚
+            graphics.setColor(new Color(148, 163, 184));
+            graphics.setFont(createUiFont(24, false));
+            String footer = "© 优题慧 · 让考试更有价值";
+            FontMetrics footerMetrics = graphics.getFontMetrics();
+            graphics.drawString(footer, (width - footerMetrics.stringWidth(footer)) / 2, height - 120);
+
+        } finally {
+            graphics.dispose();
+        }
+        return canvas;
+    }
+
+    private void drawCenteredString(Graphics2D g, String text, int x, int y, int width) {
+        FontMetrics metrics = g.getFontMetrics();
+        int drawX = x + (width - metrics.stringWidth(text)) / 2;
+        g.drawString(text, drawX, y);
+    }
+
+    private BufferedImage createWrongBookPageCanvas(int width, int height) {
+        BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = canvas.createGraphics();
+        try {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, width, height);
+        } finally {
+            graphics.dispose();
+        }
+        return canvas;
+    }
+
+    private Graphics2D createWrongBookGraphics(BufferedImage canvas) {
+        Graphics2D graphics = canvas.createGraphics();
+        graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        return graphics;
+    }
+
+    private Font createUiFont(int size, boolean bold) {
+        return new Font("Microsoft YaHei", bold ? Font.BOLD : Font.PLAIN, size);
+    }
+
+    private int drawWrappedText(
+            Graphics2D graphics,
+            String text,
+            int x,
+            int y,
+            int maxWidth,
+            Font font,
+            Color color,
+            int lineHeight) {
+        graphics.setFont(font);
+        graphics.setColor(color);
+        FontMetrics metrics = graphics.getFontMetrics(font);
+        StringBuilder line = new StringBuilder();
+        int currentY = y;
+        for (char ch : text.toCharArray()) {
+            String next = line + String.valueOf(ch);
+            if (metrics.stringWidth(next) > maxWidth && line.length() > 0) {
+                graphics.drawString(line.toString(), x, currentY + metrics.getAscent());
+                currentY += lineHeight;
+                line = new StringBuilder(String.valueOf(ch));
+            } else {
+                line.append(ch);
+            }
+        }
+        if (line.length() > 0) {
+            graphics.drawString(line.toString(), x, currentY + metrics.getAscent());
+            currentY += lineHeight;
+        }
+        return currentY;
+    }
+
+    private void appendImagePage(PDDocument document, BufferedImage image) throws Exception {
+        PDPage page = new PDPage(PDRectangle.A4);
+        document.addPage(page);
+        PDImageXObject pdImage = LosslessFactory.createFromImage(document, image);
+        try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+            contentStream.drawImage(pdImage, 0, 0, PDRectangle.A4.getWidth(), PDRectangle.A4.getHeight());
+        }
+    }
+
+    private void cleanupTempFiles(List<Path> tempFiles) {
+        for (Path tempFile : tempFiles) {
+            try {
+                Files.deleteIfExists(tempFile);
+            } catch (Exception ignored) {
+            }
         }
     }
 
@@ -1482,8 +1919,10 @@ public class ScoreServiceImpl implements ScoreService {
 
             List<ExamStudentScore> projectScores = findProjectSubjectScores(snapshot, subjectName);
             List<Double> bestScores = resolveBestQuestionScores(projectScores);
+            List<Map<String, Object>> originalRegions = resolveSubjectRegions(classSubject, "original");
+            List<Map<String, Object>> templateRegions = resolveSubjectRegions(classSubject, "template");
             List<Map<String, Object>> regions = alignRegionsToQuestionScores(
-                    resolveSubjectRegions(classSubject, "original"),
+                    originalRegions,
                     Math.min(personalScores.size(), bestScores.size())
             );
             int questionCount = Math.min(personalScores.size(), bestScores.size());
@@ -1508,6 +1947,7 @@ public class ScoreServiceImpl implements ScoreService {
                 row.put("source", snapshot.project().getName());
                 row.put("questionNo", normalizeQuestionNo(regionQuestionNo, index + 1));
                 row.put("question", StringUtils.hasText(regionQuestionText) ? regionQuestionText : "第" + (index + 1) + "题");
+                row.put("knowledgePoint", regionKnowledgePoint);
                 row.put("tags", buildWrongQuestionTags(regionKnowledgePoint, regionQuestionType));
                 row.put("difficulty", buildDifficultyLabel(mastery));
                 row.put("mastery", (int) Math.max(0, Math.min(100, Math.round(mastery))));
@@ -1531,6 +1971,23 @@ public class ScoreServiceImpl implements ScoreService {
                         "wrong",
                         sliceUniqueKey
                 ));
+
+                // 学生答案切片
+                List<Map<String, Object>> studentRegions = resolveStudentRegions(studentScore);
+                List<Map<String, Object>> targetStudentRegions = collectRegionsByQuestionNo(
+                        StringUtils.hasText(studentScore.getAnswerSheetLayouts()) ? studentRegions : templateRegions,
+                        regionQuestionNo
+                );
+                Map<String, Object> studentRegion = targetStudentRegions.isEmpty() ? Collections.emptyMap() : targetStudentRegions.get(0);
+                row.put("studentAnswerSliceUrl", createQuestionSliceUrl(
+                        studentScore.getAnswerSheetUrl(),
+                        studentRegion,
+                        snapshot.project().getId(),
+                        subjectName,
+                        "student_answer",
+                        student.getStudentNo() + "_" + normalizeQuestionNo(regionQuestionNo, index + 1)
+                ));
+
                 rows.add(row);
             }
         }
@@ -1540,6 +1997,7 @@ public class ScoreServiceImpl implements ScoreService {
     private List<Map<String, Object>> buildPaperAnswers(ProjectSnapshot snapshot, ExamSubject classSubject, ExamStudentScore studentScore) {
         List<Double> personalScores = parseQuestionScores(studentScore.getQuestionScores());
         List<Map<String, Object>> rawRegions = resolveSubjectRegions(classSubject, "original");
+        List<Map<String, Object>> templateRegions = resolveSubjectRegions(classSubject, "template");
         List<QuestionScoreContext> scoreContexts = buildQuestionScoreContexts(snapshot, classSubject.getSubjectName());
 
         int count = Math.max(personalScores.size(), Math.max(rawRegions.size(), resolveQuestionCount(scoreContexts)));
@@ -1563,7 +2021,15 @@ public class ScoreServiceImpl implements ScoreService {
             row.put("gradeAvgScore", roundScore(metrics.gradeAvgScore()));
             row.put("projectAvgScore", roundScore(metrics.projectAvgScore()));
             row.put("isBest", metrics.highestScore() > 0 && personal >= metrics.highestScore());
-            row.put("paperRegion", buildPaperRegion(region, ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl())));
+
+            // 学生答案区域
+            List<Map<String, Object>> studentRegions = resolveStudentRegions(studentScore);
+            List<Map<String, Object>> targetStudentRegions = collectRegionsByQuestionNo(
+                    StringUtils.hasText(studentScore.getAnswerSheetLayouts()) ? studentRegions : templateRegions,
+                    questionNo
+            );
+            Map<String, Object> studentRegion = targetStudentRegions.isEmpty() ? region : targetStudentRegions.get(0);
+            row.put("paperRegion", buildPaperRegion(studentRegion, ossStorageService.toCdnUrl(studentScore.getAnswerSheetUrl())));
             answers.add(row);
         }
         return answers;

@@ -146,7 +146,6 @@
               :region-ocr-loading="questionOcrLoading"
               @update:regions="(regions) => handleRegionsChange(activeTab, regions)"
               @save="(regions) => savePaperRegions(activeTab, regions)"
-              @ocr-region="handleRegionOcr"
               @analyze-region="handleRegionAnalyze"
             >
             </PaperRegionEditor>
@@ -389,7 +388,6 @@
                 :region-ocr-loading="questionOcrLoading"
                 @update:regions="handleStudentRegionsChange"
                 @save="(regions) => saveStudentPaperRegions(regions, false)"
-                @ocr-region="handleStudentRegionOcr"
                 @analyze-region="handleStudentRegionAnalyze"
               >
               </PaperRegionEditor>
@@ -451,7 +449,6 @@
     fetchAnalyzePaperQuestion,
     fetchAutoCutPaperLayout,
     fetchOcrPaperLayoutPage,
-    fetchOcrPaperQuestion,
     fetchSavePaperLayout,
     fetchProjectScoreList,
     fetchUploadStudentAnswerSheet,
@@ -1255,45 +1252,6 @@
     return qNo + processedRest
   }
 
-  async function handleRegionOcr(region: PaperRegionItem) {
-    if (questionOcrLoading.value) {
-      return
-    }
-    const currentType = activeTab.value as PaperTab
-    questionOcrLoading.value = true
-    try {
-      const res = await fetchOcrPaperQuestion({
-        projectId: props.projectId,
-        subjectName: props.subjectName,
-        type: currentType,
-        partTitle: region.partTitle,
-        x: region.x,
-        y: region.y,
-        width: region.width,
-        height: region.height
-      })
-
-      let questionText = res.questionText
-      // 只有数学学科才进行 LaTeX 自动包裹处理
-      if (props.subjectName === '数学' && questionText) {
-        questionText = formatMathOcrText(questionText)
-      }
-
-      regionEditorRef.value?.applyOcrRegionMeta({
-        questionText: questionText,
-        questionType: res.questionType,
-        knowledgePoint: res.knowledgePoint,
-        score: res.score
-      })
-      ElMessage.success('题目 OCR 内容已回填')
-    } catch (e: any) {
-      console.error(e)
-      ElMessage.error(getErrorMessage(e, '题目识别失败'))
-    } finally {
-      questionOcrLoading.value = false
-    }
-  }
-
   async function handleRegionAnalyze(region: PaperRegionItem) {
     if (questionOcrLoading.value) {
       return
@@ -1323,47 +1281,10 @@
         knowledgePoint: res.knowledgePoint,
         score: res.score
       })
-      ElMessage.success('分值与知识点已回填')
+      ElMessage.success('题目识别与分析已完成')
     } catch (error: any) {
       console.error(error)
       ElMessage.error(getErrorMessage(error, '题目分析失败'))
-    } finally {
-      questionOcrLoading.value = false
-    }
-  }
-
-  async function handleStudentRegionOcr(region: PaperRegionItem) {
-    if (!selectedStudent.value || questionOcrLoading.value) {
-      return
-    }
-    questionOcrLoading.value = true
-    try {
-      const res = await fetchOcrPaperQuestion({
-        projectId: props.projectId,
-        subjectName: props.subjectName,
-        type: 'student',
-        studentNo: selectedStudent.value.studentNo,
-        partTitle: region.partTitle,
-        x: region.x,
-        y: region.y,
-        width: region.width,
-        height: region.height
-      })
-
-      let questionText = res.questionText
-      if (props.subjectName === '数学' && questionText) {
-        questionText = formatMathOcrText(questionText)
-      }
-      studentRegionEditorRef.value?.applyOcrRegionMeta({
-        questionText,
-        questionType: res.questionType,
-        knowledgePoint: res.knowledgePoint,
-        score: res.score
-      })
-      ElMessage.success('题目 OCR 内容已回填')
-    } catch (error: any) {
-      console.error(error)
-      ElMessage.error(getErrorMessage(error, '题目识别失败'))
     } finally {
       questionOcrLoading.value = false
     }
@@ -1397,7 +1318,7 @@
         knowledgePoint: res.knowledgePoint,
         score: res.score
       })
-      ElMessage.success('分值与知识点已回填')
+      ElMessage.success('题目识别与分析已完成')
     } catch (error: any) {
       console.error(error)
       ElMessage.error(getErrorMessage(error, '题目分析失败'))

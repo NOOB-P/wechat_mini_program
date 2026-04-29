@@ -219,20 +219,9 @@
                 plain
                 class="section-ocr-btn"
                 :loading="regionOcrLoading"
-                @click="handleRegionOcr"
-              >
-                AI识别题目
-              </el-button>
-              <el-button
-                v-if="!readonly"
-                size="small"
-                type="success"
-                plain
-                class="section-ocr-btn"
-                :loading="regionOcrLoading"
                 @click="handleRegionAnalyze"
               >
-                识别分值/知识点
+                AI识别
               </el-button>
             </div>
             <el-input
@@ -328,7 +317,6 @@
     'update:regions': [value: PaperRegionItem[]]
     'update:manualQuestionNo': [value: number]
     save: [value: PaperRegionItem[]]
-    'ocr-region': [value: PaperRegionItem]
     'analyze-region': [value: PaperRegionItem]
   }>()
 
@@ -1116,15 +1104,6 @@
     target.score = regionForm.score ?? null
     emitRegions()
     regionDialogVisible.value = false
-  }
-
-  function handleRegionOcr() {
-    const target = localRegions.value.find((item) => item.id === editingRegionId.value)
-    if (!target) {
-      ElMessage.warning('当前未找到可识别的题框')
-      return
-    }
-    emit('ocr-region', { ...target })
   }
 
   function handleRegionAnalyze() {
