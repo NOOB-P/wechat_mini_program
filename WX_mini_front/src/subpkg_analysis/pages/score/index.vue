@@ -204,6 +204,24 @@
         <view class="d-title">纸质打印服务下单</view>
         
         <view class="form-section">
+          <view class="sec-title">打印内容</view>
+          <view class="config-row subject-config-row">
+            <text class="label">打印科目</text>
+            <view class="options delivery-options">
+              <view
+                v-for="option in wrongBookFilterOptions"
+                :key="`print-${option.value}`"
+                class="opt-btn"
+                :class="{active: printSubject === option.value}"
+                @click="printSubject = option.value"
+              >
+                {{ option.label }}
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="form-section">
           <view class="sec-title">纸张配置</view>
           <view class="config-row">
             <text class="label">纸张规格</text>
@@ -341,6 +359,7 @@ const aiReportData = ref<any>(null)
 const aiReportExamId = ref('')
 
 const showPrintDialog = ref(false)
+const printSubject = ref('all')
 const printForm = ref({
   address: '',
   phone: '',
@@ -424,22 +443,22 @@ const filteredWrongBookData = computed(() => {
   return normalizedWrongBookData.value.filter((item: any) => item.subject === selectedWrongSubject.value)
 })
 
+const printableWrongBookData = computed(() => {
+  if (printSubject.value === 'all') {
+    return normalizedWrongBookData.value
+  }
+  return normalizedWrongBookData.value.filter((item: any) => item.subject === printSubject.value)
+})
+
 // 动态计算预估费用
 const estimatedPrice = computed(() => {
   const minQuantity = Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)
   const pageCount = Math.max(Math.ceil(filteredWrongBookData.value.length / 2) || 1, minQuantity)
-  let paperCost = currentPaperConfig.value ? currentPaperConfig.value.price * pageCount : 0
-  
-  // 加上装订费
-  let totalCost = paperCost + (printConfig.value.globalParams.bindingFee || 0)
-  
-  // 如果不满起印金额，按起印金额算
-  if (totalCost < printConfig.value.globalParams.minAmount) {
-    totalCost = printConfig.value.globalParams.minAmount
-  }
-
-  // 加上运费
-  if (currentDeliveryConfig.value) {
+    let paperCost = currentPaperConfig.value ? currentPaperConfig.value.price * pageCount : 0
+    
+    // 加上运费
+    let totalCost = paperCost
+    if (currentDeliveryConfig.value) {
     if (totalCost < currentDeliveryConfig.value.freeThreshold || currentDeliveryConfig.value.freeThreshold === 0) {
       totalCost += currentDeliveryConfig.value.baseFee
     }
@@ -694,6 +713,12 @@ watch(scoreData, (newVal) => {
   }
 }, { immediate: true })
 
+watch(showPrintDialog, (visible) => {
+  if (visible) {
+    printSubject.value = selectedWrongSubject.value || 'all'
+  }
+})
+
 const submitPrint = async () => {
   if (!printForm.value.address || !printForm.value.phone) {
     return toast.show('请填写完整信息')
@@ -709,9 +734,9 @@ const submitPrint = async () => {
       ...printForm.value,
       userName: userInfo?.name || userInfo?.nickname || '微信用户',
       userPhone: printForm.value.phone || userInfo?.phone,
-      documentName: `${scoreData.value?.examName || '错题集'}-${selectedWrongSubject.value === 'all' ? '全部科目' : selectedWrongSubject.value}`,
+      documentName: `${scoreData.value?.examName || '错题集'}-${printSubject.value === 'all' ? '全部科目' : printSubject.value}`,
       pages: Math.max(
-        Math.ceil(filteredWrongBookData.value.length / 2) || 1,
+        Math.ceil(printableWrongBookData.value.length / 2) || 1,
         Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)
       )
     }

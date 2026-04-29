@@ -73,6 +73,9 @@ public class Course {
     private Integer progress = 0;
 
     @Transient
+    private Integer studentCount = 0;
+
+    @Transient
     private Integer paymentStatus; // 0-待支付, 1-已支付, -1-已过期
 
     @Transient
@@ -125,6 +128,8 @@ public class Course {
     public void setIsPurchased(Boolean isPurchased) { this.isPurchased = isPurchased; }
     public Integer getProgress() { return progress; }
     public void setProgress(Integer progress) { this.progress = progress; }
+    public Integer getStudentCount() { return studentCount; }
+    public void setStudentCount(Integer studentCount) { this.studentCount = studentCount; }
     public List<CourseEpisode> getEpisodeList() { return episodeList; }
     public void setEpisodeList(List<CourseEpisode> episodeList) { this.episodeList = episodeList; }
     public String getMidasProductId() { return midasProductId; }

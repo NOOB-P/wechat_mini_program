@@ -37,7 +37,7 @@ public class PrintConfigServiceImpl implements PrintConfigService {
         // 其他配置也可以在这里扩展，如 mock data 中的 bindingPrice, minOrderPrice
         Map<String, Object> otherConfigs = new HashMap<>();
         otherConfigs.put("bindingPrice", 2.00);
-        otherConfigs.put("minOrderPrice", 5.00);
+        otherConfigs.put("minOrderPrice", 0.00);
         config.put("otherConfigs", otherConfigs);
         
         return Result.success(config);

@@ -17,10 +17,10 @@
 
     <!-- 列表滚动区域 -->
     <scroll-view scroll-y class="list-scroll" @scrolltolower="loadMore">
-      <view class="paper-list animate-fade-in" v-if="filteredList.length > 0">
+      <view class="paper-list animate-fade-in" v-if="list.length > 0">
         <view 
           class="paper-card" 
-          v-for="item in filteredList" 
+          v-for="item in list" 
           :key="item.id" 
           @click="handleItemClick(item)"
         >
@@ -54,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getPaperListApi, incrementPaperDownloadApi } from '@/subpkg_resource/api/resource'
 
@@ -83,10 +83,6 @@ onLoad((options: any) => {
   loadData()
 })
 
-const filteredList = computed(() => {
-  return list.value.filter(item => item.isRecommend)
-})
-
 const loadData = async () => {
   loading.value = true
   try {
@@ -112,32 +108,73 @@ const formatTags = (tags: any) => {
   return tags || []
 }
 
+const resolvePaperUrl = (url?: string) => {
+  if (!url) return ''
+  if (/^(https?:)?\/\//.test(url)) {
+    return url
+  }
+  const baseUrl = String(__VITE_SERVER_BASEURL__ || '')
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+  return url.startsWith('/') ? `${normalizedBase}${url}` : `${normalizedBase}/${url}`
+}
+
+const downloadFileWithRetry = (url: string, retries = 1) => {
+  return new Promise<UniApp.DownloadSuccessData>((resolve, reject) => {
+    const attempt = (remaining: number) => {
+      uni.downloadFile({
+        url,
+        success: (res) => {
+          if (res.statusCode === 200 && res.tempFilePath) {
+            resolve(res)
+            return
+          }
+          if (remaining > 0) {
+            attempt(remaining - 1)
+            return
+          }
+          reject(new Error(`HTTP ${res.statusCode || '下载失败'}`))
+        },
+        fail: (error) => {
+          if (remaining > 0) {
+            attempt(remaining - 1)
+            return
+          }
+          reject(error)
+        }
+      })
+    }
+    attempt(retries)
+  })
+}
+
 const handleItemClick = async (item: any) => {
-  if (item.filePath) {
+  const url = resolvePaperUrl(item?.filePath)
+  if (!item?.id || !url) {
+    uni.showToast({ title: '试卷信息不完整', icon: 'none' })
+    return
+  }
+  uni.showLoading({ title: '正在准备试卷...', mask: true })
+  try {
+    const res = await downloadFileWithRetry(url, 1)
+    await new Promise<void>((resolve, reject) => {
+      uni.openDocument({
+        filePath: res.tempFilePath,
+        showMenu: true,
+        success: () => resolve(),
+        fail: reject
+      })
+    })
     try {
       await incrementPaperDownloadApi(item.id)
-      item.downloads = (item.downloads || 0) + 1
-    } catch (e) {}
-
-    const fullUrl = item.filePath.startsWith('http') ? item.filePath : __VITE_SERVER_BASEURL__ + item.filePath
-    uni.showLoading({ title: '正在准备试卷...' })
-    uni.downloadFile({
-      url: fullUrl,
-      success: (res) => {
-        uni.openDocument({
-          filePath: res.tempFilePath,
-          success: () => uni.hideLoading(),
-          fail: () => {
-            uni.hideLoading()
-            uni.showToast({ title: '无法打开此文件', icon: 'none' })
-          }
-        })
-      },
-      fail: () => {
-        uni.hideLoading()
-        uni.showToast({ title: '下载失败', icon: 'none' })
-      }
-    })
+      item.downloads = Number(item.downloads || 0) + 1
+    } catch (error) {
+      console.error('更新下载计数失败', error)
+    }
+  } catch (error) {
+    console.error('open paper failed', error)
+    uni.showToast({ title: '试卷获取失败', icon: 'none' })
+  } finally {
+    uni.hideLoading()
   }
 }
 

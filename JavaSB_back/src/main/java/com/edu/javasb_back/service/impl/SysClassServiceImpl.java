@@ -227,8 +227,8 @@ public class SysClassServiceImpl implements SysClassService {
     public Result<Void> importClasses(List<ClassImportDTO> list) {
         for (ClassImportDTO dto : list) {
             // 1. 获取或创建学校
-            java.util.Optional<com.edu.javasb_back.model.entity.SysSchool> schoolOpt = sysSchoolRepository.findFirstByProvinceAndCityAndName(
-                    dto.getProvince(), dto.getCity(), dto.getSchoolName());
+            java.util.Optional<com.edu.javasb_back.model.entity.SysSchool> schoolOpt = findExistingSchool(
+                    dto.getProvince(), dto.getCity(), dto.getDistrict(), dto.getSchoolName());
             
             String schoolId;
             if (schoolOpt.isPresent()) {
@@ -242,6 +242,7 @@ public class SysClassServiceImpl implements SysClassService {
                 newSchool.setSchoolId(schoolId);
                 newSchool.setProvince(dto.getProvince());
                 newSchool.setCity(dto.getCity());
+                newSchool.setDistrict(dto.getDistrict());
                 newSchool.setName(dto.getSchoolName());
                 newSchool.setType("school");
                 newSchool.setStatus(1);
@@ -267,5 +268,16 @@ public class SysClassServiceImpl implements SysClassService {
             sysClassRepository.save(sysClass);
         }
         return Result.success("导入班级成功", null);
+    }
+
+    private java.util.Optional<com.edu.javasb_back.model.entity.SysSchool> findExistingSchool(
+            String province,
+            String city,
+            String district,
+            String schoolName) {
+        if (district == null || district.trim().isEmpty()) {
+            return sysSchoolRepository.findFirstByProvinceAndCityAndName(province, city, schoolName);
+        }
+        return sysSchoolRepository.findFirstByProvinceAndCityAndDistrictAndName(province, city, district, schoolName);
     }
 }

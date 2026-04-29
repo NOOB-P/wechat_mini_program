@@ -42,6 +42,18 @@ public interface CourseInteractionRepository extends CrudRepository<Course, Stri
     int checkIsCollectedSql(@Param("uid") Long uid, @Param("courseId") String courseId);
 
     /**
+     * 检查是否已有学习记录
+     */
+    @Query(value = "SELECT COUNT(*) FROM user_study_records WHERE user_uid = :uid AND course_id = :courseId", nativeQuery = true)
+    int countStudyRecordSql(@Param("uid") Long uid, @Param("courseId") String courseId);
+
+    /**
+     * 统计课程学习人数
+     */
+    @Query(value = "SELECT COUNT(DISTINCT user_uid) FROM user_study_records WHERE course_id = :courseId", nativeQuery = true)
+    int countStudyUsersByCourseSql(@Param("courseId") String courseId);
+
+    /**
      * 记录“学习记录” (点击立即学习)
      */
     @Modifying

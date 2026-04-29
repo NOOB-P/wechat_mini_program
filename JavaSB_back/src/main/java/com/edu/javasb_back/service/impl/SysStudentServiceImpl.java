@@ -83,6 +83,9 @@ public class SysStudentServiceImpl implements SysStudentService {
                     if (StringUtils.hasText(school.getCity())) {
                         formattedSchoolName += school.getCity();
                     }
+                    if (StringUtils.hasText(school.getDistrict())) {
+                        formattedSchoolName += school.getDistrict();
+                    }
                     if (StringUtils.hasText(school.getName())) {
                         formattedSchoolName += school.getName();
                     }
@@ -127,8 +130,8 @@ public class SysStudentServiceImpl implements SysStudentService {
     public Result<Void> importStudents(List<StudentImportDTO> students) {
         for (StudentImportDTO dto : students) {
             // 1. 处理学校
-            Optional<SysSchool> schoolOpt = sysSchoolRepository.findFirstByProvinceAndCityAndName(
-                    dto.getProvince(), dto.getCity(), dto.getSchool());
+            Optional<SysSchool> schoolOpt = findExistingSchool(
+                    dto.getProvince(), dto.getCity(), dto.getDistrict(), dto.getSchool());
             
             String schoolId;
             if (schoolOpt.isPresent()) {
@@ -142,6 +145,7 @@ public class SysStudentServiceImpl implements SysStudentService {
                 newSchool.setSchoolId(schoolId);
                 newSchool.setProvince(dto.getProvince());
                 newSchool.setCity(dto.getCity());
+                newSchool.setDistrict(dto.getDistrict());
                 newSchool.setName(dto.getSchool());
                 newSchool.setType("school");
                 newSchool.setStatus(1);
@@ -212,7 +216,7 @@ public class SysStudentServiceImpl implements SysStudentService {
         // 自动更新冗余字段
         if (StringUtils.hasText(student.getSchoolId())) {
             sysSchoolRepository.findBySchoolId(student.getSchoolId()).ifPresent(school -> {
-                student.setSchool(school.getName());
+                student.setSchool(formatSchoolName(school));
             });
         }
         
@@ -253,7 +257,7 @@ public class SysStudentServiceImpl implements SysStudentService {
         // 自动更新冗余字段
         if (StringUtils.hasText(student.getSchoolId())) {
             sysSchoolRepository.findBySchoolId(student.getSchoolId()).ifPresent(school -> {
-                existing.setSchool(school.getName());
+                existing.setSchool(formatSchoolName(school));
             });
         } else {
             existing.setSchool(null);
@@ -301,6 +305,33 @@ public class SysStudentServiceImpl implements SysStudentService {
 
         sysStudentRepository.deleteById(id);
         return Result.success("删除学生成功", null);
+    }
+
+    private String formatSchoolName(SysSchool school) {
+        StringBuilder builder = new StringBuilder();
+        if (school == null) {
+            return "";
+        }
+        if (StringUtils.hasText(school.getProvince())) {
+            builder.append(school.getProvince());
+        }
+        if (StringUtils.hasText(school.getCity())) {
+            builder.append(school.getCity());
+        }
+        if (StringUtils.hasText(school.getDistrict())) {
+            builder.append(school.getDistrict());
+        }
+        if (StringUtils.hasText(school.getName())) {
+            builder.append(school.getName());
+        }
+        return builder.toString();
+    }
+
+    private Optional<SysSchool> findExistingSchool(String province, String city, String district, String schoolName) {
+        if (!StringUtils.hasText(district)) {
+            return sysSchoolRepository.findFirstByProvinceAndCityAndName(province, city, schoolName);
+        }
+        return sysSchoolRepository.findFirstByProvinceAndCityAndDistrictAndName(province, city, district, schoolName);
     }
 
     @Override

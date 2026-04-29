@@ -118,28 +118,28 @@
           <wd-icon name="chat" size="20px" color="#4364f7" />
         </view>
         <view class="summary-content">
-          <text class="insight-text">{{ trendData.insight.text }}</text>
+          <text class="insight-text">{{ trendDiagnosisText }}</text>
         </view>
       </view>
 
       <!-- 里程碑 -->
       <view class="milestones-card analysis-card">
         <view class="card-header">
-          <text class="card-title">学习成就记录</text>
+          <text class="card-title">{{ currentSubject === '总分' ? '关键变化速览' : `${currentSubject}关键变化` }}</text>
         </view>
         <view class="milestone-list">
           <view 
             class="milestone-item" 
-            v-for="(ms, idx) in trendData.milestones" 
-            :key="idx"
+            v-for="(ms, idx) in trendActionItems" 
+            :key="`${currentSubject}-${idx}`"
             :class="ms.status"
           >
             <view class="ms-icon">
               <wd-icon :name="ms.status === 'completed' ? 'check-circle' : 'time-circle'" size="18px" />
             </view>
             <view class="ms-info">
-              <text class="ms-name">{{ ms.name }}</text>
-              <text class="ms-date">{{ ms.date }}</text>
+              <text class="ms-name">{{ ms.name || ms.title }}</text>
+              <text class="ms-date">{{ ms.date || ms.desc }}</text>
             </view>
           </view>
         </view>
@@ -175,18 +175,133 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getScoreTrendApi } from '@/subpkg_analysis/api/score'
+import { getAiExamReportApi, getScoreTrendApi } from '@/subpkg_analysis/api/score'
 import { useToast } from 'wot-design-uni'
 
 const trendData = ref<any>(null)
+const aiReportData = ref<any>(null)
 const currentSubject = ref('总分')
 const loading = ref(false)
 const showPopup = ref(false)
 const selectedExam = ref<any>(null)
 const examId = ref('')
+const subjectFullScoreMap = ref<Record<string, number>>({})
 const toast = useToast()
+
+const currentAiInsight = computed(() => {
+  return (aiReportData.value?.subjectInsights || []).find((item: any) => item.subjectName === currentSubject.value) || null
+})
+
+const currentAiWrongPushes = computed(() => {
+  return (aiReportData.value?.wrongQuestionPushes || []).filter((item: any) => item.subjectName === currentSubject.value)
+})
+
+const trendDiagnosisText = computed(() => {
+  if (currentSubject.value === '总分') {
+    return aiReportData.value?.summary?.overallComment || trendData.value?.insight?.text || '暂无趋势诊断'
+  }
+  if (currentAiInsight.value) {
+    return [currentAiInsight.value.strength, currentAiInsight.value.weakness, currentAiInsight.value.comparison]
+      .filter(Boolean)
+      .join(' ')
+  }
+  return trendData.value?.insight?.text || '暂无趋势诊断'
+})
+
+const trendActionItems = computed(() => {
+  const latestHistory = trendData.value?.history?.[trendData.value.history.length - 1]
+  const previousHistory = trendData.value?.history?.[trendData.value.history.length - 2]
+
+  if (currentSubject.value === '总分') {
+    const items = []
+    if (latestHistory) {
+      const latestScore = Number(latestHistory.score || 0)
+      const previousScore = Number(previousHistory?.score || 0)
+      const scoreDiff = latestScore - previousScore
+      items.push({
+        title: '最近变化',
+        desc: previousHistory
+          ? `最近一次总分 ${latestScore} 分，较上一次${scoreDiff >= 0 ? '提升' : '下降'} ${Math.abs(scoreDiff)} 分。`
+          : `当前仅记录到一次考试，总分为 ${latestScore} 分。`,
+        status: scoreDiff >= 0 ? 'completed' : 'pending'
+      })
+    }
+    if (trendData.value?.volatility) {
+      items.push({
+        title: '波动学科',
+        desc: `近六次考试中波动最大的学科是「${trendData.value.volatility}」，后续应重点观察该学科稳定性。`,
+        status: 'pending'
+      })
+    }
+    if (latestHistory?.rank) {
+      const previousRank = Number(previousHistory?.rank || 0)
+      const rankDiff = previousRank > 0 ? previousRank - latestHistory.rank : 0
+      items.push({
+        title: '排名位置',
+        desc: previousHistory
+          ? `当前总分排名第 ${latestHistory.rank} 名，较上一次${rankDiff >= 0 ? '前进' : '后退'} ${Math.abs(rankDiff)} 名。`
+          : `当前总分排名为第 ${latestHistory.rank} 名。`,
+        status: rankDiff >= 0 ? 'completed' : 'pending'
+      })
+    }
+    const bestScore = Math.max(...(trendData.value?.history || []).map((item: any) => Number(item.score || 0)), 0)
+    if (bestScore > 0) {
+      items.push({
+        title: '阶段峰值',
+        desc: `当前近六次考试中的最高总分为 ${bestScore} 分，可对照当次状态复盘有效做法。`,
+        status: 'completed'
+      })
+    }
+    return items.length ? items : (trendData.value?.milestones || [])
+  }
+
+  const items = []
+
+  if (latestHistory) {
+    const latestSubjectScore = Number(latestHistory.subjects?.[currentSubject.value] || 0)
+    const previousSubjectScore = Number(previousHistory?.subjects?.[currentSubject.value] || 0)
+    const subjectDiff = latestSubjectScore - previousSubjectScore
+    items.push({
+      title: `${currentSubject.value}最近变化`,
+      desc: previousHistory
+        ? `最近一次得分 ${latestSubjectScore} 分，较上一次${subjectDiff >= 0 ? '提升' : '下降'} ${Math.abs(subjectDiff)} 分。`
+        : `当前仅记录到一次考试，该学科得分为 ${latestSubjectScore} 分。`,
+      status: subjectDiff >= 0 ? 'completed' : 'pending'
+    })
+  }
+
+  if (currentAiInsight.value) {
+    items.push({
+      title: `${currentSubject.value}对比观察`,
+      desc: currentAiInsight.value.comparison || '建议持续观察该学科在历次考试中的波动情况',
+      status: 'pending'
+    })
+  }
+
+  if (currentAiWrongPushes.value.length) {
+    items.push({
+      title: `${currentSubject.value}失分关注`,
+      desc: currentAiWrongPushes.value
+        .map((item: any) => item.knowledgePoint || item.questionNo || '')
+        .filter(Boolean)
+        .slice(0, 2)
+        .join('、') || '建议重点关注高频失分点',
+      status: 'pending'
+    })
+  }
+
+  if (latestHistory) {
+    items.push({
+      title: `${currentSubject.value}阶段峰值`,
+      desc: `近六次考试中该学科最高分为 ${Math.max(...(trendData.value?.history || []).map((item: any) => Number(item.subjects?.[currentSubject.value] || 0)), 0)} 分。`,
+      status: 'completed'
+    })
+  }
+
+  return items.length ? items : (trendData.value?.milestones || [])
+})
 
 const fetchTrendData = async () => {
   loading.value = true
@@ -201,6 +316,18 @@ const fetchTrendData = async () => {
     console.error('获取趋势数据失败:', e)
   } finally {
     loading.value = false
+  }
+}
+
+const fetchAiReport = async () => {
+  if (!examId.value) return
+  try {
+    const res: any = await getAiExamReportApi({ examId: examId.value })
+    if (res.code === 200) {
+      aiReportData.value = res.data
+    }
+  } catch (e) {
+    console.error('获取 AI 成绩报告失败:', e)
   }
 }
 
@@ -253,7 +380,9 @@ const getChartValue = (item: any) => {
 
 const getChartHeight = (item: any) => {
   const val = getChartValue(item)
-  const max = currentSubject.value === '总分' ? 750 : 150
+  const max = currentSubject.value === '总分'
+    ? Object.values(subjectFullScoreMap.value).reduce((sum, score) => sum + Number(score || 0), 0) || 750
+    : Number(subjectFullScoreMap.value[currentSubject.value] || 100)
   return (val / max * 100) + '%'
 }
 
@@ -267,9 +396,17 @@ const getChartColor = (index: number) => {
 onLoad((options) => {
   const currentScoreData = uni.getStorageSync('currentScoreData')
   examId.value = options?.examId || currentScoreData?.examId || ''
+  const subjects = Array.isArray(currentScoreData?.subjects) ? currentScoreData.subjects : []
+  subjectFullScoreMap.value = subjects.reduce((acc: Record<string, number>, item: any) => {
+    if (item?.name) {
+      acc[item.name] = Number(item.fullScore || 0)
+    }
+    return acc
+  }, {})
 })
 
 onMounted(() => {
+  fetchAiReport()
   fetchTrendData()
 })
 </script>

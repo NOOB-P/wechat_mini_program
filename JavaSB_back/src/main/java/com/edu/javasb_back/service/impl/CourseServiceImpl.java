@@ -64,12 +64,15 @@ public class CourseServiceImpl implements CourseService {
         Optional<Course> courseOpt = courseRepository.findByIdSql(courseId);
         if (courseOpt.isPresent()) {
             Course course = courseOpt.get();
+            boolean requiresPurchase = requiresPurchase(course);
+            course.setStudentCount(resolveStudentCount(course));
             // 记录“我的课程” (最近查看)
             if (uid != null) {
                 interactionRepository.recordMyCourseSql(uid, courseId);
                 // 检查是否已收藏
                 int count = interactionRepository.checkIsCollectedSql(uid, courseId);
                 course.setIsCollected(count > 0);
+                course.setProgress(interactionRepository.countStudyRecordSql(uid, courseId) > 0 ? 1 : 0);
                 // 检查是否已购买
                 course.setIsPurchased(orderService.isCoursePurchased(uid, courseId));
             }
@@ -81,6 +84,9 @@ public class CourseServiceImpl implements CourseService {
             }
             course.setEpisodeList(episodes);
             normalizeCourseMedia(course);
+            if (requiresPurchase && !Boolean.TRUE.equals(course.getIsPurchased())) {
+                sanitizeLockedCourseMedia(course);
+            }
             return Result.success(course);
         }
         return Result.error("课程不存在");
@@ -145,7 +151,20 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Transactional
     public Result<Void> recordLearning(Long uid, String courseId, Integer progress) {
+        Optional<Course> courseOpt = courseRepository.findById(courseId);
+        if (courseOpt.isEmpty()) {
+            return Result.error("课程不存在");
+        }
+        Course course = courseOpt.get();
+        if (requiresPurchase(course) && !orderService.isCoursePurchased(uid, courseId)) {
+            return Result.error("请先购买课程");
+        }
+        boolean firstStudy = interactionRepository.countStudyRecordSql(uid, courseId) <= 0;
         interactionRepository.recordStudyRecordSql(uid, courseId, progress);
+        if (firstStudy && !requiresPurchase(course)) {
+            course.setBuyers((course.getBuyers() == null ? 0 : course.getBuyers()) + 1);
+            courseRepository.save(course);
+        }
         return Result.success("学习记录已更新", null);
     }
 
@@ -502,6 +521,38 @@ public class CourseServiceImpl implements CourseService {
             return;
         }
         video.setVideoUrl(normalizeMediaUrl(video.getVideoUrl()));
+    }
+
+    private boolean requiresPurchase(Course course) {
+        return course != null
+                && course.getPrice() != null
+                && course.getPrice().compareTo(java.math.BigDecimal.ZERO) > 0;
+    }
+
+    private void sanitizeLockedCourseMedia(Course course) {
+        course.setVideoUrl(null);
+        if (course.getEpisodeList() == null) {
+            return;
+        }
+        for (CourseEpisode episode : course.getEpisodeList()) {
+            if (episode == null || episode.getVideoList() == null) {
+                continue;
+            }
+            for (CourseVideo video : episode.getVideoList()) {
+                if (video != null) {
+                    video.setVideoUrl(null);
+                }
+            }
+        }
+    }
+
+    private int resolveStudentCount(Course course) {
+        int buyers = course == null || course.getBuyers() == null ? 0 : course.getBuyers();
+        if (course == null || !StringUtils.hasText(course.getId())) {
+            return buyers;
+        }
+        int studyUsers = interactionRepository.countStudyUsersByCourseSql(course.getId());
+        return Math.max(buyers, studyUsers);
     }
 
     private String normalizeMediaUrl(String url) {

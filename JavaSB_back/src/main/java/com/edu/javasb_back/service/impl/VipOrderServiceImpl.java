@@ -485,10 +485,7 @@ public class VipOrderServiceImpl implements VipOrderService {
     }
 
     private String buildVipGoodsId(VipOrder order) {
-        String prefix = wechatPayProperties.getVirtualPayment().getVipGoodsPrefix();
-        return normalizeGoodsSegment(prefix) + "-"
-                + normalizeGoodsSegment(order.getPackageType()) + "-"
-                + normalizeGoodsSegment(order.getPeriod());
+        return order.getPackageType() + "-" + order.getPeriod();
     }
 
     private String buildOrderNo() {
@@ -616,16 +613,6 @@ public class VipOrderServiceImpl implements VipOrderService {
             return null;
         }
         return LocalDate.parse(value.trim()).atTime(LocalTime.MAX);
-    }
-
-    private String normalizeGoodsSegment(String value) {
-        if (!StringUtils.hasText(value)) {
-            return "default";
-        }
-        String normalized = value.trim().replaceAll("[^0-9A-Za-z\\u4e00-\\u9fa5]+", "-");
-        normalized = normalized.replaceAll("-{2,}", "-");
-        normalized = normalized.replaceAll("^-|-$", "");
-        return normalized.toLowerCase();
     }
 
     private String resolveSecuritySignature(Map<String, Object> securityData) {

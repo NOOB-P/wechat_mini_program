@@ -232,8 +232,9 @@ public class OrganizationImportServiceImpl implements OrganizationImportService 
         if (mode.hasSchoolColumns()) {
             String province = row.get("省份");
             String city = row.get("城市");
+            String district = row.get("区县");
             String schoolName = row.get("学校");
-            return findOrCreateSchool(province, city, schoolName);
+            return findOrCreateSchool(province, city, district, schoolName);
         }
 
         return sysSchoolRepository.findBySchoolId(providedSchoolId)
@@ -255,8 +256,8 @@ public class OrganizationImportServiceImpl implements OrganizationImportService 
         return sysClass;
     }
 
-    private SysSchool findOrCreateSchool(String province, String city, String schoolName) {
-        Optional<SysSchool> schoolOptional = sysSchoolRepository.findFirstByProvinceAndCityAndName(province, city, schoolName);
+    private SysSchool findOrCreateSchool(String province, String city, String district, String schoolName) {
+        Optional<SysSchool> schoolOptional = findExistingSchool(province, city, district, schoolName);
         if (schoolOptional.isPresent()) {
             return schoolOptional.get();
         }
@@ -265,10 +266,18 @@ public class OrganizationImportServiceImpl implements OrganizationImportService 
         school.setSchoolId(generateSchoolId());
         school.setProvince(province);
         school.setCity(city);
+        school.setDistrict(district);
         school.setName(schoolName);
         school.setType("school");
         school.setStatus(1);
         return sysSchoolRepository.save(school);
+    }
+
+    private Optional<SysSchool> findExistingSchool(String province, String city, String district, String schoolName) {
+        if (!StringUtils.hasText(district)) {
+            return sysSchoolRepository.findFirstByProvinceAndCityAndName(province, city, schoolName);
+        }
+        return sysSchoolRepository.findFirstByProvinceAndCityAndDistrictAndName(province, city, district, schoolName);
     }
 
     private SysClass findOrCreateClass(String schoolId, String grade, String alias) {
@@ -324,9 +333,9 @@ public class OrganizationImportServiceImpl implements OrganizationImportService 
     }
 
     private enum TemplateMode {
-        SCHOOL_ONLY(List.of("省份", "城市", "学校")),
-        SCHOOL_CLASS(List.of("省份", "城市", "学校", "年级", "班级")),
-        SCHOOL_CLASS_STUDENT(List.of("省份", "城市", "学校", "年级", "班级", "学号", "姓名")),
+        SCHOOL_ONLY(List.of("省份", "城市", "区县", "学校")),
+        SCHOOL_CLASS(List.of("省份", "城市", "区县", "学校", "年级", "班级")),
+        SCHOOL_CLASS_STUDENT(List.of("省份", "城市", "区县", "学校", "年级", "班级", "学号", "姓名")),
         CLASS_ONLY(List.of("年级", "班级")),
         CLASS_STUDENT(List.of("年级", "班级", "学号", "姓名")),
         STUDENT_ONLY(List.of("学号", "姓名"));
