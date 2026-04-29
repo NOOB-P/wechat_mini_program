@@ -19,7 +19,7 @@
             :class="{ active: activeTab === 'original' }"
             @click="activeTab = 'original'"
           >
-            原卷
+            导入试卷和答案
           </div>
           <div
             class="tab-item"
@@ -178,7 +178,7 @@
         </div>
         <div v-else class="empty-upload">
           <div class="empty-message">
-            {{ activeTab === 'template' ? '样板答题卡' : '原卷' }}未上传，请上传后编辑
+            {{ activeTab === 'template' ? '样板答题卡' : '试卷和答案' }}未上传，请上传后编辑
           </div>
           <el-upload
             drag

@@ -15,7 +15,7 @@ export function fetchGetAllSchools() {
 }
 
 /** 获取学校平铺列表 */
-export function fetchGetSchoolList(params?: { current?: number, size?: number, keyword?: string, province?: string, city?: string, name?: string }) {
+export function fetchGetSchoolList(params?: { current?: number, size?: number, keyword?: string, province?: string, city?: string, district?: string, name?: string }) {
   return api.get<any>({
     url: '/api/system/school/list',
     params
@@ -29,7 +29,7 @@ export function fetchGetSchoolOptions() {
   })
 }
 /** 新增学校 */
-export function fetchAddSchool(params: { province: string, city: string, name: string }) {
+export function fetchAddSchool(params: { province: string, city: string, district: string, name: string }) {
   return api.post<any>({
     url: '/api/system/school/add',
     data: params
@@ -46,7 +46,7 @@ export function fetchAddNode(params: Api.School.NodeParams) {
 }
 
 /** 修改节点 */
-export function fetchUpdateSchool(params: { id: string, province: string, city: string, name: string }) {
+export function fetchUpdateSchool(params: { id: string, province: string, city: string, district: string, name: string }) {
   return api.put<any>({
     url: '/api/system/school/edit',
     data: params

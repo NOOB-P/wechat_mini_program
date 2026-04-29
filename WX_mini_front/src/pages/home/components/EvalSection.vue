@@ -11,7 +11,7 @@ const emit = defineEmits(['click'])
     <view class="eval-grid">
       <view class="eval-item" @click="emit('click', 'academic')">
         <image class="eval-icon" :src="staticBaseUrl + '/home/academic_eval.png'" mode="widthFix" />
-        <text class="eval-text">试卷库</text>
+        <text class="eval-text">学业测评</text>
       </view>
       <view class="eval-item" @click="emit('click', 'character')">
         <image class="eval-icon" :src="staticBaseUrl + '/home/character_eval.png'" mode="widthFix" />

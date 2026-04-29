@@ -142,13 +142,17 @@ public class WechatPayServiceImpl implements WechatPayService {
         BigDecimal finalAmount = amount;
 
         if (orderNo.startsWith("VOD")) {
-            Optional<VipPricing> pricingOpt = vipPricingRepository.findById(Integer.valueOf(goodsId));
-            if (pricingOpt.isPresent()) {
-                VipPricing pricing = pricingOpt.get();
-                if (StringUtils.hasText(pricing.getMidasProductId())) {
-                    midasProductId = pricing.getMidasProductId();
+            try {
+                Optional<VipPricing> pricingOpt = vipPricingRepository.findById(Integer.valueOf(goodsId));
+                if (pricingOpt.isPresent()) {
+                    VipPricing pricing = pricingOpt.get();
+                    if (StringUtils.hasText(pricing.getMidasProductId())) {
+                        midasProductId = pricing.getMidasProductId();
+                    }
+                    finalAmount = pricing.getCurrentPrice();
                 }
-                finalAmount = pricing.getCurrentPrice();
+            } catch (NumberFormatException ignored) {
+                // 如果 goodsId 不是数字（如 fallback 的拼接 ID），则保持默认
             }
         } else if (orderNo.startsWith("C")) {
             Optional<Course> courseOpt = courseRepository.findById(goodsId);

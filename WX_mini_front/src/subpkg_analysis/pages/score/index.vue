@@ -454,18 +454,11 @@ const printableWrongBookData = computed(() => {
 const estimatedPrice = computed(() => {
   const minQuantity = Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)
   const pageCount = Math.max(Math.ceil(filteredWrongBookData.value.length / 2) || 1, minQuantity)
-  let paperCost = currentPaperConfig.value ? currentPaperConfig.value.price * pageCount : 0
-  
-  // 加上装订费
-  let totalCost = paperCost + (printConfig.value.globalParams.bindingFee || 0)
-  
-  // 如果不满起印金额，按起印金额算
-  if (totalCost < printConfig.value.globalParams.minAmount) {
-    totalCost = printConfig.value.globalParams.minAmount
-  }
-
-  // 加上运费
-  if (currentDeliveryConfig.value) {
+    let paperCost = currentPaperConfig.value ? currentPaperConfig.value.price * pageCount : 0
+    
+    // 加上运费
+    let totalCost = paperCost
+    if (currentDeliveryConfig.value) {
     if (totalCost < currentDeliveryConfig.value.freeThreshold || currentDeliveryConfig.value.freeThreshold === 0) {
       totalCost += currentDeliveryConfig.value.baseFee
     }

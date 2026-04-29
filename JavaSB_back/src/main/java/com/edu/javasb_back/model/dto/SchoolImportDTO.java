@@ -12,6 +12,9 @@ public class SchoolImportDTO {
     private String city;
 
     @ExcelProperty(index = 2)
+    private String district;
+
+    @ExcelProperty(index = 3)
     private String schoolName;
 
     public String getProvince() {
@@ -36,5 +39,13 @@ public class SchoolImportDTO {
 
     public void setSchoolName(String schoolName) {
         this.schoolName = schoolName;
+    }
+
+    public String getDistrict() {
+        return district;
+    }
+
+    public void setDistrict(String district) {
+        this.district = district;
     }
 }

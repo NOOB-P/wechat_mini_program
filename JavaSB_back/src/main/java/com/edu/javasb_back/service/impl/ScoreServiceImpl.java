@@ -62,21 +62,26 @@ import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import java.io.ByteArrayOutputStream;
 
-record QuestionScoreContext(
-        String classId,
-        String schoolId,
-        String grade,
-        List<Double> questionScores) {}
-
-record QuestionScoreMetrics(
-        double highestScore,
-        double classAvgScore,
-        double schoolAvgScore,
-        double gradeAvgScore,
-        double projectAvgScore) {}
-
 @Service
 public class ScoreServiceImpl implements ScoreService {
+
+    private record QuestionScoreContext(
+            String classId,
+            String schoolId,
+            String grade,
+            List<Double> questionScores) {}
+
+    private record QuestionScoreMetrics(
+            double highestScore,
+            double classAvgScore,
+            double schoolAvgScore,
+            double gradeAvgScore,
+            double projectAvgScore) {}
+
+    private record StudentTotalContext(
+            String studentNo,
+            String classId,
+            double totalScore) {}
 
     @Autowired
     private ExamRepository examRepository;
@@ -305,6 +310,10 @@ public class ScoreServiceImpl implements ScoreService {
         ProjectSnapshot snapshot = resolveSnapshot(snapshots, examId);
         if (snapshot == null) return Result.error("暂无成绩构成分析数据");
 
+        if (isTotalSubject(subject)) {
+            return Result.success(buildTotalCompositionPayload(snapshot, studentOpt.get()));
+        }
+
         String targetSubject = resolveSubject(snapshot.classSubjects(), subject);
         ExamSubject classSubject = findClassSubject(snapshot.classSubjects(), targetSubject);
         if (classSubject == null) return Result.error("未找到对应学科成绩");
@@ -344,6 +353,10 @@ public class ScoreServiceImpl implements ScoreService {
         List<ProjectSnapshot> snapshots = buildProjectSnapshots(student);
         ProjectSnapshot snapshot = resolveSnapshot(snapshots, examId);
         if (snapshot == null) return Result.error("暂无分数分布数据");
+
+        if (isTotalSubject(subject)) {
+            return Result.success(buildTotalDistributionPayload(snapshot, student));
+        }
 
         String targetSubject = resolveSubject(snapshot.classSubjects(), subject);
         ExamSubject classSubject = findClassSubject(snapshot.classSubjects(), targetSubject);
@@ -819,6 +832,93 @@ public class ScoreServiceImpl implements ScoreService {
                 .toList();
     }
 
+    private Map<String, Object> buildTotalCompositionPayload(ProjectSnapshot snapshot, SysStudent student) {
+        List<StudentTotalContext> totalContexts = buildProjectTotalContexts(snapshot);
+        double totalFullScore = snapshot.classSubjects().stream()
+                .mapToDouble(subject -> resolveFullScore(snapshot.benchmarks(), subject.getSubjectName()))
+                .sum();
+        List<Map<String, Object>> composition = new ArrayList<>();
+        String weakestName = "总分";
+        double weakestValue = 100D;
+        double currentTotalScore = 0D;
+
+        for (ExamSubject subject : snapshot.classSubjects()) {
+            double fullScore = resolveFullScore(snapshot.benchmarks(), subject.getSubjectName());
+            double score = examStudentScoreRepository.findBySubjectIdAndStudentNo(subject.getId(), student.getStudentNo())
+                    .filter(this::isScoreEntered)
+                    .map(ExamStudentScore::getTotalScore)
+                    .orElse(0D);
+            currentTotalScore += score;
+            double percent = fullScore <= 0 ? 0D : roundScore((score / fullScore) * 100D);
+            percent = Math.max(0D, Math.min(100D, percent));
+            if (percent < weakestValue) {
+                weakestValue = percent;
+                weakestName = subject.getSubjectName();
+            }
+
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", subject.getSubjectName());
+            item.put("value", percent);
+            item.put("level", masteryLevel(percent));
+            item.put("color", masteryColor(percent));
+            composition.add(item);
+        }
+
+        SegmentAnalysis analysis = new SegmentAnalysis(composition, Collections.emptyList(), weakestName, weakestValue);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("examId", snapshot.project().getId());
+        data.put("subject", "总分");
+        data.put("score", roundScore(currentTotalScore));
+        data.put("fullScore", roundScore(totalFullScore));
+        data.put("rank", calculateRankFromTotals(totalContexts, student.getStudentNo(), currentTotalScore));
+        data.put("totalStudents", totalContexts.size());
+        data.put("composition", composition);
+        data.put("knowledgePoints", Collections.emptyList());
+        data.put("analysis", buildTotalCompositionAnalysis(analysis));
+        data.put("advice", buildTotalCompositionAdvice(analysis));
+        return data;
+    }
+
+    private Map<String, Object> buildTotalDistributionPayload(ProjectSnapshot snapshot, SysStudent student) {
+        List<StudentTotalContext> totalContexts = buildProjectTotalContexts(snapshot);
+        double totalFullScore = snapshot.classSubjects().stream()
+                .mapToDouble(subject -> resolveFullScore(snapshot.benchmarks(), subject.getSubjectName()))
+                .sum();
+        double currentTotalScore = totalContexts.stream()
+                .filter(item -> Objects.equals(item.studentNo(), student.getStudentNo()))
+                .mapToDouble(StudentTotalContext::totalScore)
+                .findFirst()
+                .orElse(0D);
+        int rank = calculateRankFromTotals(totalContexts, student.getStudentNo(), currentTotalScore);
+        List<Double> allScores = totalContexts.stream().map(StudentTotalContext::totalScore).toList();
+        List<Double> classScores = totalContexts.stream()
+                .filter(item -> Objects.equals(item.classId(), snapshot.examClass().getId()))
+                .map(StudentTotalContext::totalScore)
+                .toList();
+        double gradeAverage = average(allScores);
+        double classAverage = average(classScores);
+        double highestScore = allScores.stream().mapToDouble(Double::doubleValue).max().orElse(0D);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("subject", "总分");
+        data.put("score", roundScore(currentTotalScore));
+        data.put("rank", rank);
+        data.put("rankInfo", totalContexts.isEmpty() ? "暂无排名" : "第" + rank + "名 / 共" + totalContexts.size() + "人");
+        data.put("overallLevel", calcLevel(currentTotalScore, totalFullScore));
+        data.put("averageScore", roundScore(classAverage));
+        data.put("gradeAverageScore", roundScore(gradeAverage));
+        data.put("highestScore", roundScore(highestScore));
+        data.put("studentCount", totalContexts.size());
+        data.put("levels", buildDistributionLevelsFromValues(allScores, totalFullScore));
+        data.put("stats", List.of(
+                statItem("我的总分", currentTotalScore, "user", ""),
+                statItem("年级均分", gradeAverage, "chart-bar", compareText(currentTotalScore - gradeAverage)),
+                statItem("班级均分", classAverage, "home", compareText(currentTotalScore - classAverage)),
+                statItem("最高分", highestScore, "medal", "距榜首 " + roundScore(highestScore - currentTotalScore))
+        ));
+        return data;
+    }
+
     private Result<Map<String, Object>> legacyGetSemesterList(Long uid) {
         String studentNo = getStudentNoByUid(uid);
         if (studentNo == null) return Result.error("未绑定学生账号");
@@ -886,6 +986,50 @@ public class ScoreServiceImpl implements ScoreService {
         ));
         data.put("wrongQuestions", Collections.emptyList());
         return Result.success(data);
+    }
+
+    private List<StudentTotalContext> buildProjectTotalContexts(ProjectSnapshot snapshot) {
+        List<String> subjectIds = snapshot.projectSubjectsByName().values().stream()
+                .flatMap(Collection::stream)
+                .map(ExamSubject::getId)
+                .distinct()
+                .toList();
+        if (subjectIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<ExamStudentScore> enteredScores = examStudentScoreRepository.findBySubjectIdIn(subjectIds).stream()
+                .filter(this::isScoreEntered)
+                .toList();
+        List<ExamClass> examClasses = examClassRepository.findByProjectId(snapshot.project().getId());
+        List<String> sourceClassIds = examClasses.stream()
+                .map(ExamClass::getSourceClassId)
+                .filter(StringUtils::hasText)
+                .toList();
+        Map<String, String> studentClassMap = (sourceClassIds.isEmpty() ? Collections.<SysStudent>emptyList() : studentRepository.findByClassIdIn(sourceClassIds)).stream()
+                .filter(item -> StringUtils.hasText(item.getStudentNo()))
+                .collect(Collectors.toMap(
+                        SysStudent::getStudentNo,
+                        item -> examClasses.stream()
+                                .filter(examClass -> Objects.equals(item.getClassId(), examClass.getSourceClassId()))
+                                .map(ExamClass::getId)
+                                .findFirst()
+                                .orElse(""),
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+
+        Map<String, Double> totalMap = new LinkedHashMap<>();
+        for (ExamStudentScore score : enteredScores) {
+            totalMap.merge(score.getStudentNo(), score.getTotalScore(), Double::sum);
+        }
+        return totalMap.entrySet().stream()
+                .map(entry -> new StudentTotalContext(
+                        entry.getKey(),
+                        studentClassMap.getOrDefault(entry.getKey(), ""),
+                        roundScore(entry.getValue())
+                ))
+                .toList();
     }
 
     private SegmentAnalysis buildSegmentAnalysis(String subject, List<Double> personalScores, List<Double> bestScores, List<Map<String, Object>> regions) {
@@ -1010,6 +1154,28 @@ public class ScoreServiceImpl implements ScoreService {
         return advice;
     }
 
+    private String buildTotalCompositionAnalysis(SegmentAnalysis analysis) {
+        if (analysis.weakestValue() >= 90) {
+            return String.format("本次总分表现非常稳健，各学科之间较为均衡。目前相对最弱的「%s」也保持了较高水准，整体发挥优秀。", analysis.weakestName());
+        } else if (analysis.weakestValue() >= 75) {
+            return String.format("本次总分结构较为健康，不过「%s」仍是当前提分空间最大的学科。后续若能优先补齐这部分短板，总分还有继续上探的空间。", analysis.weakestName());
+        } else {
+            return String.format("本次总分被「%s」明显拖累，该学科当前与优势学科之间存在较大差距。建议先缩小学科间落差，再追求整体突破。", analysis.weakestName());
+        }
+    }
+
+    private List<String> buildTotalCompositionAdvice(SegmentAnalysis analysis) {
+        List<String> advice = new ArrayList<>();
+        advice.add(String.format("优先围绕「%s」开展专项提分训练，先把中档题和基础题稳定住。", analysis.weakestName()));
+        advice.add("保持当前优势学科的题感和做题频率，避免在补弱过程中出现强项回落。");
+        if (analysis.weakestValue() < 70) {
+            advice.add(String.format("针对「%s」先做知识点梳理，再进行专题训练，避免直接刷综合题导致效率偏低。", analysis.weakestName()));
+        } else {
+            advice.add("建议每周做一次全科限时训练，重点观察总分构成和学科波动。");
+        }
+        return advice;
+    }
+
     private List<Map<String, Object>> buildDistributionLevels(List<ExamStudentScore> scores, double fullScore) {
         List<ScoreBucket> buckets = List.of(
                 new ScoreBucket("A", 0.9D, 1.01D, "linear-gradient(to top, #ff9a9e 0%, #fecfef 100%)"),
@@ -1026,6 +1192,30 @@ public class ScoreServiceImpl implements ScoreService {
                 return ratio >= bucket.min() && ratio < bucket.max();
             }).count();
 
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("level", bucket.name());
+            item.put("count", count);
+            item.put("label", bucketLabel(bucket, fullScore));
+            item.put("color", bucket.color());
+            levels.add(item);
+        }
+        return levels;
+    }
+
+    private List<Map<String, Object>> buildDistributionLevelsFromValues(List<Double> scores, double fullScore) {
+        List<ScoreBucket> buckets = List.of(
+                new ScoreBucket("A", 0.9D, 1.01D, "linear-gradient(to top, #ff9a9e 0%, #fecfef 100%)"),
+                new ScoreBucket("B", 0.8D, 0.9D, "linear-gradient(120deg, #f6d365 0%, #fda085 100%)"),
+                new ScoreBucket("C", 0.7D, 0.8D, "linear-gradient(to top, #a18cd1 0%, #fbc2eb 100%)"),
+                new ScoreBucket("D", 0.6D, 0.7D, "linear-gradient(to top, #84fab0 0%, #8fd3f4 100%)"),
+                new ScoreBucket("E", 0D, 0.6D, "linear-gradient(to top, #cfd9df 0%, #e2ebf0 100%)")
+        );
+        List<Map<String, Object>> levels = new ArrayList<>();
+        for (ScoreBucket bucket : buckets) {
+            long count = scores.stream().filter(score -> {
+                double ratio = fullScore <= 0 ? 0D : score / fullScore;
+                return ratio >= bucket.min() && ratio < bucket.max();
+            }).count();
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("level", bucket.name());
             item.put("count", count);
@@ -1121,6 +1311,10 @@ public class ScoreServiceImpl implements ScoreService {
         return classSubjects.isEmpty() ? "数学" : classSubjects.get(0).getSubjectName();
     }
 
+    private boolean isTotalSubject(String subject) {
+        return StringUtils.hasText(subject) && "总分".equals(subject.trim());
+    }
+
     private ExamSubject findClassSubject(List<ExamSubject> classSubjects, String subject) {
         return classSubjects.stream()
                 .filter(item -> equalsText(item.getSubjectName(), subject))
@@ -1175,6 +1369,21 @@ public class ScoreServiceImpl implements ScoreService {
         for (ExamStudentScore score : scores.stream().sorted(Comparator.comparing(ExamStudentScore::getTotalScore).reversed()).toList()) {
             if (score.getTotalScore() > studentScore) rank++;
             else break;
+        }
+        return rank;
+    }
+
+    private int calculateRankFromTotals(List<StudentTotalContext> totals, String studentNo, double studentScore) {
+        int rank = 1;
+        for (StudentTotalContext total : totals.stream().sorted(Comparator.comparing(StudentTotalContext::totalScore).reversed()).toList()) {
+            if (Objects.equals(total.studentNo(), studentNo)) {
+                break;
+            }
+            if (total.totalScore() > studentScore) {
+                rank++;
+            } else {
+                break;
+            }
         }
         return rank;
     }

@@ -17,7 +17,7 @@
 
       <el-table :data="tableData" border style="width: 100%">
         <el-table-column prop="subjectName" label="科目名称" width="140" align="center" />
-        <el-table-column label="原卷状态" min-width="140" align="center">
+        <el-table-column label="试卷和答案状态" min-width="140" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.paperUrl" type="success">已上传</el-tag>
             <el-tag v-else type="info">未上传</el-tag>
@@ -45,7 +45,7 @@
               accept=".pdf,.png,.jpg,.jpeg"
               :on-change="(file) => handleUpload(row, 'paper', file)"
             >
-              <el-button type="primary" link>上传原卷</el-button>
+              <el-button type="primary" link>导入试卷和答案</el-button>
             </el-upload>
             <el-upload
               class="inline-block mr-2"
@@ -158,7 +158,7 @@
         type,
         file: rawFile
       })
-      ElMessage.success(type === 'paper' ? '原卷上传成功' : '模板上传成功')
+      ElMessage.success(type === 'paper' ? '试卷和答案上传成功' : '模板上传成功')
       await loadData()
     } catch (error: any) {
       ElMessage.error(error.message || '文件上传失败')

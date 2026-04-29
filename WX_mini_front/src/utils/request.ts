@@ -68,10 +68,7 @@ export default (options:requestOptions): Promise<any> => {
                     if (mockResponse.code === 200) {
                         resolve(mockResponse);
                     } else {
-                        reject(mockResponse);
-                        if (!options.silent) {
-                            showToast({ title: `Mock Error ${mockResponse.code}:${mockResponse.msg}` });
-                        }
+                        reject(mockResponse)
                     }
                 }, 500); // 模拟网络延迟
             });
@@ -91,9 +88,6 @@ export default (options:requestOptions): Promise<any> => {
                         ? res.data
                         : { code: res.statusCode, msg: errorMessage, data: res.data }
                     reject(errorResult)
-                    if (!options.silent) {
-                        showToast({ title: errorMessage })
-                    }
                     return
                 }
                 // 判断返回data是否为object，请求返回值可能不是object
@@ -103,9 +97,6 @@ export default (options:requestOptions): Promise<any> => {
                         // 彻底移除全局成功提示逻辑
                     } else {
                         reject(res.data)
-                        if (!options.silent) {
-                            showToast({ title: `Error ${res.data.code}:${res.data.msg}` })
-                        }
                     }
                 } else {
                     resolve(res.data)
@@ -113,9 +104,6 @@ export default (options:requestOptions): Promise<any> => {
             },
             fail(error) {
                 reject(error)
-                if (!options.silent) {
-                    showToast({ title: `Error: ${error.errMsg}` })
-                }
             },
             complete() {}
         })

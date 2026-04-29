@@ -386,18 +386,7 @@ public class CourseOrderServiceImpl implements CourseOrderService {
     }
 
     private String buildCourseGoodsId(CourseOrder order) {
-        String prefix = wechatPayProperties.getVirtualPayment().getCourseGoodsPrefix();
-        return normalizeGoodsSegment(prefix) + "-" + normalizeGoodsSegment(order.getCourseId());
-    }
-
-    private String normalizeGoodsSegment(String value) {
-        if (!StringUtils.hasText(value)) {
-            return "default";
-        }
-        String normalized = value.trim().replaceAll("[^0-9A-Za-z\\-]+", "-");
-        normalized = normalized.replaceAll("-{2,}", "-");
-        normalized = normalized.replaceAll("^-|-$", "");
-        return normalized.toLowerCase();
+        return order.getCourseId();
     }
 
     private String asString(Object value) {

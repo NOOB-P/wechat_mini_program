@@ -293,7 +293,7 @@ public class PrintOrderServiceImpl implements PrintOrderService {
     }
 
     private String buildPrintGoodsId(PrintOrder order) {
-        return "print-" + order.getId();
+        return order.getId().toString();
     }
 
     private String asString(Object value) {

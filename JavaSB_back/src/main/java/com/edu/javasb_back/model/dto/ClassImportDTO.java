@@ -11,6 +11,9 @@ public class ClassImportDTO {
     @ExcelProperty("城市")
     private String city;
 
+    @ExcelProperty("区县")
+    private String district;
+
     @ExcelProperty("学校")
     private String schoolName;
 
@@ -25,6 +28,9 @@ public class ClassImportDTO {
 
     public String getCity() { return city; }
     public void setCity(String city) { this.city = city; }
+
+    public String getDistrict() { return district; }
+    public void setDistrict(String district) { this.district = district; }
 
     public String getSchoolName() { return schoolName; }
     public void setSchoolName(String schoolName) { this.schoolName = schoolName; }

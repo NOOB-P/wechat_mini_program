@@ -6,7 +6,7 @@
         <el-form-item label="综合搜索">
           <el-input 
             v-model="searchForm.keyword" 
-            placeholder="搜索学校/省份/城市" 
+            placeholder="搜索学校/省份/城市/区县" 
             clearable 
             @keyup.enter="handleSearch"
             style="width: 200px"
@@ -119,6 +119,7 @@
               <el-table-column prop="schoolId" label="唯一标识(ID)" width="190" align="center" />
               <el-table-column prop="province" label="省份" width="150" align="center" />
               <el-table-column prop="city" label="城市" width="150" align="center" />
+              <el-table-column prop="district" label="区县" width="150" align="center" />
               <el-table-column prop="name" label="学校名称" min-width="200" />
               <el-table-column prop="createTime" label="创建时间" width="180" align="center" />
               <el-table-column label="操作" width="200" align="center" fixed="right">
@@ -154,8 +155,9 @@
             <template #content>
               <div class="text-xs leading-6 text-gray-600 p-2">
                 <p>1. 请先<b>下载学校导入模板压缩包</b>，压缩包内包含学校、学校-班级、学校-班级-学生三种模板。</p>
-                <p>2. 上传流程统一为<b>上传-校验-处理</b>，系统会严格校验表头顺序和必填项。</p>
-                <p>3. 导入时会自动建立学校、班级、学生之间的关联，已存在的学校或班级会自动复用。</p>
+                <p>2. 学校相关模板建议填写<b>省份 / 城市 / 区县 / 学校</b>，其中区县为选填项；高中学校可留空。</p>
+                <p>3. 上传流程统一为<b>上传-校验-处理</b>，系统会严格校验表头顺序和必填项。</p>
+                <p>4. 导入时会自动建立学校、班级、学生之间的关联，已存在的学校或班级会自动复用。</p>
               </div>
             </template>
             <div class="instructions-trigger">
@@ -261,6 +263,9 @@
         </el-form-item>
         <el-form-item label="城市" prop="city">
           <el-input v-model="form.city" placeholder="请输入城市" />
+        </el-form-item>
+        <el-form-item label="区县" prop="district">
+          <el-input v-model="form.district" placeholder="请输入区县（高中学校可留空）" />
         </el-form-item>
         <el-form-item label="学校名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入学校名称" />
@@ -383,6 +388,7 @@ const searchForm = ref({
   keyword: '',
   province: '',
   city: '',
+  district: '',
   name: ''
 })
 
@@ -515,6 +521,7 @@ const resetSearch = () => {
     keyword: '',
     province: '',
     city: '',
+    district: '',
     name: ''
   }
   if (viewType.value === 'tree') {
@@ -534,6 +541,7 @@ const form = ref({
   schoolId: '',
   province: '',
   city: '',
+  district: '',
   name: ''
 })
 
@@ -648,6 +656,7 @@ const loadData = async (forceRefetchAll = false) => {
         keyword: searchForm.value.keyword,
         province: searchForm.value.province,
         city: searchForm.value.city,
+        district: searchForm.value.district,
         name: searchForm.value.name
       })
       if (res && res.records) {
@@ -723,6 +732,7 @@ const handleAddSchool = () => {
     schoolId: '',
     province: '',
     city: '',
+    district: '',
     name: ''
   }
   dialogVisible.value = true
@@ -753,6 +763,7 @@ const handleEditSchool = (data: any) => {
             schoolId: f.schoolId || '',
             province: f.province || '',
             city: f.city || '',
+            district: f.district || '',
             name: f.name
           }
         }
@@ -765,6 +776,7 @@ const handleEditSchool = (data: any) => {
     schoolId: schoolInfo.schoolId || '',
     province: schoolInfo.province || '',
     city: schoolInfo.city || '',
+    district: schoolInfo.district || '',
     name: schoolInfo.name
   }
   dialogVisible.value = true
@@ -818,6 +830,7 @@ const submitForm = async () => {
             id: form.value.id,
             province: form.value.province,
             city: form.value.city,
+            district: form.value.district,
             name: form.value.name
           })
           ElMessage.success('更新成功')
@@ -825,6 +838,7 @@ const submitForm = async () => {
           await fetchAddSchool({
             province: form.value.province,
             city: form.value.city,
+            district: form.value.district,
             name: form.value.name
           })
           ElMessage.success('添加成功')

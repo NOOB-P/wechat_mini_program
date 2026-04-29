@@ -109,7 +109,7 @@ public class SysSchoolServiceImpl implements SysSchoolService {
         }
 
         // 检查该省市下是否已存在同名学校
-        if (sysSchoolRepository.findFirstByProvinceAndCityAndName(school.getProvince(), school.getCity(), school.getName()).isPresent()) {
+        if (findExistingSchool(school.getProvince(), school.getCity(), school.getDistrict(), school.getName()).isPresent()) {
             return Result.success("该学校已存在，忽略添加", null);
         }
 
@@ -139,6 +139,7 @@ public class SysSchoolServiceImpl implements SysSchoolService {
         SysSchool target = existing.get();
         target.setProvince(school.getProvince());
         target.setCity(school.getCity());
+        target.setDistrict(school.getDistrict());
         target.setName(school.getName());
         sysSchoolRepository.save(target);
         return Result.success("更新成功", null);
@@ -193,7 +194,7 @@ public class SysSchoolServiceImpl implements SysSchoolService {
 
     @Override
 
-    public Result<Map<String, Object>> getSchoolList(int page, int size, String keyword, String province, String city, String name) {
+    public Result<Map<String, Object>> getSchoolList(int page, int size, String keyword, String province, String city, String district, String name) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createTime"));
 
         Specification<SysSchool> spec = (root, query, cb) -> {
@@ -204,7 +205,8 @@ public class SysSchoolServiceImpl implements SysSchoolService {
                 predicates.add(cb.or(
                     cb.like(root.get("name"), likeKeyword),
                     cb.like(root.get("province"), likeKeyword),
-                    cb.like(root.get("city"), likeKeyword)
+                    cb.like(root.get("city"), likeKeyword),
+                    cb.like(root.get("district"), likeKeyword)
                 ));
             }
 
@@ -214,6 +216,10 @@ public class SysSchoolServiceImpl implements SysSchoolService {
 
             if (city != null && !city.isEmpty()) {
                 predicates.add(cb.equal(root.get("city"), city));
+            }
+
+            if (district != null && !district.isEmpty()) {
+                predicates.add(cb.equal(root.get("district"), district));
             }
 
             if (name != null && !name.isEmpty()) {
@@ -240,8 +246,8 @@ public class SysSchoolServiceImpl implements SysSchoolService {
     public Result<Void> importSchools(List<SchoolImportDTO> list) {
         for (SchoolImportDTO dto : list) {
             // 根据省市区名称查找学校是否存在
-            java.util.Optional<SysSchool> schoolOpt = sysSchoolRepository.findFirstByProvinceAndCityAndName(
-                    dto.getProvince(), dto.getCity(), dto.getSchoolName());
+            java.util.Optional<SysSchool> schoolOpt = findExistingSchool(
+                    dto.getProvince(), dto.getCity(), dto.getDistrict(), dto.getSchoolName());
             
             if (schoolOpt.isPresent()) {
                 // 如果已存在，直接忽略跳过
@@ -259,11 +265,19 @@ public class SysSchoolServiceImpl implements SysSchoolService {
             school.setSchoolId(schoolId);
             school.setProvince(dto.getProvince());
             school.setCity(dto.getCity());
+            school.setDistrict(dto.getDistrict());
             school.setName(dto.getSchoolName());
             school.setType("school");
             school.setStatus(1);
             sysSchoolRepository.save(school);
         }
         return Result.success("导入成功", null);
+    }
+
+    private java.util.Optional<SysSchool> findExistingSchool(String province, String city, String district, String schoolName) {
+        if (district == null || district.trim().isEmpty()) {
+            return sysSchoolRepository.findFirstByProvinceAndCityAndName(province, city, schoolName);
+        }
+        return sysSchoolRepository.findFirstByProvinceAndCityAndDistrictAndName(province, city, district, schoolName);
     }
 }
