@@ -23,13 +23,18 @@ import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.service.ExamProjectService;
 import com.edu.javasb_back.service.OssStorageService;
 import com.edu.javasb_back.service.support.AliyunPaperOcrService;
+import com.edu.javasb_back.service.support.TaskProgressManager;
 import com.github.junrar.Archive;
+import com.edu.javasb_back.utils.ExcelExportUtils;
+import com.edu.javasb_back.utils.TemplateDownloadUtils;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ResponseEntity;
+import java.util.Arrays;
 import com.github.junrar.exception.UnsupportedRarEncryptedException;
 import com.github.junrar.exception.UnsupportedRarV5Exception;
 import com.github.junrar.rarfile.FileHeader;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Predicate;
@@ -66,13 +71,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -198,6 +203,9 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     @Autowired private OssStorageService ossStorageService;
     @Autowired private GlobalConfigProperties globalConfigProperties;
     @PersistenceContext private EntityManager entityManager;
+
+    @Autowired private TaskProgressManager taskProgressManager;
+    @Autowired @org.springframework.context.annotation.Lazy private ExamProjectService self;
 
     private void forceFreshRead() {
         if (entityManager != null) {
@@ -440,263 +448,285 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     }
 
     @Override
-    public void downloadScoreTemplate(HttpServletResponse response) {
-        try {
-            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            response.setCharacterEncoding("utf-8");
-            String fileName = URLEncoder.encode("成绩导入模板", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
-            response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
-
-            ClassPathResource resource = new ClassPathResource("assests/成绩导入模板.xlsx");
-            if (!resource.exists()) {
-                java.io.File file = new java.io.File("c:\\Users\\admin\\Desktop\\wechat_mini_program-master\\JavaSB_back\\src\\main\\assests\\成绩导入模板.xlsx");
-                if (file.exists()) {
-                    try (InputStream is = new java.io.FileInputStream(file);
-                         OutputStream os = response.getOutputStream()) {
-                        byte[] buffer = new byte[4096];
-                        int bytesRead;
-                        while ((bytesRead = is.read(buffer)) != -1) {
-                            os.write(buffer, 0, bytesRead);
-                        }
-                        os.flush();
-                        return;
-                    }
-                }
-            }
-
-            try (InputStream is = resource.getInputStream();
-                 OutputStream os = response.getOutputStream()) {
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-                while ((bytesRead = is.read(buffer)) != -1) {
-                    os.write(buffer, 0, bytesRead);
-                }
-                os.flush();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    public ResponseEntity<Resource> downloadScoreTemplate() {
+        return TemplateDownloadUtils.buildDownloadResponse(
+                Arrays.asList(
+                        "templates/成绩导入模板.xlsx",
+                        "static/resource/成绩导入模板.xlsx",
+                        "assets/成绩导入模板.xlsx",
+                        "assests/成绩导入模板.xlsx"
+                ),
+                "成绩导入模板.xlsx"
+        );
     }
 
     @Override
-    @Transactional
     public Result<Map<String, Object>> importScores(String projectId, String subjectName, MultipartFile file) {
         if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
         if (!StringUtils.hasText(subjectName)) return Result.error("学科名称不能为空");
         if (file == null || file.isEmpty()) return Result.error("请上传成绩文件");
-        Ctx ctx = ctx(projectId);
 
-        ExamSubject subject = ctx.subjects().stream()
-                .filter(s -> subjectName.equals(s.getSubjectName()))
-                .findFirst()
-                .orElse(null);
-        if (subject == null) return Result.error("项目中不存在学科: " + subjectName);
-
-        Map<String, ExamClass> examClassMap = ctx.examClasses().stream()
-                .filter(item -> StringUtils.hasText(item.getSourceClassId()))
-                .collect(Collectors.toMap(ExamClass::getSourceClassId, Function.identity(), (a, b) -> a));
-        if (examClassMap.isEmpty()) return Result.error("项目中暂无考试班级数据");
-
-        Map<String, SysStudent> studentNoMap = new HashMap<>();
-        Map<String, List<SysStudent>> studentNameMap = new HashMap<>();
-        for (SysStudent student : ctx.students()) {
-            if (StringUtils.hasText(student.getStudentNo())) {
-                studentNoMap.put(normalizeStudentNo(student.getStudentNo()), student);
-            }
-            if (StringUtils.hasText(student.getName())) {
-                studentNameMap.computeIfAbsent(normalizeStudentName(student.getName()), key -> new ArrayList<>()).add(student);
-            }
-        }
-        if (studentNoMap.isEmpty() && studentNameMap.isEmpty()) return Result.error("该项目中暂无考试学生数据");
-
-        ExamProject project = examProjectRepository.findById(projectId).orElse(null);
-        Double fullScore = null;
-        if (project != null) {
-            Map<String, Object> benchmarks = map(project.getSubjectBenchmarks());
-            Map<String, Object> benchmark = nestedMap(benchmarks.get(subjectName));
-            Object totalScoreObj = benchmark.get("totalScore");
-            if (totalScoreObj instanceof Number num) {
-                fullScore = num.doubleValue();
-            }
-        }
-
-        List<String> logs = new ArrayList<>();
-        List<Map<String, Object>> nameConflicts = new ArrayList<>();
-        List<ExamStudentScore> scoresToSave = new ArrayList<>();
-        Set<String> importedScoreKeys = new LinkedHashSet<>();
-        Map<String, ExamStudentScore> existingScoreMap = ctx.scores().stream()
-                .filter(score -> subject.getId().equals(score.getSubjectId()))
-                .collect(Collectors.toMap(
-                        ExamStudentScore::getStudentNo,
-                        Function.identity(),
-                        (a, b) -> b
-                ));
-
-        int rowCount = 0;
-        int skipCount = 0;
-        int errorCount = 0;
-        int conflictCount = 0;
-
-        try (InputStream is = file.getInputStream();
-             Workbook workbook = WorkbookFactory.create(is)) {
-            Sheet sheet = workbook.getSheetAt(0);
-            if (sheet == null) return Result.error("Excel中没有可读取的工作表");
-
-            DataFormatter formatter = new DataFormatter();
-            FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
-            int headerRowIndex = sheet.getFirstRowNum();
-            Row headerRow = sheet.getRow(headerRowIndex);
-            if (headerRow == null) return Result.error("Excel第一行不能为空");
-
-            String identifierHeader = normalizeHeader(readCellAsString(headerRow.getCell(0), formatter, evaluator));
-            if (!StringUtils.hasText(identifierHeader)) {
-                return Result.error("Excel第一行第1列不能为空，请填写“学号”或“姓名”");
-            }
-
-            StudentIdentifierType identifierType = resolveIdentifierType(identifierHeader);
-            if (identifierType == null) {
-                return Result.error("Excel第一列标题仅支持“学号”或“姓名”");
-            }
-
-            int lastScoreColumnIndex = findLastNonEmptyCellIndex(headerRow, formatter, evaluator);
-            if (lastScoreColumnIndex < 1) {
-                return Result.error("Excel至少需要1列学生标识和1列小题分");
-            }
-
-            List<Integer> scoreColumnIndexes = new ArrayList<>();
-            for (int colIndex = 1; colIndex <= lastScoreColumnIndex; colIndex++) {
-                String headerValue = readCellAsString(headerRow.getCell(colIndex), formatter, evaluator).trim();
-                if (!StringUtils.hasText(headerValue)) {
-                    return Result.error("Excel第一行第" + (colIndex + 1) + "列不能为空");
-                }
-                scoreColumnIndexes.add(colIndex);
-            }
-
-            int lastRowNum = sheet.getLastRowNum();
-            for (int rowIndex = headerRowIndex + 1; rowIndex <= lastRowNum; rowIndex++) {
-                Row row = sheet.getRow(rowIndex);
-                if (row == null || isBlankRow(row, lastScoreColumnIndex, formatter, evaluator)) {
-                    skipCount++;
-                    continue;
-                }
-
-                String identifierRaw = readCellAsString(row.getCell(0), formatter, evaluator).trim();
-                if (!StringUtils.hasText(identifierRaw)) {
-                    logs.add("第" + (rowIndex + 1) + "行第1列不能为空");
-                    errorCount++;
-                    continue;
-                }
-
-                List<Double> questionScores = new ArrayList<>();
-                double total = 0;
-                boolean rowHasError = false;
-
-                for (Integer colIndex : scoreColumnIndexes) {
-                    String scoreStr = readCellAsString(row.getCell(colIndex), formatter, evaluator).trim();
-                    if (!StringUtils.hasText(scoreStr)) {
-                        logs.add("第" + (rowIndex + 1) + "行第" + (colIndex + 1) + "列不能为空");
-                        rowHasError = true;
-                        break;
-                    }
-                    try {
-                        double questionScore = Double.parseDouble(scoreStr.replace(",", ""));
-                        questionScores.add(questionScore);
-                        total += questionScore;
-                    } catch (NumberFormatException e) {
-                        logs.add("第" + (rowIndex + 1) + "行第" + (colIndex + 1) + "列成绩[" + scoreStr + "]格式错误");
-                        rowHasError = true;
-                        break;
-                    }
-                }
-
-                if (rowHasError) {
-                    errorCount++;
-                    continue;
-                }
-
-                if (fullScore != null && total > fullScore + 0.01) {
-                    logs.add("第" + (rowIndex + 1) + "行: 总分 (" + total + ") 超过学科满分 (" + fullScore + ")");
-                    errorCount++;
-                    continue;
-                }
-
-                StudentMatch studentMatch = matchStudent(identifierType, identifierRaw, studentNoMap, studentNameMap);
-                if (!studentMatch.ok()) {
-                    if (studentMatch.hasConflict()) {
-                        logs.add("第" + (rowIndex + 1) + "行: " + studentMatch.msg());
-                        nameConflicts.add(buildScoreImportConflict(
-                                rowIndex + 1,
-                                identifierRaw,
-                                questionScores,
-                                total,
-                                studentMatch.candidates()
-                        ));
-                        conflictCount++;
-                    } else {
-                        logs.add("第" + (rowIndex + 1) + "行: " + studentMatch.msg());
-                        if (studentMatch.skipped()) skipCount++;
-                        else errorCount++;
-                    }
-                    continue;
-                }
-                SysStudent student = studentMatch.student();
-
-                if (!examClassMap.containsKey(student.getClassId())) {
-                    logs.add("第" + (rowIndex + 1) + "行: 学生[" + identifierRaw + "]未在当前考试项目的班级名单中");
-                    skipCount++;
-                    continue;
-                }
-
-                String scoreKey = subject.getId() + "_" + student.getStudentNo();
-                if (!importedScoreKeys.add(scoreKey)) {
-                    logs.add("第" + (rowIndex + 1) + "行: 学生[" + identifierRaw + "]在当前文件中重复出现");
-                    errorCount++;
-                    continue;
-                }
-
-                ExamStudentScore score = prepareScoreRecord(existingScoreMap.get(scoreKey), subject, student);
-                score.setTotalScore(total);
-                score.setScoreEntered(Boolean.TRUE);
-                try {
-                    score.setQuestionScores(objectMapper.writeValueAsString(questionScores));
-                } catch (Exception ignored) {}
-                scoresToSave.add(score);
-                existingScoreMap.put(student.getStudentNo(), score);
-                rowCount++;
-            }
+        String taskId = UUID.randomUUID().toString();
+        try {
+            byte[] excelBytes = file.getBytes();
+            taskProgressManager.initTask(taskId, "成绩导入: " + subjectName, 0);
+            self.importScoresAsync(taskId, projectId, subjectName, excelBytes);
+            return Result.success("导入任务已启动", Map.of("taskId", taskId));
         } catch (Exception e) {
-            return Result.error("文件读取失败: " + e.getMessage());
+            return Result.error("启动导入任务失败: " + e.getMessage());
         }
-
-        Map<String, Object> resultData = buildScoreImportResultData(rowCount, skipCount, errorCount, conflictCount, logs, nameConflicts);
-        String summary = String.valueOf(resultData.get("summary"));
-
-        if (rowCount <= 0 && conflictCount <= 0) {
-            if (!logs.isEmpty()) {
-                String detail = logs.stream().limit(5).collect(Collectors.joining("; "));
-                if (logs.size() > 5) detail += "...等" + logs.size() + "条提示";
-                return Result.error(summary + ". 提示: " + detail);
-            }
-            return Result.error(summary);
-        }
-
-        if (!scoresToSave.isEmpty()) {
-            examStudentScoreRepository.saveAllAndFlush(scoresToSave);
-        }
-        subject.setScoreUploaded(Boolean.TRUE);
-        examSubjectRepository.saveAndFlush(subject);
-
-        if (!logs.isEmpty()) {
-            String detail = logs.stream().limit(5).collect(Collectors.joining("; "));
-            if (logs.size() > 5) detail += "...等" + logs.size() + "条提示";
-            return Result.success(summary + ". 提示: " + detail, resultData);
-        }
-
-        return Result.success(summary, resultData);
     }
 
     @Override
-    @Transactional
+    @org.springframework.scheduling.annotation.Async("taskExecutor")
+    public void importScoresAsync(String taskId, String projectId, String subjectName, byte[] excelBytes) {
+        try {
+            Ctx ctx = ctx(projectId);
+            ExamSubject subject = ctx.subjects().stream()
+                    .filter(s -> subjectName.equals(s.getSubjectName()))
+                    .findFirst()
+                    .orElse(null);
+            if (subject == null) {
+                taskProgressManager.finishTask(taskId, "failed");
+                taskProgressManager.addLog(taskId, "项目中不存在学科: " + subjectName);
+                return;
+            }
+
+            Map<String, ExamClass> examClassMap = ctx.examClasses().stream()
+                    .filter(item -> StringUtils.hasText(item.getSourceClassId()))
+                    .collect(Collectors.toMap(ExamClass::getSourceClassId, Function.identity(), (a, b) -> a));
+
+            Map<String, SysStudent> studentNoMap = new HashMap<>();
+            Map<String, List<SysStudent>> studentNameMap = new HashMap<>();
+            for (SysStudent student : ctx.students()) {
+                if (StringUtils.hasText(student.getStudentNo())) {
+                    studentNoMap.put(normalizeStudentNo(student.getStudentNo()), student);
+                }
+                if (StringUtils.hasText(student.getName())) {
+                    studentNameMap.computeIfAbsent(normalizeStudentName(student.getName()), key -> new ArrayList<>()).add(student);
+                }
+            }
+
+            ExamProject project = examProjectRepository.findById(projectId).orElse(null);
+            Double fullScore = null;
+            if (project != null) {
+                Map<String, Object> benchmarks = map(project.getSubjectBenchmarks());
+                Map<String, Object> benchmark = nestedMap(benchmarks.get(subjectName));
+                Object totalScoreObj = benchmark.get("totalScore");
+                if (totalScoreObj instanceof Number num) {
+                    fullScore = num.doubleValue();
+                }
+            }
+
+            List<String> logs = new ArrayList<>();
+            List<Map<String, Object>> nameConflicts = new ArrayList<>();
+            List<ExamStudentScore> scoresToSave = new ArrayList<>();
+            Set<String> importedScoreKeys = new LinkedHashSet<>();
+            Map<String, ExamStudentScore> existingScoreMap = ctx.scores().stream()
+                    .filter(score -> subject.getId().equals(score.getSubjectId()))
+                    .collect(Collectors.toMap(
+                            score -> score.getSubjectId() + "_" + score.getStudentNo(),
+                            Function.identity(),
+                            (a, b) -> b
+                    ));
+
+            int rowCount = 0;
+            int skipCount = 0;
+            int errorCount = 0;
+            int conflictCount = 0;
+
+            try (InputStream is = new ByteArrayInputStream(excelBytes);
+                 Workbook workbook = WorkbookFactory.create(is)) {
+                Sheet sheet = workbook.getSheetAt(0);
+                if (sheet == null) {
+                    taskProgressManager.finishTask(taskId, "failed");
+                    taskProgressManager.addLog(taskId, "Excel中没有可读取的工作表");
+                    return;
+                }
+
+                DataFormatter formatter = new DataFormatter();
+                FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+                int headerRowIndex = sheet.getFirstRowNum();
+                Row headerRow = sheet.getRow(headerRowIndex);
+                if (headerRow == null) {
+                    taskProgressManager.finishTask(taskId, "failed");
+                    taskProgressManager.addLog(taskId, "Excel第一行不能为空");
+                    return;
+                }
+
+                String identifierHeader = normalizeHeader(readCellAsString(headerRow.getCell(0), formatter, evaluator));
+                StudentIdentifierType identifierType = resolveIdentifierType(identifierHeader);
+                if (identifierType == null) {
+                    taskProgressManager.finishTask(taskId, "failed");
+                    taskProgressManager.addLog(taskId, "Excel第一列标题仅支持“学号”或“姓名”");
+                    return;
+                }
+
+                int lastScoreColumnIndex = findLastNonEmptyCellIndex(headerRow, formatter, evaluator);
+                List<Integer> scoreColumnIndexes = new ArrayList<>();
+                for (int colIndex = 1; colIndex <= lastScoreColumnIndex; colIndex++) {
+                    scoreColumnIndexes.add(colIndex);
+                }
+
+                int lastRowNum = sheet.getLastRowNum();
+                int totalRows = lastRowNum - headerRowIndex;
+                taskProgressManager.updateProgress(taskId, 0, "开始处理 " + totalRows + " 条成绩数据...");
+                TaskProgressManager.TaskStatus status = taskProgressManager.getTaskStatus(taskId);
+                if (status != null) status.setTotal(totalRows);
+
+                for (int rowIndex = headerRowIndex + 1; rowIndex <= lastRowNum; rowIndex++) {
+                    Row row = sheet.getRow(rowIndex);
+                    if (row == null || isBlankRow(row, lastScoreColumnIndex, formatter, evaluator)) {
+                        skipCount++;
+                        continue;
+                    }
+
+                    String identifierRaw = readCellAsString(row.getCell(0), formatter, evaluator).trim();
+                    if (!StringUtils.hasText(identifierRaw)) {
+                        logs.add("第" + (rowIndex + 1) + "行第1列不能为空");
+                        errorCount++;
+                        continue;
+                    }
+
+                    List<Double> questionScores = new ArrayList<>();
+                    double total = 0;
+                    boolean rowHasError = false;
+
+                    for (Integer colIndex : scoreColumnIndexes) {
+                        String scoreStr = readCellAsString(row.getCell(colIndex), formatter, evaluator).trim();
+                        if (!StringUtils.hasText(scoreStr)) {
+                            logs.add("第" + (rowIndex + 1) + "行第" + (colIndex + 1) + "列不能为空");
+                            rowHasError = true;
+                            break;
+                        }
+                        try {
+                            double questionScore = Double.parseDouble(scoreStr.replace(",", ""));
+                            questionScores.add(questionScore);
+                            total += questionScore;
+                        } catch (NumberFormatException e) {
+                            logs.add("第" + (rowIndex + 1) + "行第" + (colIndex + 1) + "列成绩[" + scoreStr + "]格式错误");
+                            rowHasError = true;
+                            break;
+                        }
+                    }
+
+                    if (rowHasError) {
+                        errorCount++;
+                        continue;
+                    }
+
+                    if (fullScore != null && total > fullScore + 0.01) {
+                        logs.add("第" + (rowIndex + 1) + "行: 总分 (" + total + ") 超过学科满分 (" + fullScore + ")");
+                        errorCount++;
+                        continue;
+                    }
+
+                    StudentMatch studentMatch = matchStudent(identifierType, identifierRaw, studentNoMap, studentNameMap);
+                    if (!studentMatch.ok()) {
+                        if (studentMatch.hasConflict()) {
+                            logs.add("第" + (rowIndex + 1) + "行: " + studentMatch.msg());
+                            nameConflicts.add(buildScoreImportConflict(
+                                    rowIndex + 1,
+                                    identifierRaw,
+                                    questionScores,
+                                    total,
+                                    studentMatch.candidates()
+                            ));
+                            conflictCount++;
+                        } else {
+                            logs.add("第" + (rowIndex + 1) + "行: " + studentMatch.msg());
+                            if (studentMatch.skipped()) skipCount++;
+                            else errorCount++;
+                        }
+                        continue;
+                    }
+                    SysStudent student = studentMatch.student();
+
+                    if (!examClassMap.containsKey(student.getClassId())) {
+                        logs.add("第" + (rowIndex + 1) + "行: 学生[" + identifierRaw + "]未在当前考试项目的班级名单中");
+                        skipCount++;
+                        continue;
+                    }
+
+                    String scoreKey = subject.getId() + "_" + student.getStudentNo();
+                    if (!importedScoreKeys.add(scoreKey)) {
+                        logs.add("第" + (rowIndex + 1) + "行: 学生[" + identifierRaw + "]在当前文件中重复出现");
+                        errorCount++;
+                        continue;
+                    }
+
+                    ExamStudentScore score = prepareScoreRecord(existingScoreMap.get(scoreKey), subject, student);
+                    score.setTotalScore(total);
+                    score.setScoreEntered(Boolean.TRUE);
+                    try {
+                        score.setQuestionScores(objectMapper.writeValueAsString(questionScores));
+                    } catch (Exception ignored) {}
+                    scoresToSave.add(score);
+                    existingScoreMap.put(student.getStudentNo(), score);
+                    rowCount++;
+
+                    if (rowIndex % 50 == 0) {
+                        taskProgressManager.updateProgress(taskId, rowIndex - headerRowIndex, "已处理 " + (rowIndex - headerRowIndex) + " 条数据...");
+                    }
+                }
+            }
+
+            if (!scoresToSave.isEmpty()) {
+                examStudentScoreRepository.saveAllAndFlush(scoresToSave);
+            }
+            subject.setScoreUploaded(Boolean.TRUE);
+            examSubjectRepository.saveAndFlush(subject);
+
+            Map<String, Object> resultData = buildScoreImportResultData(rowCount, skipCount, errorCount, conflictCount, logs, nameConflicts);
+            taskProgressManager.finishTask(taskId, "completed", resultData);
+            taskProgressManager.addLog(taskId, "成绩导入完成: " + resultData.get("summary"));
+
+        } catch (Exception e) {
+            taskProgressManager.finishTask(taskId, "failed");
+            taskProgressManager.addLog(taskId, "处理失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public ResponseEntity<Resource> exportScores(String projectId, String subjectName) {
+        Ctx ctx = ctx(projectId);
+        List<ExamSubject> targetSubjects = ctx.subjects().stream()
+                .filter(s -> !StringUtils.hasText(subjectName) || subjectName.equals(s.getSubjectName()))
+                .toList();
+
+        if (targetSubjects.isEmpty()) return ResponseEntity.notFound().build();
+
+        List<String> headers = new ArrayList<>(Arrays.asList("学号", "姓名", "学校", "年级", "班级"));
+        for (ExamSubject s : targetSubjects) {
+            headers.add(s.getSubjectName());
+        }
+
+        List<List<String>> rows = new ArrayList<>();
+        for (SysStudent student : ctx.students()) {
+            List<String> row = new ArrayList<>();
+            row.add(student.getStudentNo());
+            row.add(student.getName());
+            
+            ExamClass ec = ctx.classMap().get(student.getClassId());
+            row.add(ec != null ? ec.getSchool() : "");
+            row.add(ec != null ? ec.getGrade() : "");
+            row.add(ec != null ? ec.getClassName() : "");
+
+            for (ExamSubject s : targetSubjects) {
+                ExamStudentScore score = ctx.scores().stream()
+                        .filter(sc -> sc.getSubjectId().equals(s.getId()) && sc.getStudentNo().equals(student.getStudentNo()))
+                        .findFirst()
+                        .orElse(null);
+                row.add(score != null && score.getTotalScore() != null ? String.valueOf(score.getTotalScore()) : "");
+            }
+            rows.add(row);
+        }
+
+        String downloadName = "成绩导出-" + (StringUtils.hasText(subjectName) ? subjectName : "全部") + ".xlsx";
+        return ExcelExportUtils.buildExcelResponse("成绩列表", downloadName, headers, rows);
+    }
+
+    @Override
     public Result<Map<String, Object>> importAnswerSheets(String projectId, String subjectName, MultipartFile file) {
         if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
         if (!StringUtils.hasText(subjectName)) return Result.error("学科名称不能为空");
@@ -707,8 +737,26 @@ public class ExamProjectServiceImpl implements ExamProjectService {
             return Result.error("试卷批量导入仅支持 .zip / .rar 压缩包");
         }
 
+        String taskId = UUID.randomUUID().toString();
+        try {
+            byte[] archiveBytes = file.getBytes();
+            taskProgressManager.initTask(taskId, "批量导入试卷: " + originalFilename, 0); // 初始 total 为 0，解析后再更新
+            self.importAnswerSheetsAsync(taskId, projectId, subjectName, archiveBytes, originalFilename);
+            return Result.success("导入任务已启动", Map.of("taskId", taskId));
+        } catch (Exception e) {
+            return Result.error("启动导入任务失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @org.springframework.scheduling.annotation.Async("taskExecutor")
+    public void importAnswerSheetsAsync(String taskId, String projectId, String subjectName, byte[] archiveBytes, String originalFilename) {
         UploadCtx uploadCtx = buildUploadCtx(projectId, subjectName);
-        if (!uploadCtx.ok()) return Result.error(uploadCtx.msg());
+        if (!uploadCtx.ok()) {
+            taskProgressManager.finishTask(taskId, "failed");
+            taskProgressManager.addLog(taskId, "初始化失败: " + uploadCtx.msg());
+            return;
+        }
 
         List<String> logs = new ArrayList<>();
         List<ExamStudentScore> scoresToSave = new ArrayList<>();
@@ -718,80 +766,84 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         int errorCount = 0;
 
         try {
-            List<ArchivePaperEntry> paperEntries = findPaperEntries(file.getInputStream(), originalFilename);
+            List<ArchivePaperEntry> paperEntries = findPaperEntries(new ByteArrayInputStream(archiveBytes), originalFilename);
             if (paperEntries.isEmpty()) {
-                return Result.error("压缩包内未找到可导入的试卷文件，请检查压缩包内是否包含 pdf/png/jpg/jpeg 文件");
+                taskProgressManager.finishTask(taskId, "failed");
+                taskProgressManager.addLog(taskId, "压缩包内未找到可导入的试卷文件");
+                return;
             }
 
-            for (ArchivePaperEntry paperEntry : paperEntries) {
+            taskProgressManager.updateProgress(taskId, 0, "开始处理 " + paperEntries.size() + " 个文件...");
+            // 更新总数
+            TaskProgressManager.TaskStatus status = taskProgressManager.getTaskStatus(taskId);
+            if (status != null) status.setTotal(paperEntries.size());
+
+            for (int i = 0; i < paperEntries.size(); i++) {
+                ArchivePaperEntry paperEntry = paperEntries.get(i);
                 String entryName = paperEntry.fileName();
                 String entryPath = paperEntry.entryPath();
 
-                FileMatch fileMatch = matchStudentByPaperFileName(entryName, uploadCtx.studentNoMap(), uploadCtx.studentNameMap());
-                if (!fileMatch.ok()) {
-                    logs.add("文件[" + entryPath + "]: " + fileMatch.msg());
-                    if (fileMatch.skipped()) skipCount++;
-                    else errorCount++;
-                    continue;
-                }
+                try {
+                    FileMatch fileMatch = matchStudentByPaperFileName(entryName, uploadCtx.studentNoMap(), uploadCtx.studentNameMap());
+                    if (!fileMatch.ok()) {
+                        String msg = "文件[" + entryPath + "]: " + fileMatch.msg();
+                        taskProgressManager.addLog(taskId, msg);
+                        if (fileMatch.skipped()) skipCount++;
+                        else errorCount++;
+                        continue;
+                    }
 
-                SysStudent student = fileMatch.student();
-                if (!uploadCtx.examClassMap().containsKey(student.getClassId())) {
-                    logs.add("文件[" + entryPath + "]: 学生[" + student.getName() + "]未在当前考试项目班级中");
-                    skipCount++;
-                    continue;
-                }
+                    SysStudent student = fileMatch.student();
+                    if (!uploadCtx.examClassMap().containsKey(student.getClassId())) {
+                        String msg = "文件[" + entryPath + "]: 学生[" + student.getName() + "]未在当前考试项目班级中";
+                        taskProgressManager.addLog(taskId, msg);
+                        skipCount++;
+                        continue;
+                    }
 
-                String scoreKey = uploadCtx.subject().getId() + "_" + student.getStudentNo();
-                if (!importedKeys.add(scoreKey)) {
-                    logs.add("文件[" + entryPath + "]: 当前压缩包内重复上传了同一学生试卷");
+                    String scoreKey = uploadCtx.subject().getId() + "_" + student.getStudentNo();
+                    if (!importedKeys.add(scoreKey)) {
+                        String msg = "文件[" + entryPath + "]: 当前压缩包内重复上传了同一学生试卷";
+                        taskProgressManager.addLog(taskId, msg);
+                        errorCount++;
+                        continue;
+                    }
+
+                    StoredPaperAsset asset = storePaperFile(
+                            new ByteArrayInputStream(paperEntry.content()),
+                            projectId,
+                            subjectName,
+                            student.getStudentNo(),
+                            entryName
+                    );
+                    ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), uploadCtx.subject(), student);
+                    score.setAnswerSheetUrl(asset.url());
+
+                    if (hasValidPaperMergeInfo(asset.mergeInfo())) {
+                        score.setAnswerMergeInfo(jsonMap(asset.mergeInfo()));
+                    }
+
+                    scoresToSave.add(score);
+                    uploadCtx.existingScoreMap().put(scoreKey, score);
+                    successCount++;
+                    taskProgressManager.updateProgress(taskId, i + 1, "已处理: " + entryName);
+                } catch (Exception e) {
+                    taskProgressManager.addLog(taskId, "处理文件[" + entryPath + "]异常: " + e.getMessage());
                     errorCount++;
-                    continue;
                 }
-
-                StoredPaperAsset asset = storePaperFile(
-                        new ByteArrayInputStream(paperEntry.content()),
-                        projectId,
-                        subjectName,
-                        student.getStudentNo(),
-                        entryName
-                );
-                ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), uploadCtx.subject(), student);
-                score.setAnswerSheetUrl(asset.url());
-
-                // 如果上传的是 PDF 或有分页信息，保存分页信息
-                if (hasValidPaperMergeInfo(asset.mergeInfo())) {
-                    score.setAnswerMergeInfo(jsonMap(asset.mergeInfo()));
-                }
-
-                scoresToSave.add(score);
-                uploadCtx.existingScoreMap().put(scoreKey, score);
-                successCount++;
             }
+
+            if (!scoresToSave.isEmpty()) {
+                examStudentScoreRepository.saveAllAndFlush(scoresToSave);
+            }
+            
+            Map<String, Object> resultData = buildBatchImportResultData("试卷导入完成", successCount, skipCount, errorCount, logs);
+            taskProgressManager.finishTask(taskId, "completed", resultData);
+
         } catch (Exception e) {
-            return Result.error("试卷压缩包处理失败: " + e.getMessage());
+            taskProgressManager.finishTask(taskId, "failed");
+            taskProgressManager.addLog(taskId, "处理异常: " + e.getMessage());
         }
-
-        if (!scoresToSave.isEmpty()) {
-            examStudentScoreRepository.saveAllAndFlush(scoresToSave);
-        }
-
-        Map<String, Object> resultData = buildBatchImportResultData("试卷导入完成", successCount, skipCount, errorCount, logs);
-        String summary = String.valueOf(resultData.get("summary"));
-        if (successCount <= 0) {
-            if (!logs.isEmpty()) {
-                String detail = logs.stream().limit(5).collect(Collectors.joining("; "));
-                if (logs.size() > 5) detail += "...等" + logs.size() + "条提示";
-                return Result.error(summary + ". 提示: " + detail);
-            }
-            return Result.error(summary);
-        }
-        if (!logs.isEmpty()) {
-            String detail = logs.stream().limit(5).collect(Collectors.joining("; "));
-            if (logs.size() > 5) detail += "...等" + logs.size() + "条提示";
-            return Result.success(summary + ". 提示: " + detail, resultData);
-        }
-        return Result.success(summary, resultData);
     }
 
     @Override
@@ -1214,15 +1266,32 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     }
 
     private List<ArchivePaperEntry> findPaperEntries(InputStream inputStream, String originalFilename) throws Exception {
+        byte[] archiveBytes = inputStream.readAllBytes();
         if (isRarFile(originalFilename)) {
-            return findPaperEntriesFromRar(inputStream);
+            return findPaperEntriesFromRar(new ByteArrayInputStream(archiveBytes));
         }
-        return findPaperEntriesFromZip(inputStream);
+        return findPaperEntriesFromZip(archiveBytes);
     }
 
-    private List<ArchivePaperEntry> findPaperEntriesFromZip(InputStream inputStream) throws Exception {
+    private List<ArchivePaperEntry> findPaperEntriesFromZip(byte[] archiveBytes) throws Exception {
+        try {
+            // 首先尝试使用 UTF-8 编码解析（现代标准）
+            return doParseZip(archiveBytes, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            // 如果解析失败（通常是文件名编码不匹配导致 IllegalArgumentException 或 MalformedInputException）
+            // 尝试使用 GBK 编码解析（Windows 默认编码）
+            try {
+                return doParseZip(archiveBytes, Charset.forName("GBK"));
+            } catch (Exception e2) {
+                // 如果 GBK 也失败，抛出最初的异常
+                throw e;
+            }
+        }
+    }
+
+    private List<ArchivePaperEntry> doParseZip(byte[] archiveBytes, Charset charset) throws Exception {
         List<ArchivePaperEntry> paperEntries = new ArrayList<>();
-        try (ZipInputStream zipInputStream = new ZipInputStream(inputStream, StandardCharsets.UTF_8)) {
+        try (ZipInputStream zipInputStream = new ZipInputStream(new ByteArrayInputStream(archiveBytes), charset)) {
             ZipEntry entry;
             while ((entry = zipInputStream.getNextEntry()) != null) {
                 String entryPath = normalizeArchiveEntryPath(entry.getName());

@@ -64,7 +64,7 @@
         <view class="agreement-text">
           请阅读并勾选
           <text class="link" @click.stop="openAgreement('user')">《用户服务协议》</text>
-          <text class="link" @click.stop="openAgreement('privacy')">《隐私政策》</text>
+          <text class="link" @click.stop="openPrivacy">《隐私政策》</text>
         </view>
       </view>
 
@@ -293,11 +293,26 @@ const openAgreement = (type: 'user' | 'privacy') => {
   if (type === 'user') {
     agreementTitle.value = '用户服务协议'
     agreementContent.value = userServiceAgreement
+    showAgreementPopup.value = true
   } else {
+    openPrivacy()
+  }
+}
+
+const openPrivacy = () => {
+  // 调用微信官方接口打开隐私协议页面
+  if (wx.openPrivacyContract) {
+    wx.openPrivacyContract({
+      fail: () => {
+        toast.show('打开隐私协议失败，请稍后重试')
+      }
+    })
+  } else {
+    // 兼容低版本基础库
     agreementTitle.value = '隐私政策'
     agreementContent.value = privacyPolicy
+    showAgreementPopup.value = true
   }
-  showAgreementPopup.value = true
 }
 
 onMounted(() => {
@@ -306,6 +321,16 @@ onMounted(() => {
     uni.switchTab({ url: '/pages/home/index' })
     return
   }
+
+  // 检查隐私协议授权状态
+  if (wx.getPrivacySetting) {
+    wx.getPrivacySetting({
+      success: (res) => {
+        console.log('隐私协议状态:', res)
+      }
+    })
+  }
+
   // 预取微信登录凭证
   prefetchWechatCode()
 })

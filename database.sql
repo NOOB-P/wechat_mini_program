@@ -118,6 +118,7 @@ CREATE TABLE `schools` (
     `school_id` VARCHAR(50) NOT NULL UNIQUE COMMENT '学校唯一标识',
     `province` VARCHAR(50) COMMENT '省份',
     `city` VARCHAR(50) COMMENT '城市',
+    `district` VARCHAR(50) COMMENT '区县',
     `name` VARCHAR(100) NOT NULL COMMENT '学校名称',
     `type` VARCHAR(20) DEFAULT 'school' COMMENT '节点类型',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 1-启用, 0-禁用',
@@ -676,17 +677,17 @@ FROM `sys_role_menu`
 WHERE `role_id` = 1;
 
 -- 3. 学校结构表数据
-INSERT INTO `schools` (`school_id`, `province`, `city`, `name`, `type`, `status`) VALUES
-('SCH001', '广东省', '广州市', '第一中学', 'school', 1),
-('SCH002', '广东省', '深圳市', '实验小学', 'school', 1),
-('SCH003', '广东省', '东莞市', '育才中学', 'school', 1),
-('SCH004', '浙江省', '杭州市', '杭州高级中学', 'school', 1),
-('SCH005', '江苏省', '南京市', '南京外国语学校', 'school', 1),
-('SCH006', '北京市', '北京市', '北京四中', 'school', 1),
-('SCH007', '上海市', '上海市', '上海建平中学', 'school', 1),
-('SCH008', '湖北省', '武汉市', '武汉外国语学校', 'school', 1),
-('SCH009', '四川省', '成都市', '成都七中', 'school', 1),
-('SCH010', '广东省', '广州市', '执信中学', 'school', 1);
+INSERT INTO `schools` (`school_id`, `province`, `city`, `district`, `name`, `type`, `status`) VALUES
+('SCH001', '广东省', '广州市', '越秀区', '第一中学', 'school', 1),
+('SCH002', '广东省', '深圳市', '南山区', '实验小学', 'school', 1),
+('SCH003', '广东省', '东莞市', '', '育才中学', 'school', 1),
+('SCH004', '浙江省', '杭州市', '', '杭州高级中学', 'school', 1),
+('SCH005', '江苏省', '南京市', '', '南京外国语学校', 'school', 1),
+('SCH006', '北京市', '北京市', '', '北京四中', 'school', 1),
+('SCH007', '上海市', '上海市', '', '上海建平中学', 'school', 1),
+('SCH008', '湖北省', '武汉市', '', '武汉外国语学校', 'school', 1),
+('SCH009', '四川省', '成都市', '', '成都七中', 'school', 1),
+('SCH010', '广东省', '广州市', '', '执信中学', 'school', 1);
 
 INSERT INTO `sys_vip_config_schools` (`vip_id`, `school_id`) VALUES
 (1, 'SCH001'),

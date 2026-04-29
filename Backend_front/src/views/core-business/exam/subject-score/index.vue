@@ -170,6 +170,38 @@
           </div>
         </el-upload>
 
+        <!-- 任务进度展示 -->
+        <div v-if="taskStatus" class="task-progress-container mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-sm font-bold text-gray-700">处理进度</span>
+            <span class="text-xs text-gray-500">
+              {{ taskStatus.status === 'completed' ? taskStatus.total : taskStatus.current }} / {{ taskStatus.total }}
+            </span>
+          </div>
+          <el-progress 
+            :percentage="taskStatus.status === 'completed' ? 100 : (taskStatus.total > 0 ? Math.round((taskStatus.current / taskStatus.total) * 100) : 0)" 
+            :status="taskStatus.status === 'failed' ? 'exception' : (taskStatus.status === 'completed' ? 'success' : '')"
+            :stroke-width="15"
+            striped
+            striped-animated
+          />
+          
+          <div v-if="importType === 'answerSheet'" class="mt-4">
+            <div class="text-xs font-bold text-gray-500 mb-2 flex items-center">
+              <el-icon class="mr-1"><document /></el-icon>处理日志
+            </div>
+            <div class="task-logs-viewer" ref="logViewerRef">
+              <div v-for="(log, index) in taskLogs" :key="index" class="log-item">
+                <span class="log-time">[{{ new Date().toLocaleTimeString() }}]</span>
+                <span class="log-content">{{ log }}</span>
+              </div>
+              <div v-if="taskLogs.length === 0" class="text-gray-400 text-xs text-center py-4">
+                正在初始化任务...
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="mt-8 flex flex-col gap-3">
           <el-button 
             type="primary" 
@@ -182,7 +214,7 @@
             <template #icon v-if="!importLoading">
               <el-icon><Upload /></el-icon>
             </template>
-            {{ importLoading ? '正在处理中...' : '确认开始批量导入' }}
+            {{ importLoading ? '正在处理中...' : (taskStatus?.status === 'completed' ? '导入完成' : '确认开始批量导入') }}
           </el-button>
           <div v-if="importType === 'score'" class="flex justify-center mt-1">
             <el-button link type="primary" @click="downloadTemplate" class="download-link">
@@ -290,7 +322,8 @@
     fetchImportScore,
     fetchImportAnswerSheetZip,
     fetchSaveStudentScore,
-    fetchUploadStudentAnswerSheet
+    fetchUploadStudentAnswerSheet,
+    fetchTaskProgress
   } from '@/api/core-business/exam/project-editor'
   import type {
     BatchImportResult,
@@ -339,7 +372,13 @@
   const scoreConflictSaving = ref(false)
   const scoreConflictList = ref<PendingScoreConflictItem[]>([])
 
-  const importTitle = computed(() => importType.value === 'answerSheet' ? '批量导入学生原卷' : '批量导入成绩')
+  // 任务进度相关
+  const taskStatus = ref<any>(null)
+  const pollingTimer = ref<any>(null)
+  const taskLogs = ref<string[]>([])
+  const logViewerRef = ref<HTMLElement | null>(null)
+
+  const importTitle = computed(() => importType.value === 'answerSheet' ? '批量导入试卷答题卡' : '批量导入成绩')
 
   interface ImportFileItem {
     name: string
@@ -436,6 +475,47 @@
   function resetImportState() {
     fileList.value = []
     uploadRef.value?.clearFiles?.()
+    taskStatus.value = null
+    taskLogs.value = []
+    if (pollingTimer.value) {
+      clearInterval(pollingTimer.value)
+      pollingTimer.value = null
+    }
+  }
+
+  async function startPolling(taskId: string) {
+    if (pollingTimer.value) clearInterval(pollingTimer.value)
+    
+    pollingTimer.value = setInterval(async () => {
+      try {
+        const res = await fetchTaskProgress(taskId)
+        taskStatus.value = res
+        taskLogs.value = res.logs || []
+        
+        if (res.status === 'completed') {
+          clearInterval(pollingTimer.value)
+          pollingTimer.value = null
+          importLoading.value = false
+          // 更新文件列表状态为成功
+          fileList.value.forEach(f => {
+            if (f.status === 'uploading') f.status = 'success'
+          })
+          ElMessage.success('导入任务已完成')
+          await loadData()
+        } else if (res.status === 'failed') {
+          clearInterval(pollingTimer.value)
+          pollingTimer.value = null
+          importLoading.value = false
+          // 更新文件列表状态为失败
+          fileList.value.forEach(f => {
+            if (f.status === 'uploading') f.status = 'fail'
+          })
+          ElMessage.error('导入任务失败: ' + (res.logs?.[res.logs.length - 1] || '未知错误'))
+        }
+      } catch (error) {
+        console.error('获取任务进度失败', error)
+      }
+    }, 2000)
   }
 
   function handleFileChange(file: ImportFileItem) {
@@ -480,6 +560,7 @@
         const pendingConflicts: PendingScoreConflictItem[] = []
         let importedFileCount = 0
         let hasScoreWarnings = false
+        let hasPollingStarted = false
 
         for (const file of fileList.value) {
           file.status = 'uploading'
@@ -489,6 +570,13 @@
               subjectName: subjectName.value,
               file: file.raw
             })
+            
+            if ((result as any).taskId) {
+              startPolling((result as any).taskId)
+              hasPollingStarted = true
+              break
+            }
+
             file.status = 'success'
             importedFileCount++
 
@@ -503,6 +591,8 @@
             ElMessage.error(`${file.name} 导入失败: ${error.message || '未知错误'}`)
           }
         }
+
+        if (hasPollingStarted) return
 
         if (importedFileCount > 0) {
           await loadData()
@@ -526,6 +616,7 @@
       } else {
         let importedFileCount = 0
         let hasPaperWarnings = false
+        let hasPollingStarted = false
 
         for (const file of fileList.value) {
           file.status = 'uploading'
@@ -535,6 +626,13 @@
               subjectName: subjectName.value,
               file: file.raw
             })
+            
+            if ((result as any).taskId) {
+              startPolling((result as any).taskId)
+              hasPollingStarted = true
+              break
+            }
+
             file.status = 'success'
             importedFileCount++
 
@@ -548,6 +646,8 @@
           }
         }
 
+        if (hasPollingStarted) return
+
         const allSuccess = fileList.value.every(f => f.status === 'success')
         if (allSuccess && !hasPaperWarnings) {
           ElMessage.success(importedFileCount > 1 ? '全部试卷导入成功' : '试卷导入成功')
@@ -559,7 +659,9 @@
         }
       }
     } finally {
-      importLoading.value = false
+      if (!pollingTimer.value) {
+        importLoading.value = false
+      }
     }
   }
 
@@ -815,12 +917,47 @@
       :deep(.el-upload-dragger) {
         padding: 40px 20px;
         border: 2px dashed #dcdfe6;
-        border-radius: 12px;
-        background: #fafafa;
-        
+        transition: all 0.3s;
         &:hover {
           border-color: #409eff;
+          background: #f0f7ff;
         }
+      }
+    }
+
+    .task-logs-viewer {
+      height: 120px;
+      overflow-y: auto;
+      background: #1e1e1e;
+      border-radius: 4px;
+      padding: 10px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      color: #d4d4d4;
+
+      .log-item {
+        margin-bottom: 4px;
+        line-height: 1.4;
+        display: flex;
+        gap: 8px;
+
+        .log-time {
+          color: #569cd6;
+          white-space: nowrap;
+        }
+
+        .log-content {
+          color: #ce9178;
+          word-break: break-all;
+        }
+      }
+
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 3px;
       }
     }
 

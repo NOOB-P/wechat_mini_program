@@ -92,7 +92,7 @@
             :class="{ active: currentMainTab === 'wrong_push' }"
             @click="currentMainTab = 'wrong_push'"
           >
-            AI成绩分析
+            错题举一反三
             <view class="line" v-if="currentMainTab === 'wrong_push'"></view>
           </view>
         </view>
@@ -203,24 +203,6 @@
       <view class="print-dialog">
         <view class="d-title">纸质打印服务下单</view>
         
-        <view class="form-section">
-          <view class="sec-title">打印内容</view>
-          <view class="config-row subject-config-row">
-            <text class="label">打印科目</text>
-            <view class="options delivery-options">
-              <view
-                v-for="option in wrongBookFilterOptions"
-                :key="`print-${option.value}`"
-                class="opt-btn"
-                :class="{active: printSubject === option.value}"
-                @click="printSubject = option.value"
-              >
-                {{ option.label }}
-              </view>
-            </view>
-          </view>
-        </view>
-
         <view class="form-section">
           <view class="sec-title">纸张配置</view>
           <view class="config-row">
@@ -734,7 +716,7 @@ const submitPrint = async () => {
       ...printForm.value,
       userName: userInfo?.name || userInfo?.nickname || '微信用户',
       userPhone: printForm.value.phone || userInfo?.phone,
-      documentName: `${scoreData.value?.examName || '错题集'}-${printSubject.value === 'all' ? '全部科目' : printSubject.value}`,
+      documentName: `${scoreData.value?.examName || '错题集'}-错题汇总`,
       pages: Math.max(
         Math.ceil(printableWrongBookData.value.length / 2) || 1,
         Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)
@@ -808,9 +790,11 @@ watch(
 .filter-bar {
   background: #e0effe;
   padding: 20rpx 30rpx 24rpx;
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 99; // 降低层级，确保低于弹窗的遮罩层（通常为1000+）
+  left: 0;
+  right: 0;
+  z-index: 99;
   display: flex;
   justify-content: center;
   width: 100%;
@@ -897,6 +881,7 @@ watch(
   flex: 1;
   min-height: 0;
   padding: 30rpx;
+  padding-top: 150rpx;
   box-sizing: border-box;
 
   &::-webkit-scrollbar {

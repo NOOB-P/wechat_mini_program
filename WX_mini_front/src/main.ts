@@ -4,6 +4,8 @@ import App from "./App.vue";
 import store from '@/store/index'
 // 路由拦截
 import { routeInterceptor } from "@/utils/route"
+// 全局分享
+import { shareMixin } from '@/utils/share'
 
 // 全局样式
 import '@/style/index.scss'
@@ -14,6 +16,7 @@ export function createApp() {
   const app = createSSRApp(App);
   app.use(store)
   app.use(routeInterceptor)
+  app.mixin(shareMixin)
   return {
     app,
   };

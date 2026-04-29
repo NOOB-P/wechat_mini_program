@@ -135,6 +135,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { fetchUpdateBasicInfo, fetchUpdatePassword } from '@/api/auth/login'
   import { useRouter } from 'vue-router'
+  import { getUserAvatar } from '@/utils'
 
   defineOptions({ name: 'UserCenter' })
 
@@ -165,10 +166,7 @@
    * 随机默认头像
    */
   const userAvatar = computed(() => {
-    if (userInfo.value.avatar) return userInfo.value.avatar
-    const seeds = ['Felix', 'Aneka', 'Mia', 'Jack', 'Oliver']
-    const seed = seeds[Math.floor(Math.random() * seeds.length)]
-    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
+    return getUserAvatar(userInfo.value.avatar, userInfo.value.id)
   })
 
   /**

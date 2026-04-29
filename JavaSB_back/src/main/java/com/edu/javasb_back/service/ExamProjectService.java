@@ -5,6 +5,8 @@ import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
 import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import com.edu.javasb_back.model.dto.PaperOcrAutoCutDTO;
 import com.edu.javasb_back.model.dto.PaperRegionOcrDTO;
+import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.Resource;
 import java.util.Map;
 
 public interface ExamProjectService {
@@ -31,10 +33,13 @@ public interface ExamProjectService {
             String schoolId,
             String classId);
 
-    void downloadScoreTemplate(jakarta.servlet.http.HttpServletResponse response);
+    ResponseEntity<Resource> downloadScoreTemplate();
 
     Result<Map<String, Object>> importScores(String projectId, String subjectName, org.springframework.web.multipart.MultipartFile file);
+    void importScoresAsync(String taskId, String projectId, String subjectName, byte[] excelBytes);
+    ResponseEntity<Resource> exportScores(String projectId, String subjectName);
     Result<Map<String, Object>> importAnswerSheets(String projectId, String subjectName, org.springframework.web.multipart.MultipartFile file);
+    void importAnswerSheetsAsync(String taskId, String projectId, String subjectName, byte[] archiveBytes, String originalFilename);
     Result<String> uploadAnswerSheet(String projectId, String subjectName, String studentNo, org.springframework.web.multipart.MultipartFile file);
     
     /**

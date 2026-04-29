@@ -7,7 +7,7 @@
   >
     <ElForm ref="formRef" :model="formData" :rules="rules" label-width="100px">
       <ElFormItem label="用户名" prop="userName">
-        <ElInput v-model="formData.userName" placeholder="请输入登录账号" :disabled="dialogType === 'edit'" />
+        <ElInput v-model="formData.userName" placeholder="请输入登录账号" />
       </ElFormItem>
       <ElFormItem label="姓名/昵称" prop="nickName">
         <ElInput v-model="formData.nickName" placeholder="请输入姓名或昵称" />
@@ -234,10 +234,6 @@
         { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
       ],
       userType: [{ required: true, message: '请选择用户类型', trigger: 'change' }]
-    }
-
-    if (formData.userType === '3') {
-      baseRules.studentId = [{ required: true, message: '请选择关联学生', trigger: 'change' }]
     }
 
     return baseRules

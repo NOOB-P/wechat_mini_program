@@ -77,7 +77,7 @@ public class SysAccountController {
     public ResponseEntity<Resource> downloadParentTemplate() {
         try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("家长导入模板");
-            String[] headers = {"用户名", "昵称", "手机号", "密码", "会员类型", "学生学号"};
+            String[] headers = {"省", "市", "校", "班级", "学生姓名", "手机号", "会员类型"};
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 headerRow.createCell(i).setCellValue(headers[i]);
@@ -85,15 +85,16 @@ public class SysAccountController {
             }
 
             Row sampleRow = sheet.createRow(1);
-            sampleRow.createCell(0).setCellValue("parent_demo01");
-            sampleRow.createCell(1).setCellValue("张三爸爸");
-            sampleRow.createCell(2).setCellValue("13800001234");
-            sampleRow.createCell(3).setCellValue("123456");
-            sampleRow.createCell(4).setCellValue("VIP");
-            sampleRow.createCell(5).setCellValue("STU2026001");
+            sampleRow.createCell(0).setCellValue("广东省");
+            sampleRow.createCell(1).setCellValue("广州市");
+            sampleRow.createCell(2).setCellValue("第一中学");
+            sampleRow.createCell(3).setCellValue("1班");
+            sampleRow.createCell(4).setCellValue("张三");
+            sampleRow.createCell(5).setCellValue("13800001234");
+            sampleRow.createCell(6).setCellValue("1");
 
             Row tipsRow = sheet.createRow(2);
-            tipsRow.createCell(0).setCellValue("说明：密码留空默认为手机号后六位；会员类型可填 NORMAL/VIP/SVIP 或 0/1/2；学生学号可选");
+            tipsRow.createCell(0).setCellValue("说明：用户名默认手机号，昵称默认“学生姓名+家长”，密码默认手机号后六位，会员类型填写 0/1/2。");
 
             workbook.write(outputStream);
             String filename = URLEncoder.encode("家长导入模板.xlsx", StandardCharsets.UTF_8);
