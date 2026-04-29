@@ -158,7 +158,7 @@
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { useTable } from '@/hooks/core/useTable'
   import { fetchGetUserList, fetchDeleteUser, fetchImportParentUsers, fetchDownloadParentTemplate, fetchBatchDeleteUser } from '@/api/system/user'
-  import defaultAvatar from '@/assets/images/avatar/avatar.webp'
+  import { getUserAvatar } from '@/utils'
   import UserSearch from './modules/user-search.vue'
   import UserDialog from './modules/user-dialog.vue'
   import { ElTag, ElMessageBox, ElImage, ElMessage } from 'element-plus'
@@ -270,7 +270,8 @@
           label: '用户信息',
           width: 200,
           formatter: (row: any) => {
-            const avatar = row.avatar || defaultAvatar
+            // 如果用户没有头像，根据用户 ID 随机选择一个默认头像
+            const avatar = getUserAvatar(row.avatar, row.id)
             return h('div', { class: 'user flex-c' }, [
               h(ElImage, {
                 class: 'size-9.5 rounded-md',

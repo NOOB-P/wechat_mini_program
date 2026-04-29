@@ -57,6 +57,7 @@
             "postcss": true,
             "minified": true
         },
+        "__usePrivacyCheck__": true,
         "usingComponents" : true
     },
     "mp-alipay" : {
