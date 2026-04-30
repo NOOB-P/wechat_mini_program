@@ -21,7 +21,10 @@
             <view class="card-subtitle">{{ examTitle }}</view>
           </view>
           <view class="meta-wrap">
-            <text class="meta-tag">{{ reportData.cached ? '缓存报告' : '新生成' }}</text>
+            <view class="meta-actions">
+              <text class="meta-tag">{{ reportData.cached ? '缓存报告' : '新生成' }}</text>
+              <wd-button size="small" plain @click="$emit('export')">导出报告</wd-button>
+            </view>
             <text class="meta-text">{{ reportData.generatedAt }}</text>
           </view>
         </view>
@@ -158,6 +161,7 @@ const props = defineProps<{
 
 defineEmits<{
   upgrade: []
+  export: []
 }>()
 
 const examTitle = computed(() => {
@@ -329,6 +333,12 @@ const finalSummary = computed(() => {
   flex-direction: column;
   align-items: flex-end;
   gap: 8rpx;
+}
+
+.meta-actions {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
 }
 
 .meta-tag {

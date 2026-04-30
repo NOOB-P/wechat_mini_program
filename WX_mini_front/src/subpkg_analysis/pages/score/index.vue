@@ -112,16 +112,42 @@
             </view>
 
             <view class="vip-analysis-content" :class="{ 'blurred': !isVIPUser }">
-              <!-- AI 报告导出按钮卡片 -->
-              <view class="analysis-card export-card" v-if="isSVIPUser && aiReportData" @click="handleExportAiReport">
+              <!-- AI 报告导出按钮卡片 - SVIP 即可见 -->
+              <view class="analysis-card export-card" v-if="isSVIPUser">
                 <view class="card-header">
-                  <view class="header-left">
+                  <view class="header-left" @click="goToAiReport">
                     <view class="blue-bar"></view>
                     <text class="card-title">AI 成绩报告 (PDF)</text>
-                    <text class="card-subtitle">点击导出深度学情分析报告</text>
+                    <text class="card-subtitle">点击查看深度学情分析报告</text>
                   </view>
-                  <view class="export-icon-wrap">
-                    <wd-icon name="download" size="20px" color="#2563eb" />
+                  <view class="export-actions">
+                    <wd-button size="small" type="primary" plain custom-class="report-view-btn" @click="goToAiReport">查看</wd-button>
+                    <view class="export-icon-wrap" @click="handleExportAiReport">
+                      <wd-icon name="download" size="20px" color="#2563eb" />
+                    </view>
+                  </view>
+                </view>
+                
+                <!-- AI 报告摘要预览 -->
+                <view class="ai-report-summary" v-if="aiReportData" @click="goToAiReport">
+                  <view class="summary-text">{{ aiReportData.summary?.overallComment }}</view>
+                  <view class="summary-metrics">
+                    <view class="metric-item">
+                      <text class="m-label">科目数量</text>
+                      <text class="m-value">{{ scoreData?.subjects?.length || 0 }}</text>
+                    </view>
+                    <view class="metric-item">
+                      <text class="m-label">优势标签</text>
+                      <text class="m-value">{{ aiReportData.summary?.strengths?.length || 0 }}</text>
+                    </view>
+                    <view class="metric-item">
+                      <text class="m-label">薄弱标签</text>
+                      <text class="m-value">{{ aiReportData.summary?.weaknesses?.length || 0 }}</text>
+                    </view>
+                    <view class="metric-item">
+                      <text class="m-label">错题推送</text>
+                      <text class="m-value">{{ aiReportData.wrongQuestionPushes?.length || 0 }}</text>
+                    </view>
                   </view>
                 </view>
               </view>
@@ -207,6 +233,7 @@
               :report-data="aiReportData"
               :score-data="scoreData"
               @upgrade="goToRecharge('SVIP')"
+              @export="handleExportAiReport"
             />
           </view>
         </view>
@@ -527,6 +554,14 @@ const goToDetail = (type: string) => {
   })
 }
 
+const goToAiReport = () => {
+  uni.setStorageSync('currentAiReportData', aiReportData.value)
+  uni.setStorageSync('currentScoreData', scoreData.value)
+  uni.navigateTo({
+    url: `/subpkg_analysis/pages/score/ai-report?examId=${pickerValue.value[1] || ''}`
+  })
+}
+
 const getChartValue = (item: any) => {
   if (currentSubject.value === '总分') {
     return item.score
@@ -654,7 +689,8 @@ const loadAiReport = async (examId: string) => {
 
 const tryLoadAiReport = () => {
   const examId = scoreData.value?.examId || pickerValue.value?.[1]
-  if (currentMainTab.value === 'wrong_push' && isSVIPUser.value && examId) {
+  // 只要是 SVIP 且有考试 ID，就加载 AI 报告，不限制必须在“错题推送” Tab
+  if (isSVIPUser.value && examId) {
     loadAiReport(examId)
   }
 }
@@ -1383,20 +1419,78 @@ watch(
   &.export-card {
     background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
     border: 1rpx solid #d0e5ff;
+    padding: 24rpx;
     
     .card-title {
       color: #2563eb;
     }
     
+    .export-actions {
+      display: flex;
+      align-items: center;
+      gap: 16rpx;
+
+      :deep(.report-view-btn) {
+        border-radius: 30rpx;
+        height: 54rpx;
+        line-height: 54rpx;
+        font-size: 24rpx;
+      }
+    }
+
     .export-icon-wrap {
-      width: 80rpx;
-      height: 80rpx;
+      width: 64rpx;
+      height: 64rpx;
       background: #eef6ff;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       border: 2rpx solid #dbeafe;
+    }
+
+    .ai-report-summary {
+      margin-top: 24rpx;
+      padding-top: 24rpx;
+      border-top: 1rpx dashed #d0e5ff;
+      
+      .summary-text {
+        font-size: 26rpx;
+        color: #64748b;
+        line-height: 1.6;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        overflow: hidden;
+        margin-bottom: 24rpx;
+      }
+
+      .summary-metrics {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12rpx;
+        
+        .metric-item {
+          background: rgba(37, 99, 235, 0.04);
+          padding: 16rpx 8rpx;
+          border-radius: 12rpx;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4rpx;
+          
+          .m-label {
+            font-size: 20rpx;
+            color: #94a3b8;
+          }
+          
+          .m-value {
+            font-size: 28rpx;
+            color: #2563eb;
+            font-weight: bold;
+          }
+        }
+      }
     }
   }
 

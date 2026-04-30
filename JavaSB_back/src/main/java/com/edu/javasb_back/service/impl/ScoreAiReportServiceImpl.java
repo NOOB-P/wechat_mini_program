@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -181,71 +182,92 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         Map<String, Object> data = reportResult.getData();
         Optional<SysStudent> studentOpt = getBoundStudent(uid);
         ExamProject project = examProjectRepository.findById(examId).orElse(null);
-        
+
         if (studentOpt.isEmpty() || project == null) {
             return Result.error("数据异常");
         }
 
+        Optional<StudentExamAiReport> cachedEntity = studentExamAiReportRepository
+                .findByProjectIdAndStudentNo(examId, studentOpt.get().getStudentNo());
+        Map<String, Object> sourceSnapshot = cachedEntity
+                .map(StudentExamAiReport::getSourceSnapshot)
+                .filter(StringUtils::hasText)
+                .map(this::readJsonMap)
+                .orElse(Collections.emptyMap());
+        Map<String, Object> totalScore = map(sourceSnapshot.get("totalScore"));
+        List<Map<String, Object>> subjectRows = listMap(sourceSnapshot.get("subjects"));
+
         try (PDDocument document = new PDDocument()) {
             PdfRenderContext context = new PdfRenderContext(document);
-            
-            // Title
+
             context.drawTitle("AI 成绩分析报告", 48, true);
             context.drawText(project.getName(), 24, false, new Color(100, 116, 139));
             context.drawText("学生：" + studentOpt.get().getName() + " (" + studentOpt.get().getStudentNo() + ")", 24, false, new Color(100, 116, 139));
+            context.drawText("学校：" + studentOpt.get().getSchool() + "    班级：" + studentOpt.get().getClassName(), 22, false, new Color(100, 116, 139));
             context.drawText("生成时间：" + data.get("generatedAt"), 20, false, new Color(148, 163, 184));
             context.addSpace(40);
 
-            // 1. Overall Summary
+            context.drawSectionTitle("一、考试基础数据");
+            if (!subjectRows.isEmpty()) {
+                context.drawScoreTable(subjectRows, totalScore);
+                context.addSpace(18);
+                context.drawImage(buildSubjectBarChart(subjectRows), PAGE_WIDTH - PAGE_MARGIN * 2, 360);
+                context.addSpace(20);
+            }
+
+            context.drawSectionTitle("二、总分成绩分析");
+            context.drawSubTitle("（一）一分四率分析");
+            context.drawNumberedList(buildOneScoreFourRateLines(totalScore, subjectRows), new Color(37, 99, 235));
+            context.addSpace(12);
+            context.drawSubTitle("（二）临界生分析");
+            context.drawBullets(buildBorderlineLines(totalScore), new Color(59, 130, 246));
+            context.addSpace(24);
+
+            context.drawSectionTitle("三、单学科表现总结");
+            context.drawNumberedList(buildSubjectPerformanceLines(subjectRows), new Color(37, 99, 235));
+            context.addSpace(12);
+            context.drawText("图表：各科个人得分率与年级平均得分率柱形对比", 22, false, new Color(100, 116, 139));
+            context.addSpace(24);
+
+            context.drawSectionTitle("四、知识点强弱分析");
+            context.drawSubTitle("（一）优势知识点");
+            context.drawBullets(buildKnowledgePointStrengthLines(data, subjectRows), new Color(22, 163, 74));
+            context.drawSubTitle("（二）薄弱知识点");
+            context.drawBullets(buildKnowledgePointWeaknessLines(data, sourceSnapshot), new Color(220, 38, 38));
+            context.addSpace(24);
+
+            context.drawSectionTitle("五、分阶段学习提升计划");
+            Map<String, List<String>> studyPlan = buildStudyPlanSections(data, subjectRows, totalScore);
+            for (Map.Entry<String, List<String>> entry : studyPlan.entrySet()) {
+                context.drawSubTitle(entry.getKey());
+                context.drawBullets(entry.getValue(), new Color(59, 130, 246));
+            }
+            context.addSpace(24);
+
+            context.drawSectionTitle("六、教师专属指导通道");
+            context.drawText("若学习过程中遇到知识点疑惑、计划执行困难，可扫码联系专属学科老师，获得一对一针对性辅导。", 24, false, new Color(51, 65, 85));
+            BufferedImage tutorImage = loadTeacherGuideImage();
+            if (tutorImage != null) {
+                context.drawImage(tutorImage, 260, 260);
+                context.addSpace(12);
+            }
+            context.addSpace(20);
+
+            context.drawSectionTitle("七、报告总结");
             Map<String, Object> summary = map(data.get("summary"));
-            context.drawSectionTitle("一、总体诊断");
             context.drawText(asString(summary.get("overallComment")), 26, false, new Color(51, 65, 85));
             context.addSpace(20);
-            
-            context.drawSubTitle("强势点");
-            context.drawBullets(stringList(summary.get("strengths")), new Color(22, 163, 74));
-            
-            context.drawSubTitle("薄弱点");
-            context.drawBullets(stringList(summary.get("weaknesses")), new Color(220, 38, 38));
-            
-            context.drawSubTitle("重点关注");
-            context.drawBullets(stringList(summary.get("focusPoints")), new Color(37, 99, 235));
-            context.addSpace(40);
-
-            // 2. Subject Insights
-            context.drawSectionTitle("二、学科能力分析");
-            List<Map<String, Object>> subjectInsights = listMap(data.get("subjectInsights"));
-            for (Map<String, Object> insight : subjectInsights) {
-                context.drawSubTitle(asString(insight.get("subjectName")));
-                context.drawLabelText("优势", asString(insight.get("strength")));
-                context.drawLabelText("短板", asString(insight.get("weakness")));
-                context.drawLabelText("对比", asString(insight.get("comparison")));
-                context.addSpace(15);
-            }
-            context.addSpace(40);
-
-            // 3. Wrong Question Pushes
-            context.drawSectionTitle("三、错题与薄弱点分析");
-            List<Map<String, Object>> pushes = listMap(data.get("wrongQuestionPushes"));
-            for (Map<String, Object> push : pushes) {
-                context.drawSubTitle(asString(push.get("subjectName")) + " - " + asString(push.get("questionNo")));
-                if (StringUtils.hasText(asString(push.get("knowledgePoint")))) {
-                    context.drawLabelText("知识点", asString(push.get("knowledgePoint")));
-                }
-                context.drawLabelText("原因", asString(push.get("reason")));
-                context.drawLabelText("建议", asString(push.get("suggestion")));
-                context.addSpace(15);
-            }
+            context.drawBullets(buildFinalSummaryLines(data, subjectRows, totalScore), new Color(37, 99, 235));
 
             context.finish();
-            
+
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             document.save(baos);
-            
+
             String fileName = "ai_report_" + studentOpt.get().getStudentNo() + "_" + examId + "_" + System.currentTimeMillis() + ".pdf";
             String objectKey = "exports/reports/" + fileName;
             String url = ossStorageService.uploadBytes(baos.toByteArray(), objectKey, "application/pdf");
-            
+
             return Result.success("导出成功", url);
         } catch (Exception e) {
             e.printStackTrace();
@@ -352,6 +374,91 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
                 currentY += 5;
             }
             currentY += 10;
+        }
+
+        public void drawNumberedList(List<String> items, Color color) {
+            if (items == null || items.isEmpty()) return;
+            for (int index = 0; index < items.size(); index++) {
+                String prefix = (index + 1) + ". ";
+                checkSpace(40);
+                currentGraphics.setFont(new Font("Microsoft YaHei", Font.BOLD, 26));
+                currentGraphics.setColor(color);
+                currentGraphics.drawString(prefix, PAGE_MARGIN, currentY + 26);
+                int prefixWidth = currentGraphics.getFontMetrics().stringWidth(prefix);
+                currentY = drawWrappedText(currentGraphics, items.get(index), PAGE_MARGIN + prefixWidth + 8, currentY, contentWidth - prefixWidth - 8, new Font("Microsoft YaHei", Font.PLAIN, 26), new Color(71, 85, 105), 40);
+                currentY += 5;
+            }
+            currentY += 10;
+        }
+
+        public void drawScoreTable(List<Map<String, Object>> subjectRows, Map<String, Object> totalScore) {
+            if (subjectRows == null || subjectRows.isEmpty()) return;
+            int rowHeight = 52;
+            int tableWidth = contentWidth;
+            int[] colWidths = { 120, 120, 120, 120, 120, 120, 100 };
+            int tableHeight = rowHeight * (subjectRows.size() + 2);
+            checkSpace(tableHeight + 20);
+
+            String[] headers = { "科目", "个人成绩", "班级平均", "年级平均", "校平均", "联考平均", "满分" };
+            int startX = PAGE_MARGIN;
+            int startY = currentY;
+
+            currentGraphics.setColor(new Color(248, 250, 252));
+            currentGraphics.fillRoundRect(startX, startY, tableWidth, tableHeight, 16, 16);
+            currentGraphics.setColor(new Color(203, 213, 225));
+            currentGraphics.drawRoundRect(startX, startY, tableWidth, tableHeight, 16, 16);
+
+            int x = startX;
+            for (int i = 0; i < headers.length; i++) {
+                drawTableCell(headers[i], x, startY, colWidths[i], rowHeight, true);
+                x += colWidths[i];
+            }
+
+            int currentRowY = startY + rowHeight;
+            for (Map<String, Object> row : subjectRows) {
+                x = startX;
+                drawTableCell(asString(row.get("subjectName")), x, currentRowY, colWidths[0], rowHeight, false); x += colWidths[0];
+                drawTableCell(formatNumber(row.get("score")), x, currentRowY, colWidths[1], rowHeight, false); x += colWidths[1];
+                drawTableCell(formatNumber(row.get("classAverage")), x, currentRowY, colWidths[2], rowHeight, false); x += colWidths[2];
+                drawTableCell(formatNumber(row.get("gradeAverage")), x, currentRowY, colWidths[3], rowHeight, false); x += colWidths[3];
+                drawTableCell(formatNumber(row.get("schoolAverage")), x, currentRowY, colWidths[4], rowHeight, false); x += colWidths[4];
+                drawTableCell(formatNumber(row.get("projectAverage")), x, currentRowY, colWidths[5], rowHeight, false); x += colWidths[5];
+                drawTableCell(formatNumber(row.get("fullScore")), x, currentRowY, colWidths[6], rowHeight, false);
+                currentRowY += rowHeight;
+            }
+
+            x = startX;
+            drawTableCell("总分", x, currentRowY, colWidths[0], rowHeight, true); x += colWidths[0];
+            drawTableCell(formatNumber(totalScore.get("studentScore")), x, currentRowY, colWidths[1], rowHeight, true); x += colWidths[1];
+            drawTableCell(formatNumber(totalScore.get("classAverage")), x, currentRowY, colWidths[2], rowHeight, true); x += colWidths[2];
+            drawTableCell(formatNumber(totalScore.get("gradeAverage")), x, currentRowY, colWidths[3], rowHeight, true); x += colWidths[3];
+            drawTableCell(formatNumber(totalScore.get("schoolAverage")), x, currentRowY, colWidths[4], rowHeight, true); x += colWidths[4];
+            drawTableCell(formatNumber(totalScore.get("projectAverage")), x, currentRowY, colWidths[5], rowHeight, true); x += colWidths[5];
+            drawTableCell(formatNumber(totalScore.get("fullScore")), x, currentRowY, colWidths[6], rowHeight, true);
+
+            currentY = currentRowY + rowHeight + 20;
+        }
+
+        private void drawTableCell(String text, int x, int y, int width, int height, boolean header) {
+            currentGraphics.setColor(header ? new Color(241, 245, 249) : Color.WHITE);
+            currentGraphics.fillRect(x, y, width, height);
+            currentGraphics.setColor(new Color(203, 213, 225));
+            currentGraphics.drawRect(x, y, width, height);
+            currentGraphics.setFont(new Font("Microsoft YaHei", header ? Font.BOLD : Font.PLAIN, 22));
+            currentGraphics.setColor(new Color(30, 41, 59));
+            currentGraphics.drawString(text, x + 12, y + 32);
+        }
+
+        public void drawImage(BufferedImage image, int maxWidth, int maxHeight) {
+            if (image == null) return;
+            float scale = Math.min((float) maxWidth / image.getWidth(), (float) maxHeight / image.getHeight());
+            scale = Math.min(scale, 1.0f);
+            int drawWidth = Math.max(1, Math.round(image.getWidth() * scale));
+            int drawHeight = Math.max(1, Math.round(image.getHeight() * scale));
+            checkSpace(drawHeight + 16);
+            int x = PAGE_MARGIN + (contentWidth - drawWidth) / 2;
+            currentGraphics.drawImage(image, x, currentY, drawWidth, drawHeight, null);
+            currentY += drawHeight + 16;
         }
 
         public void addSpace(int space) {
@@ -728,6 +835,243 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         data.put("subjectInsights", listMap(reportContent.get("subjectInsights")));
         data.put("wrongQuestionPushes", listMap(reportContent.get("wrongQuestionPushes")));
         return data;
+    }
+
+    private BufferedImage buildSubjectBarChart(List<Map<String, Object>> subjectRows) {
+        int width = 1000;
+        int height = 320;
+        int left = 90;
+        int right = 40;
+        int top = 30;
+        int bottom = 70;
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = image.createGraphics();
+        try {
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, width, height);
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g.setColor(new Color(226, 232, 240));
+            g.drawLine(left, height - bottom, width - right, height - bottom);
+            g.drawLine(left, top, left, height - bottom);
+
+            Font font = new Font("Microsoft YaHei", Font.PLAIN, 16);
+            g.setFont(font);
+            double maxRate = 100D;
+            int chartWidth = width - left - right;
+            int chartHeight = height - top - bottom;
+            int groupWidth = Math.max(chartWidth / Math.max(subjectRows.size(), 1), 80);
+            int barWidth = 18;
+
+            for (int i = 0; i <= 5; i++) {
+                int y = top + Math.round(chartHeight * i / 5f);
+                g.setColor(new Color(241, 245, 249));
+                g.drawLine(left, y, width - right, y);
+                g.setColor(new Color(100, 116, 139));
+                int value = (int) Math.round(maxRate - maxRate * i / 5f);
+                g.drawString(value + "%", 32, y + 6);
+            }
+
+            for (int index = 0; index < subjectRows.size(); index++) {
+                Map<String, Object> row = subjectRows.get(index);
+                double fullScore = Math.max(asDouble(row.get("fullScore")), 1D);
+                double[] rates = {
+                        asDouble(row.get("score")) / fullScore * 100D,
+                        asDouble(row.get("classAverage")) / fullScore * 100D,
+                        asDouble(row.get("gradeAverage")) / fullScore * 100D,
+                        asDouble(row.get("schoolAverage")) / fullScore * 100D,
+                        asDouble(row.get("projectAverage")) / fullScore * 100D
+                };
+                Color[] colors = {
+                        new Color(239, 68, 68),
+                        new Color(37, 99, 235),
+                        new Color(16, 185, 129),
+                        new Color(249, 115, 22),
+                        new Color(168, 85, 247)
+                };
+                int groupX = left + index * groupWidth + 6;
+                int baseline = height - bottom;
+                for (int barIndex = 0; barIndex < rates.length; barIndex++) {
+                    int barHeight = (int) Math.round(chartHeight * rates[barIndex] / maxRate);
+                    int x = groupX + barIndex * (barWidth + 4);
+                    int y = baseline - barHeight;
+                    g.setColor(colors[barIndex]);
+                    g.fillRoundRect(x, y, barWidth, barHeight, 6, 6);
+                }
+                g.setColor(new Color(30, 41, 59));
+                g.drawString(asString(row.get("subjectName")), groupX - 2, height - 28);
+            }
+
+            String[] legends = { "个人成绩", "班级平均", "年级平均", "校平均", "联考平均" };
+            Color[] legendColors = {
+                    new Color(239, 68, 68),
+                    new Color(37, 99, 235),
+                    new Color(16, 185, 129),
+                    new Color(249, 115, 22),
+                    new Color(168, 85, 247)
+            };
+            int legendX = 80;
+            for (int index = 0; index < legends.length; index++) {
+                g.setColor(legendColors[index]);
+                g.fillRoundRect(legendX, 12, 16, 10, 4, 4);
+                g.setColor(new Color(51, 65, 85));
+                g.drawString(legends[index], legendX + 22, 22);
+                legendX += 170;
+            }
+        } finally {
+            g.dispose();
+        }
+        return image;
+    }
+
+    private List<String> buildOneScoreFourRateLines(Map<String, Object> totalScore, List<Map<String, Object>> subjectRows) {
+        if (subjectRows.isEmpty()) {
+            return List.of("暂无学科成绩数据，无法生成一分四率分析。");
+        }
+        long passCount = subjectRows.stream().filter(item -> scoreRate(item) >= 0.6D).count();
+        long excellentCount = subjectRows.stream().filter(item -> scoreRate(item) >= 0.8D).count();
+        long goodCount = subjectRows.stream().filter(item -> scoreRate(item) >= 0.7D).count();
+        long lowCount = subjectRows.stream().filter(item -> scoreRate(item) < 0.6D).count();
+        int total = subjectRows.size();
+        return List.of(
+                String.format("平均分：个人总分 %.1f 分，班级平均 %.1f 分，年级平均 %.1f 分，校平均 %.1f 分，联考平均 %.1f 分。",
+                        asDouble(totalScore.get("studentScore")), asDouble(totalScore.get("classAverage")), asDouble(totalScore.get("gradeAverage")),
+                        asDouble(totalScore.get("schoolAverage")), asDouble(totalScore.get("projectAverage"))),
+                String.format("及格率：共有 %d/%d 科达到及格线，及格率 %.1f%%。", passCount, total, ratioPercent(passCount, total)),
+                String.format("优秀率：共有 %d/%d 科达到优秀标准，优秀率 %.1f%%。", excellentCount, total, ratioPercent(excellentCount, total)),
+                String.format("良好率：共有 %d/%d 科达到良好标准，良好率 %.1f%%。", goodCount, total, ratioPercent(goodCount, total)),
+                String.format("低分率：共有 %d/%d 科低于及格线，低分率 %.1f%%。", lowCount, total, ratioPercent(lowCount, total))
+        );
+    }
+
+    private List<String> buildBorderlineLines(Map<String, Object> totalScore) {
+        return List.of(
+                String.format("当前总分 %.1f 分，班级排名第 %d/%d，年级排名第 %d/%d。", asDouble(totalScore.get("studentScore")),
+                        (int) asDouble(totalScore.get("classRank")), (int) asDouble(totalScore.get("classCount")),
+                        (int) asDouble(totalScore.get("gradeRank")), (int) asDouble(totalScore.get("gradeCount"))),
+                "若想进一步提升排名，建议优先补强明显低于平均线的学科，并重点回看高频失分题。",
+                "当前成绩仍有明显提升空间，需通过阶段性复盘和专题训练逐步突破。"
+        );
+    }
+
+    private List<String> buildSubjectPerformanceLines(List<Map<String, Object>> subjectRows) {
+        List<String> lines = new ArrayList<>();
+        List<String> strong = new ArrayList<>();
+        List<String> stable = new ArrayList<>();
+        List<String> weak = new ArrayList<>();
+        List<String> severe = new ArrayList<>();
+        for (Map<String, Object> row : subjectRows) {
+            double diff = scoreRate(row) - averageRate(row, "gradeAverage");
+            String subject = asString(row.get("subjectName"));
+            if (diff >= 0.08D) strong.add(subject);
+            else if (diff >= 0D) stable.add(subject);
+            else if (diff <= -0.2D) severe.add(subject);
+            else weak.add(subject);
+        }
+        if (!strong.isEmpty()) lines.add("优势学科：" + String.join("、", strong) + "，得分率高于年级平均，基础扎实，具备继续冲高的空间。");
+        if (!stable.isEmpty()) lines.add("平稳学科：" + String.join("、", stable) + "，发挥较稳，只需持续巩固与查漏补缺。");
+        if (!weak.isEmpty()) lines.add("薄弱学科：" + String.join("、", weak) + "，得分率低于年级平均，需尽快定位失分原因。");
+        if (!severe.isEmpty()) lines.add("严重薄弱学科：" + String.join("、", severe) + "，已成为拉低总分的核心因素，应优先投入时间补强。");
+        return lines.isEmpty() ? List.of("当前学科表现整体均衡，建议继续保持稳定输出。") : lines;
+    }
+
+    private List<String> buildKnowledgePointStrengthLines(Map<String, Object> reportData, List<Map<String, Object>> subjectRows) {
+        List<String> strengths = stringList(map(reportData.get("summary")).get("strengths"));
+        if (!strengths.isEmpty()) return strengths;
+        return subjectRows.stream()
+                .sorted(Comparator.comparingDouble(this::scoreRate).reversed())
+                .limit(3)
+                .map(item -> asString(item.get("subjectName")) + "当前知识点掌握较稳，可保持训练频率，避免优势回落。")
+                .toList();
+    }
+
+    private List<String> buildKnowledgePointWeaknessLines(Map<String, Object> reportData, Map<String, Object> sourceSnapshot) {
+        List<Map<String, Object>> wrongQuestions = listMap(sourceSnapshot.get("wrongQuestions"));
+        Map<String, Long> grouped = wrongQuestions.stream()
+                .map(item -> asString(item.get("knowledgePoint")).trim())
+                .filter(StringUtils::hasText)
+                .collect(Collectors.groupingBy(item -> item, LinkedHashMap::new, Collectors.counting()));
+        if (!grouped.isEmpty()) {
+            return grouped.entrySet().stream()
+                    .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                    .limit(5)
+                    .map(entry -> entry.getKey() + "：高频失分知识点，建议优先做专题复盘与同类题训练。")
+                    .toList();
+        }
+        return listMap(reportData.get("wrongQuestionPushes")).stream()
+                .map(item -> asString(item.get("knowledgePoint")).trim())
+                .filter(StringUtils::hasText)
+                .distinct()
+                .map(item -> item + "：建议结合错题推送做强化巩固。")
+                .toList();
+    }
+
+    private Map<String, List<String>> buildStudyPlanSections(Map<String, Object> reportData, List<Map<String, Object>> subjectRows, Map<String, Object> totalScore) {
+        List<String> weakSubjects = subjectRows.stream()
+                .sorted(Comparator.comparingDouble(this::scoreRate))
+                .limit(2)
+                .map(item -> asString(item.get("subjectName")))
+                .toList();
+        Map<String, List<String>> sections = new LinkedHashMap<>();
+        sections.put("1. 短期计划（1-2周）：补齐基础漏洞", List.of(
+                "主攻 " + String.join("、", weakSubjects.isEmpty() ? List.of("薄弱学科") : weakSubjects) + " 的基础知识点，完成课本梳理和错题回顾。",
+                "每天优先解决基础题和中档题的稳定性问题，减少会做但失分的情况。",
+                "目标：缩小与年级平均的差距，提升整体得分稳定性。"
+        ));
+        sections.put("2. 中期计划（3-4周）：专项突破提分", List.of(
+                "围绕高频失分题型做专项训练，总结通用解题步骤和答题规范。",
+                "结合 AI 推送的重点关注内容，逐步补齐薄弱知识点。",
+                "目标：带动弱势学科提升，促进总分持续回升。"
+        ));
+        sections.put("3. 长期计划（阶段冲刺）：稳定优势结构", List.of(
+                "保持优势学科训练频率，避免在补弱过程中出现强项回落。",
+                "每周至少完成一次整卷限时训练，重点观察做题节奏和时间分配。",
+                String.format("目标：在当前 %.1f 分基础上继续稳步上升，逐步冲击更高名次。", asDouble(totalScore.get("studentScore")))
+        ));
+        return sections;
+    }
+
+    private List<String> buildFinalSummaryLines(Map<String, Object> reportData, List<Map<String, Object>> subjectRows, Map<String, Object> totalScore) {
+        List<String> lines = new ArrayList<>();
+        String overallComment = asString(map(reportData.get("summary")).get("overallComment"));
+        if (StringUtils.hasText(overallComment)) lines.add(overallComment);
+        List<String> weakSubjects = subjectRows.stream()
+                .filter(item -> scoreRate(item) < averageRate(item, "gradeAverage"))
+                .map(item -> asString(item.get("subjectName")))
+                .toList();
+        if (!weakSubjects.isEmpty()) {
+            lines.add("当前需要重点补强的学科主要集中在：" + String.join("、", weakSubjects) + "。");
+        }
+        lines.add(String.format("只要围绕错题知识点持续复盘，并执行分阶段提升计划，当前 %.1f 分仍有进一步提升空间。", asDouble(totalScore.get("studentScore"))));
+        return lines;
+    }
+
+    private BufferedImage loadTeacherGuideImage() {
+        try {
+            ClassPathResource resource = new ClassPathResource("static/resource/recommend_tutor.png");
+            return resource.exists() ? javax.imageio.ImageIO.read(resource.getInputStream()) : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private double scoreRate(Map<String, Object> row) {
+        double fullScore = Math.max(asDouble(row.get("fullScore")), 1D);
+        return asDouble(row.get("score")) / fullScore;
+    }
+
+    private double averageRate(Map<String, Object> row, String key) {
+        double fullScore = Math.max(asDouble(row.get("fullScore")), 1D);
+        return asDouble(row.get(key)) / fullScore;
+    }
+
+    private double ratioPercent(long count, int total) {
+        return total <= 0 ? 0D : Math.round(count * 1000D / total) / 10D;
+    }
+
+    private String formatNumber(Object value) {
+        double v = asDouble(value);
+        return Math.abs(v - Math.round(v)) < 0.01 ? String.valueOf((int) Math.round(v)) : String.format("%.1f", v);
     }
 
     private Map<String, Double> parseBenchmarks(String json) {

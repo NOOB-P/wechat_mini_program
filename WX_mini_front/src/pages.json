@@ -182,6 +182,12 @@
 					}
 				},
 				{
+					"path": "pages/score/ai-report",
+					"style": {
+						"navigationBarTitleText": "AI 成绩分析报告"
+					}
+				},
+				{
 					"path": "pages/paper/index",
 					"style": {
 						"navigationBarTitleText": "试卷报告"
