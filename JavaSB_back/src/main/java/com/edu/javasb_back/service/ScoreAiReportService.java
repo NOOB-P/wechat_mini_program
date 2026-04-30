@@ -6,4 +6,6 @@ import java.util.Map;
 
 public interface ScoreAiReportService {
     Result<Map<String, Object>> getExamAiReport(Long uid, String examId);
+
+    Result<String> exportExamAiReport(Long uid, String examId);
 }

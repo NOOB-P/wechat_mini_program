@@ -71,29 +71,31 @@
       <view class="analysis-container">
         <!-- 顶部 Tab -->
         <view class="top-tabs">
-          <view 
-            class="tab-item" 
-            :class="{ active: currentMainTab === 'analysis' }"
-            @click="currentMainTab = 'analysis'"
-          >
-            成绩分析
-            <view class="line" v-if="currentMainTab === 'analysis'"></view>
-          </view>
-          <view 
-            class="tab-item" 
-            :class="{ active: currentMainTab === 'wrong_book' }"
-            @click="currentMainTab = 'wrong_book'"
-          >
-            错题整理
-            <view class="line" v-if="currentMainTab === 'wrong_book'"></view>
-          </view>
-          <view 
-            class="tab-item" 
-            :class="{ active: currentMainTab === 'wrong_push' }"
-            @click="currentMainTab = 'wrong_push'"
-          >
-            错题举一反三
-            <view class="line" v-if="currentMainTab === 'wrong_push'"></view>
+          <view class="tabs-scroll">
+            <view 
+              class="tab-item" 
+              :class="{ active: currentMainTab === 'analysis' }"
+              @click="currentMainTab = 'analysis'"
+            >
+              成绩分析
+              <view class="line" v-if="currentMainTab === 'analysis'"></view>
+            </view>
+            <view 
+              class="tab-item" 
+              :class="{ active: currentMainTab === 'wrong_book' }"
+              @click="currentMainTab = 'wrong_book'"
+            >
+              错题整理
+              <view class="line" v-if="currentMainTab === 'wrong_book'"></view>
+            </view>
+            <view 
+              class="tab-item" 
+              :class="{ active: currentMainTab === 'wrong_push' }"
+              @click="currentMainTab = 'wrong_push'"
+            >
+              错题举一反三
+              <view class="line" v-if="currentMainTab === 'wrong_push'"></view>
+            </view>
           </view>
         </view>
 
@@ -110,7 +112,20 @@
             </view>
 
             <view class="vip-analysis-content" :class="{ 'blurred': !isVIPUser }">
-              
+              <!-- AI 报告导出按钮卡片 -->
+              <view class="analysis-card export-card" v-if="isSVIPUser && aiReportData" @click="handleExportAiReport">
+                <view class="card-header">
+                  <view class="header-left">
+                    <view class="blue-bar"></view>
+                    <text class="card-title">AI 成绩报告 (PDF)</text>
+                    <text class="card-subtitle">点击导出深度学情分析报告</text>
+                  </view>
+                  <view class="export-icon-wrap">
+                    <wd-icon name="download" size="20px" color="#2563eb" />
+                  </view>
+                </view>
+              </view>
+
               <!-- 详细的成绩构成分析 -->
               <view class="analysis-card detail-card" v-if="analysisData && analysisData.composition" @click="goToDetail('composition')">
                 <view class="card-header">
@@ -285,7 +300,7 @@
 import { ref, computed, watch } from 'vue'
 import { onShow, onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { getStudentScoresApi, getSemesterListApi, exportWrongBookApi } from '@/subpkg_analysis/api/score'
+import { getStudentScoresApi, getSemesterListApi, getAiExamReportApi, exportWrongBookApi, exportAiExamReportApi } from '@/subpkg_analysis/api/score'
 import { submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
 import { getUserInfoApi } from '@/api/mine'
 import WrongBookToolbar from '@/subpkg_analysis/components/WrongBookToolbar.vue'
@@ -659,16 +674,18 @@ const handleExport = async () => {
 
     if (res.code === 200 && res.data) {
       uni.hideLoading()
-      toast.success('生成成功')
+      toast.success('导出成功')
       
       // 使用下载并打开文档的方式
+      const downloadUrl = resolveAssetUrl(res.data)
       uni.downloadFile({
-        url: res.data,
+        url: downloadUrl,
         success: (downloadRes) => {
           if (downloadRes.statusCode === 200) {
             uni.openDocument({
               filePath: downloadRes.tempFilePath,
               showMenu: true,
+              fileType: 'pdf',
               success: () => console.log('打开文档成功'),
               fail: () => toast.error('打开文档失败')
             })
@@ -678,11 +695,50 @@ const handleExport = async () => {
       })
     } else {
       uni.hideLoading()
-      toast.error(res.msg || '生成失败')
+      toast.error(res.msg || '导出失败')
     }
   } catch (e) {
     uni.hideLoading()
     console.error('导出错题失败:', e)
+    toast.error('网络错误，导出失败')
+  }
+}
+
+const handleExportAiReport = async () => {
+  const examId = scoreData.value?.examId || pickerValue.value?.[1]
+  if (!examId) return toast.show('未选择考试')
+
+  try {
+    uni.showLoading({ title: '正在生成报告...', mask: true })
+    const res = await exportAiExamReportApi({ examId })
+
+    if (res.code === 200 && res.data) {
+      uni.hideLoading()
+      toast.success('导出成功')
+      
+      const downloadUrl = resolveAssetUrl(res.data)
+      uni.downloadFile({
+        url: downloadUrl,
+        success: (downloadRes) => {
+          if (downloadRes.statusCode === 200) {
+            uni.openDocument({
+              filePath: downloadRes.tempFilePath,
+              showMenu: true,
+              fileType: 'pdf',
+              success: () => console.log('打开报告成功'),
+              fail: () => toast.error('打开报告失败')
+            })
+          }
+        },
+        fail: () => toast.error('下载报告失败')
+      })
+    } else {
+      uni.hideLoading()
+      toast.error(res.msg || '导出失败')
+    }
+  } catch (e) {
+    uni.hideLoading()
+    console.error('导出AI报告失败:', e)
     toast.error('网络错误，导出失败')
   }
 }
@@ -1044,33 +1100,74 @@ onShow(async () => {
 
 .top-tabs {
   display: flex;
-  justify-content: space-around;
-  background: transparent;
-  padding: 0 40rpx;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 30rpx;
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  z-index: 10;
+  padding: 10rpx 0;
+
+  .tabs-scroll {
+    display: flex;
+    flex: 1;
+    overflow-x: auto;
+    white-space: nowrap;
+    
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .tabs-extra {
+    flex-shrink: 0;
+    padding-left: 20rpx;
+  }
+
+  .export-report-btn {
+    display: flex;
+    align-items: center;
+    gap: 6rpx;
+    background: #fff;
+    border: 2rpx solid #2563eb;
+    border-radius: 999rpx;
+    padding: 10rpx 20rpx;
+    box-shadow: 0 4rpx 12rpx rgba(37, 99, 235, 0.1);
+    
+    text {
+      font-size: 24rpx;
+      color: #2563eb;
+      font-weight: 600;
+    }
+    
+    &:active {
+      opacity: 0.7;
+    }
+  }
 
   .tab-item {
     position: relative;
-    padding: 30rpx 0;
+    padding: 20rpx 24rpx;
     font-size: 28rpx;
-    color: #666;
+    color: #64748b;
     transition: all 0.3s;
+    flex-shrink: 0;
 
     &.active {
-      font-weight: bold;
       color: #1a5f8e;
-      font-size: 32rpx;
+      font-weight: bold;
+      font-size: 30rpx;
     }
 
     .line {
       position: absolute;
-      bottom: 10rpx;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 40rpx;
+      bottom: 0;
+      left: 24rpx;
+      right: 24rpx;
       height: 6rpx;
       background: #1a5f8e;
-      border-radius: 4rpx;
+      border-radius: 3rpx;
     }
   }
 }
@@ -1254,114 +1351,72 @@ onShow(async () => {
 }
 
 .analysis-card {
-  background: #fff;
-  border-radius: 16rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
   padding: 30rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  border: 1rpx solid #f1f5f9;
+  transition: all 0.2s;
 
-  &.detail-card {
-    display: block;
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20rpx;
-
-      .header-left {
-        display: flex;
-        align-items: center;
-
-        .blue-bar {
-          width: 11rpx;
-          height: 34rpx;
-          background: linear-gradient(180deg, #72C0FD 0%, #77CCFF 100%);
-          border-radius: 20rpx;
-          margin-right: 16rpx;
-        }
-        .card-title {
-          font-size: 32rpx;
-          font-weight: bold;
-          color: #333;
-        }
-      }
-
-      .header-icon {
-        width: 32rpx;
-        height: 32rpx;
-      }
-    }
-    .desc {
-      font-size: 24rpx;
-      color: #999;
-      margin-bottom: 30rpx;
-      .highlight { color: #f6d365; font-weight: bold; }
-    }
+  &:active {
+    background: #f8fafc;
+    transform: scale(0.98);
   }
 
-  // 图表Mock样式
-  .pie-chart-mock {
-    .pie-slice {
-      display: flex;
-      align-items: center;
-      margin-bottom: 16rpx;
-      
-      .label { width: 160rpx; font-size: 26rpx; color: #555; }
-      .bar-bg {
-        flex: 1;
-        height: 16rpx;
-        background: #eee;
-        border-radius: 8rpx;
-        margin: 0 20rpx;
-        overflow: hidden;
-        .bar-fill { height: 100%; background: linear-gradient(to right, #f6d365, #fda085); }
-      }
-      .value { width: 60rpx; font-size: 24rpx; color: #333; text-align: right; }
-    }
-  }
-
-  .dist-chart {
-    display: flex;
-    justify-content: space-around;
-    align-items: flex-end;
-    height: 200rpx;
+  &.export-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+    border: 1rpx solid #d0e5ff;
     
-    .dist-bar {
+    .card-title {
+      color: #2563eb;
+    }
+    
+    .export-icon-wrap {
+      width: 80rpx;
+      height: 80rpx;
+      background: #eef6ff;
+      border-radius: 50%;
       display: flex;
-      flex-direction: column;
       align-items: center;
-      height: 100%;
-      
-      .bar-val { font-size: 22rpx; color: #666; margin-bottom: 8rpx; }
-      .bar-track {
-        width: 40rpx;
-        flex: 1;
-        background: #f0f0f0;
-        border-radius: 8rpx;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-        .bar-fill { width: 100%; background: #4da8da; border-radius: 8rpx; }
-      }
-      .bar-label { font-size: 24rpx; margin-top: 10rpx; font-weight: bold; }
+      justify-content: center;
+      border: 2rpx solid #dbeafe;
     }
   }
 
-  .trend-chart {
+  .card-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 20rpx 0;
-    border-bottom: 2rpx dashed #eee;
-    
-    .trend-point {
+    justify-content: space-between;
+
+    .header-left {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      
-      .point-val { font-size: 28rpx; font-weight: bold; color: #1a5f8e; margin-bottom: 10rpx; }
-      .point-dot { width: 16rpx; height: 16rpx; border-radius: 50%; background: #f6d365; margin-bottom: 10rpx; }
-      .point-label { font-size: 22rpx; color: #999; }
+      gap: 6rpx;
+      position: relative;
+      padding-left: 24rpx;
+
+      .blue-bar {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 8rpx;
+        height: 32rpx;
+        background: #2563eb;
+        border-radius: 4rpx;
+      }
+
+      .card-title {
+        font-size: 30rpx;
+        font-weight: 600;
+        color: #334155;
+      }
+
+      .card-subtitle {
+        font-size: 24rpx;
+        color: #94a3b8;
+      }
     }
   }
 }

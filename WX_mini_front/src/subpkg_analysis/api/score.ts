@@ -55,6 +55,22 @@ export const getWrongPushRecommendApi = (data: any) => {
   })
 }
 
+/**
+ * @Description: 导出考试 AI 成绩报告 PDF
+ * @param {object} params 查询参数 (examId)
+ */
+export const exportAiExamReportApi = (params: any) => {
+  return request({
+    url: '/api/app/score/ai-report/export',
+    method: 'GET',
+    data: params
+  })
+}
+
+/**
+ * @Description: 导出错题集 PDF
+ * @param {object} params 查询参数 (examId, subject)
+ */
 export const exportWrongBookApi = (params: any) => {
   return request({
     url: '/api/app/score/wrong-book/export',

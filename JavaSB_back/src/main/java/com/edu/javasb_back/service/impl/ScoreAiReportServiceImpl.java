@@ -17,6 +17,7 @@ import com.edu.javasb_back.repository.StudentExamAiReportRepository;
 import com.edu.javasb_back.repository.StudentParentBindingRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
 import com.edu.javasb_back.service.ExamAnalysisService;
+import com.edu.javasb_back.service.OssStorageService;
 import com.edu.javasb_back.service.ScoreAiReportService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -26,6 +27,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -45,6 +53,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 
 @Service
 public class ScoreAiReportServiceImpl implements ScoreAiReportService {
@@ -80,6 +95,9 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
 
     @Autowired
     private GlobalConfigProperties globalConfigProperties;
+
+    @Autowired
+    private OssStorageService ossStorageService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -150,6 +168,228 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         studentExamAiReportRepository.saveAndFlush(entity);
 
         return Result.success(buildClientPayload(aiReport, false, entity.getModelName(), entity.getCreateTime()));
+    }
+
+    @Override
+    @Transactional
+    public Result<String> exportExamAiReport(Long uid, String examId) {
+        Result<Map<String, Object>> reportResult = getExamAiReport(uid, examId);
+        if (reportResult.getCode() != 200 || reportResult.getData() == null) {
+            return Result.error(reportResult.getMsg());
+        }
+
+        Map<String, Object> data = reportResult.getData();
+        Optional<SysStudent> studentOpt = getBoundStudent(uid);
+        ExamProject project = examProjectRepository.findById(examId).orElse(null);
+        
+        if (studentOpt.isEmpty() || project == null) {
+            return Result.error("数据异常");
+        }
+
+        try (PDDocument document = new PDDocument()) {
+            PdfRenderContext context = new PdfRenderContext(document);
+            
+            // Title
+            context.drawTitle("AI 成绩分析报告", 48, true);
+            context.drawText(project.getName(), 24, false, new Color(100, 116, 139));
+            context.drawText("学生：" + studentOpt.get().getName() + " (" + studentOpt.get().getStudentNo() + ")", 24, false, new Color(100, 116, 139));
+            context.drawText("生成时间：" + data.get("generatedAt"), 20, false, new Color(148, 163, 184));
+            context.addSpace(40);
+
+            // 1. Overall Summary
+            Map<String, Object> summary = map(data.get("summary"));
+            context.drawSectionTitle("一、总体诊断");
+            context.drawText(asString(summary.get("overallComment")), 26, false, new Color(51, 65, 85));
+            context.addSpace(20);
+            
+            context.drawSubTitle("强势点");
+            context.drawBullets(stringList(summary.get("strengths")), new Color(22, 163, 74));
+            
+            context.drawSubTitle("薄弱点");
+            context.drawBullets(stringList(summary.get("weaknesses")), new Color(220, 38, 38));
+            
+            context.drawSubTitle("重点关注");
+            context.drawBullets(stringList(summary.get("focusPoints")), new Color(37, 99, 235));
+            context.addSpace(40);
+
+            // 2. Subject Insights
+            context.drawSectionTitle("二、学科能力分析");
+            List<Map<String, Object>> subjectInsights = listMap(data.get("subjectInsights"));
+            for (Map<String, Object> insight : subjectInsights) {
+                context.drawSubTitle(asString(insight.get("subjectName")));
+                context.drawLabelText("优势", asString(insight.get("strength")));
+                context.drawLabelText("短板", asString(insight.get("weakness")));
+                context.drawLabelText("对比", asString(insight.get("comparison")));
+                context.addSpace(15);
+            }
+            context.addSpace(40);
+
+            // 3. Wrong Question Pushes
+            context.drawSectionTitle("三、错题与薄弱点分析");
+            List<Map<String, Object>> pushes = listMap(data.get("wrongQuestionPushes"));
+            for (Map<String, Object> push : pushes) {
+                context.drawSubTitle(asString(push.get("subjectName")) + " - " + asString(push.get("questionNo")));
+                if (StringUtils.hasText(asString(push.get("knowledgePoint")))) {
+                    context.drawLabelText("知识点", asString(push.get("knowledgePoint")));
+                }
+                context.drawLabelText("原因", asString(push.get("reason")));
+                context.drawLabelText("建议", asString(push.get("suggestion")));
+                context.addSpace(15);
+            }
+
+            context.finish();
+            
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            document.save(baos);
+            
+            String fileName = "ai_report_" + studentOpt.get().getStudentNo() + "_" + examId + "_" + System.currentTimeMillis() + ".pdf";
+            String objectKey = "exports/reports/" + fileName;
+            String url = ossStorageService.uploadBytes(baos.toByteArray(), objectKey, "application/pdf");
+            
+            return Result.success("导出成功", url);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("导出失败：" + e.getMessage());
+        }
+    }
+
+    private static final int PAGE_WIDTH = 1240;
+    private static final int PAGE_HEIGHT = 1754;
+    private static final int PAGE_MARGIN = 80;
+
+    private class PdfRenderContext {
+        private final PDDocument document;
+        private BufferedImage currentCanvas;
+        private Graphics2D currentGraphics;
+        private int currentY;
+        private final int contentWidth = PAGE_WIDTH - PAGE_MARGIN * 2;
+
+        public PdfRenderContext(PDDocument document) {
+            this.document = document;
+            this.currentY = PAGE_MARGIN;
+            createNewPage();
+        }
+
+        private void createNewPage() {
+            if (currentGraphics != null) {
+                currentGraphics.dispose();
+                appendCurrentPage();
+            }
+            currentCanvas = new BufferedImage(PAGE_WIDTH, PAGE_HEIGHT, BufferedImage.TYPE_INT_RGB);
+            currentGraphics = currentCanvas.createGraphics();
+            currentGraphics.setColor(Color.WHITE);
+            currentGraphics.fillRect(0, 0, PAGE_WIDTH, PAGE_HEIGHT);
+            currentGraphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            currentGraphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            currentY = PAGE_MARGIN;
+        }
+
+        private void appendCurrentPage() {
+            try {
+                PDPage page = new PDPage(PDRectangle.A4);
+                document.addPage(page);
+                PDImageXObject pdImage = LosslessFactory.createFromImage(document, currentCanvas);
+                try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                    contentStream.drawImage(pdImage, 0, 0, PDRectangle.A4.getWidth(), PDRectangle.A4.getHeight());
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to append page", e);
+            }
+        }
+
+        public void finish() {
+            if (currentGraphics != null) {
+                currentGraphics.dispose();
+                appendCurrentPage();
+                currentGraphics = null;
+            }
+        }
+
+        public void drawTitle(String text, int size, boolean bold) {
+            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN, currentY, contentWidth, new Font("Microsoft YaHei", bold ? Font.BOLD : Font.PLAIN, size), new Color(15, 23, 42), size + 20);
+            currentY += 10;
+        }
+
+        public void drawSectionTitle(String text) {
+            checkSpace(60);
+            currentGraphics.setColor(new Color(37, 99, 235));
+            currentGraphics.fillRect(PAGE_MARGIN, currentY, 8, 36);
+            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN + 24, currentY, contentWidth - 24, new Font("Microsoft YaHei", Font.BOLD, 32), new Color(30, 41, 59), 48);
+            currentY += 20;
+        }
+
+        public void drawSubTitle(String text) {
+            checkSpace(50);
+            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN, currentY, contentWidth, new Font("Microsoft YaHei", Font.BOLD, 28), new Color(51, 65, 85), 40);
+            currentY += 10;
+        }
+
+        public void drawText(String text, int size, boolean bold, Color color) {
+            if (!StringUtils.hasText(text)) return;
+            checkSpace(size + 10);
+            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN, currentY, contentWidth, new Font("Microsoft YaHei", bold ? Font.BOLD : Font.PLAIN, size), color, size + 14);
+            currentY += 8;
+        }
+
+        public void drawLabelText(String label, String text) {
+            if (!StringUtils.hasText(text)) return;
+            checkSpace(40);
+            currentGraphics.setFont(new Font("Microsoft YaHei", Font.BOLD, 26));
+            currentGraphics.setColor(new Color(37, 99, 235));
+            currentGraphics.drawString(label + "：", PAGE_MARGIN, currentY + 26);
+            int labelWidth = currentGraphics.getFontMetrics().stringWidth(label + "：");
+            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN + labelWidth, currentY, contentWidth - labelWidth, new Font("Microsoft YaHei", Font.PLAIN, 26), new Color(71, 85, 105), 40);
+            currentY += 5;
+        }
+
+        public void drawBullets(List<String> items, Color color) {
+            if (items == null || items.isEmpty()) return;
+            for (String item : items) {
+                checkSpace(40);
+                currentGraphics.setColor(color);
+                currentGraphics.fillOval(PAGE_MARGIN + 10, currentY + 15, 8, 8);
+                currentY = drawWrappedText(currentGraphics, item, PAGE_MARGIN + 35, currentY, contentWidth - 35, new Font("Microsoft YaHei", Font.PLAIN, 26), new Color(71, 85, 105), 40);
+                currentY += 5;
+            }
+            currentY += 10;
+        }
+
+        public void addSpace(int space) {
+            currentY += space;
+            checkSpace(0);
+        }
+
+        private void checkSpace(int needed) {
+            if (currentY + needed > PAGE_HEIGHT - PAGE_MARGIN) {
+                createNewPage();
+            }
+        }
+
+        private int drawWrappedText(Graphics2D g, String text, int x, int y, int maxWidth, Font font, Color color, int lineHeight) {
+            g.setFont(font);
+            g.setColor(color);
+            FontMetrics metrics = g.getFontMetrics(font);
+            int currentYPos = y;
+            StringBuilder line = new StringBuilder();
+            for (char c : text.toCharArray()) {
+                if (metrics.stringWidth(line.toString() + c) > maxWidth) {
+                    g.drawString(line.toString(), x, currentYPos + metrics.getAscent());
+                    currentYPos += lineHeight;
+                    line = new StringBuilder();
+                    if (currentYPos > PAGE_HEIGHT - PAGE_MARGIN) {
+                        // This shouldn't happen if checkSpace is used correctly, but for safety:
+                        appendCurrentPage();
+                        createNewPage();
+                        currentYPos = PAGE_MARGIN;
+                        g.setFont(font);
+                        g.setColor(color);
+                    }
+                }
+                line.append(c);
+            }
+            g.drawString(line.toString(), x, currentYPos + metrics.getAscent());
+            return currentYPos + lineHeight;
+        }
     }
 
     private Optional<SysStudent> getBoundStudent(Long uid) {
