@@ -26,10 +26,17 @@ public class StudentExamAiReportSchemaInitializer {
                     report_content LONGTEXT NULL COMMENT 'AI报告内容(JSON)',
                     source_snapshot LONGTEXT NULL COMMENT '生成报告时使用的原始快照(JSON)',
                     status VARCHAR(20) DEFAULT 'SUCCESS' COMMENT '状态',
+                    pdf_url VARCHAR(500) NULL COMMENT 'PDF报告的URL',
                     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                     UNIQUE KEY uk_student_exam_ai_report (project_id, student_no)
                 ) ENGINE=InnoDB COMMENT='学生考试AI分析报告缓存表'
                 """);
+        
+        try {
+            jdbcTemplate.execute("ALTER TABLE student_exam_ai_reports ADD COLUMN pdf_url VARCHAR(500) NULL COMMENT 'PDF报告的URL'");
+        } catch (Exception ignored) {
+            // 列可能已存在
+        }
     }
 }

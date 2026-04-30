@@ -54,6 +54,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -105,7 +109,7 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
 
     @Override
     @Transactional
-    public Result<Map<String, Object>> getExamAiReport(Long uid, String examId) {
+    public Result<Map<String, Object>> getExamAiReport(Long uid, String examId, boolean refresh) {
         if (uid == null) {
             return Result.error("请先登录");
         }
@@ -130,8 +134,26 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         }
 
         Optional<StudentExamAiReport> cached = studentExamAiReportRepository.findByProjectIdAndStudentNo(project.getId(), student.getStudentNo());
-        if (cached.isPresent() && StringUtils.hasText(cached.get().getReportContent())) {
+        
+        // 自动刷新逻辑：24小时自动重新生成
+        boolean shouldAutoRefresh = false;
+        if (cached.isPresent()) {
+            LocalDateTime lastUpdate = cached.get().getUpdateTime();
+            if (lastUpdate != null && lastUpdate.plusHours(24).isBefore(LocalDateTime.now())) {
+                shouldAutoRefresh = true;
+            }
+        }
+
+        if (!refresh && !shouldAutoRefresh && cached.isPresent() && StringUtils.hasText(cached.get().getReportContent())) {
             return Result.success(buildClientPayload(readJsonMap(cached.get().getReportContent()), true, cached.get().getModelName(), cached.get().getUpdateTime()));
+        }
+
+        // 手动刷新逻辑：5分钟内不允许手动刷新
+        if (refresh && cached.isPresent()) {
+            LocalDateTime lastUpdate = cached.get().getUpdateTime();
+            if (lastUpdate != null && lastUpdate.plusMinutes(5).isAfter(LocalDateTime.now())) {
+                return Result.error("报告生成不到5分钟，请稍后再刷新");
+            }
         }
 
         if (!StringUtils.hasText(globalConfigProperties.getQwenApiKey())) {
@@ -156,6 +178,16 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         if (!StringUtils.hasText(entity.getId())) {
             entity.setId("AR" + System.currentTimeMillis() + UUID.randomUUID().toString().replace("-", "").substring(0, 6));
         }
+
+        // 清理旧的 PDF
+        if (StringUtils.hasText(entity.getPdfUrl())) {
+            try {
+                ossStorageService.delete(entity.getPdfUrl());
+            } catch (Exception ignored) {
+            }
+            entity.setPdfUrl(null);
+        }
+
         entity.setProjectId(project.getId());
         entity.setStudentNo(student.getStudentNo());
         entity.setStudentName(student.getName());
@@ -168,13 +200,23 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         entity.setStatus("SUCCESS");
         studentExamAiReportRepository.saveAndFlush(entity);
 
-        return Result.success(buildClientPayload(aiReport, false, entity.getModelName(), entity.getCreateTime()));
+        Map<String, Object> clientPayload = buildClientPayload(aiReport, false, entity.getModelName(), entity.getCreateTime());
+
+        try {
+            String pdfUrl = generateAndUploadPdf(project, student, clientPayload, sourceSnapshot);
+            entity.setPdfUrl(pdfUrl);
+            studentExamAiReportRepository.saveAndFlush(entity);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return Result.success(clientPayload);
     }
 
     @Override
     @Transactional
     public Result<String> exportExamAiReport(Long uid, String examId) {
-        Result<Map<String, Object>> reportResult = getExamAiReport(uid, examId);
+        Result<Map<String, Object>> reportResult = getExamAiReport(uid, examId, false);
         if (reportResult.getCode() != 200 || reportResult.getData() == null) {
             return Result.error(reportResult.getMsg());
         }
@@ -189,11 +231,31 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
 
         Optional<StudentExamAiReport> cachedEntity = studentExamAiReportRepository
                 .findByProjectIdAndStudentNo(examId, studentOpt.get().getStudentNo());
+
+        if (cachedEntity.isPresent() && StringUtils.hasText(cachedEntity.get().getPdfUrl())) {
+            return Result.success("导出成功", cachedEntity.get().getPdfUrl());
+        }
+
         Map<String, Object> sourceSnapshot = cachedEntity
                 .map(StudentExamAiReport::getSourceSnapshot)
                 .filter(StringUtils::hasText)
                 .map(this::readJsonMap)
                 .orElse(Collections.emptyMap());
+
+        try {
+            String url = generateAndUploadPdf(project, studentOpt.get(), data, sourceSnapshot);
+            if (cachedEntity.isPresent()) {
+                cachedEntity.get().setPdfUrl(url);
+                studentExamAiReportRepository.saveAndFlush(cachedEntity.get());
+            }
+            return Result.success("导出成功", url);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("导出失败：" + e.getMessage());
+        }
+    }
+
+    private String generateAndUploadPdf(ExamProject project, SysStudent student, Map<String, Object> data, Map<String, Object> sourceSnapshot) throws Exception {
         Map<String, Object> totalScore = map(sourceSnapshot.get("totalScore"));
         List<Map<String, Object>> subjectRows = listMap(sourceSnapshot.get("subjects"));
 
@@ -202,8 +264,8 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
 
             context.drawTitle("AI 成绩分析报告", 48, true);
             context.drawText(project.getName(), 24, false, new Color(100, 116, 139));
-            context.drawText("学生：" + studentOpt.get().getName() + " (" + studentOpt.get().getStudentNo() + ")", 24, false, new Color(100, 116, 139));
-            context.drawText("学校：" + studentOpt.get().getSchool() + "    班级：" + studentOpt.get().getClassName(), 22, false, new Color(100, 116, 139));
+            context.drawText("学生：" + student.getName() + " (" + student.getStudentNo() + ")", 24, false, new Color(100, 116, 139));
+            context.drawText("学校：" + student.getSchool() + "    班级：" + student.getClassName(), 22, false, new Color(100, 116, 139));
             context.drawText("生成时间：" + data.get("generatedAt"), 20, false, new Color(148, 163, 184));
             context.addSpace(40);
 
@@ -229,31 +291,47 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
             context.drawText("图表：各科个人得分率与年级平均得分率柱形对比", 22, false, new Color(100, 116, 139));
             context.addSpace(24);
 
-            context.drawSectionTitle("四、知识点强弱分析");
-            context.drawSubTitle("（一）优势知识点");
-            context.drawBullets(buildKnowledgePointStrengthLines(data, subjectRows), new Color(22, 163, 74));
-            context.drawSubTitle("（二）薄弱知识点");
-            context.drawBullets(buildKnowledgePointWeaknessLines(data, sourceSnapshot), new Color(220, 38, 38));
-            context.addSpace(24);
+            context.drawSectionTitle("四、各学科详细分析");
+            List<Map<String, Object>> allQuestions = listMap(sourceSnapshot.get("questionAnalysis"));
+            for (Map<String, Object> subjectRow : subjectRows) {
+                String subjectName = asString(subjectRow.get("subjectName"));
+                List<Map<String, Object>> subjectQuestions = allQuestions.stream()
+                        .filter(q -> subjectName.equals(asString(q.get("subject"))))
+                        .toList();
+                
+                if (subjectQuestions.isEmpty()) continue;
 
-            context.drawSectionTitle("五、分阶段学习提升计划");
-            Map<String, List<String>> studyPlan = buildStudyPlanSections(data, subjectRows, totalScore);
-            for (Map.Entry<String, List<String>> entry : studyPlan.entrySet()) {
-                context.drawSubTitle(entry.getKey());
-                context.drawBullets(entry.getValue(), new Color(59, 130, 246));
+                context.drawSubTitle("【" + subjectName + "】详细分析");
+                context.addSpace(12);
+
+                context.drawLabelText("1. 小题得分分析", "");
+                context.drawQuestionScoreTable(subjectQuestions);
+                context.addSpace(24);
+
+                List<Map<String, Object>> kpStats = buildKnowledgePointStats(subjectQuestions);
+                if (!kpStats.isEmpty()) {
+                    context.drawLabelText("2. 知识点与题型分析", "");
+                    context.drawKnowledgePointTable(kpStats);
+                    context.addSpace(16);
+                    context.drawBullets(buildSubjectKnowledgeSummary(data, sourceSnapshot, subjectName, kpStats), new Color(71, 85, 105));
+                    context.addSpace(24);
+                }
+
+                context.drawLabelText(kpStats.isEmpty() ? "2. 提升与学习计划" : "3. 提升与学习计划", "");
+                context.drawBullets(buildSubjectStudyPlan(data, sourceSnapshot, subjectName, subjectRow, kpStats), new Color(59, 130, 246));
+                context.addSpace(32);
             }
-            context.addSpace(24);
 
-            context.drawSectionTitle("六、教师专属指导通道");
+            context.drawSectionTitle("五、教师专属指导通道");
             context.drawText("若学习过程中遇到知识点疑惑、计划执行困难，可扫码联系专属学科老师，获得一对一针对性辅导。", 24, false, new Color(51, 65, 85));
-            BufferedImage tutorImage = loadTeacherGuideImage();
+            BufferedImage tutorImage = generateTeacherGuideQrCode(student);
             if (tutorImage != null) {
                 context.drawImage(tutorImage, 260, 260);
                 context.addSpace(12);
             }
             context.addSpace(20);
 
-            context.drawSectionTitle("七、报告总结");
+            context.drawSectionTitle("六、报告总结");
             Map<String, Object> summary = map(data.get("summary"));
             context.drawText(asString(summary.get("overallComment")), 26, false, new Color(51, 65, 85));
             context.addSpace(20);
@@ -264,14 +342,9 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             document.save(baos);
 
-            String fileName = "ai_report_" + studentOpt.get().getStudentNo() + "_" + examId + "_" + System.currentTimeMillis() + ".pdf";
+            String fileName = "ai_report_" + student.getStudentNo() + "_" + project.getId() + "_" + System.currentTimeMillis() + ".pdf";
             String objectKey = "exports/reports/" + fileName;
-            String url = ossStorageService.uploadBytes(baos.toByteArray(), objectKey, "application/pdf");
-
-            return Result.success("导出成功", url);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Result.error("导出失败：" + e.getMessage());
+            return ossStorageService.uploadBytes(baos.toByteArray(), objectKey, "application/pdf");
         }
     }
 
@@ -391,15 +464,93 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
             currentY += 10;
         }
 
+        public void drawQuestionScoreTable(List<Map<String, Object>> questions) {
+            if (questions == null || questions.isEmpty()) return;
+            int rowHeight = 44;
+            int[] colWidths = { 130, 160, 160, 160, 160, 160, 150 };
+            int tableWidth = 0;
+            for (int w : colWidths) tableWidth += w;
+            int tableHeight = rowHeight * (questions.size() + 1);
+            checkSpace(tableHeight + 20);
+
+            String[] headers = { "题号", "个人得分", "班级平均", "年级平均", "校平均", "联考平均", "满分" };
+            int startX = PAGE_MARGIN + (contentWidth - tableWidth) / 2;
+            int startY = currentY;
+
+            currentGraphics.setColor(new Color(248, 250, 252));
+            currentGraphics.fillRoundRect(startX, startY, tableWidth, tableHeight, 12, 12);
+            currentGraphics.setColor(new Color(203, 213, 225));
+            currentGraphics.drawRoundRect(startX, startY, tableWidth, tableHeight, 12, 12);
+
+            int x = startX;
+            for (int i = 0; i < headers.length; i++) {
+                drawTableCell(headers[i], x, startY, colWidths[i], rowHeight, true);
+                x += colWidths[i];
+            }
+
+            int currentRowY = startY + rowHeight;
+            for (Map<String, Object> row : questions) {
+                x = startX;
+                drawTableCell(asString(row.get("questionNo")), x, currentRowY, colWidths[0], rowHeight, false); x += colWidths[0];
+                drawTableCell(formatNumber(row.get("score")), x, currentRowY, colWidths[1], rowHeight, false); x += colWidths[1];
+                drawTableCell(formatNumber(row.get("classAverage")), x, currentRowY, colWidths[2], rowHeight, false); x += colWidths[2];
+                drawTableCell(formatNumber(row.get("gradeAverage")), x, currentRowY, colWidths[3], rowHeight, false); x += colWidths[3];
+                drawTableCell(formatNumber(row.get("schoolAverage")), x, currentRowY, colWidths[4], rowHeight, false); x += colWidths[4];
+                drawTableCell(formatNumber(row.get("projectAverage")), x, currentRowY, colWidths[5], rowHeight, false); x += colWidths[5];
+                drawTableCell(formatNumber(row.get("fullScore")), x, currentRowY, colWidths[6], rowHeight, false);
+                currentRowY += rowHeight;
+            }
+            currentY = currentRowY + 20;
+        }
+
+        public void drawKnowledgePointTable(List<Map<String, Object>> stats) {
+            if (stats == null || stats.isEmpty()) return;
+            int rowHeight = 44;
+            int[] colWidths = { 320, 250, 160, 160, 190 };
+            int tableWidth = 0;
+            for (int w : colWidths) tableWidth += w;
+            int tableHeight = rowHeight * (stats.size() + 1);
+            checkSpace(tableHeight + 20);
+
+            String[] headers = { "知识点", "题型", "个人得分", "满分", "得分率" };
+            int startX = PAGE_MARGIN + (contentWidth - tableWidth) / 2;
+            int startY = currentY;
+
+            currentGraphics.setColor(new Color(248, 250, 252));
+            currentGraphics.fillRoundRect(startX, startY, tableWidth, tableHeight, 12, 12);
+            currentGraphics.setColor(new Color(203, 213, 225));
+            currentGraphics.drawRoundRect(startX, startY, tableWidth, tableHeight, 12, 12);
+
+            int x = startX;
+            for (int i = 0; i < headers.length; i++) {
+                drawTableCell(headers[i], x, startY, colWidths[i], rowHeight, true);
+                x += colWidths[i];
+            }
+
+            int currentRowY = startY + rowHeight;
+            for (Map<String, Object> row : stats) {
+                x = startX;
+                drawTableCell(asString(row.get("knowledgePoint")), x, currentRowY, colWidths[0], rowHeight, false); x += colWidths[0];
+                drawTableCell(asString(row.get("questionType")), x, currentRowY, colWidths[1], rowHeight, false); x += colWidths[1];
+                drawTableCell(formatNumber(row.get("score")), x, currentRowY, colWidths[2], rowHeight, false); x += colWidths[2];
+                drawTableCell(formatNumber(row.get("fullScore")), x, currentRowY, colWidths[3], rowHeight, false); x += colWidths[3];
+                double rate = asDouble(row.get("score")) / Math.max(asDouble(row.get("fullScore")), 1D) * 100D;
+                drawTableCell(String.format("%.1f%%", rate), x, currentRowY, colWidths[4], rowHeight, false);
+                currentRowY += rowHeight;
+            }
+            currentY = currentRowY + 20;
+        }
+
         public void drawScoreTable(List<Map<String, Object>> subjectRows, Map<String, Object> totalScore) {
             if (subjectRows == null || subjectRows.isEmpty()) return;
             int rowHeight = 52;
-            int tableWidth = contentWidth;
-            int[] colWidths = { 120, 120, 120, 120, 120, 120, 100 };
+            int[] colWidths = { 120, 140, 140, 140, 140, 140, 140, 120 };
+            int tableWidth = 0;
+            for (int w : colWidths) tableWidth += w;
             int tableHeight = rowHeight * (subjectRows.size() + 2);
             checkSpace(tableHeight + 20);
 
-            String[] headers = { "科目", "个人成绩", "班级平均", "年级平均", "校平均", "联考平均", "满分" };
+            String[] headers = { "科目", "个人成绩", "最高分", "班级平均", "年级平均", "校平均", "联考平均", "满分" };
             int startX = PAGE_MARGIN;
             int startY = currentY;
 
@@ -419,22 +570,24 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
                 x = startX;
                 drawTableCell(asString(row.get("subjectName")), x, currentRowY, colWidths[0], rowHeight, false); x += colWidths[0];
                 drawTableCell(formatNumber(row.get("score")), x, currentRowY, colWidths[1], rowHeight, false); x += colWidths[1];
-                drawTableCell(formatNumber(row.get("classAverage")), x, currentRowY, colWidths[2], rowHeight, false); x += colWidths[2];
-                drawTableCell(formatNumber(row.get("gradeAverage")), x, currentRowY, colWidths[3], rowHeight, false); x += colWidths[3];
-                drawTableCell(formatNumber(row.get("schoolAverage")), x, currentRowY, colWidths[4], rowHeight, false); x += colWidths[4];
-                drawTableCell(formatNumber(row.get("projectAverage")), x, currentRowY, colWidths[5], rowHeight, false); x += colWidths[5];
-                drawTableCell(formatNumber(row.get("fullScore")), x, currentRowY, colWidths[6], rowHeight, false);
+                drawTableCell(formatNumber(row.get("highestScore")), x, currentRowY, colWidths[2], rowHeight, false); x += colWidths[2];
+                drawTableCell(formatNumber(row.get("classAverage")), x, currentRowY, colWidths[3], rowHeight, false); x += colWidths[3];
+                drawTableCell(formatNumber(row.get("gradeAverage")), x, currentRowY, colWidths[4], rowHeight, false); x += colWidths[4];
+                drawTableCell(formatNumber(row.get("schoolAverage")), x, currentRowY, colWidths[5], rowHeight, false); x += colWidths[5];
+                drawTableCell(formatNumber(row.get("projectAverage")), x, currentRowY, colWidths[6], rowHeight, false); x += colWidths[6];
+                drawTableCell(formatNumber(row.get("fullScore")), x, currentRowY, colWidths[7], rowHeight, false);
                 currentRowY += rowHeight;
             }
 
             x = startX;
             drawTableCell("总分", x, currentRowY, colWidths[0], rowHeight, true); x += colWidths[0];
             drawTableCell(formatNumber(totalScore.get("studentScore")), x, currentRowY, colWidths[1], rowHeight, true); x += colWidths[1];
-            drawTableCell(formatNumber(totalScore.get("classAverage")), x, currentRowY, colWidths[2], rowHeight, true); x += colWidths[2];
-            drawTableCell(formatNumber(totalScore.get("gradeAverage")), x, currentRowY, colWidths[3], rowHeight, true); x += colWidths[3];
-            drawTableCell(formatNumber(totalScore.get("schoolAverage")), x, currentRowY, colWidths[4], rowHeight, true); x += colWidths[4];
-            drawTableCell(formatNumber(totalScore.get("projectAverage")), x, currentRowY, colWidths[5], rowHeight, true); x += colWidths[5];
-            drawTableCell(formatNumber(totalScore.get("fullScore")), x, currentRowY, colWidths[6], rowHeight, true);
+            drawTableCell(formatNumber(totalScore.get("highestScore")), x, currentRowY, colWidths[2], rowHeight, true); x += colWidths[2];
+            drawTableCell(formatNumber(totalScore.get("classAverage")), x, currentRowY, colWidths[3], rowHeight, true); x += colWidths[3];
+            drawTableCell(formatNumber(totalScore.get("gradeAverage")), x, currentRowY, colWidths[4], rowHeight, true); x += colWidths[4];
+            drawTableCell(formatNumber(totalScore.get("schoolAverage")), x, currentRowY, colWidths[5], rowHeight, true); x += colWidths[5];
+            drawTableCell(formatNumber(totalScore.get("projectAverage")), x, currentRowY, colWidths[6], rowHeight, true); x += colWidths[6];
+            drawTableCell(formatNumber(totalScore.get("fullScore")), x, currentRowY, colWidths[7], rowHeight, true);
 
             currentY = currentRowY + rowHeight + 20;
         }
@@ -598,6 +751,7 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         ));
         snapshot.put("totalScore", buildTotalComparison(context, currentTotal));
         snapshot.put("subjects", buildSubjectComparisons(context, subjectStats));
+        snapshot.put("questionAnalysis", buildAllQuestionDetails(context));
         snapshot.put("wrongQuestions", buildWrongQuestionPromptRows(context, wrongQuestions));
         snapshot.put("reportLimit", Map.of(
                 "summaryOnly", true,
@@ -608,19 +762,113 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         return snapshot;
     }
 
+    private List<Double> parseQuestionScores(String questionScores) {
+        if (!StringUtils.hasText(questionScores)) return Collections.emptyList();
+        try {
+            return objectMapper.readValue(questionScores, new TypeReference<List<Double>>() {});
+        } catch (Exception ignored) {
+            return Collections.emptyList();
+        }
+    }
+
+    private List<Map<String, Object>> buildAllQuestionDetails(ProjectContext context) {
+        List<Map<String, Object>> allDetails = new ArrayList<>();
+        Map<String, Map<String, Object>> layoutBySubjectAndQuestion = new HashMap<>();
+        context.paperLayoutMap().forEach((subjectName, layoutRows) -> layoutRows.forEach(row -> {
+            String key = subjectName + "#" + asString(row.get("questionNo"));
+            layoutBySubjectAndQuestion.put(key, row);
+        }));
+
+        Map<String, StudentTotalRow> studentRowMap = context.studentTotals().stream()
+                .collect(Collectors.toMap(StudentTotalRow::studentNo, item -> item, (a, b) -> a));
+
+        for (ExamStudentScore scoreRecord : context.enteredScores()) {
+            if (!scoreRecord.getStudentNo().equals(context.student().getStudentNo())) continue;
+            
+            String subjectId = scoreRecord.getSubjectId();
+            ExamSubject subject = context.subjectMap().get(subjectId);
+            if (subject == null) continue;
+            
+            String subjectName = subject.getSubjectName();
+            List<Double> questionScores = parseQuestionScores(scoreRecord.getQuestionScores());
+            List<Map<String, Object>> layoutRows = context.paperLayoutMap().get(subjectName);
+            if (layoutRows == null) layoutRows = Collections.emptyList();
+
+            // Collect all scores for this subject to compute averages
+            List<ExamStudentScore> allSubjectScores = context.enteredScores().stream()
+                    .filter(item -> subjectId.equals(item.getSubjectId()))
+                    .toList();
+
+            for (int index = 0; index < questionScores.size(); index++) {
+                Double score = questionScores.get(index);
+                if (score == null) continue;
+
+                Map<String, Object> layout = index < layoutRows.size() ? layoutRows.get(index) : Collections.emptyMap();
+                String rawNo = asString(layout.get("questionNo"));
+                String questionNo = StringUtils.hasText(rawNo) ? rawNo : String.valueOf(index + 1);
+                String fullNo = questionNo.startsWith("第") ? questionNo : "第" + questionNo + "题";
+
+                double sumClass = 0, sumGrade = 0, sumSchool = 0, sumProject = 0;
+                int countClass = 0, countGrade = 0, countSchool = 0, countProject = 0;
+
+                for (ExamStudentScore ss : allSubjectScores) {
+                    List<Double> qs = parseQuestionScores(ss.getQuestionScores());
+                    if (index < qs.size() && qs.get(index) != null) {
+                        double val = qs.get(index);
+                        StudentTotalRow sRow = studentRowMap.get(ss.getStudentNo());
+                        if (sRow != null) {
+                            if (context.currentClass().getId().equals(sRow.classId())) {
+                                sumClass += val;
+                                countClass++;
+                            }
+                            if (context.currentClass().getGrade().equals(sRow.grade())) {
+                                sumGrade += val;
+                                countGrade++;
+                            }
+                            if (context.currentClass().getSchoolId().equals(sRow.schoolId())) {
+                                sumSchool += val;
+                                countSchool++;
+                            }
+                            sumProject += val;
+                            countProject++;
+                        }
+                    }
+                }
+
+                Map<String, Object> detail = new LinkedHashMap<>();
+                detail.put("subject", subjectName);
+                detail.put("questionNo", fullNo);
+                detail.put("score", round(score));
+                double layoutFullScore = asDouble(layout.get("fullScore"));
+                double layoutScore = asDouble(layout.get("score"));
+                double actualFullScore = layoutFullScore > 0 ? layoutFullScore : layoutScore;
+                detail.put("fullScore", round(actualFullScore));
+                detail.put("knowledgePoint", asString(layout.get("knowledgePoint")));
+                detail.put("questionType", asString(layout.get("questionType")));
+                detail.put("classAverage", countClass > 0 ? round(sumClass / countClass) : 0D);
+                detail.put("gradeAverage", countGrade > 0 ? round(sumGrade / countGrade) : 0D);
+                detail.put("schoolAverage", countSchool > 0 ? round(sumSchool / countSchool) : 0D);
+                detail.put("projectAverage", countProject > 0 ? round(sumProject / countProject) : 0D);
+                allDetails.add(detail);
+            }
+        }
+        return allDetails;
+    }
+
     private Map<String, Object> buildTotalComparison(ProjectContext context, StudentTotalRow currentTotal) {
         List<StudentTotalRow> totals = context.studentTotals();
         List<StudentTotalRow> classRows = filterTotals(totals, item -> item.classId().equals(context.currentClass().getId()));
         List<StudentTotalRow> schoolRows = filterTotals(totals, item -> item.schoolId().equals(context.currentClass().getSchoolId()));
         List<StudentTotalRow> gradeRows = filterTotals(totals, item -> item.grade().equals(context.currentClass().getGrade()));
 
-        double totalFullScore = context.currentSubjectMap().keySet().stream()
-                .mapToDouble(subject -> context.fullScoreMap().getOrDefault(subject, 0D))
+        double totalFullScore = context.subjectMap().keySet().stream()
+                .mapToDouble(subjectId -> context.fullScoreMap().getOrDefault(subjectId, 0D))
                 .sum();
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("studentScore", round(currentTotal.totalScore()));
         data.put("fullScore", round(totalFullScore));
+        data.put("highestScore", round(totals.stream().mapToDouble(StudentTotalRow::totalScore).max().orElse(0D)));
         data.put("projectAverage", round(average(totals.stream().map(StudentTotalRow::totalScore).toList())));
         data.put("schoolAverage", round(average(schoolRows.stream().map(StudentTotalRow::totalScore).toList())));
         data.put("gradeAverage", round(average(gradeRows.stream().map(StudentTotalRow::totalScore).toList())));
@@ -654,6 +902,7 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
             row.put("subjectName", subjectName);
             row.put("score", round(asDouble(stat.get("score"))));
             row.put("fullScore", round(asDouble(stat.get("fullScore"))));
+            row.put("highestScore", round(projectScores.stream().mapToDouble(ExamStudentScore::getTotalScore).max().orElse(0D)));
             row.put("classAverage", round(average(classScores.stream().map(ExamStudentScore::getTotalScore).toList())));
             row.put("schoolAverage", round(average(schoolScores.stream().map(ExamStudentScore::getTotalScore).toList())));
             row.put("gradeAverage", round(average(gradeScores.stream().map(ExamStudentScore::getTotalScore).toList())));
@@ -727,31 +976,44 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
                             "role", "system",
                             "content", """
                                     你是一名严谨的中小学考试成绩分析助手。
-                                    你只能根据输入数据总结当前考试的强势点、薄弱点和错题推送，不能输出学习计划、课程推荐、自习室、广告内容。
-                                    错题推送只能从 wrongQuestions 数组中选择，禁止虚构不存在的题目。
-                                    你必须严格输出合法 JSON，结构固定为：
+                                    你只能根据输入数据总结当前考试的强势点、薄弱点和错题推送。
+                                    
+                                    关于数据分析指导：
+                                    1. 宏观层面：结合 totalScore 和 subjects 中的最高分、各级平均分和排名，分析学生的整体竞争力。
+                                    2. 微观层面：深入分析 questionAnalysis 中的每一道题，结合知识点(knowledgePoint)、题型(questionType)和得分情况。
+                                    3. 知识点分析：通过 questionAnalysis 汇总分析学生在各个知识点上的得分率，找出掌握最牢固和最薄弱的知识点。
+                                    4. 题型分析：分析学生在不同题型（如选择题、填空题、解答题）上的表现差异。
+                                    
+                                    关于输出要求：
+                                    1. 在 subjectInsights 中，针对每个科目，结合该科目的具体题目得分情况进行深度点评。
+                                    2. 如果某个科目没有提供知识点数据，只分析得分表现。
+                                    3. 错题推送(wrongQuestionPushes)必须从 wrongQuestions 数组中选择，并结合 questionAnalysis 中的数据给出更有针对性的改进建议。
+                                    4. 【严禁原文复述】绝不能在输出结果中包含“扮演一名经验丰富的初中班主任”、“根据提供的JSON数据”、“总结当前考试的强势点”等提示词原文。必须直接输出分析结论！
+                                    
+                                    你必须严格输出合法 JSON，结构如下（注意：JSON的值必须是你分析得出的具体内容，不要照抄我的格式说明）：
                                     {
                                       "summary": {
-                                        "overallComment": "string",
-                                        "strengths": ["string"],
-                                        "weaknesses": ["string"],
-                                        "focusPoints": ["string"]
+                                        "overallComment": "<对本次考试整体表现的总结性评价>",
+                                        "strengths": ["<优势点1>", "<优势点2>"],
+                                        "weaknesses": ["<薄弱点1>", "<薄弱点2>"],
+                                        "focusPoints": ["<后续复习重点1>", "<重点复习方向2>"]
                                       },
                                       "subjectInsights": [
                                         {
-                                          "subjectName": "string",
-                                          "strength": "string",
-                                          "weakness": "string",
-                                          "comparison": "string"
+                                          "subjectName": "<科目名称>",
+                                          "strength": "<具体分析该科目的优势所在>",
+                                          "weakness": "<具体分析该科目的薄弱环节>",
+                                          "comparison": "<对比班级、年级平均分的位置评价>",
+                                          "studyPlan": "<针对该科目的薄弱知识点和题型，给出具体的提升与学习计划>"
                                         }
                                       ],
                                       "wrongQuestionPushes": [
                                         {
-                                          "subjectName": "string",
-                                          "questionNo": "string",
-                                          "knowledgePoint": "string",
-                                          "reason": "string",
-                                          "suggestion": "string"
+                                          "subjectName": "<科目名称>",
+                                          "questionNo": "<具体题号>",
+                                          "knowledgePoint": "<涉及的知识点>",
+                                          "reason": "<分析做错该题的具体原因>",
+                                          "suggestion": "<针对该错题给出的复习建议>"
                                         }
                                       ]
                                     }
@@ -806,6 +1068,7 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
                     row.put("strength", asString(item.get("strength")));
                     row.put("weakness", asString(item.get("weakness")));
                     row.put("comparison", asString(item.get("comparison")));
+                    row.put("studyPlan", asString(item.get("studyPlan")));
                     return row;
                 })
                 .toList();
@@ -835,6 +1098,117 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         data.put("subjectInsights", listMap(reportContent.get("subjectInsights")));
         data.put("wrongQuestionPushes", listMap(reportContent.get("wrongQuestionPushes")));
         return data;
+    }
+
+    private List<Map<String, Object>> buildKnowledgePointStats(List<Map<String, Object>> questions) {
+        Map<String, Map<String, Object>> stats = new LinkedHashMap<>();
+        for (Map<String, Object> q : questions) {
+            String kp = asString(q.get("knowledgePoint"));
+            String type = asString(q.get("questionType"));
+            final String finalKp = StringUtils.hasText(kp) ? kp : "";
+            final String finalType = StringUtils.hasText(type) ? type : "";
+            if (!StringUtils.hasText(finalKp) && !StringUtils.hasText(finalType)) {
+                continue;
+            }
+
+            String key = finalKp + "||" + finalType;
+            Map<String, Object> stat = stats.computeIfAbsent(key, k -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("knowledgePoint", finalKp);
+                m.put("questionType", finalType);
+                m.put("score", 0D);
+                m.put("fullScore", 0D);
+                return m;
+            });
+            stat.put("score", asDouble(stat.get("score")) + asDouble(q.get("score")));
+            stat.put("fullScore", asDouble(stat.get("fullScore")) + asDouble(q.get("fullScore")));
+        }
+        return new ArrayList<>(stats.values());
+    }
+
+    private List<String> buildSubjectKnowledgeSummary(Map<String, Object> data, Map<String, Object> sourceSnapshot, String subjectName, List<Map<String, Object>> kpStats) {
+        List<Map<String, Object>> subjectInsights = listMap(data.get("subjectInsights"));
+        String strength = "";
+        String weakness = "";
+        for (Map<String, Object> insight : subjectInsights) {
+            if (subjectName.equals(asString(insight.get("subjectName")))) {
+                strength = asString(insight.get("strength"));
+                weakness = asString(insight.get("weakness"));
+                break;
+            }
+        }
+
+        List<String> lines = new ArrayList<>();
+        if (StringUtils.hasText(strength)) {
+            lines.add("优势分析：" + strength);
+        }
+        if (StringUtils.hasText(weakness)) {
+            lines.add("薄弱分析：" + weakness);
+        }
+
+        if (lines.isEmpty()) {
+            List<Map<String, Object>> strengths = new ArrayList<>();
+            List<Map<String, Object>> weaknesses = new ArrayList<>();
+            for (Map<String, Object> stat : kpStats) {
+                double fullScore = Math.max(asDouble(stat.get("fullScore")), 1D);
+                double rate = asDouble(stat.get("score")) / fullScore;
+                if (rate >= 0.8) strengths.add(stat);
+                else if (rate < 0.6) weaknesses.add(stat);
+            }
+
+            if (!strengths.isEmpty()) {
+                String names = strengths.stream().limit(3).map(s -> asString(s.get("knowledgePoint"))).collect(Collectors.joining("、"));
+                lines.add("优势分析：在 " + names + " 等知识点和题型上表现优异，得分率稳定在80%以上，基础扎实，建议继续保持这种良好的解题习惯。");
+            }
+            if (!weaknesses.isEmpty()) {
+                String names = weaknesses.stream().limit(3).map(s -> asString(s.get("knowledgePoint"))).collect(Collectors.joining("、"));
+                lines.add("薄弱分析：在 " + names + " 等方面失分较多，得分率不足60%。反映出对相关概念的理解不够深入，或解题方法不够熟练，需要重点复习与强化。");
+            }
+            if (lines.isEmpty()) {
+                lines.add("整体分析：该科目各知识点掌握较为均衡，建议在此基础上进一步提升综合应用能力，攻克难题。");
+            }
+        }
+        return lines;
+    }
+
+    private List<String> buildSubjectStudyPlan(Map<String, Object> data, Map<String, Object> sourceSnapshot, String subjectName, Map<String, Object> subjectRow, List<Map<String, Object>> kpStats) {
+        List<Map<String, Object>> subjectInsights = listMap(data.get("subjectInsights"));
+        String aiStudyPlan = "";
+        for (Map<String, Object> insight : subjectInsights) {
+            if (subjectName.equals(asString(insight.get("subjectName")))) {
+                aiStudyPlan = asString(insight.get("studyPlan"));
+                break;
+            }
+        }
+
+        if (StringUtils.hasText(aiStudyPlan)) {
+            return List.of(aiStudyPlan);
+        }
+
+        List<String> lines = new ArrayList<>();
+        List<Map<String, Object>> weaknesses = kpStats.stream()
+                .filter(stat -> asDouble(stat.get("score")) / Math.max(asDouble(stat.get("fullScore")), 1D) < 0.6)
+                .sorted(Comparator.comparingDouble(s -> asDouble(s.get("score")) / Math.max(asDouble(s.get("fullScore")), 1D)))
+                .limit(3)
+                .toList();
+
+        if (!weaknesses.isEmpty()) {
+            String kpNames = weaknesses.stream().map(s -> asString(s.get("knowledgePoint"))).distinct().collect(Collectors.joining("、"));
+            String typeNames = weaknesses.stream().map(s -> asString(s.get("questionType"))).distinct().collect(Collectors.joining("、"));
+            lines.add("专项突破：重点复习 " + kpNames + " 相关知识。");
+            lines.add("题型训练：针对 " + typeNames + " 增加日常练习量，熟悉答题规范与技巧。");
+        } else {
+            lines.add("综合训练：当前基础较稳，可适当增加压轴题和综合题的训练，向高分冲刺。");
+        }
+        
+        double studentScore = asDouble(subjectRow.get("score"));
+        double gradeAvg = asDouble(subjectRow.get("gradeAverage"));
+        if (studentScore < gradeAvg) {
+            lines.add("阶段目标：稳扎稳打，优先保证基础题不失分，争取下次考试达到年级平均分 " + round(gradeAvg) + " 分。");
+        } else {
+            lines.add("阶段目标：保持优势，优化做题时间分配，争取向满分靠拢。");
+        }
+        return lines;
     }
 
     private BufferedImage buildSubjectBarChart(List<Map<String, Object>> subjectRows) {
@@ -934,9 +1308,9 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         long lowCount = subjectRows.stream().filter(item -> scoreRate(item) < 0.6D).count();
         int total = subjectRows.size();
         return List.of(
-                String.format("平均分：个人总分 %.1f 分，班级平均 %.1f 分，年级平均 %.1f 分，校平均 %.1f 分，联考平均 %.1f 分。",
-                        asDouble(totalScore.get("studentScore")), asDouble(totalScore.get("classAverage")), asDouble(totalScore.get("gradeAverage")),
-                        asDouble(totalScore.get("schoolAverage")), asDouble(totalScore.get("projectAverage"))),
+                String.format("平均分：个人总分 %.1f 分，最高分 %.1f 分，班级平均 %.1f 分，年级平均 %.1f 分，校平均 %.1f 分，联考平均 %.1f 分。",
+                        asDouble(totalScore.get("studentScore")), asDouble(totalScore.get("highestScore")), asDouble(totalScore.get("classAverage")),
+                        asDouble(totalScore.get("gradeAverage")), asDouble(totalScore.get("schoolAverage")), asDouble(totalScore.get("projectAverage"))),
                 String.format("及格率：共有 %d/%d 科达到及格线，及格率 %.1f%%。", passCount, total, ratioPercent(passCount, total)),
                 String.format("优秀率：共有 %d/%d 科达到优秀标准，优秀率 %.1f%%。", excellentCount, total, ratioPercent(excellentCount, total)),
                 String.format("良好率：共有 %d/%d 科达到良好标准，良好率 %.1f%%。", goodCount, total, ratioPercent(goodCount, total)),
@@ -975,62 +1349,6 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         return lines.isEmpty() ? List.of("当前学科表现整体均衡，建议继续保持稳定输出。") : lines;
     }
 
-    private List<String> buildKnowledgePointStrengthLines(Map<String, Object> reportData, List<Map<String, Object>> subjectRows) {
-        List<String> strengths = stringList(map(reportData.get("summary")).get("strengths"));
-        if (!strengths.isEmpty()) return strengths;
-        return subjectRows.stream()
-                .sorted(Comparator.comparingDouble(this::scoreRate).reversed())
-                .limit(3)
-                .map(item -> asString(item.get("subjectName")) + "当前知识点掌握较稳，可保持训练频率，避免优势回落。")
-                .toList();
-    }
-
-    private List<String> buildKnowledgePointWeaknessLines(Map<String, Object> reportData, Map<String, Object> sourceSnapshot) {
-        List<Map<String, Object>> wrongQuestions = listMap(sourceSnapshot.get("wrongQuestions"));
-        Map<String, Long> grouped = wrongQuestions.stream()
-                .map(item -> asString(item.get("knowledgePoint")).trim())
-                .filter(StringUtils::hasText)
-                .collect(Collectors.groupingBy(item -> item, LinkedHashMap::new, Collectors.counting()));
-        if (!grouped.isEmpty()) {
-            return grouped.entrySet().stream()
-                    .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                    .limit(5)
-                    .map(entry -> entry.getKey() + "：高频失分知识点，建议优先做专题复盘与同类题训练。")
-                    .toList();
-        }
-        return listMap(reportData.get("wrongQuestionPushes")).stream()
-                .map(item -> asString(item.get("knowledgePoint")).trim())
-                .filter(StringUtils::hasText)
-                .distinct()
-                .map(item -> item + "：建议结合错题推送做强化巩固。")
-                .toList();
-    }
-
-    private Map<String, List<String>> buildStudyPlanSections(Map<String, Object> reportData, List<Map<String, Object>> subjectRows, Map<String, Object> totalScore) {
-        List<String> weakSubjects = subjectRows.stream()
-                .sorted(Comparator.comparingDouble(this::scoreRate))
-                .limit(2)
-                .map(item -> asString(item.get("subjectName")))
-                .toList();
-        Map<String, List<String>> sections = new LinkedHashMap<>();
-        sections.put("1. 短期计划（1-2周）：补齐基础漏洞", List.of(
-                "主攻 " + String.join("、", weakSubjects.isEmpty() ? List.of("薄弱学科") : weakSubjects) + " 的基础知识点，完成课本梳理和错题回顾。",
-                "每天优先解决基础题和中档题的稳定性问题，减少会做但失分的情况。",
-                "目标：缩小与年级平均的差距，提升整体得分稳定性。"
-        ));
-        sections.put("2. 中期计划（3-4周）：专项突破提分", List.of(
-                "围绕高频失分题型做专项训练，总结通用解题步骤和答题规范。",
-                "结合 AI 推送的重点关注内容，逐步补齐薄弱知识点。",
-                "目标：带动弱势学科提升，促进总分持续回升。"
-        ));
-        sections.put("3. 长期计划（阶段冲刺）：稳定优势结构", List.of(
-                "保持优势学科训练频率，避免在补弱过程中出现强项回落。",
-                "每周至少完成一次整卷限时训练，重点观察做题节奏和时间分配。",
-                String.format("目标：在当前 %.1f 分基础上继续稳步上升，逐步冲击更高名次。", asDouble(totalScore.get("studentScore")))
-        ));
-        return sections;
-    }
-
     private List<String> buildFinalSummaryLines(Map<String, Object> reportData, List<Map<String, Object>> subjectRows, Map<String, Object> totalScore) {
         List<String> lines = new ArrayList<>();
         String overallComment = asString(map(reportData.get("summary")).get("overallComment"));
@@ -1046,10 +1364,12 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         return lines;
     }
 
-    private BufferedImage loadTeacherGuideImage() {
+    private BufferedImage generateTeacherGuideQrCode(SysStudent student) {
         try {
-            ClassPathResource resource = new ClassPathResource("static/resource/recommend_tutor.png");
-            return resource.exists() ? javax.imageio.ImageIO.read(resource.getInputStream()) : null;
+            String content = "https://example.com/tutor?studentNo=" + student.getStudentNo();
+            QRCodeWriter qrCodeWriter = new QRCodeWriter();
+            BitMatrix bitMatrix = qrCodeWriter.encode(content, BarcodeFormat.QR_CODE, 260, 260);
+            return MatrixToImageWriter.toBufferedImage(bitMatrix);
         } catch (Exception e) {
             return null;
         }
@@ -1099,11 +1419,26 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
     private Map<String, List<Map<String, Object>>> parsePaperLayouts(List<ExamSubject> subjects) {
         Map<String, List<Map<String, Object>>> result = new LinkedHashMap<>();
         for (ExamSubject subject : subjects) {
-            List<Map<String, Object>> rows = listMap(readJsonValue(subject.getAnswersLayouts()));
-            if (rows.isEmpty()) {
-                rows = listMap(readJsonValue(subject.getPaperLayouts()));
+            List<Map<String, Object>> paperRows = listMap(readJsonValue(subject.getPaperLayouts()));
+            List<Map<String, Object>> answerRows = listMap(readJsonValue(subject.getAnswersLayouts()));
+            
+            // Merge properties from paperLayouts and answersLayouts
+            List<Map<String, Object>> mergedRows = new ArrayList<>();
+            int maxLen = Math.max(paperRows.size(), answerRows.size());
+            for (int i = 0; i < maxLen; i++) {
+                Map<String, Object> merged = new LinkedHashMap<>();
+                if (i < paperRows.size()) merged.putAll(paperRows.get(i));
+                if (i < answerRows.size()) {
+                    Map<String, Object> aRow = answerRows.get(i);
+                    aRow.forEach((k, v) -> {
+                        if (v != null && StringUtils.hasText(String.valueOf(v))) {
+                            merged.put(k, v);
+                        }
+                    });
+                }
+                mergedRows.add(merged);
             }
-            result.put(subject.getSubjectName(), rows);
+            result.put(subject.getSubjectName(), mergedRows);
         }
         return result;
     }
@@ -1137,6 +1472,17 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
     }
 
     private Map<String, Object> readJsonMap(String json) {
+        if (json == null) return Collections.emptyMap();
+        json = json.trim();
+        if (json.startsWith("```json")) {
+            json = json.substring(7);
+        } else if (json.startsWith("```")) {
+            json = json.substring(3);
+        }
+        if (json.endsWith("```")) {
+            json = json.substring(0, json.length() - 3);
+        }
+        json = json.trim();
         try {
             return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
         } catch (Exception e) {

@@ -106,10 +106,12 @@ public class AppScoreController {
      */
     @LogOperation("获取考试AI成绩报告")
     @GetMapping("/ai-report")
-    public Result<Map<String, Object>> getExamAiReport(@RequestParam String examId) {
+    public Result<Map<String, Object>> getExamAiReport(
+            @RequestParam String examId,
+            @RequestParam(required = false, defaultValue = "false") boolean refresh) {
         Long uid = getCurrentUid();
         if (uid == null) return Result.error(401, "请先登录");
-        return scoreAiReportService.getExamAiReport(uid, examId);
+        return scoreAiReportService.getExamAiReport(uid, examId, refresh);
     }
 
     /**

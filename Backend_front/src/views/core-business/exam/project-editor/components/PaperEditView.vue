@@ -91,6 +91,7 @@
               </el-tooltip>
 
               <el-button
+                v-if="activeTab === 'original'"
                 size="small"
                 type="primary"
                 plain
@@ -350,15 +351,6 @@
                 >
                   <el-button size="small" :disabled="ocrLoading">重新上传</el-button>
                 </el-upload>
-
-                <el-button
-                  size="small"
-                  type="primary"
-                  :disabled="ocrLoading"
-                  @click="handleStudentAutoCut"
-                >
-                  AI识别
-                </el-button>
 
                 <el-button
                   size="small"

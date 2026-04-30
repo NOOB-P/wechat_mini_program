@@ -126,6 +126,7 @@ import { computed, ref } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { getCourseDetailApi, collectCourseApi, recordLearningApi, buyCourseApi } from '@/api/course'
+import MarkdownRender from '@/components/MarkdownRender/index.vue'
 
 const toast = useToast()
 

@@ -60,7 +60,7 @@ export const getScoreTrendApi = (params: any) => {
 
 /**
  * @Description: 获取考试 AI 成绩报告（首次生成后缓存）
- * @param {object} params 查询参数 (examId)
+ * @param {object} params 查询参数 (examId, refresh)
  */
 export const getAiExamReportApi = (params: any) => {
   return request({

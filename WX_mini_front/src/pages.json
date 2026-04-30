@@ -184,7 +184,7 @@
 				{
 					"path": "pages/score/ai-report",
 					"style": {
-						"navigationBarTitleText": "AI 成绩分析报告"
+						"navigationBarTitleText": "AI成绩报告"
 					}
 				},
 				{

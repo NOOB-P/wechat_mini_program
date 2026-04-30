@@ -4,23 +4,36 @@
     title="编辑学生成绩"
     width="500px"
     destroy-on-close
+    align-center
     @close="handleClose"
   >
     <div class="score-edit-container">
       <div class="student-info">
-        <div class="info-item">
-          <span class="label">学生姓名:</span>
-          <span class="value">{{ student?.studentName }}</span>
+        <div class="info-left">
+          <div class="info-item">
+            <span class="label">学生姓名:</span>
+            <span class="value">{{ student?.studentName }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">考号:</span>
+            <span class="value">{{ student?.studentNo }}</span>
+          </div>
         </div>
-        <div class="info-item">
-          <span class="label">考号:</span>
-          <span class="value">{{ student?.studentNo }}</span>
+        <div class="info-right total-display" :class="{ 'is-over': isOverScore }">
+          <div class="total-box">
+            <span class="label">总分:</span>
+            <span class="value">{{ totalScore }}</span>
+          </div>
+          <div v-if="isOverScore" class="over-hint">
+            <el-icon><Warning /></el-icon>
+            超限
+          </div>
         </div>
       </div>
 
       <el-divider />
 
-      <div class="section-title">小题满分设置:</div>
+      <div class="section-title">学生小题成绩设置:</div>
       <div class="question-list">
         <div v-for="(score, index) in questionScores" :key="index" class="question-item">
           <span class="question-no">{{ index + 1 }}</span>
@@ -41,17 +54,6 @@
         <div class="add-question" @click="addQuestion">
           <el-icon><Plus /></el-icon>
           <span>点击添加</span>
-        </div>
-      </div>
-
-      <div class="total-summary" :class="{ 'is-over': isOverScore }">
-        <div class="total-left">
-          <span class="label">总分:</span>
-          <span class="value">{{ totalScore }}</span>
-        </div>
-        <div v-if="isOverScore" class="over-hint">
-          <el-icon><Warning /></el-icon>
-          已超过学科满分 ({{ fullScore }}分)
         </div>
       </div>
     </div>
@@ -176,8 +178,14 @@
 
   .student-info {
     display: flex;
-    gap: 24px;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 10px;
+
+    .info-left {
+      display: flex;
+      gap: 24px;
+    }
 
     .info-item {
       .label {
@@ -187,6 +195,42 @@
       .value {
         font-weight: 600;
         color: #1e293b;
+      }
+    }
+
+    .total-display {
+      text-align: right;
+      
+      .total-box {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+
+      .label {
+        font-size: 14px;
+        color: #64748b;
+      }
+
+      .value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #409eff;
+      }
+
+      &.is-over {
+        .value {
+          color: #f5222d;
+        }
+        .over-hint {
+          color: #f5222d;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 2px;
+          margin-top: -4px;
+        }
       }
     }
   }
@@ -202,7 +246,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    max-height: 400px;
+    max-height: 420px;
     overflow-y: auto;
     padding-right: 10px;
   }
@@ -243,53 +287,11 @@
     }
   }
 
-  .total-summary {
-    margin-top: 24px;
-    padding: 16px;
-    background: #f8fafc;
-    border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 8px;
-    transition: all 0.3s;
-
-    &.is-over {
-      background: #fff1f0;
-      border: 1px solid #ffccc7;
-
-      .value {
-        color: #f5222d;
-      }
-    }
-
-    .total-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .over-hint {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 13px;
-      color: #f5222d;
-      animation: shake 0.5s ease-in-out;
-    }
-
-    .label {
-      font-size: 16px;
-      font-weight: 600;
-      color: #1e293b;
-    }
-
-    .value {
-      font-size: 24px;
-      font-weight: 700;
-      color: #409eff;
-      transition: color 0.3s;
-    }
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 16px;
   }
 
   @keyframes shake {

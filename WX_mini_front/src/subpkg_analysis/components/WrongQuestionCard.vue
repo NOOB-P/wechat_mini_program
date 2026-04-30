@@ -25,7 +25,7 @@
     <!-- 题目文字显示 -->
     <view class="question-text-content" v-if="hasQuestionText">
       <view class="text-body">
-        <rich-text :nodes="formatQuestionText(item.question)"></rich-text>
+        <MarkdownRender :content="item.question" />
       </view>
     </view>
 
@@ -44,6 +44,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import MarkdownRender from '@/components/MarkdownRender/index.vue'
 
 const props = defineProps<{
   item: Record<string, any>
@@ -59,40 +60,6 @@ const hasQuestionText = computed(() => {
   // 排除默认生成的“第x题”文本，只显示识别出的实际题目
   return q !== `第${props.item.questionNo}题`
 })
-
-/**
- * 对题目文本进行基础渲染，支持 Markdown 和 LaTeX
- */
-const formatQuestionText = (text: string) => {
-  if (!text) return ''
-  
-  let formatted = text
-  
-  // 1. 处理 LaTeX 公式 - 转换为图片显示 (使用更融合的颜色和 DPI)
-  // 块级公式 $$...$$
-  formatted = formatted.replace(/\$\$(.*?)\$\$/g, (match, formula) => {
-    const encoded = encodeURIComponent(formula.trim())
-    // 使用 #334155 (Slate 700) 匹配正文颜色，微调 DPI 保持字号一致
-    return `<img src="https://latex.codecogs.com/png.latex?\\dpi{130}\\color[rgb]{0.2,0.25,0.33}${encoded}" style="max-width: 100%; vertical-align: middle; margin: 2px 0; transform: scale(0.95);" mode="widthFix" />`
-  })
-  
-  // 行内公式 $...$
-  formatted = formatted.replace(/\$(.*?)\$/g, (match, formula) => {
-    const encoded = encodeURIComponent(formula.trim())
-    return `<img src="https://latex.codecogs.com/png.latex?\\dpi{130}\\color[rgb]{0.2,0.25,0.33}${encoded}" style="max-width: 100%; vertical-align: middle; margin: 0 2px; transform: scale(0.95);" mode="widthFix" />`
-  })
-  
-  // 2. 处理基础 Markdown
-  // 粗体 **text**
-  formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<b style="color: #1e293b;">$1</b>')
-  // 斜体 *text*
-  formatted = formatted.replace(/\*(.*?)\*\*/g, '<i style="color: #475569;">$1</i>')
-  
-  // 3. 处理换行符
-  formatted = formatted.replace(/\n/g, '<br/>')
-  
-  return formatted
-}
 
 const formatScore = (value: unknown) => {
   const num = Number(value)

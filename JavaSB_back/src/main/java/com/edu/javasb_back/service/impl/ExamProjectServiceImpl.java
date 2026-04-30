@@ -2589,6 +2589,16 @@ public class ExamProjectServiceImpl implements ExamProjectService {
         if (!StringUtils.hasText(json)) {
             return Collections.emptyMap();
         }
+        json = json.trim();
+        if (json.startsWith("```json")) {
+            json = json.substring(7);
+        } else if (json.startsWith("```")) {
+            json = json.substring(3);
+        }
+        if (json.endsWith("```")) {
+            json = json.substring(0, json.length() - 3);
+        }
+        json = json.trim();
         try {
             return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
         } catch (Exception ex) {

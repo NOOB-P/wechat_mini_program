@@ -24,221 +24,223 @@
       </view>
     </view>
 
-    <scroll-view scroll-y class="content" v-if="scoreData" :show-scrollbar="false" :enhanced="true">
-      <!-- 考试概览 -->
-      <view class="overview-card">
-        <view class="exam-info">
-          <text class="exam-name">考试名称：{{ scoreData.examName }}</text>
-          <text class="exam-date">更新时间：{{ scoreData.examDate }}</text>
+    <scroll-view scroll-y class="content" :show-scrollbar="false" :enhanced="true">
+      <!-- 骨架屏加载状态 -->
+      <view v-if="pageLoading" class="skeleton-container">
+        <view class="skeleton-card overview-skeleton"></view>
+        <view class="skeleton-section">
+          <view class="skeleton-title"></view>
+          <view class="skeleton-grid">
+            <view class="skeleton-item" v-for="i in 3" :key="i"></view>
+          </view>
         </view>
-        <view class="score-main">
-          <text class="score-text">总分：{{ scoreData.totalScore }}分</text>
-          <text class="score-text">综合等级：{{ scoreData.totalLevel }}</text>
-        </view>
+        <view class="skeleton-tabs"></view>
+        <view class="skeleton-card detail-skeleton" v-for="i in 3" :key="'d'+i"></view>
       </view>
 
-      <!-- 各科成绩 -->
-      <view class="section subject-section">
-        <view class="section-title">
-          <view class="blue-bar"></view>
-          <text>各科成绩</text>
-          <text class="title-tip">(点击卡片查看详细分析)</text>
-        </view>
-        <view class="subject-grid">
-          <view 
-            class="subject-card" 
-            v-for="(sub, index) in scoreData.subjects" 
-            :key="index" 
-            @click="goToPaperDetail(sub)"
-            :class="getSubjectThemeClass(index)"
-          >
-            <view class="sub-left">
-              <text class="sub-name">{{ sub.name }}</text>
-              <text class="sub-score">{{ sub.score }}/{{ sub.fullScore }}</text>
-            </view>
-            <view class="sub-right">
-              <view class="sub-level-wrap">
-                <text class="sub-level">{{ sub.level }}</text>
-              </view>
-            </view>
+      <block v-else-if="scoreData">
+        <!-- 考试概览 -->
+        <view class="overview-card">
+          <view class="exam-info">
+            <text class="exam-name">考试名称：{{ scoreData.examName }}</text>
+            <text class="exam-date">更新时间：{{ scoreData.examDate }}</text>
           </view>
-        </view>
-      </view>
-
-
-
-      <!-- 成绩分析 / 错题推送 区域 -->
-      <view class="analysis-container">
-        <!-- 顶部 Tab -->
-        <view class="top-tabs">
-          <view class="tabs-scroll">
-            <view 
-              class="tab-item" 
-              :class="{ active: currentMainTab === 'analysis' }"
-              @click="currentMainTab = 'analysis'"
-            >
-              成绩分析
-              <view class="line" v-if="currentMainTab === 'analysis'"></view>
-            </view>
-            <view 
-              class="tab-item" 
-              :class="{ active: currentMainTab === 'wrong_book' }"
-              @click="currentMainTab = 'wrong_book'"
-            >
-              错题整理
-              <view class="line" v-if="currentMainTab === 'wrong_book'"></view>
-            </view>
-            <view 
-              class="tab-item" 
-              :class="{ active: currentMainTab === 'wrong_push' }"
-              @click="currentMainTab = 'wrong_push'"
-            >
-              错题举一反三
-              <view class="line" v-if="currentMainTab === 'wrong_push'"></view>
-            </view>
+          <view class="score-main">
+            <text class="score-text">总分：{{ scoreData.totalScore }}分</text>
+            <text class="score-text">综合等级：{{ scoreData.totalLevel }}</text>
           </view>
         </view>
 
-        <!-- 成绩分析内容 (原 VIP 数据分析卡片) -->
-        <view v-if="currentMainTab === 'analysis'">
-          <view class="vip-analysis-section">
-            <!-- VIP 权限判断遮罩 -->
-            <view class="vip-lock-mask" v-if="!isVIPUser">
-              <view class="lock-icon-wrapper">
-                <text class="vip-badge-text">VIP</text>
+        <!-- 各科成绩 -->
+        <view class="section subject-section">
+          <view class="section-title">
+            <view class="blue-bar"></view>
+            <text>各科成绩</text>
+            <text class="title-tip">(点击卡片查看详细分析)</text>
+          </view>
+          <view class="subject-grid">
+            <view 
+              class="subject-card" 
+              v-for="(sub, index) in scoreData.subjects" 
+              :key="index" 
+              @click="goToPaperDetail(sub)"
+              :class="getSubjectThemeClass(index)"
+            >
+              <view class="sub-left">
+                <text class="sub-name">{{ sub.name }}</text>
+                <text class="sub-score">{{ sub.score }}/{{ sub.fullScore }}</text>
               </view>
-              <view class="lock-text">开通 VIP 解锁深度分析</view>
-              <wd-button custom-class="upgrade-btn" @click="goToRecharge('VIP')">立即开通 VIP</wd-button>
-            </view>
-
-            <view class="vip-analysis-content" :class="{ 'blurred': !isVIPUser }">
-              <!-- AI 报告导出按钮卡片 - SVIP 即可见 -->
-              <view class="analysis-card export-card" v-if="isSVIPUser">
-                <view class="card-header">
-                  <view class="header-left" @click="goToAiReport">
-                    <view class="blue-bar"></view>
-                    <text class="card-title">AI 成绩报告 (PDF)</text>
-                    <text class="card-subtitle">点击查看深度学情分析报告</text>
-                  </view>
-                  <view class="export-actions">
-                    <wd-button size="small" type="primary" plain custom-class="report-view-btn" @click="goToAiReport">查看</wd-button>
-                    <view class="export-icon-wrap" @click="handleExportAiReport">
-                      <wd-icon name="download" size="20px" color="#2563eb" />
-                    </view>
-                  </view>
-                </view>
-                
-                <!-- AI 报告摘要预览 -->
-                <view class="ai-report-summary" v-if="aiReportData" @click="goToAiReport">
-                  <view class="summary-text">{{ aiReportData.summary?.overallComment }}</view>
-                  <view class="summary-metrics">
-                    <view class="metric-item">
-                      <text class="m-label">科目数量</text>
-                      <text class="m-value">{{ scoreData?.subjects?.length || 0 }}</text>
-                    </view>
-                    <view class="metric-item">
-                      <text class="m-label">优势标签</text>
-                      <text class="m-value">{{ aiReportData.summary?.strengths?.length || 0 }}</text>
-                    </view>
-                    <view class="metric-item">
-                      <text class="m-label">薄弱标签</text>
-                      <text class="m-value">{{ aiReportData.summary?.weaknesses?.length || 0 }}</text>
-                    </view>
-                    <view class="metric-item">
-                      <text class="m-label">错题推送</text>
-                      <text class="m-value">{{ aiReportData.wrongQuestionPushes?.length || 0 }}</text>
-                    </view>
-                  </view>
-                </view>
-              </view>
-
-              <!-- 详细的成绩构成分析 -->
-              <view class="analysis-card detail-card" v-if="analysisData && analysisData.composition" @click="goToDetail('composition')">
-                <view class="card-header">
-                  <view class="header-left">
-                    <view class="blue-bar"></view>
-                    <text class="card-title">成绩构成分析</text>
-                  </view>
-                  <wd-icon name="arrow-right" size="16px" color="#ccc" />
-                </view>
-              </view>
-
-              <!-- 详细的成绩分布统计 -->
-              <view class="analysis-card detail-card" v-if="analysisData && analysisData.distribution" @click="goToDetail('distribution')">
-                <view class="card-header">
-                  <view class="header-left">
-                    <view class="blue-bar"></view>
-                    <text class="card-title">分数分布统计</text>
-                  </view>
-                  <wd-icon name="arrow-right" size="16px" color="#ccc" />
-                </view>
-              </view>
-
-              <!-- 近6次考试趋势分析 -->
-              <view class="analysis-card detail-card" @click="goToDetail('trend')">
-                <view class="card-header">
-                  <view class="header-left">
-                    <view class="blue-bar"></view>
-                    <text class="card-title">近六次考试趋势分析</text>
-                  </view>
-                  <wd-icon name="arrow-right" size="16px" color="#ccc" />
+              <view class="sub-right">
+                <view class="sub-level-wrap">
+                  <text class="sub-level">{{ sub.level }}</text>
                 </view>
               </view>
             </view>
           </view>
         </view>
 
-        <!-- 错题集区域 -->
-        <view v-if="currentMainTab === 'wrong_book'">
-          <view class="tab-content locked-content">
-            <!-- VIP 权限判断遮罩 -->
-            <view class="vip-lock-mask" v-if="!isVIPUser">
-              <view class="lock-icon-wrapper">
-                <text class="vip-badge-text">VIP</text>
-              </view>
-              <view class="lock-text">开通 VIP 解锁错题集及打印功能</view>
-              <wd-button custom-class="upgrade-btn" @click="goToRecharge('VIP')">立即开通 VIP</wd-button>
-            </view>
-            
-            <view v-else>
-              <WrongBookToolbar
-                v-model="selectedWrongSubject"
-                :source-label="wrongSourceLabel"
-                :options="wrongBookFilterOptions"
-                @export="handleExport"
-                @print="showPrintDialog = true"
-              />
+        <!-- 成绩分析 / 错题推送 区域 -->
+        <view class="analysis-container">
+          <!-- 顶部 Tab -->
+          <view class="main-tabs-wrapper">
+            <wd-tabs v-model="currentMainTab" custom-class="main-tabs" :active-font-size="30" :font-size="30">
+              <wd-tab title="成绩分析" name="analysis"></wd-tab>
+              <wd-tab title="错题整理" name="wrong_book"></wd-tab>
+              <wd-tab title="错题举一反三" name="wrong_push"></wd-tab>
+            </wd-tabs>
+          </view>
 
-              <view class="wrong-list">
-                <WrongQuestionCard
-                  v-for="item in filteredWrongBookData"
-                  :key="item.id"
-                  :item="item"
-                  @preview="previewSliceImage"
+          <!-- 成绩分析内容 (原 VIP 数据分析卡片) -->
+          <view v-if="currentMainTab === 'analysis'">
+            <view class="vip-analysis-section">
+              <!-- VIP 权限判断遮罩 -->
+              <view class="vip-lock-mask" v-if="!isVIPUser">
+                <view class="lock-icon-wrapper">
+                  <text class="vip-badge-text">VIP</text>
+                </view>
+                <view class="lock-text">开通 VIP 解锁深度分析</view>
+                <wd-button custom-class="upgrade-btn" @click="goToRecharge('VIP')">立即开通 VIP</wd-button>
+              </view>
+
+              <view class="vip-analysis-content" :class="{ 'blurred': !isVIPUser }">
+                <!-- AI 报告导出按钮卡片 - SVIP 即可见 -->
+                <view class="analysis-card export-card" v-if="isSVIPUser">
+                  <view class="card-header">
+                    <view class="header-left" @click="goToAiReport">
+                      <view class="blue-bar"></view>
+                      <text class="card-title">AI 成绩报告 (PDF)</text>
+                      <text class="card-subtitle">点击查看深度学情分析报告</text>
+                    </view>
+                    <view class="export-actions">
+                      <view class="refresh-icon-wrap" @click="handleRefreshAiReport" :class="{ 'is-loading': aiReportLoading }">
+                        <wd-icon name="refresh" size="18px" :color="canManualRefresh ? '#2563eb' : '#94a3b8'" />
+                      </view>
+                      <block v-if="!aiReportLoading">
+                        <wd-button size="small" type="primary" plain custom-class="report-view-btn" @click="goToAiReport">查看</wd-button>
+                        <view class="export-icon-wrap" @click="handleExportAiReport">
+                          <wd-icon name="download" size="20px" color="#2563eb" />
+                        </view>
+                      </block>
+                    </view>
+                  </view>
+                  
+                  <!-- AI 报告摘要预览 -->
+                  <view class="ai-report-summary" v-if="aiReportData" @click="goToAiReport">
+                    <view class="summary-text">{{ aiReportData.summary?.overallComment }}</view>
+                    <view class="summary-metrics">
+                      <view class="metric-item">
+                        <text class="m-label">科目数量</text>
+                        <text class="m-value">{{ scoreData?.subjects?.length || 0 }}</text>
+                      </view>
+                      <view class="metric-item">
+                        <text class="m-label">优势标签</text>
+                        <text class="m-value">{{ aiReportData.summary?.strengths?.length || 0 }}</text>
+                      </view>
+                      <view class="metric-item">
+                        <text class="m-label">薄弱标签</text>
+                        <text class="m-value">{{ aiReportData.summary?.weaknesses?.length || 0 }}</text>
+                      </view>
+                      <view class="metric-item">
+                        <text class="m-label">错题推送</text>
+                        <text class="m-value">{{ aiReportData.wrongQuestionPushes?.length || 0 }}</text>
+                      </view>
+                    </view>
+                  </view>
+                </view>
+
+                <!-- 详细的成绩构成分析 -->
+                <view class="analysis-card detail-card" v-if="analysisData && analysisData.composition" @click="goToDetail('composition')">
+                  <view class="card-header">
+                    <view class="header-left">
+                      <view class="blue-bar"></view>
+                      <text class="card-title">成绩构成分析</text>
+                    </view>
+                    <wd-icon name="arrow-right" size="16px" color="#ccc" />
+                  </view>
+                </view>
+
+                <!-- 详细的成绩分布统计 -->
+                <view class="analysis-card detail-card" v-if="analysisData && analysisData.distribution" @click="goToDetail('distribution')">
+                  <view class="card-header">
+                    <view class="header-left">
+                      <view class="blue-bar"></view>
+                      <text class="card-title">分数分布统计</text>
+                    </view>
+                    <wd-icon name="arrow-right" size="16px" color="#ccc" />
+                  </view>
+                </view>
+
+                <!-- 近6次考试趋势分析 -->
+                <view class="analysis-card detail-card" @click="goToDetail('trend')">
+                  <view class="card-header">
+                    <view class="header-left">
+                      <view class="blue-bar"></view>
+                      <text class="card-title">近六次考试趋势分析</text>
+                    </view>
+                    <wd-icon name="arrow-right" size="16px" color="#ccc" />
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 错题集区域 -->
+          <view v-if="currentMainTab === 'wrong_book'">
+            <view class="tab-content locked-content">
+              <!-- VIP 权限判断遮罩 -->
+              <view class="vip-lock-mask" v-if="!isVIPUser">
+                <view class="lock-icon-wrapper">
+                  <text class="vip-badge-text">VIP</text>
+                </view>
+                <view class="lock-text">开通 VIP 解锁错题集及打印功能</view>
+                <wd-button custom-class="upgrade-btn" @click="goToRecharge('VIP')">立即开通 VIP</wd-button>
+              </view>
+              
+              <view v-else>
+                <WrongBookToolbar
+                  v-model="selectedWrongSubject"
+                  :source-label="wrongSourceLabel"
+                  :options="wrongBookFilterOptions"
+                  @export="handleExport"
+                  @print="showPrintDialog = true"
                 />
-                <view v-if="!filteredWrongBookData.length" class="wrong-empty">
-                  <text>当前筛选条件下暂无错题</text>
+
+                <view class="wrong-list">
+                  <WrongQuestionCard
+                    v-for="item in filteredWrongBookData"
+                    :key="item.id"
+                    :item="item"
+                    @preview="previewSliceImage"
+                  />
+                  <view v-if="!filteredWrongBookData.length" class="wrong-empty">
+                    <text>当前筛选条件下暂无错题</text>
+                  </view>
                 </view>
               </view>
             </view>
           </view>
-        </view>
 
-        <!-- 错题推送区域（原有 AI 自习室 / 学习建议） -->
-        <view v-if="currentMainTab === 'wrong_push'">
-          <view class="tab-content svip-content">
-            <AiReportPanel
-              :loading="aiReportLoading"
-              :has-access="isSVIPUser"
-              :report-data="aiReportData"
-              :score-data="scoreData"
-              @upgrade="goToRecharge('SVIP')"
-              @export="handleExportAiReport"
-            />
+          <!-- 错题推送区域（原有 AI 自习室 / 学习建议） -->
+          <view v-if="currentMainTab === 'wrong_push'">
+            <view class="tab-content svip-content">
+              <AiReportPanel
+                :loading="aiReportLoading"
+                :has-access="isSVIPUser"
+                :report-data="aiReportData"
+                :score-data="scoreData"
+                @upgrade="goToRecharge('SVIP')"
+                @export="handleExportAiReport"
+              />
+            </view>
           </view>
-        </view>
-      </view> <!-- analysis-container 闭合 -->
+        </view> <!-- analysis-container 闭合 -->
+      </block>
 
+      <!-- 无数据时的提示 -->
+      <view v-else-if="!pageLoading" class="empty-state">
+        <wd-icon name="empty" size="120rpx" color="#cbd5e1" />
+        <text>暂无考试数据</text>
+      </view>
     </scroll-view>
 
     <!-- 打印下单弹窗 -->
@@ -322,6 +324,9 @@ import WrongBookToolbar from '@/subpkg_analysis/components/WrongBookToolbar.vue'
 import WrongQuestionCard from '@/subpkg_analysis/components/WrongQuestionCard.vue'
 
 const toast = useToast()
+const pageLoading = ref(true) // 页面初始加载状态
+const dataLoading = ref(false) // 数据切换加载状态
+const isFirstLoad = ref(true) // 是否是首次加载标志
 const scoreData = ref<any>(null)
 const currentSubject = ref('总分')
 const currentMainTab = ref('analysis')
@@ -335,6 +340,14 @@ const getSubjectThemeClass = (index: number) => {
 // VIP 数据与权限
 const isVIPUser = ref(false)
 const isSVIPUser = ref(false)
+
+// AI 报告刷新逻辑相关
+const canManualRefresh = computed(() => {
+  if (!aiReportData.value?.generatedAt) return true
+  const genTime = new Date(aiReportData.value.generatedAt.replace(/-/g, '/')).getTime()
+  const now = new Date().getTime()
+  return now - genTime > 5 * 60 * 1000 // 5分钟后可手动刷新
+})
 
 const checkVipStatus = async () => {
   try {
@@ -577,15 +590,17 @@ const getChartHeight = (item: any) => {
 
 const loadInitData = async () => {
   try {
-    uni.showLoading({ title: '初始化中...', mask: true })
-    const [semesterRes, printRes] = await Promise.all([
-      getSemesterListApi(),
-      getPrintConfigApi()
-    ])
+    pageLoading.value = true
     
-    if (printRes.code === 200) {
-      printConfig.value = printRes.data
-    }
+    // 1. 优先并行请求核心数据（VIP状态和学期列表）
+    // 打印配置作为次要数据，在后台静默加载
+    const vipPromise = checkVipStatus()
+    const semesterPromise = getSemesterListApi()
+    getPrintConfigApi().then(res => {
+      if (res.code === 200) printConfig.value = res.data
+    })
+    
+    const [_, semesterRes] = await Promise.all([vipPromise, semesterPromise])
     
     if (semesterRes.code === 200) {
       semesters.value = semesterRes.data.semesters || []
@@ -605,30 +620,35 @@ const loadInitData = async () => {
           pickerValue.value = [firstSemester, firstExam]
           currentDisplayLabel.value = `${semesters.value[0].label} - ${exams[0].label}`
           
-          loadData(firstSemester, firstExam)
+          // 2. 启动核心业务数据加载
+          await loadData(firstSemester, firstExam)
         } else {
           currentDisplayLabel.value = '暂无考试数据'
-          uni.hideLoading()
         }
       } else {
         currentDisplayLabel.value = '暂无学期数据'
-        uni.hideLoading()
       }
     } else {
-      uni.hideLoading()
       uni.showToast({ title: semesterRes.msg || '获取列表失败', icon: 'none' })
     }
   } catch (error: any) {
-    uni.hideLoading()
     uni.showToast({ title: '初始化失败', icon: 'none' })
+  } finally {
+    pageLoading.value = false
   }
 }
 
 const loadData = async (semesterVal: string, examIdVal: string) => {
+  // 增加函数级别的请求锁，防止初始化过程中多个地方同时触发 loadData
+  if (dataLoading.value) return
   try {
-    uni.showLoading({ title: '加载中...', mask: true })
-    aiReportData.value = null
-    aiReportExamId.value = ''
+    dataLoading.value = true
+    
+    // 只有在考试 ID 真的变化时才重置报告，防止 watch 触发重复请求
+    if (aiReportExamId.value !== examIdVal) {
+      aiReportData.value = null
+      aiReportExamId.value = ''
+    }
     aiReportLoading.value = false
     
     // VIP 权限已在 onShow 中通过 checkVipStatus 更新
@@ -642,7 +662,6 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
       scoreData.value = res.data
       currentSubject.value = '总分'
     } else {
-      uni.hideLoading()
       uni.showToast({ title: res.msg || '获取数据失败', icon: 'none' })
       return // 发生错误时停止后续逻辑
     }
@@ -659,31 +678,50 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
     wrongBookData.value = isVIPUser.value ? (res.data?.wrongQuestions || []) : []
     selectedWrongSubject.value = 'all'
 
-    uni.hideLoading()
-    tryLoadAiReport()
+    // 移除 tryLoadAiReport() 的显式调用，全部交给 watch 统一管理
   } catch (error: any) {
-    uni.hideLoading()
     uni.showToast({ title: error.msg || '网络错误', icon: 'none' })
+  } finally {
+    dataLoading.value = false
   }
 }
 
-const loadAiReport = async (examId: string) => {
-  if (!examId || aiReportLoading.value || aiReportExamId.value === examId) return
+const loadAiReport = async (examId: string, refresh: boolean = false) => {
+  // 增加加载锁，防止同一个 examId 的重复请求
+  if (!examId || aiReportLoading.value) return
+  if (!refresh && aiReportExamId.value === examId) return
+  
   aiReportLoading.value = true
+  aiReportExamId.value = examId // 提前占位，防止 watch 多次触发导致重复请求
   try {
-    const res = await getAiExamReportApi({ examId })
+    const res = await getAiExamReportApi({ examId, refresh })
     if (res.code === 200) {
       aiReportData.value = res.data
-      aiReportExamId.value = examId
     } else {
-      aiReportData.value = null
+      if (!refresh) {
+        aiReportData.value = null
+        aiReportExamId.value = '' // 失败时清除占位，允许重试
+      }
       uni.showToast({ title: res.msg || 'AI报告获取失败', icon: 'none' })
     }
   } catch (error: any) {
-    aiReportData.value = null
+    if (!refresh) {
+      aiReportData.value = null
+      aiReportExamId.value = '' // 异常时清除占位
+    }
     uni.showToast({ title: error.msg || 'AI报告获取失败', icon: 'none' })
   } finally {
     aiReportLoading.value = false
+  }
+}
+
+const handleRefreshAiReport = () => {
+  if (!canManualRefresh.value) {
+    return toast.show('报告生成不到5分钟，请稍后再刷新')
+  }
+  const examId = scoreData.value?.examId || pickerValue.value?.[1]
+  if (examId) {
+    loadAiReport(examId, true)
   }
 }
 
@@ -840,23 +878,28 @@ const submitPrint = async () => {
   }
 }
 
-onLoad(async (options: any) => {
+onLoad((options: any) => {
   if (options && options.phone) {
     userPhone.value = options.phone
     printForm.value.phone = options.phone
   }
-  await checkVipStatus()
+  // 仅在 onLoad 中启动一次初始化
   loadInitData()
 })
 
 onShow(async () => {
-  // 每次进入页面可以再次刷新状态，但 onLoad 里的那次保证了首次加载逻辑正确
+  // 如果是首次加载，onLoad 已经处理了，这里直接返回
+  if (isFirstLoad.value) {
+    isFirstLoad.value = false
+    return
+  }
+  
+  // 非首次进入（如从充值页返回），才检查状态并决定是否刷新
   const oldVip = isVIPUser.value
   const oldSvip = isSVIPUser.value
   
   await checkVipStatus()
   
-  // 如果权限发生了变化（开通了会员），则重新加载当前选中的考试数据
   if ((isVIPUser.value && !oldVip) || (isSVIPUser.value && !oldSvip)) {
     if (pickerValue.value[0] && pickerValue.value[1]) {
       loadData(pickerValue.value[0], pickerValue.value[1])
@@ -865,9 +908,11 @@ onShow(async () => {
 })
 
 watch(
-  () => [currentMainTab.value, isSVIPUser.value, scoreData.value?.examId],
-  () => {
-    tryLoadAiReport()
+  () => [isSVIPUser.value, scoreData.value?.examId],
+  ([isSVIP, examId]) => {
+    if (isSVIP && examId) {
+      tryLoadAiReport()
+    }
   }
 )
 </script>
@@ -985,6 +1030,85 @@ watch(
     background: transparent;
     color: transparent;
   }
+}
+
+/* 骨架屏相关样式 */
+.skeleton-container {
+  display: flex;
+  flex-direction: column;
+  gap: 30rpx;
+}
+
+.skeleton-card {
+  background: #fff;
+  border-radius: 24rpx;
+  position: relative;
+  overflow: hidden;
+  
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0, rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0) 100%);
+    animation: skeleton-loading 1.5s infinite;
+  }
+}
+
+.overview-skeleton {
+  height: 200rpx;
+}
+
+.skeleton-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.skeleton-title {
+  width: 200rpx;
+  height: 40rpx;
+  background: #e2e8f0;
+  border-radius: 8rpx;
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20rpx;
+}
+
+.skeleton-item {
+  height: 160rpx;
+  background: #fff;
+  border-radius: 16rpx;
+}
+
+.skeleton-tabs {
+  height: 80rpx;
+  background: #fff;
+  border-radius: 16rpx;
+}
+
+.detail-skeleton {
+  height: 120rpx;
+}
+
+@keyframes skeleton-loading {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 200rpx;
+  color: #94a3b8;
+  gap: 20rpx;
 }
 
 .overview-card {
@@ -1436,6 +1560,31 @@ watch(
         line-height: 54rpx;
         font-size: 24rpx;
       }
+    }
+
+    .refresh-icon-wrap {
+      width: 54rpx;
+      height: 54rpx;
+      background: #f8fafc;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1rpx solid #e2e8f0;
+      transition: all 0.3s;
+
+      &.is-loading {
+        animation: spin 1.2s linear infinite;
+      }
+
+      &:active {
+        background: #f1f5f9;
+      }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
 
     .export-icon-wrap {

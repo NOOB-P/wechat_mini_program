@@ -49,6 +49,9 @@ public class StudentExamAiReport {
     @Column(length = 20)
     private String status;
 
+    @Column(name = "pdf_url", length = 500)
+    private String pdfUrl;
+
     @Column(name = "create_time", updatable = false)
     private LocalDateTime createTime;
 
