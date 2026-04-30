@@ -1,18 +1,6 @@
 import request from '@/utils/request'
 
 /**
- * @Description: 绑定学生账号 - 发送验证码
- * @param {string} phone 手机号
- */
-export const sendBindStudentCode = (phone: string) => {
-  return request({
-    url: '/api/app/auth/sendCode',
-    method: 'POST',
-    data: { phone }
-  })
-}
-
-/**
  * @Description: 获取所有启用的省份
  */
 export const getProvinces = () => {
@@ -61,7 +49,6 @@ export const bindStudentAccount = (data: {
   studentName?: string
   studentId: string // 这个 ID 是学生的内部 ID
   phone: string
-  code: string
 }) => {
   return request({
     url: '/api/app/auth/bind-student/confirm',

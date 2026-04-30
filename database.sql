@@ -887,4 +887,27 @@ INSERT IGNORE INTO `exam_papers` (`title`, `subject`, `grade`, `year`, `type`, `
 
 
 
+-- 18. 考试题目与学科网原题映射缓存表
+DROP TABLE IF EXISTS `exam_question_xkw_mapping`;
+CREATE TABLE `exam_question_xkw_mapping` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `exam_id` VARCHAR(50) NOT NULL COMMENT '考试项目ID',
+    `subject` VARCHAR(50) NOT NULL COMMENT '学科',
+    `question_no` VARCHAR(50) NOT NULL COMMENT '题号',
+    `question_text` TEXT NULL COMMENT '题干快照',
+    `course_id` INT NULL COMMENT '学科网课程ID',
+    `xkw_question_id` VARCHAR(100) NOT NULL COMMENT '学科网原题ID',
+    `matched_by` VARCHAR(20) NULL COMMENT '匹配方式:text/image',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY `uk_exam_subject_question` (`exam_id`, `subject`, `question_no`),
+    KEY `idx_xkw_question_id` (`xkw_question_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='考试题目与学科网原题映射缓存表';
+
+-- 18.1 手工插入示例（按需执行）
+-- INSERT INTO `exam_question_xkw_mapping`
+-- (`exam_id`, `subject`, `question_no`, `question_text`, `course_id`, `xkw_question_id`, `matched_by`)
+-- VALUES
+-- ('EP202604180001', '数学', '3', '已匹配题干示例', 1001, 'XKW_QUESTION_ID_DEMO', 'text');
+
 SET FOREIGN_KEY_CHECKS = 1;

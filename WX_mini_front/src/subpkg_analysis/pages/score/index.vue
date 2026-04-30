@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="score-container">
     <view class="filter-bar" v-if="!showPrintDialog">
       <!-- 使用 wd-picker 实现学期和考试的联动选择 -->
@@ -186,12 +186,26 @@
         <!-- 错题推送区域（原有 AI 自习室 / 学习建议） -->
         <view v-if="currentMainTab === 'wrong_push'">
           <view class="tab-content svip-content">
-            <AiReportPanel
-              :loading="aiReportLoading"
-              :has-access="isSVIPUser"
-              :report-data="aiReportData"
-              @upgrade="goToRecharge('SVIP')"
-            />
+            <view class="vip-lock-mask" v-if="!isSVIPUser">
+              <view class="lock-icon-wrapper">
+                <text class="vip-badge-text">SVIP</text>
+              </view>
+              <view class="lock-text">开通 SVIP 解锁错题举一反三</view>
+              <wd-button custom-class="upgrade-btn" @click="goToRecharge('SVIP')">立即升级 SVIP</wd-button>
+            </view>
+
+            <view v-else class="wrong-list">
+              <WrongPushCard
+                v-for="item in filteredWrongBookData"
+                :key="`push-${item.id}`"
+                :item="item"
+                @preview="previewSliceImage"
+                @open-detail="openWrongPushDetail(item)"
+              />
+              <view v-if="!filteredWrongBookData.length" class="wrong-empty">
+                <text>当前筛选条件下暂无错题</text>
+              </view>
+            </view>
           </view>
         </view>
       </view> <!-- analysis-container 闭合 -->
@@ -271,14 +285,17 @@
 import { ref, computed, watch } from 'vue'
 import { onShow, onLoad } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
-import { getStudentScoresApi, getSemesterListApi, getAiExamReportApi, exportWrongBookApi } from '@/subpkg_analysis/api/score'
+import { getStudentScoresApi, getSemesterListApi, exportWrongBookApi } from '@/subpkg_analysis/api/score'
 import { submitPrintOrderApi, getPrintConfigApi } from '@/api/vip'
 import { getUserInfoApi } from '@/api/mine'
-import AiReportPanel from '@/subpkg_analysis/components/AiReportPanel.vue'
 import WrongBookToolbar from '@/subpkg_analysis/components/WrongBookToolbar.vue'
 import WrongQuestionCard from '@/subpkg_analysis/components/WrongQuestionCard.vue'
+import WrongPushCard from '@/subpkg_analysis/components/WrongPushCard.vue'
 
 const toast = useToast()
+const WRONG_PUSH_STORAGE_KEY = 'currentWrongPushItem'
+const WRONG_PUSH_LIST_STORAGE_KEY = 'currentWrongPushList'
+const WRONG_PUSH_INDEX_STORAGE_KEY = 'currentWrongPushIndex'
 const scoreData = ref<any>(null)
 const currentSubject = ref('总分')
 const currentMainTab = ref('analysis')
@@ -336,9 +353,6 @@ const getMasteryColor = (val: number) => {
 const analysisData = ref<any>(null)
 const wrongBookData = ref<any[]>([])
 const selectedWrongSubject = ref('all')
-const aiReportLoading = ref(false)
-const aiReportData = ref<any>(null)
-const aiReportExamId = ref('')
 
 const showPrintDialog = ref(false)
 const printSubject = ref('all')
@@ -576,9 +590,6 @@ const loadInitData = async () => {
 const loadData = async (semesterVal: string, examIdVal: string) => {
   try {
     uni.showLoading({ title: '加载中...', mask: true })
-    aiReportData.value = null
-    aiReportExamId.value = ''
-    aiReportLoading.value = false
     
     // VIP 权限已在 onShow 中通过 checkVipStatus 更新
 
@@ -609,38 +620,26 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
     selectedWrongSubject.value = 'all'
 
     uni.hideLoading()
-    tryLoadAiReport()
   } catch (error: any) {
     uni.hideLoading()
     uni.showToast({ title: error.msg || '网络错误', icon: 'none' })
   }
 }
 
-const loadAiReport = async (examId: string) => {
-  if (!examId || aiReportLoading.value || aiReportExamId.value === examId) return
-  aiReportLoading.value = true
-  try {
-    const res = await getAiExamReportApi({ examId })
-    if (res.code === 200) {
-      aiReportData.value = res.data
-      aiReportExamId.value = examId
-    } else {
-      aiReportData.value = null
-      uni.showToast({ title: res.msg || 'AI报告获取失败', icon: 'none' })
-    }
-  } catch (error: any) {
-    aiReportData.value = null
-    uni.showToast({ title: error.msg || 'AI报告获取失败', icon: 'none' })
-  } finally {
-    aiReportLoading.value = false
-  }
-}
-
-const tryLoadAiReport = () => {
+const openWrongPushDetail = (item: any) => {
   const examId = scoreData.value?.examId || pickerValue.value?.[1]
-  if (currentMainTab.value === 'wrong_push' && isSVIPUser.value && examId) {
-    loadAiReport(examId)
+  if (!examId) {
+    uni.showToast({ title: '未选择考试', icon: 'none' })
+    return
   }
+  const currentList = filteredWrongBookData.value || []
+  const currentIndex = currentList.findIndex((listItem: any) => String(listItem.id) === String(item.id))
+  uni.setStorageSync(WRONG_PUSH_STORAGE_KEY, item)
+  uni.setStorageSync(WRONG_PUSH_LIST_STORAGE_KEY, currentList)
+  uni.setStorageSync(WRONG_PUSH_INDEX_STORAGE_KEY, currentIndex >= 0 ? currentIndex : 0)
+  uni.navigateTo({
+    url: `/subpkg_analysis/pages/score/wrong-push?examId=${encodeURIComponent(String(examId))}&subject=${encodeURIComponent(String(item.subject || ''))}&questionNo=${encodeURIComponent(String(item.questionNo || ''))}`
+  })
 }
 
 const goToRecharge = (type: string = 'VIP') => {
@@ -707,11 +706,7 @@ const submitPrint = async () => {
   }
   try {
     uni.showLoading({ title: '提交中...', mask: true })
-    
-    // 获取当前用户信息
     const userInfo = uni.getStorageSync('userInfo')
-    
-    // 构造更真实的订单数据
     const orderData = {
       ...printForm.value,
       userName: userInfo?.name || userInfo?.nickname || '微信用户',
@@ -722,12 +717,11 @@ const submitPrint = async () => {
         Math.max(Number(currentPaperConfig.value?.minQuantity || 1), 1)
       )
     }
-    
+
     const res = await submitPrintOrderApi(orderData)
     uni.hideLoading()
     if (res.code === 200) {
       showPrintDialog.value = false
-      // 跳转到支付页面
       const payOrderData = {
         orderNo: res.data.orderNo,
         title: res.data.documentName,
@@ -757,26 +751,17 @@ onLoad(async (options: any) => {
 })
 
 onShow(async () => {
-  // 每次进入页面可以再次刷新状态，但 onLoad 里的那次保证了首次加载逻辑正确
   const oldVip = isVIPUser.value
   const oldSvip = isSVIPUser.value
-  
+
   await checkVipStatus()
-  
-  // 如果权限发生了变化（开通了会员），则重新加载当前选中的考试数据
+
   if ((isVIPUser.value && !oldVip) || (isSVIPUser.value && !oldSvip)) {
     if (pickerValue.value[0] && pickerValue.value[1]) {
       loadData(pickerValue.value[0], pickerValue.value[1])
     }
   }
 })
-
-watch(
-  () => [currentMainTab.value, isSVIPUser.value, scoreData.value?.examId],
-  () => {
-    tryLoadAiReport()
-  }
-)
 </script>
 
 <style lang="scss" scoped>
@@ -1573,3 +1558,4 @@ watch(
 }
 
 </style>
+

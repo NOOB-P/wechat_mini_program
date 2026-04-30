@@ -66,6 +66,10 @@ public class GlobalConfigProperties {
      * 通义千问 API Key
      */
     private String qwenApiKey;
+    private String xkwAppId;
+    private String xkwAppSecret;
+    private String xkwGatewayHost;
+    private Integer xkwTimeoutSeconds = 15;
 
     /**
      * 阿里云 OSS AccessKey ID
@@ -174,6 +178,14 @@ public class GlobalConfigProperties {
     public void setUploadTempDir(String uploadTempDir) { this.uploadTempDir = uploadTempDir; }
     public String getQwenApiKey() { return qwenApiKey; }
     public void setQwenApiKey(String qwenApiKey) { this.qwenApiKey = qwenApiKey; }
+    public String getXkwAppId() { return xkwAppId; }
+    public void setXkwAppId(String xkwAppId) { this.xkwAppId = xkwAppId; }
+    public String getXkwAppSecret() { return xkwAppSecret; }
+    public void setXkwAppSecret(String xkwAppSecret) { this.xkwAppSecret = xkwAppSecret; }
+    public String getXkwGatewayHost() { return xkwGatewayHost; }
+    public void setXkwGatewayHost(String xkwGatewayHost) { this.xkwGatewayHost = xkwGatewayHost; }
+    public Integer getXkwTimeoutSeconds() { return xkwTimeoutSeconds; }
+    public void setXkwTimeoutSeconds(Integer xkwTimeoutSeconds) { this.xkwTimeoutSeconds = xkwTimeoutSeconds; }
     public String getOssAccessKeyId() { return ossAccessKeyId; }
     public void setOssAccessKeyId(String ossAccessKeyId) { this.ossAccessKeyId = ossAccessKeyId; }
     public String getOssAccessKeySecret() { return ossAccessKeySecret; }

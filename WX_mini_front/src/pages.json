@@ -1,4 +1,4 @@
-{
+﻿{
 	"pages": [
 		{
 			"path": "pages/login/index",
@@ -179,6 +179,12 @@
 					"path": "pages/score/trend",
 					"style": {
 						"navigationBarTitleText": "近六次考试趋势分析"
+					}
+				},
+				{
+					"path": "pages/score/wrong-push",
+					"style": {
+						"navigationBarTitleText": "错题举一反三"
 					}
 				},
 				{

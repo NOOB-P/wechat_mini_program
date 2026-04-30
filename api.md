@@ -1,4 +1,4 @@
-# 考试项目管理接口
+﻿# 考试项目管理接口
 
 统一返回格式：
 
@@ -654,3 +654,64 @@
 - 课程、VIP 等虚拟商品统一返回 `paymentType=VIRTUAL`，前端走 `wx.requestVirtualPayment`
 - 错题打印等实物商品继续保留原有普通微信支付逻辑
 - 后端保留普通微信支付回调 `/api/pay/wechat/notify`，仅用于实物商品或后续普通支付场景
+
+
+## 错题举一反三接口
+
+- 方法：`POST`
+- 地址：`/api/app/score/wrong-push/recommend`
+- 请求体：
+
+```json
+{
+  "examId": "EP202604180001",
+  "subject": "数学",
+  "questionNo": "3",
+  "count": 5
+}
+```
+
+- 请求参数：
+| 参数 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| examId | string | 是 | 考试项目ID |
+| subject | string | 是 | 错题所属学科 |
+| questionNo | string | 是 | 错题题号，传当前错题的 `questionNo` |
+| count | number | 否 | 返回推荐题数量，默认 `5`，最大 `10` |
+
+- 说明：
+- 一期接入仅使用学科网课程 `course_id` 进行搜题与举一反三，不做高中教材 `textbook_id` 过滤。
+- 后端优先使用错题题干文本搜题；若题干不可用，则回退使用错题题图搜题。
+- 后端统一调用学科网 SDK，前端不直接访问学科网接口。
+
+- `data` 返回字段：
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| sourceQuestion | object | 当前错题与学科网原题匹配信息 |
+| recommendations | array | 举一反三推荐题列表 |
+
+- `sourceQuestion` 字段：
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| subject | string | 学科 |
+| questionNo | string | 题号 |
+| questionText | string | 当前错题题干 |
+| matchedQuestionId | string | 学科网原题ID |
+| matchedBy | string | 匹配方式：`text` / `image` |
+| courseId | number | 学科网课程ID |
+
+- `recommendations` 字段：
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| questionId | string | 学科网推荐题ID |
+| stem | string | 试题题干 HTML |
+| answer | string | 试题答案 HTML |
+| explanation | string | 试题解析 HTML |
+| difficulty | number | 难度值 |
+| similarity | number | 与原题相似度 |
+| courseId | number | 课程ID |
+| courseName | string | 课程名称 |
+| typeId | string/number | 题型ID |
+| typeName | string | 题型名称 |
+| kpoints | array | 知识点列表 |
+| tags | array | 标签列表 |

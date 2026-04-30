@@ -2,12 +2,16 @@ package com.edu.javasb_back.controller;
 
 import com.edu.javasb_back.annotation.LogOperation;
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.model.dto.WrongPushRecommendRequest;
 import com.edu.javasb_back.service.ScoreAiReportService;
 import com.edu.javasb_back.service.ScoreService;
+import com.edu.javasb_back.service.WrongPushRecommendService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,10 +31,14 @@ public class AppScoreController {
     @Autowired
     private ScoreAiReportService scoreAiReportService;
 
-    // 辅助方法：获取当前用户的 UID
+    @Autowired
+    private WrongPushRecommendService wrongPushRecommendService;
+
     private Long getCurrentUid() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
             return null;
         }
         try {
@@ -40,9 +48,6 @@ public class AppScoreController {
         }
     }
 
-    /**
-     * 获取学期及考试列表
-     */
     @LogOperation("获取学期考试列表")
     @GetMapping("/semester/list")
     public Result<Map<String, Object>> getSemesterList() {
@@ -51,9 +56,6 @@ public class AppScoreController {
         return scoreService.getSemesterList(uid);
     }
 
-    /**
-     * 获取学生成绩数据
-     */
     @LogOperation("获取学生成绩详情")
     @GetMapping("/list")
     public Result<Map<String, Object>> getStudentScores(
@@ -64,9 +66,6 @@ public class AppScoreController {
         return scoreService.getStudentScores(uid, semester, examId);
     }
 
-    /**
-     * 获取成绩构成分析
-     */
     @LogOperation("获取成绩构成分析")
     @GetMapping("/composition")
     public Result<Map<String, Object>> getScoreComposition(
@@ -77,9 +76,6 @@ public class AppScoreController {
         return scoreService.getScoreComposition(uid, examId, subject);
     }
 
-    /**
-     * 获取分数分布统计
-     */
     @LogOperation("获取分数分布统计")
     @GetMapping("/distribution")
     public Result<Map<String, Object>> getScoreDistribution(
@@ -90,9 +86,6 @@ public class AppScoreController {
         return scoreService.getScoreDistribution(uid, examId, subject);
     }
 
-    /**
-     * 获取近六次考试趋势
-     */
     @LogOperation("获取近六次考试趋势")
     @GetMapping("/trend")
     public Result<Map<String, Object>> getScoreTrend(@RequestParam(required = false) String examId) {
@@ -101,9 +94,6 @@ public class AppScoreController {
         return scoreService.getScoreTrend(uid, examId);
     }
 
-    /**
-     * 获取考试 AI 成绩报告
-     */
     @LogOperation("获取考试AI成绩报告")
     @GetMapping("/ai-report")
     public Result<Map<String, Object>> getExamAiReport(@RequestParam String examId) {
@@ -112,9 +102,20 @@ public class AppScoreController {
         return scoreAiReportService.getExamAiReport(uid, examId);
     }
 
-    /**
-     * 导出错题集 PDF
-     */
+    @LogOperation("获取错题举一反三推荐")
+    @PostMapping("/wrong-push/recommend")
+    public Result<Map<String, Object>> recommendWrongQuestion(@RequestBody WrongPushRecommendRequest request) {
+        Long uid = getCurrentUid();
+        if (uid == null) return Result.error(401, "请先登录");
+        return wrongPushRecommendService.recommendWrongQuestion(
+                uid,
+                request == null ? null : request.getExamId(),
+                request == null ? null : request.getSubject(),
+                request == null ? null : request.getQuestionNo(),
+                request == null ? null : request.getCount()
+        );
+    }
+
     @LogOperation("导出错题集")
     @GetMapping("/wrong-book/export")
     public Result<String> exportWrongBook(
