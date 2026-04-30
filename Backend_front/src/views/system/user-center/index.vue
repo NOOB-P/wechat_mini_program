@@ -166,7 +166,7 @@
    * 随机默认头像
    */
   const userAvatar = computed(() => {
-    return getUserAvatar(userInfo.value.avatar, userInfo.value.id)
+    return getUserAvatar(userInfo.value.avatar, userInfo.value.userId)
   })
 
   /**
