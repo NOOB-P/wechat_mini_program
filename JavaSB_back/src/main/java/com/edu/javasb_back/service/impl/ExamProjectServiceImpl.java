@@ -2,6 +2,9 @@ package com.edu.javasb_back.service.impl;
 
 import com.edu.javasb_back.common.Result;
 import com.edu.javasb_back.config.GlobalConfigProperties;
+import com.edu.javasb_back.model.dto.ExamPaperImportBatchInitDTO;
+import com.edu.javasb_back.model.dto.ExamPaperImportFileDTO;
+import com.edu.javasb_back.model.dto.ExamPaperImportManifestDTO;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
 import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import com.edu.javasb_back.model.dto.PaperOcrAutoCutDTO;
@@ -20,6 +23,7 @@ import com.edu.javasb_back.repository.ExamSubjectRepository;
 import com.edu.javasb_back.repository.SysClassRepository;
 import com.edu.javasb_back.repository.SysSchoolRepository;
 import com.edu.javasb_back.repository.SysStudentRepository;
+import com.edu.javasb_back.service.CourseVideoDirectUploadService;
 import com.edu.javasb_back.service.ExamProjectService;
 import com.edu.javasb_back.service.OssStorageService;
 import com.edu.javasb_back.service.support.AliyunPaperOcrService;
@@ -200,6 +204,7 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     @Autowired private SysStudentRepository sysStudentRepository;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private AliyunPaperOcrService aliyunPaperOcrService;
+    @Autowired private CourseVideoDirectUploadService courseVideoDirectUploadService;
     @Autowired private OssStorageService ossStorageService;
     @Autowired private GlobalConfigProperties globalConfigProperties;
     @PersistenceContext private EntityManager entityManager;
@@ -724,6 +729,155 @@ public class ExamProjectServiceImpl implements ExamProjectService {
 
         String downloadName = "成绩导出-" + (StringUtils.hasText(subjectName) ? subjectName : "全部") + ".xlsx";
         return ExcelExportUtils.buildExcelResponse("成绩列表", downloadName, headers, rows);
+    }
+
+    @Override
+    public Result<Map<String, Object>> initAnswerSheetImportBatch(ExamPaperImportBatchInitDTO dto) {
+        String projectId = dto == null ? null : dto.getProjectId();
+        String subjectName = dto == null ? null : dto.getSubjectName();
+        if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
+        if (!StringUtils.hasText(subjectName)) return Result.error("学科名称不能为空");
+
+        ExamSubject subject = findProjectSubjectByName(projectId, subjectName);
+        if (subject == null) return Result.error("项目中无学科数据: " + subjectName);
+
+        String batchId = UUID.randomUUID().toString().replace("-", "");
+        try {
+            Map<String, Object> sessionData = new LinkedHashMap<>(
+                    courseVideoDirectUploadService.createExamPaperImportSession(projectId, subjectName, batchId)
+            );
+            sessionData.put("projectId", projectId);
+            sessionData.put("subjectName", subjectName);
+            return Result.success("初始化导入批次成功", sessionData);
+        } catch (Exception e) {
+            return Result.error("初始化导入批次失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Result<Map<String, Object>> importAnswerSheetsByManifest(ExamPaperImportManifestDTO dto) {
+        if (dto == null) return Result.error("导入清单不能为空");
+        String projectId = dto.getProjectId();
+        String subjectName = dto.getSubjectName();
+        String batchId = dto.getBatchId();
+        if (!examProjectRepository.existsById(projectId)) return Result.error("项目不存在");
+        if (!StringUtils.hasText(subjectName)) return Result.error("学科名称不能为空");
+        if (!StringUtils.hasText(batchId)) return Result.error("导入批次不能为空");
+        if (dto.getFiles() == null || dto.getFiles().isEmpty()) return Result.error("请至少上传一张试卷图片");
+
+        ExamSubject subject = findProjectSubjectByName(projectId, subjectName);
+        if (subject == null) return Result.error("项目中无学科数据: " + subjectName);
+
+        String taskId = UUID.randomUUID().toString();
+        taskProgressManager.initTask(taskId, "批量导入试卷: " + batchId, dto.getFiles().size());
+        self.importAnswerSheetsByManifestAsync(taskId, dto);
+        return Result.success("导入任务已启动", Map.of("taskId", taskId));
+    }
+
+    @Override
+    @Async("taskExecutor")
+    public void importAnswerSheetsByManifestAsync(String taskId, ExamPaperImportManifestDTO dto) {
+        String projectId = dto.getProjectId();
+        String subjectName = dto.getSubjectName();
+        String batchId = dto.getBatchId();
+        UploadCtx uploadCtx = buildUploadCtx(projectId, subjectName);
+        if (!uploadCtx.ok()) {
+            taskProgressManager.finishTask(taskId, "failed");
+            taskProgressManager.addLog(taskId, "初始化失败: " + uploadCtx.msg());
+            return;
+        }
+
+        String expectedPrefix = buildExamPaperImportPrefix(projectId, subjectName, batchId);
+        List<ExamPaperImportFileDTO> files = dto.getFiles() == null ? Collections.emptyList() : dto.getFiles();
+        List<String> logs = new ArrayList<>();
+        List<ExamStudentScore> scoresToSave = new ArrayList<>();
+        Set<String> importedKeys = new LinkedHashSet<>();
+        int successCount = 0;
+        int skipCount = 0;
+        int errorCount = 0;
+
+        TaskProgressManager.TaskStatus status = taskProgressManager.getTaskStatus(taskId);
+        if (status != null) status.setTotal(files.size());
+        taskProgressManager.updateProgress(taskId, 0, "开始处理 " + files.size() + " 个上传文件...");
+
+        for (int i = 0; i < files.size(); i++) {
+            ExamPaperImportFileDTO file = files.get(i);
+            String entryPath = normalizeManifestEntryPath(file);
+            String entryName = normalizeManifestFileName(file, entryPath);
+
+            try {
+                if (!StringUtils.hasText(entryName)) {
+                    taskProgressManager.addLog(taskId, "文件[" + entryPath + "]: 文件名不能为空");
+                    errorCount++;
+                    continue;
+                }
+                if (!isAllowedImagePaperFile(entryName)) {
+                    taskProgressManager.addLog(taskId, "文件[" + entryPath + "]: 仅支持 jpg/jpeg/png 图片");
+                    errorCount++;
+                    continue;
+                }
+
+                String objectKey = normalizeManifestObjectKey(file);
+                if (!StringUtils.hasText(objectKey)) {
+                    taskProgressManager.addLog(taskId, "文件[" + entryPath + "]: 缺少 OSS 对象路径");
+                    errorCount++;
+                    continue;
+                }
+                if (!objectKey.startsWith(expectedPrefix)) {
+                    taskProgressManager.addLog(taskId, "文件[" + entryPath + "]: 文件不属于当前导入批次");
+                    errorCount++;
+                    continue;
+                }
+
+                FileMatch fileMatch = matchStudentByPaperFileName(entryName, uploadCtx.studentNoMap(), uploadCtx.studentNameMap());
+                if (!fileMatch.ok()) {
+                    String msg = "文件[" + entryPath + "]: " + fileMatch.msg();
+                    taskProgressManager.addLog(taskId, msg);
+                    if (fileMatch.skipped()) skipCount++;
+                    else errorCount++;
+                    continue;
+                }
+
+                SysStudent student = fileMatch.student();
+                if (!uploadCtx.examClassMap().containsKey(student.getClassId())) {
+                    taskProgressManager.addLog(taskId, "文件[" + entryPath + "]: 学生[" + student.getName() + "]未纳入当前考试项目班级");
+                    skipCount++;
+                    continue;
+                }
+
+                String scoreKey = uploadCtx.subject().getId() + "_" + student.getStudentNo();
+                if (!importedKeys.add(scoreKey)) {
+                    taskProgressManager.addLog(taskId, "文件[" + entryPath + "]: 当前批次重复上传了同一学生试卷");
+                    errorCount++;
+                    continue;
+                }
+
+                ExamStudentScore score = prepareScoreRecord(uploadCtx.existingScoreMap().get(scoreKey), uploadCtx.subject(), student);
+                score.setAnswerSheetUrl(ossStorageService.buildUrl(objectKey));
+                if (!StringUtils.hasText(score.getAnswerMergeInfo())) {
+                    score.setAnswerMergeInfo(null);
+                }
+
+                scoresToSave.add(score);
+                uploadCtx.existingScoreMap().put(scoreKey, score);
+                successCount++;
+                taskProgressManager.updateProgress(taskId, i + 1, "已处理: " + entryName);
+            } catch (Exception e) {
+                taskProgressManager.addLog(taskId, "处理文件[" + entryPath + "]异常: " + e.getMessage());
+                errorCount++;
+            }
+        }
+
+        try {
+            if (!scoresToSave.isEmpty()) {
+                examStudentScoreRepository.saveAllAndFlush(scoresToSave);
+            }
+            Map<String, Object> resultData = buildBatchImportResultData("试卷导入完成", successCount, skipCount, errorCount, logs);
+            taskProgressManager.finishTask(taskId, "completed", resultData);
+        } catch (Exception e) {
+            taskProgressManager.finishTask(taskId, "failed");
+            taskProgressManager.addLog(taskId, "保存导入结果失败: " + e.getMessage());
+        }
     }
 
     @Override
@@ -1507,6 +1661,49 @@ public class ExamProjectServiceImpl implements ExamProjectService {
     private String safePathSegment(String value) {
         if (!StringUtils.hasText(value)) return "unknown";
         return value.trim().replaceAll("[\\\\/:*?\"<>|\\s]+", "_");
+    }
+
+    private String buildExamPaperImportPrefix(String projectId, String subjectName, String batchId) {
+        return "papers/exam-import/"
+                + safePathSegment(projectId)
+                + "/"
+                + safePathSegment(subjectName)
+                + "/"
+                + safePathSegment(batchId)
+                + "/";
+    }
+
+    private boolean isAllowedImagePaperFile(String fileName) {
+        String extension = getFileExtension(fileName).toLowerCase();
+        return ".jpg".equals(extension) || ".jpeg".equals(extension) || ".png".equals(extension);
+    }
+
+    private String normalizeManifestEntryPath(ExamPaperImportFileDTO file) {
+        String entryPath = file == null ? null : file.getEntryPath();
+        String originalFileName = file == null ? null : file.getOriginalFileName();
+        String fallback = StringUtils.hasText(originalFileName) ? originalFileName.trim() : "";
+        String normalized = normalizeArchiveEntryPath(StringUtils.hasText(entryPath) ? entryPath : fallback);
+        return StringUtils.hasText(normalized) ? normalized : fallback;
+    }
+
+    private String normalizeManifestFileName(ExamPaperImportFileDTO file, String entryPath) {
+        String originalFileName = file == null ? null : file.getOriginalFileName();
+        if (StringUtils.hasText(originalFileName)) {
+            return extractArchiveLeafName(normalizeArchiveEntryPath(originalFileName));
+        }
+        return extractArchiveLeafName(normalizeArchiveEntryPath(entryPath));
+    }
+
+    private String normalizeManifestObjectKey(ExamPaperImportFileDTO file) {
+        if (file == null) return "";
+        if (StringUtils.hasText(file.getObjectKey())) {
+            return file.getObjectKey().trim().replaceFirst("^/+", "");
+        }
+        if (StringUtils.hasText(file.getUrl())) {
+            String objectKey = ossStorageService.extractObjectKey(file.getUrl());
+            return objectKey == null ? "" : objectKey;
+        }
+        return "";
     }
 
     private boolean hasScore(ExamStudentScore score) {

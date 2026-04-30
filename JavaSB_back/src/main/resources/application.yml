@@ -11,7 +11,7 @@ spring:
         master:
           url: jdbc:mysql://localhost:3306/edu_data?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
           username: root
-          password: root123
+          password: d5dQA3JePwQiQRMa
           driver-class-name: com.mysql.cj.jdbc.Driver
           hikari:
             max-lifetime: 600000
@@ -23,7 +23,7 @@ spring:
           # Keep slave pointing to master for now; switch the connection later when replication is ready.
           url: jdbc:mysql://localhost:3306/edu_data?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
           username: root
-          password: root123
+          password: d5dQA3JePwQiQRMa
           driver-class-name: com.mysql.cj.jdbc.Driver
           hikari:
             max-lifetime: 600000

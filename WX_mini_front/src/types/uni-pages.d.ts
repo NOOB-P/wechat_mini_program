@@ -29,6 +29,7 @@ interface NavigateToOptions {
        "/subpkg_analysis/pages/score/distribution" |
        "/subpkg_analysis/pages/score/trend" |
        "/subpkg_analysis/pages/score/wrong-push" |
+       "/subpkg_analysis/pages/score/ai-report" |
        "/subpkg_analysis/pages/paper/index" |
        "/subpkg_mine/pages/mine/course-list" |
        "/subpkg_mine/pages/mine/about" |
