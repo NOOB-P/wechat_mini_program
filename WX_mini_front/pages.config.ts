@@ -1,4 +1,4 @@
-﻿import { defineUniPages } from "@uni-helper/vite-plugin-uni-pages";
+import { defineUniPages } from "@uni-helper/vite-plugin-uni-pages";
 
 export default defineUniPages({
   pages: [

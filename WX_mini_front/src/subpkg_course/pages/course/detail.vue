@@ -42,7 +42,7 @@
           <view class="intro-content">
             <view class="intro-title">课程概述</view>
             <view class="intro-text" v-if="courseInfo.content">
-              <rich-text :nodes="courseInfo.content"></rich-text>
+              <MarkdownRender :content="courseInfo.content" />
             </view>
             <view class="intro-text" v-else>
               这是一门精心打磨的高质量课程，由资深名师亲自授课，深入浅出地剖析核心知识点。无论你是基础薄弱想要稳扎稳打，还是寻求突破冲击高分，这门课程都能为你提供针对性的指导与帮助。

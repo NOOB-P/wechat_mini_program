@@ -2,10 +2,10 @@
   <view class="ai-report-panel">
     <view v-if="!hasAccess" class="svip-lock">
       <view class="lock-icon-wrapper svip-badge">
-        <text class="svip-badge-text">SVIP</text>
+        <text class="svip-badge-text">VIP</text>
       </view>
-      <view class="lock-text">此专区为 SVIP 专属功能</view>
-      <wd-button custom-class="upgrade-btn" @click="$emit('upgrade')">立即升级 SVIP</wd-button>
+      <view class="lock-text">此专区为 VIP/SVIP 专属功能</view>
+      <wd-button custom-class="upgrade-btn" @click="$emit('upgrade')">立即开通会员</wd-button>
     </view>
 
     <view v-else-if="loading" class="loading-card">

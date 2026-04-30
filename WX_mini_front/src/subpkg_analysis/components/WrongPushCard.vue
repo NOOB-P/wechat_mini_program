@@ -24,7 +24,7 @@
 
     <view class="question-text-content" v-if="hasQuestionText">
       <view class="text-body">
-        <rich-text :nodes="formatQuestionText(itemData.question)"></rich-text>
+        <MarkdownRender :content="itemData.question" />
       </view>
     </view>
 
@@ -48,6 +48,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import MarkdownRender from '@/components/MarkdownRender/index.vue'
+
 const props = defineProps<{
   item: Record<string, any>
 }>()
@@ -65,22 +67,6 @@ const hasQuestionText = computed(() => {
   return q !== `第${itemData.value.questionNo}题`
 })
 
-const formatQuestionText = (text: string) => {
-  if (!text) return ''
-
-  let formatted = text
-  formatted = formatted.replace(/\$\$(.*?)\$\$/g, (match, formula) => {
-    const encoded = encodeURIComponent(formula.trim())
-    return `<img src="https://latex.codecogs.com/png.latex?\\dpi{130}\\color[rgb]{0.2,0.25,0.33}${encoded}" style="max-width: 100%; vertical-align: middle; margin: 2px 0; transform: scale(0.95);" mode="widthFix" />`
-  })
-  formatted = formatted.replace(/\$(.*?)\$/g, (match, formula) => {
-    const encoded = encodeURIComponent(formula.trim())
-    return `<img src="https://latex.codecogs.com/png.latex?\\dpi{130}\\color[rgb]{0.2,0.25,0.33}${encoded}" style="max-width: 100%; vertical-align: middle; margin: 0 2px; transform: scale(0.95);" mode="widthFix" />`
-  })
-  formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<b style="color: #1e293b;">$1</b>')
-  formatted = formatted.replace(/\n/g, '<br/>')
-  return formatted
-}
 
 const formatScore = (value: unknown) => {
   const num = Number(value)

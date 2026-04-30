@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="score-container">
     <view class="filter-bar" v-if="!showPrintDialog">
       <!-- 使用 wd-picker 实现学期和考试的联动选择 -->
@@ -103,8 +103,8 @@
               </view>
 
               <view class="vip-analysis-content" :class="{ 'blurred': !isVIPUser }">
-                <!-- AI 报告导出按钮卡片 - SVIP 即可见 -->
-                <view class="analysis-card export-card" v-if="isSVIPUser">
+                <!-- AI 报告导出按钮卡片 - VIP/SVIP 即可见 -->
+                <view class="analysis-card export-card" v-if="isVIPUser || isSVIPUser">
                   <view class="card-header">
                     <view class="header-left" @click="goToAiReport">
                       <view class="blue-bar"></view>
@@ -745,8 +745,8 @@ const handleRefreshAiReport = () => {
 
 const tryLoadAiReport = () => {
   const examId = scoreData.value?.examId || pickerValue.value?.[1]
-  // 只要是 SVIP 且有考试 ID，就加载 AI 报告，不限制必须在“错题推送” Tab
-  if (isSVIPUser.value && examId) {
+  // 只要是 VIP/SVIP 且有考试 ID，就加载 AI 报告
+  if ((isVIPUser.value || isSVIPUser.value) && examId) {
     loadAiReport(examId)
   }
 }
@@ -937,9 +937,9 @@ onShow(async () => {
 })
 
 watch(
-  () => [isSVIPUser.value, scoreData.value?.examId],
-  ([isSVIP, examId]) => {
-    if (isSVIP && examId) {
+  () => [isVIPUser.value, isSVIPUser.value, scoreData.value?.examId],
+  ([isVIP, isSVIP, examId]) => {
+    if ((isVIP || isSVIP) && examId) {
       tryLoadAiReport()
     }
   }

@@ -16,7 +16,6 @@
       "node"
     ]
   },
-  "exclude": ["node_modules"],
   "include": [
     "components.d.ts",
     "src/**/*.ts",
@@ -26,5 +25,9 @@
     "src/**/*.jsx",
     "src/**/*.vue",
     "src/**/*.json"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/components/mp-html-render"
   ]
 }
