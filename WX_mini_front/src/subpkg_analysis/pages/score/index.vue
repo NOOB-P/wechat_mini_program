@@ -356,6 +356,10 @@ const getSubjectThemeClass = (index: number) => {
 const isVIPUser = ref(false)
 const isSVIPUser = ref(false)
 
+const aiReportData = ref<any>(null)
+const aiReportLoading = ref(false)
+const aiReportExamId = ref('')
+
 // AI 报告刷新逻辑相关
 const canManualRefresh = computed(() => {
   if (!aiReportData.value?.generatedAt) return true
@@ -644,6 +648,7 @@ const loadInitData = async () => {
       uni.showToast({ title: semesterRes.msg || '获取列表失败', icon: 'none' })
     }
   } catch (error: any) {
+    console.error('loadInitData Error:', error)
     uni.showToast({ title: '初始化失败', icon: 'none' })
   } finally {
     pageLoading.value = false
@@ -692,6 +697,7 @@ const loadData = async (semesterVal: string, examIdVal: string) => {
 
     // 移除 tryLoadAiReport() 的显式调用，全部交给 watch 统一管理
   } catch (error: any) {
+    console.error('loadData Error:', error)
     uni.showToast({ title: error.msg || '网络错误', icon: 'none' })
   } finally {
     dataLoading.value = false
