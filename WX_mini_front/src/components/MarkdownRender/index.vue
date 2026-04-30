@@ -1,8 +1,17 @@
 <template>
   <view class="markdown-render">
-    <rich-text :nodes="renderedHtml"></rich-text>
+    <mp-html-render :content="renderedHtml" :tag-style="tagStyle" />
   </view>
 </template>
+
+<script lang="ts">
+export default {
+  options: {
+    virtualHost: true,
+    addGlobalClass: true
+  }
+}
+</script>
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
@@ -14,6 +23,12 @@ const props = defineProps<{
 }>()
 
 const renderedHtml = ref('')
+
+const tagStyle = {
+  // 设置 mp-html 标签样式，以支持 katex 排版
+  span: 'font-size: inherit;', // 防止一些默认样式覆盖
+  div: 'font-size: inherit;'
+}
 
 const renderContent = () => {
   if (!props.content) {
@@ -35,13 +50,19 @@ const renderContent = () => {
         fixedFormula = ' \\left. '.repeat(rightCount - leftCount) + fixedFormula
       }
       fixedFormula = fixedFormula.replace(/\\right\.(\d+)/g, '\\right. $1')
-      fixedFormula = fixedFormula.replace(/([\u4e00-\u9fa5]+)/g, '\\text{$1}')
+      // 将所有非 ASCII 字符（包括中文、全角标点等）包裹在 \text{} 中，避免 KaTeX 解析报错
+      fixedFormula = fixedFormula.replace(/([^\x00-\x7F]+)/g, '\\text{$1}')
+
+      // 处理可能导致 KaTeX 报错的其他常见情况
+      // 比如连续的连续标点或特殊字符
+      fixedFormula = fixedFormula.replace(/&nbsp;/g, ' ')
 
       const rendered = katex.renderToString(fixedFormula, {
         displayMode,
         throwOnError: false,
         trust: true,
-        strict: false
+        strict: false,
+        output: 'html'
       })
 
       const placeholder = `@@LATEX_PH_${placeholders.length}@@`
@@ -57,8 +78,17 @@ const renderContent = () => {
   // 替换公式为占位符
   content = content.replace(/\$\$(.*?)\$\$/gs, (_, f) => renderMath(f, true))
   content = content.replace(/\\\[(.*?)\\\]/gs, (_, f) => renderMath(f, true))
-  content = content.replace(/\$(.*?)\$/g, (_, f) => renderMath(f, false))
-  content = content.replace(/\\\((.*?)\\\)/g, (_, f) => renderMath(f, false))
+  content = content.replace(/\$(.*?)\$/gs, (_, f) => renderMath(f, false))
+  content = content.replace(/\\\((.*?)\\\)/gs, (_, f) => renderMath(f, false))
+
+  // 增加匹配 markdown backtick包裹的公式，因为有时题库会用反引号包裹公式
+  content = content.replace(/`([^`]+)`/g, (match, f) => {
+    // 判断是否包含典型的数学特征，如果是则渲染为公式，否则保留反引号
+    if (/[\\\^\_\{\}\$]/.test(f) || /frac|pi|alpha|beta|sin|cos|tan/.test(f)) {
+      return renderMath(f, false)
+    }
+    return match
+  })
 
   let finalHtml = ''
   try {
@@ -78,8 +108,8 @@ const renderContent = () => {
   })
 
   // 在小程序中，rich-text 对一些标签的支持有限，需要做一些兼容性处理
-  // 例如，将一些复杂的 KaTeX 结构稍微简化或确保其使用的类名在样式中定义
-  renderedHtml.value = finalHtml
+  // 使用 mp-html 替代 rich-text
+  renderedHtml.value = `<div class="katex-container">` + finalHtml + `</div>`
 }
 
 watch(
@@ -112,70 +142,17 @@ onMounted(() => {
     }
   }
 
-  .katex-display-wrapper {
-    display: inline-block;
-    margin: 10rpx 10rpx;
-    text-align: center;
-    max-width: 100%;
-    vertical-align: middle;
-
-    .katex-display {
-      display: inline-block;
-      margin: 0;
-      padding: 0;
-    }
-  }
-
-  .katex {
-    font-size: 1.1em;
-    text-indent: 0;
-    display: inline-block;
-    vertical-align: middle;
-    line-height: 1;
-    white-space: nowrap;
-  }
-
-  .katex-html {
-    display: inline-block;
-    line-height: 1.1;
-    vertical-align: middle;
-  }
-  
-  /* 解决小程序中 rich-text 可能存在的样式隔离和位移问题 */
-  :deep(.katex) {
-    display: inline-block !important;
-    white-space: nowrap !important;
-    vertical-align: middle !important;
-  }
-
-  :deep(.katex-html) {
-    display: inline-block !important;
-    vertical-align: middle !important;
-  }
-
-  /* 修复分数线、根号等位移的关键样式 */
-  :deep(.vlist-t) {
-    display: inline-table !important;
-    vertical-align: middle !important;
-  }
-  
-  :deep(.vlist-r) {
-    display: table-row !important;
-  }
-  
-  :deep(.vlist) {
-    display: table-cell !important;
-    vertical-align: middle !important;
-  }
-
-  :deep(.mfrac) {
-    display: inline-block !important;
-    vertical-align: middle !important;
-  }
-
-  :deep(.base) {
-    display: inline-block !important;
-    vertical-align: middle !important;
-  }
+  /* fixCss */
+  .katex-display-wrapper { display: inline-block; margin: 10rpx 10rpx; text-align: center; max-width: 100%; vertical-align: middle; }
+  .katex-display { display: inline-block; margin: 0; padding: 0; }
+  .katex { font-size: 1.1em; text-indent: 0; display: inline-block; vertical-align: middle; line-height: 1; white-space: nowrap; }
+  .katex-html { display: inline-block; line-height: 1.1; vertical-align: middle; }
+  .vlist-t { display: inline-table !important; vertical-align: middle !important; }
+  .vlist-r { display: table-row !important; }
+  .vlist { display: table-cell !important; vertical-align: middle !important; }
+  .mfrac { display: inline-block !important; vertical-align: middle !important; }
+  .base { display: inline-block !important; vertical-align: middle !important; }
+  .katex-error { color: #ef4444; font-family: monospace; background: #fee2e2; padding: 2rpx 8rpx; border-radius: 4rpx; }
 }
 </style>
+

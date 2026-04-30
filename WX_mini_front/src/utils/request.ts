@@ -27,6 +27,18 @@ const hideLoading = () => {
     uni.hideLoading()
 }
 
+const handleInfoFailure = () => {
+    uni.showToast({
+        title: '登录过期，请重新登录',
+        icon: 'none'
+    })
+    uni.removeStorageSync('token')
+    uni.removeStorageSync('userInfo')
+    setTimeout(() => {
+        uni.reLaunch({ url: '/pages/login/index' })
+    }, 1000)
+}
+
 // 请求拦截
 const requestInterceptor = (options: requestOptions) => {
     // 设置请求超时时间
@@ -68,6 +80,9 @@ export default (options:requestOptions): Promise<any> => {
                     if (mockResponse.code === 200) {
                         resolve(mockResponse);
                     } else {
+                        if (options.url.includes('/api/app/mine/info')) {
+                            handleInfoFailure()
+                        }
                         reject(mockResponse)
                     }
                 }, 500); // 模拟网络延迟
@@ -87,6 +102,9 @@ export default (options:requestOptions): Promise<any> => {
                     const errorResult = typeof res.data === 'object' && res.data
                         ? res.data
                         : { code: res.statusCode, msg: errorMessage, data: res.data }
+                    if (options.url.includes('/api/app/mine/info')) {
+                        handleInfoFailure()
+                    }
                     reject(errorResult)
                     return
                 }
@@ -96,6 +114,9 @@ export default (options:requestOptions): Promise<any> => {
                         resolve(res.data)
                         // 彻底移除全局成功提示逻辑
                     } else {
+                        if (options.url.includes('/api/app/mine/info')) {
+                            handleInfoFailure()
+                        }
                         reject(res.data)
                     }
                 } else {
@@ -103,6 +124,9 @@ export default (options:requestOptions): Promise<any> => {
                 }
             },
             fail(error) {
+                if (options.url.includes('/api/app/mine/info')) {
+                    handleInfoFailure()
+                }
                 reject(error)
             },
             complete() {}

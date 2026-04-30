@@ -23,7 +23,7 @@ import { useToast } from 'wot-design-uni'
 
 const toast = useToast()
 const loading = ref(false)
-const isSVIP = ref(true) // 能进到这个页面通常已经是 SVIP
+const isSVIP = ref(true) // 默认 true，如果后端返回 403 再设置为 false
 const reportData = ref<any>(null)
 const scoreData = ref<any>(null)
 const examId = ref('')
@@ -42,6 +42,13 @@ onLoad((options: any) => {
   
   if (!reportData.value && examId.value) {
     fetchReport()
+  } else if (cachedReport) {
+    const userInfo = uni.getStorageSync('userInfo')
+    if (userInfo && userInfo.vipType >= 1) {
+      isSVIP.value = true
+    } else {
+      isSVIP.value = false
+    }
   }
 })
 
@@ -52,18 +59,27 @@ const fetchReport = async () => {
     const res = await getAiExamReportApi({ examId: examId.value })
     if (res.code === 200) {
       reportData.value = res.data
+      isSVIP.value = true
     } else {
-      toast.error(res.msg || '获取报告失败')
+      if (res.code === 403) {
+        isSVIP.value = false
+      } else {
+        toast.error(res.msg || '获取报告失败')
+      }
     }
-  } catch (e) {
-    toast.error('网络错误')
+  } catch (e: any) {
+    if (e.code === 403) {
+      isSVIP.value = false
+    } else {
+      toast.error('网络错误')
+    }
   } finally {
     loading.value = false
   }
 }
 
 const goToRecharge = () => {
-  uni.navigateTo({ url: '/subpkg_course/pages/vip/recharge?type=SVIP&redirect=score' })
+  uni.navigateTo({ url: '/subpkg_course/pages/vip/index' })
 }
 
 const resolveAssetUrl = (url?: string) => {
