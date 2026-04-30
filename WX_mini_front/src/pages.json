@@ -158,12 +158,6 @@
 			"root": "subpkg_analysis",
 			"pages": [
 				{
-					"path": "pages/score/ai-report",
-					"style": {
-						"navigationBarTitleText": "AI成绩分析报告"
-					}
-				},
-				{
 					"path": "pages/score/index",
 					"style": {
 						"navigationBarTitleText": "学情分析"
@@ -185,6 +179,12 @@
 					"path": "pages/score/trend",
 					"style": {
 						"navigationBarTitleText": "近六次考试趋势分析"
+					}
+				},
+				{
+					"path": "pages/score/wrong-push",
+					"style": {
+						"navigationBarTitleText": "错题举一反三"
 					}
 				},
 				{

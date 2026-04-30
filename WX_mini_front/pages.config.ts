@@ -1,4 +1,4 @@
-import { defineUniPages } from "@uni-helper/vite-plugin-uni-pages";
+﻿import { defineUniPages } from "@uni-helper/vite-plugin-uni-pages";
 
 export default defineUniPages({
   pages: [
@@ -176,6 +176,12 @@ export default defineUniPages({
           },
         },
         {
+          path: 'pages/score/wrong-push',
+          style: {
+            navigationBarTitleText: '错题举一反三',
+          },
+        },
+        {
           path: 'pages/paper/index',
           style: {
             navigationBarTitleText: '试卷报告',
@@ -284,3 +290,4 @@ export default defineUniPages({
 		],
 	  },
 });
+

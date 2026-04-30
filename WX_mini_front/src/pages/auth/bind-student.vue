@@ -72,13 +72,6 @@
       <view class="parent-info-section">
         <wd-cell-group border custom-class="cell-group-custom">
           <wd-input v-model="form.phone" label="手机号" placeholder="请输入手机号" disabled align-right />
-          <wd-input v-model="form.code" label="验证码" placeholder="请输入验证码" type="number" use-suffix-slot align-right>
-            <template #suffix>
-              <view class="code-btn-text" :class="{ disabled: countdown > 0 }" @click="countdown === 0 && sendCode()">
-                {{ countdown > 0 ? `${countdown}s后重试` : '获取验证码' }}
-              </view>
-            </template>
-          </wd-input>
         </wd-cell-group>
       </view>
 
@@ -104,7 +97,6 @@ import { ref, reactive, onMounted } from 'vue'
 import { onLoad, onNavigationBarButtonTap } from '@dcloudio/uni-app'
 import { useToast } from 'wot-design-uni'
 import { 
-  sendBindStudentCode, 
   bindStudentAccount, 
   getProvinces, 
   getCities, 
@@ -115,8 +107,6 @@ import {
 } from '@/api/auth/bind-student'
 
 const toast = useToast()
-const countdown = ref(0)
-let timer: ReturnType<typeof setInterval> | null = null
 
 // 级联选择数据
 const provinces = ref<any[]>([])
@@ -139,8 +129,7 @@ const props = defineProps<{
 }>()
 
 const form = reactive({
-  phone: props.phone || '', 
-  code: ''
+  phone: props.phone || ''
 })
 
 onMounted(async () => {
@@ -270,36 +259,12 @@ const skipBinding = () => {
   uni.switchTab({ url: '/pages/home/index' })
 }
 
-const sendCode = async () => {
-  if (!form.phone) return toast.show('手机号不能为空')
-  
-  uni.showLoading({ title: '发送中...', mask: true })
-  try {
-    const res = await sendBindStudentCode(form.phone)
-    if (res.code === 200) {
-      uni.hideLoading()
-      uni.showToast({ title: '验证码已发送', icon: 'success' })
-      countdown.value = 60
-      timer = setInterval(() => {
-        countdown.value--
-        if (countdown.value <= 0) clearInterval(timer!)
-      }, 1000)
-    } else {
-      uni.hideLoading()
-      uni.showToast({ title: res.msg || '发送失败', icon: 'none' })
-    }
-  } catch (error: any) {
-    uni.hideLoading()
-    uni.showToast({ title: error.msg || '发送失败', icon: 'none' })
-  }
-}
-
 const handleBind = async () => {
-  const { code, phone } = form
+  const { phone } = form
   const studentId = selectedStudentId.value
   
-  if (!studentId || !code) {
-    uni.showToast({ title: '请选择学生并输入验证码', icon: 'none' })
+  if (!studentId) {
+    uni.showToast({ title: '请选择学生', icon: 'none' })
     return
   }
   
@@ -307,8 +272,7 @@ const handleBind = async () => {
   try {
     const res = await bindStudentAccount({
       studentId,
-      phone,
-      code
+      phone
     })
     
     if (res.code === 200) {
@@ -369,28 +333,6 @@ const gotoForgotPassword = () => {
 
   .parent-info-section {
     margin-top: 30rpx;
-  }
-
-  .code-btn-text {
-    font-size: 28rpx;
-    color: #1a5f8e;
-    padding-left: 24rpx;
-    margin-left: 20rpx;
-    border-left: 1px solid #f0f0f0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 160rpx;
-    white-space: nowrap;
-    height: 48rpx;
-    
-    &.disabled {
-      color: #999;
-    }
-
-    &:active:not(.disabled) {
-      opacity: 0.7;
-    }
   }
 
   .action-btn {
