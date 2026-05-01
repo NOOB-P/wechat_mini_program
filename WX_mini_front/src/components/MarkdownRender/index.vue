@@ -75,11 +75,38 @@ const renderContent = () => {
     }
   }
 
-  // 替换公式为占位符
-  content = content.replace(/\$\$(.*?)\$\$/gs, (_, f) => renderMath(f, true))
-  content = content.replace(/\\\[(.*?)\\\]/gs, (_, f) => renderMath(f, true))
-  content = content.replace(/\$(.*?)\$/gs, (_, f) => renderMath(f, false))
-  content = content.replace(/\\\((.*?)\\\)/gs, (_, f) => renderMath(f, false))
+  const renderMathOnline = (formula: string, displayMode: boolean) => {
+    try {
+      const cleanFormula = formula.trim()
+      // 对于 CodeCogs 服务，当直接通过 url 拼接时，如果带有 \dpi 等参数，需要确保 \ 被正确传递给后端。
+      // \dpi 和 \color 本身是 LaTeX 命令，但是如果我们使用了模板字符串的 \\，在 url 编码之前它就变成了单反斜杠，
+      // 但其实我们需要将 \ 本身也经过 encodeURIComponent 处理（即将 \ 编码为 %5C），
+      // 所以我们直接对完整的 LaTeX 字符串进行 encodeURIComponent 即可。
+      
+      const fullLatexCommand = `\\dpi{100}\\color{black} ${cleanFormula}`
+      const encodedFormula = encodeURIComponent(fullLatexCommand)
+      
+      const src = `https://latex.codecogs.com/png.latex?${encodedFormula}`
+      
+      // 不管是内联还是块级，我们通过 CSS 将其高度与文字对齐，不强制要求其变成 block（因为即使是 $$ 包裹的公式，如果是在段落中间，用户也希望它能与文字和谐共处）
+      const imgTag = `<img src="${src}" style="vertical-align: middle; max-width: 100%; display: inline-block; margin: 0 2px; transform: scale(0.9); transform-origin: center;" />`
+      
+      const placeholder = `@@LATEX_PH_${placeholders.length}@@`
+      // 使用 imgTag 而非直接插入，避免被 marked 的转义和破坏。取消外层的 katex-display-wrapper 以避免强行换行
+      placeholders.push(imgTag)
+      return placeholder
+    } catch (e) {
+      return formula
+    }
+  }
+
+  // 修改：由于原先的正则表达式使用了 `.*?` 懒惰匹配，可能在带有换行或者多段文本时跨行匹配失败。
+  // 我们使用 `[\s\S]*?` 来确保可以匹配跨行的公式
+  content = content.replace(/\$\$([\s\S]*?)\$\$/g, (_, f) => renderMathOnline(f, true))
+  // 其他常规的依然走本地 KaTeX 渲染
+  content = content.replace(/\\\[([\s\S]*?)\\\]/g, (_, f) => renderMath(f, true))
+  content = content.replace(/\$([^\$\n]+?)\$/g, (_, f) => renderMath(f, false))
+  content = content.replace(/\\\(([\s\S]*?)\\\)/g, (_, f) => renderMath(f, false))
 
   // 增加匹配 markdown backtick包裹的公式，因为有时题库会用反引号包裹公式
   content = content.replace(/`([^`]+)`/g, (match, f) => {
@@ -130,7 +157,7 @@ onMounted(() => {
 @import '@/style/katex-fix.scss';
 
 .markdown-render {
-  font-size: 28rpx;
+  font-size: 32rpx; /* 将基础文本字号放大以匹配图片比例 */
   line-height: 1.6;
   color: #1e293b;
   word-break: break-all;
