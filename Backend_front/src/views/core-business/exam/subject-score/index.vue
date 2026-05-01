@@ -102,9 +102,9 @@
           <el-tooltip placement="right" effect="light">
             <template #content>
               <div class="text-xs leading-6 text-gray-600 p-2">
-                <p v-if="importType === 'answerSheet'">1. 请上传 zip / rar 压缩包，支持递归扫描多层文件夹，试卷命名支持“学号_姓名”、“学号”或“姓名”。</p>
+                <p v-if="importType === 'answerSheet'">1. 请上传 zip 压缩包，支持递归扫描多层文件夹，压缩包内仅允许 jpg / jpeg / png，试卷命名支持“学号_姓名”、“学号”或“姓名”。</p>
                 <p v-else>1. 请先<b>下载导入模板</b>，按照模板格式填写考生成绩信息。</p>
-                <p>2. 试卷仅支持 <b>jpg / jpeg / png / pdf</b>，成绩仅支持 <b>xlsx / xls</b>。</p>
+                <p>2. 试卷会在浏览器中自动解压后逐张直传 OSS，成绩仍仅支持 <b>xlsx / xls</b>。</p>
                 <p>3. 若数据已存在，系统将根据规则进行<b>更新</b>。</p>
               </div>
             </template>
@@ -125,7 +125,7 @@
           :on-change="handleFileChange"
           :file-list="fileList"
           :show-file-list="false"
-          :accept="importType === 'answerSheet' ? '.zip,.rar' : '.xlsx, .xls'"
+          :accept="importType === 'answerSheet' ? '.zip' : '.xlsx, .xls'"
         >
           <div v-if="fileList.length === 0" class="upload-empty-content">
             <el-icon class="el-icon--upload"><upload-filled /></el-icon>
@@ -133,7 +133,7 @@
               将文件拖到此处，或<em>点击上传</em>
             </div>
             <div class="el-upload__tip mt-2">
-              {{ importType === 'answerSheet' ? '仅支持 .zip / .rar 压缩包' : '仅支持 .xlsx / .xls 格式文件' }}
+              {{ importType === 'answerSheet' ? '仅支持 .zip 压缩包，包内仅支持 jpg / jpeg / png' : '仅支持 .xlsx / .xls 格式文件' }}
             </div>
           </div>
           
@@ -320,7 +320,6 @@
     fetchProjectScoreList,
     fetchDownloadScoreTemplate,
     fetchImportScore,
-    fetchImportAnswerSheetZip,
     fetchSaveStudentScore,
     fetchUploadStudentAnswerSheet,
     fetchTaskProgress
@@ -332,6 +331,7 @@
     ScoreImportResult
   } from '@/api/core-business/exam/project-editor'
   import { fetchProjectOptions, fetchProjectDetail } from '@/api/core-business/exam/project'
+  import { importExamPaperZipByOss, type ExamPaperImportProgressState } from '@/utils/exam-paper-import-oss'
   const ScoreEditDialog = defineAsyncComponent(() => import('./components/ScoreEditDialog.vue'))
 
   const route = useRoute()
@@ -367,6 +367,7 @@
   const importLoading = ref(false)
   const importType = ref<'answerSheet' | 'score'>('answerSheet')
   const fileList = ref<any[]>([])
+  const importRuntime = ref<{ cancel: () => void } | null>(null)
   const uploadRef = ref<any>()
   const scoreConflictVisible = ref(false)
   const scoreConflictSaving = ref(false)
@@ -473,6 +474,8 @@
   }
 
   function resetImportState() {
+    importRuntime.value?.cancel()
+    importRuntime.value = null
     fileList.value = []
     uploadRef.value?.clearFiles?.()
     taskStatus.value = null
@@ -481,6 +484,19 @@
       clearInterval(pollingTimer.value)
       pollingTimer.value = null
     }
+  }
+
+  function applyLocalImportProgress(progress: ExamPaperImportProgressState) {
+    taskStatus.value = {
+      taskId: 'local-upload',
+      taskName: progress.phase === 'preparing' ? '准备导入试卷' : progress.phase === 'uploading' ? '上传试卷到 OSS' : '提交导入清单',
+      total: Math.max(progress.total, 1),
+      current: Math.min(progress.current, Math.max(progress.total, 1)),
+      status: 'processing',
+      logs: progress.logs,
+      message: progress.message
+    }
+    taskLogs.value = progress.logs || []
   }
 
   async function startPolling(taskId: string) {
@@ -526,9 +542,9 @@
     }
 
     if (importType.value === 'answerSheet') {
-      const isArchive = /\.(zip|rar)$/i.test(file.name || '')
+      const isArchive = /\.zip$/i.test(file.name || '')
       if (!isArchive) {
-        ElMessage.error('试卷批量导入仅支持 zip / rar 压缩包')
+        ElMessage.error('试卷批量导入仅支持 zip 压缩包')
         return
       }
       fileList.value = [{ ...file, status: 'ready' }]
@@ -588,7 +604,10 @@
             }
           } catch (error: any) {
             file.status = 'fail'
-            ElMessage.error(`${file.name} 导入失败: ${error.message || '未知错误'}`)
+            importRuntime.value = null
+            if (error?.message !== 'CANCELLED') {
+              ElMessage.error(`${file.name} 导入失败: ${error.message || '未知错误'}`)
+            }
           }
         }
 
@@ -615,31 +634,29 @@
         }
       } else {
         let importedFileCount = 0
-        let hasPaperWarnings = false
         let hasPollingStarted = false
 
         for (const file of fileList.value) {
           file.status = 'uploading'
           try {
-            const result = await fetchImportAnswerSheetZip({
-              projectId: projectId.value,
-              subjectName: subjectName.value,
-              file: file.raw
-            })
-            
-            if ((result as any).taskId) {
-              startPolling((result as any).taskId)
-              hasPollingStarted = true
-              break
-            }
+            const runtime = importExamPaperZipByOss(
+              file.raw,
+              {
+                projectId: projectId.value,
+                subjectName: subjectName.value
+              },
+              (progress) => {
+                applyLocalImportProgress(progress)
+              }
+            )
+            importRuntime.value = runtime
 
-            file.status = 'success'
-            importedFileCount++
-
-            if (result.errorCount > 0 || result.skipCount > 0) {
-              hasPaperWarnings = true
-              ElMessage.warning(`${file.name}: ${result.summary}`)
-            }
+            const result = await runtime.promise
+            importRuntime.value = null
+            importedFileCount += result.uploadedCount
+            startPolling(result.taskId)
+            hasPollingStarted = true
+            break
           } catch (error: any) {
             file.status = 'fail'
             ElMessage.error(`${file.name} 导入失败: ${error.message || '未知错误'}`)
@@ -649,11 +666,8 @@
         if (hasPollingStarted) return
 
         const allSuccess = fileList.value.every(f => f.status === 'success')
-        if (allSuccess && !hasPaperWarnings) {
+        if (allSuccess) {
           ElMessage.success(importedFileCount > 1 ? '全部试卷导入成功' : '试卷导入成功')
-          importVisible.value = false
-          await loadData()
-        } else if (allSuccess) {
           importVisible.value = false
           await loadData()
         }

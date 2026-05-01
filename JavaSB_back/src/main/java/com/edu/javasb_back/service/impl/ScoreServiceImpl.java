@@ -999,7 +999,7 @@ public class ScoreServiceImpl implements ScoreService {
     }
 
     private Font createUiFont(int size, boolean bold) {
-        return new Font("Microsoft YaHei", bold ? Font.BOLD : Font.PLAIN, size);
+        return new Font("微软雅黑", bold ? Font.BOLD : Font.PLAIN, size);
     }
 
     private int drawWrappedText(

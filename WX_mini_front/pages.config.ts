@@ -182,6 +182,12 @@ export default defineUniPages({
           },
         },
         {
+          path: 'pages/score/ai-report',
+          style: {
+            navigationBarTitleText: 'AI学情报告',
+          },
+        },
+        {
           path: 'pages/paper/index',
           style: {
             navigationBarTitleText: '试卷报告',

@@ -29,19 +29,38 @@ public class CourseVideoDirectUploadService {
     private AliyunOssProperties aliyunOssProperties;
 
     public Map<String, Object> createStsSession(String fileName, String contentType) throws Exception {
-        validateRequest(fileName, contentType);
+        validateVideoRequest(fileName, contentType);
         validateConfig();
 
-        String objectKey = buildObjectKey(fileName);
-        Map<String, String> credentials = assumeRole();
+        String objectKey = buildVideoObjectKey(fileName);
+        Map<String, String> credentials = assumeRole("course-video");
 
+        Map<String, Object> data = buildSessionData(credentials);
+        data.put("objectKey", objectKey);
+        data.put("publicUrl", buildPublicUrl(objectKey));
+        return data;
+    }
+
+    public Map<String, Object> createExamPaperImportSession(String projectId, String subjectName, String batchId) throws Exception {
+        validateExamPaperImportRequest(projectId, subjectName, batchId);
+        validateConfig();
+
+        String objectKeyPrefix = buildExamPaperImportPrefix(projectId, subjectName, batchId);
+        Map<String, String> credentials = assumeRole("exam-paper-import");
+
+        Map<String, Object> data = buildSessionData(credentials);
+        data.put("batchId", batchId);
+        data.put("objectKeyPrefix", objectKeyPrefix);
+        data.put("publicBaseUrl", buildPublicUrl(""));
+        return data;
+    }
+
+    private Map<String, Object> buildSessionData(Map<String, String> credentials) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("bucket", aliyunOssProperties.getBucket());
         data.put("region", aliyunOssProperties.getRegion());
         data.put("endpoint", aliyunOssProperties.getAccelerateEndpointHost());
         data.put("secure", true);
-        data.put("objectKey", objectKey);
-        data.put("publicUrl", buildPublicUrl(objectKey));
         data.put("accessKeyId", credentials.get("accessKeyId"));
         data.put("accessKeySecret", credentials.get("accessKeySecret"));
         data.put("securityToken", credentials.get("securityToken"));
@@ -53,7 +72,7 @@ public class CourseVideoDirectUploadService {
         return data;
     }
 
-    private Map<String, String> assumeRole() throws Exception {
+    private Map<String, String> assumeRole(String scene) throws Exception {
         Config config = new Config()
                 .setAccessKeyId(globalConfigProperties.getOssAccessKeyId())
                 .setAccessKeySecret(globalConfigProperties.getOssAccessKeySecret())
@@ -62,12 +81,12 @@ public class CourseVideoDirectUploadService {
         Client client = new Client(config);
         AssumeRoleRequest request = new AssumeRoleRequest()
                 .setRoleArn(aliyunOssProperties.getStsRoleArn())
-                .setRoleSessionName("course-video-" + UUID.randomUUID().toString().replace("-", ""))
+                .setRoleSessionName(scene + "-" + UUID.randomUUID().toString().replace("-", ""))
                 .setDurationSeconds(Long.valueOf(resolveDurationSeconds()));
 
         AssumeRoleResponse response = client.assumeRole(request);
         if (response.getBody() == null || response.getBody().getCredentials() == null) {
-            throw new IllegalStateException("获取 OSS STS 临时凭证失败");
+            throw new IllegalStateException("鑾峰彇 OSS STS 涓存椂鍑瘉澶辫触");
         }
         Map<String, String> credentials = new LinkedHashMap<>();
         credentials.put("accessKeyId", response.getBody().getCredentials().getAccessKeyId());
@@ -85,17 +104,10 @@ public class CourseVideoDirectUploadService {
         return Math.max(900, Math.min(durationSeconds, 3600));
     }
 
-    private String buildObjectKey(String fileName) {
+    private String buildVideoObjectKey(String fileName) {
         String suffix = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
         String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
-        String sanitizedBaseName = baseName
-                .trim()
-                .replaceAll("[^0-9A-Za-z\\u4e00-\\u9fa5_-]+", "-")
-                .replaceAll("-{2,}", "-")
-                .replaceAll("^-|-$", "");
-        if (!StringUtils.hasText(sanitizedBaseName)) {
-            sanitizedBaseName = "video";
-        }
+        String sanitizedBaseName = sanitizeObjectName(baseName, "video");
 
         LocalDate today = LocalDate.now(ZoneOffset.ofHours(8));
         return "course/video/"
@@ -105,6 +117,16 @@ public class CourseVideoDirectUploadService {
                 + "-"
                 + sanitizedBaseName
                 + suffix;
+    }
+
+    private String buildExamPaperImportPrefix(String projectId, String subjectName, String batchId) {
+        return "papers/exam-import/"
+                + sanitizePathSegment(projectId, "project")
+                + "/"
+                + sanitizePathSegment(subjectName, "subject")
+                + "/"
+                + sanitizePathSegment(batchId, "batch")
+                + "/";
     }
 
     private String buildPublicUrl(String objectKey) {
@@ -119,16 +141,28 @@ public class CourseVideoDirectUploadService {
         return baseUrl + objectKey;
     }
 
-    private void validateRequest(String fileName, String contentType) {
+    private void validateVideoRequest(String fileName, String contentType) {
         if (!StringUtils.hasText(fileName)) {
-            throw new IllegalArgumentException("文件名不能为空");
+            throw new IllegalArgumentException("鏂囦欢鍚嶄笉鑳戒负绌?");
         }
         String lowerFileName = fileName.trim().toLowerCase();
         if (!lowerFileName.endsWith(".mp4")) {
-            throw new IllegalArgumentException("仅支持 MP4 格式");
+            throw new IllegalArgumentException("浠呮敮鎸?MP4 鏍煎紡");
         }
         if (StringUtils.hasText(contentType) && !"video/mp4".equalsIgnoreCase(contentType.trim())) {
-            throw new IllegalArgumentException("仅支持 MP4 视频上传");
+            throw new IllegalArgumentException("浠呮敮鎸?MP4 瑙嗛涓婁紶");
+        }
+    }
+
+    private void validateExamPaperImportRequest(String projectId, String subjectName, String batchId) {
+        if (!StringUtils.hasText(projectId)) {
+            throw new IllegalArgumentException("项目 ID 不能为空");
+        }
+        if (!StringUtils.hasText(subjectName)) {
+            throw new IllegalArgumentException("学科名称不能为空");
+        }
+        if (!StringUtils.hasText(batchId)) {
+            throw new IllegalArgumentException("导入批次不能为空");
         }
     }
 
@@ -156,7 +190,7 @@ public class CourseVideoDirectUploadService {
             missingFields.add("aliyun.oss.sts-role-arn");
         }
         if (!missingFields.isEmpty()) {
-            throw new IllegalStateException("OSS STS 配置不完整，缺少: " + String.join(", ", missingFields));
+            throw new IllegalStateException("OSS STS 閰嶇疆涓嶅畬鏁达紝缂哄皯: " + String.join(", ", missingFields));
         }
     }
 
@@ -201,5 +235,20 @@ public class CourseVideoDirectUploadService {
             return 600_000L;
         }
         return Math.max(60_000L, aliyunOssProperties.getUpload().getTimeoutMillis());
+    }
+
+    private String sanitizePathSegment(String value, String fallback) {
+        String sanitized = sanitizeObjectName(value, fallback).replace('-', '_');
+        return StringUtils.hasText(sanitized) ? sanitized : fallback;
+    }
+
+    private String sanitizeObjectName(String value, String fallback) {
+        String sanitized = StringUtils.hasText(value)
+                ? value.trim()
+                .replaceAll("[^0-9A-Za-z\\u4e00-\\u9fa5_-]+", "-")
+                .replaceAll("-{2,}", "-")
+                .replaceAll("^-|-$", "")
+                : "";
+        return StringUtils.hasText(sanitized) ? sanitized : fallback;
     }
 }

@@ -1,6 +1,8 @@
 package com.edu.javasb_back.service;
 
 import com.edu.javasb_back.common.Result;
+import com.edu.javasb_back.model.dto.ExamPaperImportBatchInitDTO;
+import com.edu.javasb_back.model.dto.ExamPaperImportManifestDTO;
 import com.edu.javasb_back.model.dto.ExamProjectSaveDTO;
 import com.edu.javasb_back.model.dto.PaperLayoutSaveDTO;
 import com.edu.javasb_back.model.dto.PaperOcrAutoCutDTO;
@@ -38,6 +40,9 @@ public interface ExamProjectService {
     Result<Map<String, Object>> importScores(String projectId, String subjectName, org.springframework.web.multipart.MultipartFile file);
     void importScoresAsync(String taskId, String projectId, String subjectName, byte[] excelBytes);
     ResponseEntity<Resource> exportScores(String projectId, String subjectName);
+    Result<Map<String, Object>> initAnswerSheetImportBatch(ExamPaperImportBatchInitDTO dto);
+    Result<Map<String, Object>> importAnswerSheetsByManifest(ExamPaperImportManifestDTO dto);
+    void importAnswerSheetsByManifestAsync(String taskId, ExamPaperImportManifestDTO dto);
     Result<Map<String, Object>> importAnswerSheets(String projectId, String subjectName, org.springframework.web.multipart.MultipartFile file);
     void importAnswerSheetsAsync(String taskId, String projectId, String subjectName, byte[] archiveBytes, String originalFilename);
     Result<String> uploadAnswerSheet(String projectId, String subjectName, String studentNo, org.springframework.web.multipart.MultipartFile file);

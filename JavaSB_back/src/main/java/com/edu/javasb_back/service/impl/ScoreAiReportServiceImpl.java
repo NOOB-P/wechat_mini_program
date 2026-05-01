@@ -418,7 +418,7 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
         }
 
         public void drawTitle(String text, int size, boolean bold) {
-            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN, currentY, contentWidth, new Font("Microsoft YaHei", bold ? Font.BOLD : Font.PLAIN, size), new Color(15, 23, 42), size + 20);
+            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN, currentY, contentWidth, new Font("微软雅黑", bold ? Font.BOLD : Font.PLAIN, size), new Color(15, 23, 42), size + 20);
             currentY += 10;
         }
 
@@ -426,31 +426,31 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
             checkSpace(60);
             currentGraphics.setColor(new Color(37, 99, 235));
             currentGraphics.fillRect(PAGE_MARGIN, currentY, 8, 36);
-            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN + 24, currentY, contentWidth - 24, new Font("Microsoft YaHei", Font.BOLD, 32), new Color(30, 41, 59), 48);
+            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN + 24, currentY, contentWidth - 24, new Font("微软雅黑", Font.BOLD, 32), new Color(30, 41, 59), 48);
             currentY += 20;
         }
 
         public void drawSubTitle(String text) {
             checkSpace(50);
-            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN, currentY, contentWidth, new Font("Microsoft YaHei", Font.BOLD, 28), new Color(51, 65, 85), 40);
+            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN, currentY, contentWidth, new Font("微软雅黑", Font.BOLD, 28), new Color(51, 65, 85), 40);
             currentY += 10;
         }
 
         public void drawText(String text, int size, boolean bold, Color color) {
             if (!StringUtils.hasText(text)) return;
             checkSpace(size + 10);
-            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN, currentY, contentWidth, new Font("Microsoft YaHei", bold ? Font.BOLD : Font.PLAIN, size), color, size + 14);
+            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN, currentY, contentWidth, new Font("微软雅黑", bold ? Font.BOLD : Font.PLAIN, size), color, size + 14);
             currentY += 8;
         }
 
         public void drawLabelText(String label, String text) {
             if (!StringUtils.hasText(text)) return;
             checkSpace(40);
-            currentGraphics.setFont(new Font("Microsoft YaHei", Font.BOLD, 26));
+            currentGraphics.setFont(new Font("微软雅黑", Font.BOLD, 26));
             currentGraphics.setColor(new Color(37, 99, 235));
             currentGraphics.drawString(label + "：", PAGE_MARGIN, currentY + 26);
             int labelWidth = currentGraphics.getFontMetrics().stringWidth(label + "：");
-            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN + labelWidth, currentY, contentWidth - labelWidth, new Font("Microsoft YaHei", Font.PLAIN, 26), new Color(71, 85, 105), 40);
+            currentY = drawWrappedText(currentGraphics, text, PAGE_MARGIN + labelWidth, currentY, contentWidth - labelWidth, new Font("微软雅黑", Font.PLAIN, 26), new Color(71, 85, 105), 40);
             currentY += 5;
         }
 
@@ -460,7 +460,7 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
                 checkSpace(40);
                 currentGraphics.setColor(color);
                 currentGraphics.fillOval(PAGE_MARGIN + 10, currentY + 15, 8, 8);
-                currentY = drawWrappedText(currentGraphics, item, PAGE_MARGIN + 35, currentY, contentWidth - 35, new Font("Microsoft YaHei", Font.PLAIN, 26), new Color(71, 85, 105), 40);
+                currentY = drawWrappedText(currentGraphics, item, PAGE_MARGIN + 35, currentY, contentWidth - 35, new Font("微软雅黑", Font.PLAIN, 26), new Color(71, 85, 105), 40);
                 currentY += 5;
             }
             currentY += 10;
@@ -471,11 +471,11 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
             for (int index = 0; index < items.size(); index++) {
                 String prefix = (index + 1) + ". ";
                 checkSpace(40);
-                currentGraphics.setFont(new Font("Microsoft YaHei", Font.BOLD, 26));
+                currentGraphics.setFont(new Font("微软雅黑", Font.BOLD, 26));
                 currentGraphics.setColor(color);
                 currentGraphics.drawString(prefix, PAGE_MARGIN, currentY + 26);
                 int prefixWidth = currentGraphics.getFontMetrics().stringWidth(prefix);
-                currentY = drawWrappedText(currentGraphics, items.get(index), PAGE_MARGIN + prefixWidth + 8, currentY, contentWidth - prefixWidth - 8, new Font("Microsoft YaHei", Font.PLAIN, 26), new Color(71, 85, 105), 40);
+                currentY = drawWrappedText(currentGraphics, items.get(index), PAGE_MARGIN + prefixWidth + 8, currentY, contentWidth - prefixWidth - 8, new Font("微软雅黑", Font.PLAIN, 26), new Color(71, 85, 105), 40);
                 currentY += 5;
             }
             currentY += 10;
@@ -614,7 +614,7 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
             currentGraphics.fillRect(x, y, width, height);
             currentGraphics.setColor(new Color(203, 213, 225));
             currentGraphics.drawRect(x, y, width, height);
-            currentGraphics.setFont(new Font("Microsoft YaHei", header ? Font.BOLD : Font.PLAIN, 22));
+            currentGraphics.setFont(new Font("微软雅黑", header ? Font.BOLD : Font.PLAIN, 22));
             currentGraphics.setColor(new Color(30, 41, 59));
             currentGraphics.drawString(text, x + 12, y + 32);
         }
@@ -1246,7 +1246,7 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
             g.drawLine(left, height - bottom, width - right, height - bottom);
             g.drawLine(left, top, left, height - bottom);
 
-            Font font = new Font("Microsoft YaHei", Font.PLAIN, 16);
+            Font font = new Font("微软雅黑", Font.PLAIN, 16);
             g.setFont(font);
             double maxRate = 100D;
             int chartWidth = width - left - right;

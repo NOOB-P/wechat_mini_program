@@ -84,6 +84,34 @@ export interface BatchImportResult {
   logs: string[]
 }
 
+export interface ExamPaperImportBatchSession {
+  projectId: string
+  subjectName: string
+  batchId: string
+  bucket: string
+  region: string
+  endpoint: string
+  secure: boolean
+  accessKeyId: string
+  accessKeySecret: string
+  securityToken: string
+  expiration: string
+  partSize: number
+  parallel: number
+  retryMax: number
+  timeoutMillis: number
+  objectKeyPrefix: string
+  publicBaseUrl: string
+}
+
+export interface ExamPaperImportManifestFile {
+  entryPath: string
+  originalFileName: string
+  objectKey: string
+  url: string
+  size: number
+}
+
 export interface PaperRegionItem {
   id: string
   questionNo: string
@@ -308,6 +336,30 @@ export function fetchImportAnswerSheetZip(params: {
 /**
  * 获取任务进度
  */
+export function fetchInitAnswerSheetImportBatch(params: {
+  projectId: string
+  subjectName: string
+}) {
+  return api.post<ExamPaperImportBatchSession>({
+    url: '/api/system/exam-project/papers/import/init',
+    data: params,
+    showSuccessMessage: false
+  })
+}
+
+export function fetchImportAnswerSheetManifest(params: {
+  projectId: string
+  subjectName: string
+  batchId: string
+  files: ExamPaperImportManifestFile[]
+}) {
+  return api.post<{ taskId: string }>({
+    url: '/api/system/exam-project/papers/import/manifest',
+    data: params,
+    showSuccessMessage: false
+  })
+}
+
 export function fetchTaskProgress(taskId: string) {
   return api.get<any>({
     url: `/api/system/task/progress/${taskId}`
