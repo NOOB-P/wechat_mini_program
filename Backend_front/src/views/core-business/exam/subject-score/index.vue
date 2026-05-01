@@ -150,8 +150,8 @@
                     <el-tag v-if="row.status === 'ready'" type="info" size="small" class="status-tag-mini">等待中</el-tag>
                     <el-tag v-else-if="row.status === 'success'" type="success" size="small" class="status-tag-mini tag-success-simple">已导入</el-tag>
                     <el-tag v-else-if="row.status === 'fail'" type="danger" size="small" class="status-tag-mini">失败</el-tag>
-                    <el-tag v-else type="primary" size="small" class="status-tag-mini rotating">
-                      <el-icon><loading-icon /></el-icon>
+                    <el-tag v-else type="primary" size="small" class="status-tag-mini">
+                      <el-icon class="is-loading"><loading-icon /></el-icon>
                     </el-tag>
                   </div>
                 </template>

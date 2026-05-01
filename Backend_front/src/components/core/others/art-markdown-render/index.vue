@@ -63,7 +63,8 @@
           displayMode,
           throwOnError: false,
           trust: true,
-          strict: false
+          strict: false,
+          output: 'html'
         })
 
         const placeholder = `@@LATEX_PH_${placeholders.length}@@`

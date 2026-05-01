@@ -107,12 +107,29 @@ public class ScoreAiReportServiceImpl implements ScoreAiReportService {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private com.edu.javasb_back.repository.SysAccountRepository sysAccountRepository;
+
     @Override
     @Transactional
     public Result<Map<String, Object>> getExamAiReport(Long uid, String examId, boolean refresh) {
         if (uid == null) {
             return Result.error("请先登录");
         }
+        
+        Optional<com.edu.javasb_back.model.entity.SysAccount> accountOpt = sysAccountRepository.findById(uid);
+        if (accountOpt.isEmpty()) {
+            return Result.error("用户不存在");
+        }
+        
+        com.edu.javasb_back.model.entity.SysAccount account = accountOpt.get();
+        com.edu.javasb_back.utils.VipTypeUtils.normalizeAccountVipType(account);
+        sysAccountRepository.save(account);
+
+        if (!com.edu.javasb_back.utils.VipTypeUtils.isVip(account.getVipType()) && !com.edu.javasb_back.utils.VipTypeUtils.isSvip(account.getVipType())) {
+            return Result.error(403, "此功能为 VIP/SVIP 专属，请先升级会员");
+        }
+
         if (!StringUtils.hasText(examId)) {
             return Result.error("考试项目ID不能为空");
         }

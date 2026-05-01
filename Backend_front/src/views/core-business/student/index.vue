@@ -191,8 +191,8 @@
                       </el-tooltip>
                       <span v-else>失败</span>
                     </el-tag>
-                    <el-tag v-else type="primary" size="small" class="status-tag-mini rotating">
-                      <el-icon><loading-icon /></el-icon>
+                    <el-tag v-else type="primary" size="small" class="status-tag-mini">
+                      <el-icon class="is-loading"><loading-icon /></el-icon>
                     </el-tag>
                   </div>
                 </template>
